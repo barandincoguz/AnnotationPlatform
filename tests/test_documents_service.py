@@ -1,6 +1,5 @@
 import json
 import pytest
-from pathlib import Path
 from backend.shared.db import connect
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
