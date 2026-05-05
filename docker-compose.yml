@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - anotasyon_data:/data
+    environment:
+      - DATA_DIR=/data
+      - SESSION_SECRET=${SESSION_SECRET:-dev-secret-change-me}
+      - SESSION_COOKIE_NAME=anotasyon_session
+      - BACKUP_REPO_URL=${BACKUP_REPO_URL:-}
+      - GITHUB_PAT=${GITHUB_PAT:-}
+      - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
+    restart: unless-stopped
+
+volumes:
+  anotasyon_data:
