@@ -1,6 +1,3 @@
-import pytest
-
-
 def _bootstrap_admin(client, username="root", password="rootpass1"):
     """Register a user and promote to admin via direct DB write (simulating CLI)."""
     from backend.shared.db import connect
