@@ -100,3 +100,50 @@ def get_annotation_with_chain(
         if row is None:
             raise HTTPException(status_code=404, detail=f"document {document_id} not found")
     return {"annotation": ann, "chain": chain}
+
+
+from pydantic import BaseModel as _BaseModel
+from backend.annotations import drafts as drafts_service
+
+
+class _DraftPutRequest(_BaseModel):
+    references: list[dict]  # raw — frontend may send incomplete rows
+
+
+@router.put("/drafts/{document_id}", response_model=OkResponse)
+def put_draft(
+    document_id: str,
+    payload: _DraftPutRequest,
+    db: sqlite3.Connection = Depends(get_db),
+    user: sqlite3.Row = Depends(require_passed_training),
+):
+    try:
+        drafts_service.set_draft(
+            db, document_id=document_id, user_id=user["id"],
+            references=payload.references,
+        )
+    except drafts_service.DocumentNotFound:
+        raise HTTPException(status_code=404, detail=f"document {document_id} not found")
+    return {"ok": True}
+
+
+@router.get("/drafts/{document_id}")
+def get_draft(
+    document_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+    user: sqlite3.Row = Depends(require_passed_training),
+):
+    out = drafts_service.get_draft(db, document_id=document_id, user_id=user["id"])
+    if out is None:
+        raise HTTPException(status_code=404, detail="no draft")
+    return out
+
+
+@router.delete("/drafts/{document_id}", response_model=OkResponse)
+def delete_draft(
+    document_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+    user: sqlite3.Row = Depends(require_passed_training),
+):
+    drafts_service.clear_draft(db, document_id=document_id, user_id=user["id"])
+    return {"ok": True}
