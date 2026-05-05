@@ -61,7 +61,7 @@ Bursiyer ekibinin Türkçe vergi/idari özelgelerinden 3 soru çıkararak yapıl
         └────────────────────────┘
 ```
 
-**Frontend:** Vanilla HTML + Alpine.js + Tailwind (CDN, no build step) — mevcut araçtan devralınır
+**Frontend:** **React 18 + Vite + TypeScript + Tailwind CSS + shadcn/ui** (build edilen SPA, FastAPI'nin static mount'undan servis edilir). Detayları aşağıdaki "Frontend Architecture" bölümünde.
 **Auth:** Session cookie (HttpOnly, SameSite=Lax) + bcrypt password hash
 **Live updates:** SSE (Server-Sent Events) — tek-yön, basit, ihtiyaca yeter
 
@@ -87,6 +87,226 @@ Bursiyer ekibinin Türkçe vergi/idari özelgelerinden 3 soru çıkararak yapıl
 | Backup | Her 10-15dk: lokal + GitHub private repo | Çift-katman, deployment-agnostic |
 | Restore | Manuel CLI (`python -m backend.cli restore-from-github`) | Production'da güvenli |
 | First-time UX | Login → kılavuz görme zorunlu (`has_seen_manual=False` ise redirect) | Bursiyer hazırlığı |
+| Frontend stack | React 18 + Vite + TypeScript + Tailwind + shadcn/ui | Bursiyer ekosistemi tanıdık, type safety, hazır component'ler, virtual scroll, SSE hook'ları |
+
+---
+
+## Frontend Architecture
+
+### Tech Stack
+
+| Kütüphane | Sürüm | Amaç |
+|---|---|---|
+| React | 18 | UI framework |
+| Vite | 5 | Build tool, HMR, dev server |
+| TypeScript | 5 | Type safety |
+| Tailwind CSS | 3 | Utility-first CSS |
+| shadcn/ui | latest | Radix tabanlı copy-paste component primitives |
+| React Router | 6 | Client-side routing |
+| TanStack Query | 5 | Server state, cache, request deduplication |
+| Zustand | 4 | Hafif client state (auth, UI) |
+| react-hook-form + zod | 7+3 | Form validation (login, register, training quiz) |
+| @tanstack/react-virtual | 3 | 18K dokümanlık liste virtual scroll |
+| sonner | latest | Toast notifications (shadcn ile entegre) |
+| openapi-typescript | latest | FastAPI OpenAPI'den TS tip üretimi |
+| date-fns | latest | TR locale tarih formatlama |
+| lucide-react | latest | Icon set (shadcn uyumlu) |
+
+**Seçim mantığı:** Zustand orta yol (Redux overkill, Context yetmez); TanStack Query SSE ile uyumlu cache invalidation; shadcn/ui copy-paste ile özelleştirilebilir; react-virtual 18K liste için battle-tested; tek form lib (react-hook-form + zod) tüm formlar için.
+
+### Folder Structure
+
+```
+frontend/
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── tailwind.config.ts
+├── postcss.config.js
+├── components.json              # shadcn/ui config
+├── index.html
+└── src/
+    ├── main.tsx                 # React + Router entry
+    ├── App.tsx                  # Route tree, providers (QueryClient, Auth, Toast)
+    │
+    ├── routes/
+    │   ├── Login.tsx
+    │   ├── Register.tsx
+    │   ├── Help.tsx             # /help (manual gate destination)
+    │   ├── Training.tsx         # /training quiz + 3 gold doc
+    │   ├── Annotate.tsx         # / ana ekran (3 sekme)
+    │   ├── Profile.tsx          # /me XP, streak, rozetler
+    │   └── admin/
+    │       ├── AdminLayout.tsx
+    │       ├── Users.tsx
+    │       ├── AuditLog.tsx
+    │       ├── Settings.tsx
+    │       └── Locks.tsx
+    │
+    ├── components/
+    │   ├── ui/                  # shadcn primitives (button, dialog, sheet, ...)
+    │   ├── annotation/
+    │   │   ├── DocList.tsx              # virtual scroll sol kolon
+    │   │   ├── DocViewer.tsx            # orta okuma alanı
+    │   │   ├── QuestionPanel.tsx        # sağ 3 textarea + Sakla/Atla
+    │   │   ├── AttributionLabel.tsx     # "Ahmet · 2 saat önce"
+    │   │   └── LockBadge.tsx            # 🔒 + tooltip
+    │   ├── topbar/
+    │   │   ├── TopBar.tsx
+    │   │   ├── XpBadge.tsx
+    │   │   ├── StreakCounter.tsx
+    │   │   ├── DailyProgress.tsx
+    │   │   └── OnlineUsers.tsx          # avatar listesi
+    │   ├── modals/
+    │   │   ├── LockConflictModal.tsx
+    │   │   ├── BadgeUnlockedToast.tsx
+    │   │   └── SpeedWarningToast.tsx
+    │   └── ManualGate.tsx               # has_seen_manual=false redirector
+    │
+    ├── hooks/
+    │   ├── useAuth.ts                   # session, current user
+    │   ├── useSSE.ts                    # event stream subscription
+    │   ├── useDoc.ts                    # document fetch + cache invalidation
+    │   ├── useDraft.ts                  # debounced auto-save (2sn)
+    │   ├── useLock.ts                   # heartbeat + release lifecycle
+    │   ├── useShortcuts.ts              # Ctrl+Enter, Ctrl+K, vs.
+    │   └── useGamification.ts           # XP, streak, rozetler
+    │
+    ├── api/
+    │   ├── client.ts                    # fetch wrapper, error handling
+    │   ├── types.ts                     # openapi-typescript çıktısı (otomatik)
+    │   └── endpoints/
+    │       ├── auth.ts
+    │       ├── docs.ts
+    │       ├── annotations.ts
+    │       ├── locks.ts
+    │       ├── training.ts
+    │       └── admin.ts
+    │
+    ├── stores/                          # Zustand
+    │   ├── authStore.ts
+    │   └── uiStore.ts                   # tab seçimi, modal state
+    │
+    ├── lib/
+    │   ├── utils.ts                     # shadcn cn() helper
+    │   ├── formatters.ts                # tarih, sayı (TR locale)
+    │   └── shortcuts.ts                 # klavye kısayolu kayıt sistemi
+    │
+    └── styles/
+        └── globals.css                  # Tailwind directives + shadcn vars
+```
+
+### Routing & Gates
+
+```tsx
+// App.tsx
+<Routes>
+  <Route path="/login" element={<Login />} />
+  <Route path="/register" element={<Register />} />
+  <Route element={<RequireAuth />}>
+    <Route element={<RequireSeenManual />}>
+      <Route element={<RequirePassedTraining />}>
+        <Route path="/" element={<Annotate />} />
+        <Route path="/me" element={<Profile />} />
+      </Route>
+      <Route path="/training" element={<Training />} />
+    </Route>
+    <Route path="/help" element={<Help />} />
+    <Route path="/admin/*" element={<RequireAdmin><AdminLayout/></RequireAdmin>} />
+  </Route>
+</Routes>
+```
+
+Wrapper'lar:
+- `RequireAuth`: session yoksa `/login`'e
+- `RequireSeenManual`: `has_seen_manual=false` ise `/help?first_time=true`
+- `RequirePassedTraining`: `has_passed_training=false` ise `/training`
+- `RequireAdmin`: admin değilse 404
+
+### SSE Integration Pattern
+
+```ts
+// hooks/useSSE.ts
+function useSSE() {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    const es = new EventSource('/api/events')
+    es.addEventListener('lock_acquired', () => {
+      queryClient.invalidateQueries({ queryKey: ['locks'] })
+    })
+    es.addEventListener('badge_unlocked', (e) => {
+      const data = JSON.parse(e.data)
+      toast.success(`Yeni rozet: ${data.name}`)
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    })
+    es.addEventListener('speed_warning', (e) => {
+      toast.warning(JSON.parse(e.data).message)
+    })
+    es.addEventListener('presence', (e) => {
+      queryClient.setQueryData(['presence'], JSON.parse(e.data))
+    })
+    return () => es.close()
+  }, [])
+}
+```
+
+### Auto-Save Pattern
+
+```ts
+// hooks/useDraft.ts
+function useDraft(docId: string, questions: [string, string, string]) {
+  const debounced = useDebouncedValue(questions, 2000)
+  useEffect(() => {
+    if (!docId) return
+    putDraft(docId, debounced)
+  }, [debounced, docId])
+}
+```
+
+### Lock Heartbeat Pattern
+
+```ts
+// hooks/useLock.ts
+function useLock(docId: string, isFocused: boolean) {
+  // mount → POST /api/locks/{docId}/acquire
+  // every 30s while isFocused → POST /api/locks/{docId}/heartbeat
+  // unmount or save/skip → POST /api/locks/{docId}/release
+  // 409 ise modal aç (LockConflictModal)
+}
+```
+
+### Type Generation (Backend → Frontend)
+
+`/api/openapi.json`'dan otomatik tip:
+```json
+"scripts": {
+  "gen:types": "openapi-typescript http://localhost:8000/openapi.json -o src/api/types.ts"
+}
+```
+
+Backend Pydantic modelleri değişince `npm run gen:types` ile frontend tipleri senkronize. CI'da bir adım olarak da koşturulabilir.
+
+### Vite Config (Dev Proxy)
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': 'http://localhost:8000',
+    },
+  },
+  build: {
+    outDir: '../backend/static',
+    emptyOutDir: true,
+  },
+})
+```
+
+- **Dev:** Vite 5173 + FastAPI 8000, proxy ile tek origin gibi davranır
+- **Prod:** `npm run build` → `backend/static/`, FastAPI tek port'tan SPA + API serve eder
 
 ---
 
@@ -423,11 +643,20 @@ GET    /api/admin/training/{user_id}/reset
 
 GET    /api/export?format=csv|jsonl
 
-# Static
-GET    /                                  (frontend SPA)
-GET    /help                              (frontend help page)
-GET    /admin                             (frontend admin panel)
+# Static (Vite build çıktısı, backend/static/'den serve)
+GET    /                                  → SPA index.html (React Router devralır)
+GET    /login,/register,/help,/training,/me,/admin/...  → SPA index.html (client-side routing)
+GET    /assets/*                          → Vite-bundled JS/CSS/images
 ```
+
+`backend/main.py` (Paket 16'da eklenir, en sonda — `/api/*` route'ları öncelikli):
+```python
+from fastapi.staticfiles import StaticFiles
+if config.STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True), name="spa")
+```
+- `config.STATIC_DIR = backend/static` (Vite `outDir`)
+- `html=True` SPA fallback için (her path → index.html, React Router devralır)
 
 ---
 
@@ -625,19 +854,45 @@ Markdown bazlı, dokuz bölüm:
 
 ## Deployment
 
-### Docker
+### Docker (Multi-Stage Build)
 
-`Dockerfile`:
-- Base: `python:3.11-slim`
-- WORKDIR: `/app`
-- Volume: `/data`
-- Healthcheck: `GET /api/health`
-- ENV: `BACKUP_REPO_URL`, `GITHUB_PAT`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_USERNAME`
+`Dockerfile` iki aşamalı: önce frontend Vite build, sonra backend imajına kopya.
+
+```dockerfile
+# ====== Stage 1: Frontend build ======
+FROM node:20-slim AS frontend-build
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build  # outputs to ../backend/static via vite.config outDir
+
+# ====== Stage 2: Backend ======
+FROM python:3.11-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt pyproject.toml ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+COPY backend/ ./backend/
+COPY --from=frontend-build /app/backend/static/ ./backend/static/
+RUN pip install --no-cache-dir -e .
+VOLUME ["/data"]
+ENV DATA_DIR=/data
+EXPOSE 8000
+CMD ["sh", "-c", "python -m backend.cli migrate && uvicorn backend.main:app --host 0.0.0.0 --port 8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health').read()" || exit 1
+```
+
+Dev (lokal): `frontend/` ve `backend/` ayrı çalışır (Vite 5173 + uvicorn 8000, Vite proxy ile birleşir). Prod: tek konteyner.
 
 `docker-compose.yml`:
 - Service: `app`
 - Named volume: `anotasyon_data:/data`
 - Port: `8000:8000`
+- ENV: `BACKUP_REPO_URL`, `GITHUB_PAT`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_USERNAME`
 
 ### HF Spaces (opsiyon, persistent disk değilse)
 
@@ -738,7 +993,7 @@ Spec onaylanınca writing-plans skill'i ile detaylı plan üretilecek. Sıra:
 | 13 | **Retention & Archival** | 12 |
 | 14 | **Export (CSV/JSONL)** | 5 |
 | 15 | **Dockerization + Healthcheck** | hepsi |
-| 16 | **Frontend Refactor (3-sekme, üst bar, modallar, gamification widgets)** | 5-9 |
+| 16 | **Frontend SPA Build** — React 18 + Vite + TS + Tailwind + shadcn/ui ile tüm UI: Login/Register, Help (manual gate), Training quiz + 3 gold-doc annotation, ana Annotate ekranı (3-sekmeli sol liste virtual-scroll, orta DocViewer, sağ QuestionPanel auto-save), TopBar (XP/streak/günlük progress/online avatarlar), modaller (LockConflict, BadgeUnlocked, SpeedWarning toast'ları), Notifications, Profile, Admin panel (Users, AuditLog, Settings, Locks). `useSSE`/`useDraft`/`useLock`/`useShortcuts` hook'ları. `openapi-typescript` ile backend tip senkronizasyonu. Vite multi-stage Docker build. | 5-9, 11 |
 | 17 | **End-to-End Test (multi-user simulation, lock contention, backup/restore drill)** | hepsi |
 
 Paket başına bir implementation plan dokümanı yazılır, subagent-driven development ile yürütülür.
