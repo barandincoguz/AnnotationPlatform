@@ -18,6 +18,7 @@ from backend.migrations.runner import apply_migrations
 from backend.users.routes import router as users_router
 from backend.docs_help.routes import router as help_router
 from backend.documents.routes import router as documents_router
+from backend.annotations.routes import router as annotations_router
 
 VERSION = "0.1.0"
 
@@ -48,6 +49,7 @@ app = FastAPI(title="Anotasyon Platform", version=VERSION, lifespan=lifespan)
 app.include_router(users_router)
 app.include_router(help_router)
 app.include_router(documents_router)
+app.include_router(annotations_router)
 
 
 @app.get("/api/health")
