@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.users.deps import get_current_user, get_db
 from backend.documents import service
 from backend.documents.models import (
-    DocumentSummary, DocumentDetail, DocumentsListResponse,
+    DocumentDetail, DocumentsListResponse,
 )
 
 router = APIRouter(prefix="/api", tags=["documents"])
