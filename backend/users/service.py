@@ -7,7 +7,8 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
-from backend.shared import auth, audit
+from backend.shared import auth
+# audit imported lazily inside admin functions (Task 7)
 
 
 # === Exception types ===

@@ -69,7 +69,7 @@ def test_register_duplicate_email_raises(db):
                          invite_code="BURSIYER-2026", email="shared@x.com")
 
 
-def test_register_avatar_color_deterministic_from_username(db):
+def test_register_avatar_color_deterministic_from_username():
     """Same username → same color across calls."""
     color1 = service._avatar_color_for("alice")
     color2 = service._avatar_color_for("alice")
