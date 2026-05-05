@@ -308,6 +308,7 @@ def set_complete(
                 "UPDATE annotations SET is_completed=0, completed_by_user_id=NULL, updated_at=? WHERE document_id=?",
                 (now, document_id),
             )
+        _release_caller_lock(db, document_id, user_id)
         audit.log_activity(
             db, user_id, action, document_id=document_id,
         )

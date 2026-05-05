@@ -256,3 +256,37 @@ def test_complete_toggle_uncomplete(db):
 def test_complete_requires_existing_annotation(db):
     with pytest.raises(ann_service.AnnotationNotFound):
         ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+
+
+def test_complete_toggle_idempotent_no_op(db):
+    """Calling set_complete with the same target state twice writes only one version."""
+    ann_service.save_annotation(db, document_id="doc_1", user_id=1, references=[])
+    ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+    result = ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+    assert result == {"is_completed": True}
+
+    # Only ONE 'complete_mark' version row across the two calls
+    versions = db.execute(
+        "SELECT * FROM annotation_versions WHERE document_id=? AND action=?",
+        ("doc_1", "complete_mark"),
+    ).fetchall()
+    assert len(versions) == 1
+
+
+def test_complete_releases_callers_lock(db):
+    """Marking a doc complete should release the caller's lock (terminal action)."""
+    from datetime import datetime, timezone, timedelta
+    ann_service.save_annotation(db, document_id="doc_1", user_id=1, references=[])
+    # acquire a lock manually for user 1
+    now = datetime.now(timezone.utc).isoformat()
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+    db.execute(
+        "INSERT INTO document_locks(document_id, user_id, acquired_at, last_heartbeat, expires_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("doc_1", 1, now, now, expires),
+    )
+
+    ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+
+    row = db.execute("SELECT * FROM document_locks WHERE document_id=?", ("doc_1",)).fetchone()
+    assert row is None
