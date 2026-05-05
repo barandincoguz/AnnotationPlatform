@@ -126,12 +126,36 @@ def cmd_rotate_invite(args) -> int:
     return cmd_create_invite(args)  # same logic
 
 
+def cmd_ingest(args) -> int:
+    from pathlib import Path
+    from backend.documents import service
+
+    config.ensure_dirs()
+    target = Path(args.path)
+    if not target.exists():
+        print(f"ERROR: path does not exist: {target}", file=sys.stderr)
+        return 2
+
+    conn = connect(config.DB_PATH)
+    try:
+        apply_migrations(conn, discover_migrations())
+        if target.is_dir():
+            count = service.ingest_directory(conn, target)
+        else:
+            count = service.ingest_file(conn, target)
+    finally:
+        conn.close()
+    print(f"Ingested {count} document(s).")
+    return 0
+
+
 COMMANDS = {
     "migrate": cmd_migrate,
     "promote-admin": cmd_promote_admin,
     "demote-admin": cmd_demote_admin,
     "create-invite": cmd_create_invite,
     "rotate-invite": cmd_rotate_invite,
+    "ingest": cmd_ingest,
 }
 
 
@@ -151,6 +175,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_rotate = sub.add_parser("rotate-invite", help="Rotate active invite code")
     p_rotate.add_argument("code")
+
+    p_ingest = sub.add_parser("ingest", help="Ingest JSON file or directory")
+    p_ingest.add_argument("path", help="JSON file or directory containing *.json files")
 
     args = parser.parse_args(argv)
     handler = COMMANDS.get(args.command)
