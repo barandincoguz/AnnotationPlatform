@@ -39,8 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     handler = COMMANDS.get(args.command)
     if handler is None:
-        parser.error(f"unknown command: {args.command}")
-        return 2
+        parser.error(f"unknown command: {args.command}")  # raises SystemExit(2)
     return handler(args)
 
 
