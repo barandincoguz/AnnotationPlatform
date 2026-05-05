@@ -652,14 +652,68 @@ Markdown bazlı, dokuz bölüm:
 
 ---
 
-## Open Questions / Assumptions
+## Resolved Decisions (önceki Open Questions)
 
-1. **Davet kodu mekaniği:** kullanıcı kayıt olduktan sonra kod hâlâ aktif kalır (birden fazla bursiyer aynı kodla). Admin "rotate" derse eski kod invalidate olur. Doğru mu?
-2. **Admin demote edilirse** kendi var olan annotation'ları korunur (attribution kaybolmaz). Doğru mu?
-3. **`avatar_color`** register sırasında otomatik hash'lenmiş bir renk atanır (kullanıcı değiştiremez). Tamam mı?
-4. **GitHub PAT scope:** sadece `repo` (private repo write). Tamam mı?
-5. **Training gold doc'ları:** kod tabanında statik mi (versionlu), DB'de seed mi (admin değiştirebilir)? → Önerim: **DB'de seed**, admin paneliyle değiştirilebilir.
-6. **Eski tek-kullanıcılı `data/annotations.db`:** bursiyere geçiş öncesi içeriği var mı? Migration gerekirse plan'a eklenir.
+1. **Davet kodu:** Aktifken birden fazla bursiyer aynı kodla kayıt olur. Admin "rotate" → eski kod `is_active=0`, yeni kod `is_active=1`. Eski kullanıcılar etkilenmez.
+2. **Admin demote:** Demote edilenin role'ü `'user'` olur, ama tüm annotation'ları, audit log girişleri, attribution **olduğu gibi korunur**. Demote edilmiş eski admin kullanıcı olarak çalışmaya devam eder.
+3. **Avatar color:** Register sırasında `username` SHA hash'inden 12-renkli paletten otomatik seçim. Kullanıcı değiştiremez. Sadece admin manuel değiştirebilir (çakışma vs.).
+4. **GitHub PAT:** **Fine-grained PAT** kullanılır — sadece `anotasyon-backup` repo'suna `Contents: write` izni. Klasik PAT'tan daha az yetkili (least privilege). HF Spaces secrets / Docker env'de tutulur.
+5. **Training gold docs (HİBRİT):**
+   - **Kod tabanında baseline** — `backend/training/gold_docs.py` initial seed listesi (her zaman var, version control'lü)
+   - **DB'de override** — yeni 19. tablo `training_gold_doc_overrides`
+   - **Resolution:** runtime'da DB row varsa onu kullan, yoksa code baseline'dan oku
+   - Admin UI: code entry'yi düzenle → DB override yaratır; sil → DB'de `is_deleted=true`; ekle → custom DB row; "Reset to code" → DB row sil
+   - Avantaj: kod baseline güncellenebilir + admin esnekliği bozmaz
+6. **Migration:** **Yok.** Temiz başlangıç. Eski tek-kullanıcılı `data/annotations.db` zaten temizlendi. Yeni sistem sıfırdan kurulacak. (Migration script'i v2'de gerekirse eklenebilir.)
+
+### Yeni 19. Tablo (Q5 hibrit modeli için)
+
+```sql
+-- 19. training_gold_doc_overrides
+CREATE TABLE training_gold_doc_overrides (
+    gold_id         TEXT PRIMARY KEY,         -- code baseline'daki ID veya custom yeni ID
+    is_deleted      INTEGER NOT NULL DEFAULT 0,
+    content         TEXT,                     -- null ise code'dakini kullan
+    expected_concepts TEXT,                   -- JSON array, null ise code'dakini kullan
+    min_concept_count INTEGER,                -- null ise code'dakini kullan
+    source          TEXT NOT NULL CHECK(source IN ('override','custom')),
+    created_by_admin_id INTEGER REFERENCES users(id),
+    created_at      TIMESTAMP NOT NULL,
+    updated_at      TIMESTAMP NOT NULL
+);
+```
+
+**Resolution mantığı (`backend/training/service.py`):**
+```python
+def get_active_gold_docs() -> list[GoldDoc]:
+    code_baseline = load_code_gold_docs()  # backend/training/gold_docs.py
+    overrides = db.fetch_all_overrides()   # dict[gold_id, override_row]
+
+    out = []
+    seen_ids = set()
+    for code in code_baseline:
+        ov = overrides.get(code.id)
+        if ov and ov.is_deleted:
+            continue  # admin sildi
+        if ov:
+            out.append(GoldDoc(
+                id=code.id,
+                content=ov.content or code.content,
+                concepts=ov.expected_concepts or code.expected_concepts,
+                min_count=ov.min_concept_count or code.min_concept_count,
+            ))
+            seen_ids.add(code.id)
+        else:
+            out.append(code)
+            seen_ids.add(code.id)
+    # Custom (DB-only) entries
+    for ov in overrides.values():
+        if ov.source == 'custom' and not ov.is_deleted and ov.gold_id not in seen_ids:
+            out.append(GoldDoc(id=ov.gold_id, content=ov.content,
+                               concepts=ov.expected_concepts,
+                               min_count=ov.min_concept_count))
+    return out
+```
 
 ---
 
