@@ -1,4 +1,8 @@
-"""Initial schema: 19 tables across 4 domains + default site_settings seed."""
+"""Initial schema: 22 tables across 4 domains + default site_settings seed.
+
+Annotation model is reference extraction (not 3-question).
+Each annotation = list of {kanun_no, kanun_ad, madde, fikra, bent, source_text}.
+"""
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -6,7 +10,7 @@ from datetime import datetime, timezone
 
 SCHEMA_SQL = """
 -- ============================================================
--- A. CORE — data of record (8 tables)
+-- A. CORE — data of record (11 tables)
 -- ============================================================
 
 CREATE TABLE users (
@@ -43,26 +47,49 @@ CREATE TABLE site_settings (
     updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- documents_meta: JSON-derived fields from raw özelge JSON + computed metadata.
+-- Source JSON example: { "evrakOid": "1hmkqodt0v1d55", "sayi": 24, "tarih": "20260123",
+--   "konu": "...", "vergiTuru": "0001", "pdfText": "...", "kanunBilgileri": [...] }
 CREATE TABLE documents_meta (
-    document_id     TEXT PRIMARY KEY,
-    file_path       TEXT NOT NULL,
+    document_id     TEXT PRIMARY KEY,                  -- evrakOid
+    file_path       TEXT NOT NULL,                     -- source JSON file path
+
+    -- JSON-derived (from raw özelge JSON)
+    sayi            INTEGER,                           -- özelge sayı (e.g. 24)
+    tarih           TEXT,                              -- "20260123" YYYYMMDD format
+    basvuru_tarihi  TEXT,                              -- "20250604" YYYYMMDD
+    vergi_donemi    TEXT,                              -- "01/2025-12/2025"
+    konu            TEXT,                              -- subject (already structured)
+    vergi_turu      TEXT,                              -- "0001"
+    mukellefiyet_turu TEXT,                            -- "Tam Mükellef"
+    pdf_text        TEXT NOT NULL,                     -- main annotation source
+    html_text       TEXT,                              -- rich format (optional)
+
+    -- Computed
     word_count      INTEGER NOT NULL,
     sentence_count  INTEGER NOT NULL,
     text_density    REAL NOT NULL,
     estimated_difficulty TEXT NOT NULL CHECK(estimated_difficulty IN ('Kolay','Orta','Zor')),
-    ozelge_no       TEXT,
+
+    -- Manual classification (optional)
     topic_category  TEXT,
+
+    -- System
     created_at      TIMESTAMP NOT NULL
 );
 CREATE INDEX idx_docs_difficulty ON documents_meta(estimated_difficulty);
 CREATE INDEX idx_docs_topic ON documents_meta(topic_category);
-CREATE INDEX idx_docs_ozelge ON documents_meta(ozelge_no);
+CREATE INDEX idx_docs_tarih ON documents_meta(tarih);
+CREATE INDEX idx_docs_konu ON documents_meta(konu);
+CREATE INDEX idx_docs_sayi ON documents_meta(sayi);
 
+-- annotations: current state. References stored as JSON (one row per doc).
+-- references_json shape: [{kanun_no, kanun_ad, madde, fikra, bent, source_text}, ...]
+-- All ref fields optional individually; source_text required when ref exists.
+-- Default '[]' = empty list (legitimate state when doc has no legal references).
 CREATE TABLE annotations (
     document_id     TEXT PRIMARY KEY REFERENCES documents_meta(document_id) ON DELETE CASCADE,
-    question_1      TEXT,
-    question_2      TEXT,
-    question_3      TEXT,
+    references_json TEXT NOT NULL DEFAULT '[]',
     is_completed    INTEGER NOT NULL DEFAULT 0,
     last_editor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     completed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -74,31 +101,72 @@ CREATE TABLE annotations (
 CREATE INDEX idx_ann_completed ON annotations(is_completed);
 CREATE INDEX idx_ann_editor ON annotations(last_editor_user_id);
 
+-- annotation_versions: snapshot per save (chain review history).
 CREATE TABLE annotation_versions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     document_id     TEXT NOT NULL REFERENCES documents_meta(document_id) ON DELETE CASCADE,
     user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
-    question_1      TEXT,
-    question_2      TEXT,
-    question_3      TEXT,
-    diff_from_previous TEXT,
-    is_diff_zero    INTEGER NOT NULL DEFAULT 0,
-    action          TEXT NOT NULL,
+    references_json TEXT NOT NULL,                     -- snapshot at this version
+    diff_from_previous TEXT,                           -- JSON: {added: [...], removed: [...], modified: [...]}
+    is_diff_zero    INTEGER NOT NULL DEFAULT 0,        -- set semantics (canonical sort + match)
+    action          TEXT NOT NULL,                     -- 'create','edit','complete_mark','uncomplete'
     created_at      TIMESTAMP NOT NULL
 );
 CREATE INDEX idx_ver_doc_time ON annotation_versions(document_id, created_at DESC);
 CREATE INDEX idx_ver_user_time ON annotation_versions(user_id, created_at DESC);
 CREATE INDEX idx_ver_diff_zero ON annotation_versions(is_diff_zero);
 
+-- drafts: per-user WIP, cleared on save.
 CREATE TABLE drafts (
     document_id     TEXT NOT NULL REFERENCES documents_meta(document_id) ON DELETE CASCADE,
     user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    question_1      TEXT,
-    question_2      TEXT,
-    question_3      TEXT,
+    references_json TEXT NOT NULL DEFAULT '[]',
     updated_at      TIMESTAMP NOT NULL,
     PRIMARY KEY (document_id, user_id)
 );
+
+-- annotation_references: denormalized index of CURRENT annotation refs.
+-- Rebuilt on every save. Enables cross-doc queries:
+--   "all docs referencing law 5901 article 91" = SELECT document_id WHERE kanun_no='5901' AND madde='91'
+CREATE TABLE annotation_references (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id     TEXT NOT NULL REFERENCES documents_meta(document_id) ON DELETE CASCADE,
+    seq             INTEGER NOT NULL,                  -- user's input order
+    kanun_no        TEXT,
+    kanun_ad        TEXT,
+    madde           TEXT,
+    fikra           TEXT,
+    bent            TEXT,
+    source_text     TEXT NOT NULL                      -- always present when ref exists
+);
+CREATE INDEX idx_annref_doc ON annotation_references(document_id);
+CREATE INDEX idx_annref_kanun ON annotation_references(kanun_no);
+CREATE INDEX idx_annref_kanun_madde ON annotation_references(kanun_no, madde);
+
+-- document_kanun_refs: SOURCE metadata (from raw JSON kanunBilgileri[]).
+-- NOT used during annotation — kept for analytics, debugging, and future ML signals.
+-- Pre-extracted by external pipeline; treat as unreliable.
+CREATE TABLE document_kanun_refs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id     TEXT NOT NULL REFERENCES documents_meta(document_id) ON DELETE CASCADE,
+    seq             INTEGER NOT NULL,
+    kanun_kodu      TEXT NOT NULL,                     -- "193 - GELİR VERGİSİ KANUNU"
+    kanun_maddesi   TEXT,                              -- "37"
+    kanun_maddesi_turu TEXT                            -- "ASIL", "MÜKERRER"
+);
+CREATE INDEX idx_dockanun_doc ON document_kanun_refs(document_id);
+
+-- document_bkk_refs: SOURCE metadata (from raw JSON bkkTebligSirkuBilgileri[]).
+-- NOT for annotation. BKK / Tebliğ / Sirküler references.
+CREATE TABLE document_bkk_refs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id     TEXT NOT NULL REFERENCES documents_meta(document_id) ON DELETE CASCADE,
+    seq             INTEGER NOT NULL,
+    turu            TEXT,                              -- "TEBLİĞ" / "BKK" / "SİRKÜLER"
+    kanun_kodu      TEXT,
+    madde_no        TEXT
+);
+CREATE INDEX idx_docbkk_doc ON document_bkk_refs(document_id);
 
 CREATE TABLE document_locks (
     document_id     TEXT PRIMARY KEY REFERENCES documents_meta(document_id) ON DELETE CASCADE,

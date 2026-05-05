@@ -72,8 +72,16 @@ Bursiyer ekibinin Türkçe vergi/idari özelgelerinden 3 soru çıkararak yapıl
 | Ölçek | 2-30 kullanıcı | Bursiyer ekibi, gerekirse 100'e ölçeklenir |
 | DB | SQLite + WAL | 30 kullanıcıya rahat, taşınabilir, şema PostgreSQL'e bire bir uyumlu |
 | Live updates | SSE | Tek yön yeterli, WS karmaşıklığına gerek yok |
-| Review modeli | Chain (Option 3) | Yaratıcılığı bozmaz, attribution net, diff doğal |
-| Doc completion | Soft `is_completed` tag | Kilit yok, sürekli evrim, kullanıcı isterse işaretler |
+| **Annotation modeli** | **Yapılandırılmış kanun referansı çıkarımı** (3 soru DEĞİL) | Her annotation = `[{kanun_no, kanun_ad, madde, fikra, bent, source_text}, ...]` listesi; doküman başına 0+ referans olabilir |
+| Reference type (v1) | Sadece `kanun_madde_referansi` | BKK/Tebliğ/Sirküler v2 için; source metadata'da ham olarak saklanır |
+| Required fields | Tümü opsiyonel; **`source_text` referans varsa zorunlu** | İzlenebilirlik için |
+| Madde format | Tek string ("Mükerrer 20", "Geçici 5") | Ground truth output uyumlu |
+| Duplicate refs | Exact 6-field match → reddedilir | UI'da add disabled |
+| Storage | Hibrit (JSON blob + denormalized index) | `annotations.references_json` + `annotation_references` table cross-doc query için |
+| Auto-suggest | **YOK** | Source kanunBilgileri sadece metadata, annotate sırasında gösterilmez |
+| Review modeli | Chain (Option 3) — referans listesi seviyesinde | A annotate → B aynı listeyi gelir, ekler/siler/değiştirir |
+| Diff semantics | Set-based (canonical sort + match) | Sıra fark etmez; "aynı içerik farklı sıra" = diff=0 |
+| Doc completion | Hibrit — manuel her zaman + diff=0 olunca prominent | Bursiyer A asla işaretleyemez (en az 2. göz) |
 | Shuffle | 3-sekmeli (Review default, Yeni shuffled, Doğruladıklarım) | Bursiyere kontrol, istatistiksel doğruluk |
 | Lock | Heartbeat, 5dk idle release, queue YOK | "Başka doc seç" yeterli, queue overkill |
 | Auth | Tek davet kodu (rotate edilebilir) | Bursiyer ekibi için en pratik |
@@ -311,9 +319,11 @@ export default defineConfig({
 
 ---
 
-## Şema (18 tablo, 4 domain)
+## Şema (22 tablo, 4 domain)
 
-### A. Core — "data of record" (8 tablo)
+> **Not:** Aşağıda ham SQL bazı tabloları için Paket 1'in v0001'inden alıntı. Annotation modeli pivotu sonrası v0001 yeniden yazıldı (3-soru → reference list). Yeni şema aşağıdadır; commit `7d146d9` sonrasında geçerlidir.
+
+### A. Core — "data of record" (11 tablo)
 
 ```sql
 -- 1. users
@@ -353,39 +363,43 @@ CREATE TABLE site_settings (
     updated_by_user_id INTEGER REFERENCES users(id)
 );
 
--- 4. documents_meta (NOTE: v0001 minimum şema; Paket 4'te v0002 migration ile JSON-derived alanlar eklenir)
+-- 4. documents_meta — JSON-derived fields (raw özelge JSON'dan)
 CREATE TABLE documents_meta (
-    document_id     TEXT PRIMARY KEY,         -- evrakOid (örn. "1hmkqodt0v1d55")
-    file_path       TEXT NOT NULL,            -- kaynak JSON dosya yolu
+    document_id     TEXT PRIMARY KEY,                  -- evrakOid (örn. "1hmkqodt0v1d55")
+    file_path       TEXT NOT NULL,                     -- kaynak JSON dosya yolu
+
+    -- JSON-derived
+    sayi            INTEGER,                            -- özelge sayı (örn. 24)
+    tarih           TEXT,                               -- "20260123" YYYYMMDD
+    basvuru_tarihi  TEXT,                               -- "20250604" YYYYMMDD
+    vergi_donemi    TEXT,                               -- "01/2025-12/2025"
+    konu            TEXT,
+    vergi_turu      TEXT,                               -- "0001"
+    mukellefiyet_turu TEXT,                             -- "Tam Mükellef"
+    pdf_text        TEXT NOT NULL,                      -- annotation kaynağı
+    html_text       TEXT,
+
+    -- Computed
     word_count      INTEGER NOT NULL,
     sentence_count  INTEGER NOT NULL,
     text_density    REAL NOT NULL,
     estimated_difficulty TEXT NOT NULL CHECK(estimated_difficulty IN ('Kolay','Orta','Zor')),
-    ozelge_no       TEXT,                     -- v0002'de `sayi INTEGER` olarak yeniden yapılandırılır
-    topic_category  TEXT,
+
+    topic_category  TEXT,                               -- manuel admin/user tag
     created_at      TIMESTAMP NOT NULL
 );
 CREATE INDEX idx_docs_difficulty ON documents_meta(estimated_difficulty);
 CREATE INDEX idx_docs_topic ON documents_meta(topic_category);
-CREATE INDEX idx_docs_ozelge ON documents_meta(ozelge_no);
+CREATE INDEX idx_docs_tarih ON documents_meta(tarih);
+CREATE INDEX idx_docs_konu ON documents_meta(konu);
+CREATE INDEX idx_docs_sayi ON documents_meta(sayi);
 
--- NOTE: Paket 4'te v0002 migration ile aşağıdaki alanlar/tablolar eklenecek:
---   documents_meta'ya: sayi (INT), tarih (DATE), basvuru_tarihi (DATE), vergi_donemi (TEXT),
---                      konu (TEXT), vergi_turu (TEXT), mukellefiyet_turu (TEXT),
---                      pdf_text (TEXT NOT NULL), html_text (TEXT)
---   Yeni tablo: document_kanun_refs (FK doc_id, kanun_kodu, kanun_maddesi, kanun_maddesi_turu, fikra, seq)
---   Yeni tablo: document_bkk_refs (FK doc_id, turu, kanun_kodu, madde_no, seq)
--- Veri JSON'dan deserialize edilir (regex parse yok). Kaynak JSON örneği:
---   { "evrakOid": "...", "sayi": 24, "tarih": "20260123", "konu": "...",
---     "kanunBilgileri": [{"kanunKodu":"193 - GELİR VERGİSİ KANUNU","kanunMaddesi":"37",...}],
---     "bkkTebligSirkuBilgileri": [...], "pdfText": "...", "htmlText": "..." }
-
--- 5. annotations (CURRENT)
+-- 5. annotations (CURRENT) — references stored as JSON list
+-- references_json shape: [{kanun_no, kanun_ad, madde, fikra, bent, source_text}, ...]
+-- '[]' = legitimate state (doc has no legal references)
 CREATE TABLE annotations (
     document_id     TEXT PRIMARY KEY REFERENCES documents_meta(document_id),
-    question_1      TEXT,
-    question_2      TEXT,
-    question_3      TEXT,
+    references_json TEXT NOT NULL DEFAULT '[]',
     is_completed    INTEGER NOT NULL DEFAULT 0,
     last_editor_user_id INTEGER REFERENCES users(id),
     completed_by_user_id INTEGER REFERENCES users(id),
@@ -397,16 +411,14 @@ CREATE TABLE annotations (
 CREATE INDEX idx_ann_completed ON annotations(is_completed);
 CREATE INDEX idx_ann_editor ON annotations(last_editor_user_id);
 
--- 6. annotation_versions (HISTORY, append-only)
+-- 6. annotation_versions (HISTORY, append-only) — full snapshot per save
 CREATE TABLE annotation_versions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     document_id     TEXT NOT NULL REFERENCES documents_meta(document_id),
     user_id         INTEGER NOT NULL REFERENCES users(id),
-    question_1      TEXT,
-    question_2      TEXT,
-    question_3      TEXT,
-    diff_from_previous TEXT,                       -- JSON
-    is_diff_zero    INTEGER NOT NULL DEFAULT 0,
+    references_json TEXT NOT NULL,                 -- snapshot at this version
+    diff_from_previous TEXT,                       -- JSON: {added:[],removed:[],modified:[]}
+    is_diff_zero    INTEGER NOT NULL DEFAULT 0,    -- set semantics (canonical sort + match)
     action          TEXT NOT NULL,                 -- 'create','edit','complete_mark','uncomplete'
     created_at      TIMESTAMP NOT NULL
 );
@@ -414,18 +426,58 @@ CREATE INDEX idx_ver_doc_time ON annotation_versions(document_id, created_at DES
 CREATE INDEX idx_ver_user_time ON annotation_versions(user_id, created_at DESC);
 CREATE INDEX idx_ver_diff_zero ON annotation_versions(is_diff_zero);
 
--- 7. drafts (per-user)
+-- 7. drafts (per-user) — WIP reference list
 CREATE TABLE drafts (
     document_id     TEXT NOT NULL REFERENCES documents_meta(document_id),
     user_id         INTEGER NOT NULL REFERENCES users(id),
-    question_1      TEXT,
-    question_2      TEXT,
-    question_3      TEXT,
+    references_json TEXT NOT NULL DEFAULT '[]',
     updated_at      TIMESTAMP NOT NULL,
     PRIMARY KEY (document_id, user_id)
 );
 
--- 8. document_locks (active only)
+-- 8. annotation_references — denormalized index of CURRENT annotation refs.
+-- Rebuilt on every save. Cross-doc query support:
+--   SELECT document_id FROM annotation_references WHERE kanun_no='5901' AND madde='91'
+CREATE TABLE annotation_references (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id     TEXT NOT NULL REFERENCES documents_meta(document_id),
+    seq             INTEGER NOT NULL,              -- user input order
+    kanun_no        TEXT,
+    kanun_ad        TEXT,
+    madde           TEXT,                          -- "1", "Mükerrer 20", "Geçici 5"
+    fikra           TEXT,
+    bent            TEXT,
+    source_text     TEXT NOT NULL                  -- always present when ref exists
+);
+CREATE INDEX idx_annref_doc ON annotation_references(document_id);
+CREATE INDEX idx_annref_kanun ON annotation_references(kanun_no);
+CREATE INDEX idx_annref_kanun_madde ON annotation_references(kanun_no, madde);
+
+-- 9. document_kanun_refs — SOURCE metadata (raw JSON kanunBilgileri[]).
+-- NOT for annotation. Pre-extracted by external pipeline; treat as unreliable.
+CREATE TABLE document_kanun_refs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id     TEXT NOT NULL REFERENCES documents_meta(document_id),
+    seq             INTEGER NOT NULL,
+    kanun_kodu      TEXT NOT NULL,                 -- "193 - GELİR VERGİSİ KANUNU"
+    kanun_maddesi   TEXT,                          -- "37"
+    kanun_maddesi_turu TEXT                        -- "ASIL", "MÜKERRER"
+);
+CREATE INDEX idx_dockanun_doc ON document_kanun_refs(document_id);
+
+-- 10. document_bkk_refs — SOURCE metadata (raw JSON bkkTebligSirkuBilgileri[]).
+-- NOT for annotation. BKK / Tebliğ / Sirküler.
+CREATE TABLE document_bkk_refs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id     TEXT NOT NULL REFERENCES documents_meta(document_id),
+    seq             INTEGER NOT NULL,
+    turu            TEXT,                          -- "TEBLİĞ"/"BKK"/"SİRKÜLER"
+    kanun_kodu      TEXT,
+    madde_no        TEXT
+);
+CREATE INDEX idx_docbkk_doc ON document_bkk_refs(document_id);
+
+-- 11. document_locks (active only)
 CREATE TABLE document_locks (
     document_id     TEXT PRIMARY KEY REFERENCES documents_meta(document_id),
     user_id         INTEGER NOT NULL REFERENCES users(id),

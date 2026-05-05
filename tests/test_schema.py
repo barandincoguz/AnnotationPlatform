@@ -4,13 +4,16 @@ from backend.migrations.runner import apply_migrations
 
 
 EXPECTED_TABLES = {
-    # Core
+    # Core (11)
     "users", "invite_codes", "site_settings", "documents_meta",
     "annotations", "annotation_versions", "drafts", "document_locks",
-    # Event logs
+    "annotation_references",                # denormalized index of current refs
+    "document_kanun_refs",                  # source metadata (unused for annotation)
+    "document_bkk_refs",                    # source metadata
+    # Event logs (5)
     "user_sessions", "activity_events", "behavioral_events",
     "admin_audit_log", "system_events",
-    # Auxiliary
+    # Auxiliary (5)
     "gamification_state", "gamification_ledger", "badges_earned",
     "training_attempts", "notifications",
     # Hybrid override (Q5)
@@ -27,7 +30,7 @@ def _all_tables(conn) -> set[str]:
     return {r["name"] for r in rows}
 
 
-def test_v0001_creates_all_19_tables(db_path):
+def test_v0001_creates_all_22_tables(db_path):
     conn = connect(db_path)
     try:
         apply_migrations(conn, discover_migrations())
@@ -49,6 +52,8 @@ def test_v0001_creates_indices(db_path):
         for expected in [
             "idx_users_active", "idx_ver_doc_time", "idx_act_user_time",
             "idx_audit_admin_time", "idx_ledger_user_time",
+            "idx_annref_kanun_madde", "idx_dockanun_doc", "idx_docbkk_doc",
+            "idx_docs_tarih", "idx_docs_sayi",
         ]:
             assert expected in index_names, f"missing index: {expected}"
     finally:
