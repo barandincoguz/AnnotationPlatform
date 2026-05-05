@@ -82,6 +82,22 @@ def get_lock(db: sqlite3.Connection, document_id: str) -> Optional[dict]:
     return _row_to_info(row, db)
 
 
+def release_if_held(
+    db: sqlite3.Connection, *, document_id: str, user_id: int
+) -> None:
+    """Release the user's lock on a document if they hold it. Silent otherwise.
+
+    Used by services that want to auto-release a lock at the end of a
+    related operation (e.g. save_annotation, set_complete) — never raises.
+    Distinct from release(), which raises NotLockHolder if the lock is
+    held by someone else.
+    """
+    db.execute(
+        "DELETE FROM document_locks WHERE document_id=? AND user_id=?",
+        (document_id, user_id),
+    )
+
+
 def acquire(db: sqlite3.Connection, *, document_id: str, user_id: int) -> dict:
     """Create or refresh a lock. Raises LockHeldByOther if another user holds it."""
     if not _document_exists(db, document_id):
@@ -115,6 +131,8 @@ def heartbeat(db: sqlite3.Connection, *, document_id: str, user_id: int) -> dict
     row = db.execute(
         "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
     ).fetchone()
+    # No expires_at check: original holder may refresh during the 0–60s
+    # gap before the next sweep. Tradeoff for user-friendliness.
     if row is None or row["user_id"] != user_id:
         raise NotLockHolder(document_id)
 

@@ -2,17 +2,19 @@
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
+from backend.annotations import drafts as drafts_service
 from backend.annotations import service
 from backend.annotations.diff import (
     DuplicateReference, InvalidReference,
 )
 from backend.annotations.models import (
     SaveAnnotationRequest, SaveAnnotationResponse,
-    AnnotationDetail, ChainEntry, AnnotationWithChain,
+    AnnotationWithChain,
     CompleteRequest, OkResponse,
 )
-from backend.users.deps import get_db, get_current_user, require_passed_training
+from backend.users.deps import get_db, require_passed_training
 
 
 router = APIRouter(prefix="/api", tags=["annotations"])
@@ -37,9 +39,7 @@ def save(
         )
     except service.DocumentNotFound:
         raise HTTPException(status_code=404, detail=f"document {payload.document_id} not found")
-    except DuplicateReference as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except InvalidReference as e:
+    except (DuplicateReference, InvalidReference) as e:
         raise HTTPException(status_code=422, detail=str(e))
     return result
 
@@ -102,11 +102,7 @@ def get_annotation_with_chain(
     return {"annotation": ann, "chain": chain}
 
 
-from pydantic import BaseModel as _BaseModel
-from backend.annotations import drafts as drafts_service
-
-
-class _DraftPutRequest(_BaseModel):
+class _DraftPutRequest(BaseModel):
     references: list[dict]  # raw — frontend may send incomplete rows
 
 

@@ -4,7 +4,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.locks import service
-from backend.locks.models import LockInfo, OkResponse
+from backend.locks.models import LockInfo, LockConflict, OkResponse
 from backend.users.deps import get_db, require_passed_training
 
 
@@ -16,7 +16,11 @@ def _strip_dup_keys(info: dict) -> dict:
     return {k: v for k, v in info.items() if k != "by_user_id"}
 
 
-@router.post("/{document_id}/acquire", response_model=LockInfo)
+@router.post(
+    "/{document_id}/acquire",
+    response_model=LockInfo,
+    responses={409: {"model": LockConflict}},
+)
 def acquire(
     document_id: str,
     db: sqlite3.Connection = Depends(get_db),

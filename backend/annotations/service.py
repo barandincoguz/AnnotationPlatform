@@ -28,6 +28,7 @@ from typing import Optional
 from backend.annotations.diff import (
     normalize_references, references_diff, is_diff_zero,
 )
+from backend.locks import service as locks_service
 from backend.shared import audit
 
 
@@ -52,13 +53,6 @@ def _document_exists(db: sqlite3.Connection, document_id: str) -> bool:
         "SELECT 1 FROM documents_meta WHERE document_id=?", (document_id,)
     ).fetchone()
     return row is not None
-
-
-def _release_caller_lock(db: sqlite3.Connection, document_id: str, user_id: int) -> None:
-    db.execute(
-        "DELETE FROM document_locks WHERE document_id=? AND user_id=?",
-        (document_id, user_id),
-    )
 
 
 def _delete_caller_draft(db: sqlite3.Connection, document_id: str, user_id: int) -> None:
@@ -168,7 +162,7 @@ def save_annotation(
 
         _rebuild_denormalized(db, document_id, cleaned)
         _delete_caller_draft(db, document_id, user_id)
-        _release_caller_lock(db, document_id, user_id)
+        locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
 
         audit.log_activity(
             db, user_id, "annotation_save",
@@ -254,7 +248,7 @@ def skip_annotation(
         raise DocumentNotFound(document_id)
     db.execute("BEGIN")
     try:
-        _release_caller_lock(db, document_id, user_id)
+        locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
             db, user_id, "annotation_skip", document_id=document_id,
         )
@@ -308,7 +302,7 @@ def set_complete(
                 "UPDATE annotations SET is_completed=0, completed_by_user_id=NULL, updated_at=? WHERE document_id=?",
                 (now, document_id),
             )
-        _release_caller_lock(db, document_id, user_id)
+        locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
             db, user_id, action, document_id=document_id,
         )
