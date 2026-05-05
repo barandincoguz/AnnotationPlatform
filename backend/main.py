@@ -15,6 +15,7 @@ from backend.shared.db import connect
 from backend.shared import audit
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
+from backend.users.routes import router as users_router
 
 VERSION = "0.1.0"
 
@@ -42,6 +43,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Anotasyon Platform", version=VERSION, lifespan=lifespan)
+app.include_router(users_router)
 
 
 @app.get("/api/health")
