@@ -5,7 +5,7 @@ Used by every route in subsequent packages:
   def feed(user: dict = Depends(get_current_user)): ...
 """
 import sqlite3
-from typing import Optional
+from typing import Iterator, Optional
 
 from fastapi import Cookie, Depends, HTTPException, Request
 
@@ -14,7 +14,7 @@ from backend.shared.db import connect
 from backend.users import service
 
 
-def get_db() -> sqlite3.Connection:
+def get_db() -> Iterator[sqlite3.Connection]:
     """Yield-based DB connection — called per-request."""
     conn = connect(config.DB_PATH)
     try:
