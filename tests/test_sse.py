@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from backend.shared.sse import SSEBroker, SSEEvent
+from backend.shared.sse import SSEBroker
 
 
 @pytest.mark.asyncio
