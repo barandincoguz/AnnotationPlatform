@@ -115,3 +115,117 @@ def seen_manual(
         (user["id"],),
     )
     return {"ok": True}
+
+
+from pydantic import BaseModel as _BaseModel
+
+from backend.users.deps import require_admin
+from backend.users.models import UsersListResponse
+
+
+class RotateInviteRequest(_BaseModel):
+    new_code: str
+
+
+@router.get("/admin/users", response_model=UsersListResponse)
+def list_users(
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    rows = db.execute(
+        "SELECT * FROM users ORDER BY id"
+    ).fetchall()
+    users = [_user_to_out(r) for r in rows]
+    return {"users": users, "total": len(users)}
+
+
+@router.post("/admin/users/{user_id}/promote", response_model=OkResponse)
+def admin_promote(
+    user_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    try:
+        service.promote_admin(db, admin_user_id=admin["id"], target_user_id=user_id)
+    except service.UserNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True}
+
+
+@router.post("/admin/users/{user_id}/demote", response_model=OkResponse)
+def admin_demote(
+    user_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    try:
+        service.demote_admin(db, admin_user_id=admin["id"], target_user_id=user_id)
+    except service.UserNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except service.LastAdminCannotBeRemoved as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@router.post("/admin/users/{user_id}/disable", response_model=OkResponse)
+def admin_disable(
+    user_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    try:
+        service.disable_user(db, admin_user_id=admin["id"], target_user_id=user_id)
+    except service.UserNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except service.LastAdminCannotBeRemoved as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@router.post("/admin/users/{user_id}/enable", response_model=OkResponse)
+def admin_enable(
+    user_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    try:
+        service.enable_user(db, admin_user_id=admin["id"], target_user_id=user_id)
+    except service.UserNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True}
+
+
+@router.post("/admin/invite/rotate")
+def admin_rotate_invite(
+    payload: RotateInviteRequest,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    new_code = service.rotate_invite_code(
+        db, admin_user_id=admin["id"], new_code=payload.new_code
+    )
+    return {"ok": True, "new_code": new_code}
+
+
+@router.get("/admin/audit-log")
+def admin_audit_log(
+    limit: int = 100,
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    rows = db.execute(
+        "SELECT * FROM admin_audit_log ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+    events = [
+        {
+            "id": r["id"],
+            "admin_user_id": r["admin_user_id"],
+            "action_type": r["action_type"],
+            "target_kind": r["target_kind"],
+            "target_id": r["target_id"],
+            "metadata": r["metadata_json"],
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+    return {"events": events}
