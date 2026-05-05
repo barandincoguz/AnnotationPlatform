@@ -19,6 +19,8 @@ from backend.users.routes import router as users_router
 from backend.docs_help.routes import router as help_router
 from backend.documents.routes import router as documents_router
 from backend.annotations.routes import router as annotations_router
+from backend.locks.routes import router as locks_router
+from backend.locks import sweep as locks_sweep
 
 VERSION = "0.1.0"
 
@@ -36,8 +38,16 @@ async def lifespan(_app: FastAPI):
         )
     finally:
         conn.close()
+
+    sweep_task = locks_sweep.start(interval_seconds=60)
     yield
-    # Shutdown — log clean exit
+
+    locks_sweep.stop()
+    try:
+        await sweep_task
+    except Exception:
+        pass
+
     conn = connect(config.DB_PATH)
     try:
         audit.log_system_event(conn, "shutdown", "info", message=f"app v{VERSION} shutting down")
@@ -50,6 +60,7 @@ app.include_router(users_router)
 app.include_router(help_router)
 app.include_router(documents_router)
 app.include_router(annotations_router)
+app.include_router(locks_router)
 
 
 @app.get("/api/health")
