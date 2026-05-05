@@ -127,3 +127,74 @@ def register(
     )
 
     return user_id
+
+
+def login(
+    db: sqlite3.Connection,
+    *,
+    username: str,
+    password: str,
+    ip: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> str:
+    """Verify credentials and create a session. Returns session token."""
+    user = db.execute(
+        "SELECT * FROM users WHERE username=?", (username,)
+    ).fetchone()
+    if user is None:
+        raise InvalidCredentials("invalid username or password")
+    if not auth.verify_password(password, user["password_hash"]):
+        raise InvalidCredentials("invalid username or password")
+    if user["is_active"] != 1:
+        raise UserDisabled("user account is disabled")
+
+    token = auth.generate_session_token()
+    now = _now()
+    db.execute(
+        """
+        INSERT INTO user_sessions(
+            user_id, session_token, ip_hash, user_agent,
+            started_at, last_activity_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user["id"], token,
+            auth.hash_ip(ip) if ip else None,
+            user_agent,
+            now, now,
+        ),
+    )
+    return token
+
+
+def logout(db: sqlite3.Connection, *, session_token: str) -> None:
+    db.execute(
+        "UPDATE user_sessions SET ended_at=? WHERE session_token=? AND ended_at IS NULL",
+        (_now(), session_token),
+    )
+
+
+def get_user_by_session(
+    db: sqlite3.Connection, *, session_token: str
+) -> Optional[sqlite3.Row]:
+    """Return user row if session is active, else None.
+
+    Also updates last_activity_at as side effect (sliding window).
+    """
+    row = db.execute(
+        """
+        SELECT u.*, s.id AS session_id
+        FROM user_sessions s JOIN users u ON s.user_id = u.id
+        WHERE s.session_token = ?
+          AND s.ended_at IS NULL
+          AND u.is_active = 1
+        """,
+        (session_token,),
+    ).fetchone()
+    if row is None:
+        return None
+    db.execute(
+        "UPDATE user_sessions SET last_activity_at=? WHERE id=?",
+        (_now(), row["session_id"]),
+    )
+    return row
