@@ -82,7 +82,8 @@ Bursiyer ekibinin Türkçe vergi/idari özelgelerinden 3 soru çıkararak yapıl
 | Gold puanlama | Concept-keyword matching | Embedding/LLM gereksiz |
 | Behavioral | Tüm eşikler `site_settings`'de admin-configurable | Hard-code yok |
 | Tekrar göstergesi | Sadece seans aktivite sayaçları | "Gözetlendiği hissi" minimal |
-| Metadata | 6 alan (doc_id, created_at, word_count, ozelge_no, topic, density, difficulty) | Statik, annotation-bağımsız |
+| Metadata | JSON-derived: evrakOid, sayi, tarih, konu, vergiTuru, kanunBilgileri[], bkkTebligSirkuBilgileri[], pdfText, htmlText + computed (word_count, text_density, difficulty) | **Veri zaten yapılandırılmış JSON**, dosya regex'ine gerek yok |
+| Ingestion | JSON dosya(lar)ından deserialization, regex parse YOK | `evrakOid` unique ID, `kanunBilgileri` ayrı tabloya (one-to-many), v0002 migration gerekecek |
 | Gamification | Minimum + 20 doc/gün hedef + 7 rozet, leaderboard YOK | Yarış değil kalite |
 | Backup | Her 10-15dk: lokal + GitHub private repo | Çift-katman, deployment-agnostic |
 | Restore | Manuel CLI (`python -m backend.cli restore-from-github`) | Production'da güvenli |
@@ -352,21 +353,32 @@ CREATE TABLE site_settings (
     updated_by_user_id INTEGER REFERENCES users(id)
 );
 
--- 4. documents_meta
+-- 4. documents_meta (NOTE: v0001 minimum şema; Paket 4'te v0002 migration ile JSON-derived alanlar eklenir)
 CREATE TABLE documents_meta (
-    document_id     TEXT PRIMARY KEY,
-    file_path       TEXT NOT NULL,
+    document_id     TEXT PRIMARY KEY,         -- evrakOid (örn. "1hmkqodt0v1d55")
+    file_path       TEXT NOT NULL,            -- kaynak JSON dosya yolu
     word_count      INTEGER NOT NULL,
     sentence_count  INTEGER NOT NULL,
     text_density    REAL NOT NULL,
     estimated_difficulty TEXT NOT NULL CHECK(estimated_difficulty IN ('Kolay','Orta','Zor')),
-    ozelge_no       TEXT,
+    ozelge_no       TEXT,                     -- v0002'de `sayi INTEGER` olarak yeniden yapılandırılır
     topic_category  TEXT,
     created_at      TIMESTAMP NOT NULL
 );
 CREATE INDEX idx_docs_difficulty ON documents_meta(estimated_difficulty);
 CREATE INDEX idx_docs_topic ON documents_meta(topic_category);
 CREATE INDEX idx_docs_ozelge ON documents_meta(ozelge_no);
+
+-- NOTE: Paket 4'te v0002 migration ile aşağıdaki alanlar/tablolar eklenecek:
+--   documents_meta'ya: sayi (INT), tarih (DATE), basvuru_tarihi (DATE), vergi_donemi (TEXT),
+--                      konu (TEXT), vergi_turu (TEXT), mukellefiyet_turu (TEXT),
+--                      pdf_text (TEXT NOT NULL), html_text (TEXT)
+--   Yeni tablo: document_kanun_refs (FK doc_id, kanun_kodu, kanun_maddesi, kanun_maddesi_turu, fikra, seq)
+--   Yeni tablo: document_bkk_refs (FK doc_id, turu, kanun_kodu, madde_no, seq)
+-- Veri JSON'dan deserialize edilir (regex parse yok). Kaynak JSON örneği:
+--   { "evrakOid": "...", "sayi": 24, "tarih": "20260123", "konu": "...",
+--     "kanunBilgileri": [{"kanunKodu":"193 - GELİR VERGİSİ KANUNU","kanunMaddesi":"37",...}],
+--     "bkkTebligSirkuBilgileri": [...], "pdfText": "...", "htmlText": "..." }
 
 -- 5. annotations (CURRENT)
 CREATE TABLE annotations (
