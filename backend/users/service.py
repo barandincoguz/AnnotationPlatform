@@ -7,8 +7,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
-from backend.shared import auth
-# audit imported lazily inside admin functions (Task 7)
+from backend.shared import auth, audit
 
 
 # === Exception types ===
@@ -198,3 +197,115 @@ def get_user_by_session(
         (_now(), row["session_id"]),
     )
     return row
+
+
+def count_active_admins(db: sqlite3.Connection) -> int:
+    return db.execute(
+        "SELECT COUNT(*) AS c FROM users WHERE role='admin' AND is_active=1"
+    ).fetchone()["c"]
+
+
+def _ensure_admin(db: sqlite3.Connection, user_id: int) -> sqlite3.Row:
+    user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if user is None or user["role"] != "admin" or user["is_active"] != 1:
+        raise NotAdmin(f"user {user_id} is not an active admin")
+    return user
+
+
+def promote_admin(
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+) -> None:
+    _ensure_admin(db, admin_user_id)
+    target = db.execute(
+        "SELECT * FROM users WHERE id=?", (target_user_id,)
+    ).fetchone()
+    if target is None:
+        raise UserNotFound(f"user {target_user_id} not found")
+    db.execute(
+        "UPDATE users SET role='admin', updated_at=? WHERE id=?",
+        (_now(), target_user_id),
+    )
+    audit.log_admin_action(
+        db, admin_user_id=admin_user_id, action_type="promote_admin",
+        target_kind="user", target_id=str(target_user_id),
+    )
+
+
+def demote_admin(
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+) -> None:
+    _ensure_admin(db, admin_user_id)
+    target = db.execute(
+        "SELECT * FROM users WHERE id=?", (target_user_id,)
+    ).fetchone()
+    if target is None or target["role"] != "admin":
+        raise UserNotFound(f"user {target_user_id} is not an admin")
+    # Last-admin guardrail
+    if count_active_admins(db) <= 1:
+        raise LastAdminCannotBeRemoved("cannot demote the last active admin")
+    db.execute(
+        "UPDATE users SET role='user', updated_at=? WHERE id=?",
+        (_now(), target_user_id),
+    )
+    audit.log_admin_action(
+        db, admin_user_id=admin_user_id, action_type="demote_admin",
+        target_kind="user", target_id=str(target_user_id),
+    )
+
+
+def disable_user(
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+) -> None:
+    _ensure_admin(db, admin_user_id)
+    target = db.execute(
+        "SELECT * FROM users WHERE id=?", (target_user_id,)
+    ).fetchone()
+    if target is None:
+        raise UserNotFound(f"user {target_user_id} not found")
+    if target["role"] == "admin" and count_active_admins(db) <= 1:
+        raise LastAdminCannotBeRemoved("cannot disable the last active admin")
+    db.execute(
+        "UPDATE users SET is_active=0, updated_at=? WHERE id=?",
+        (_now(), target_user_id),
+    )
+    audit.log_admin_action(
+        db, admin_user_id=admin_user_id, action_type="disable_user",
+        target_kind="user", target_id=str(target_user_id),
+    )
+
+
+def enable_user(
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+) -> None:
+    _ensure_admin(db, admin_user_id)
+    db.execute(
+        "UPDATE users SET is_active=1, updated_at=? WHERE id=?",
+        (_now(), target_user_id),
+    )
+    audit.log_admin_action(
+        db, admin_user_id=admin_user_id, action_type="enable_user",
+        target_kind="user", target_id=str(target_user_id),
+    )
+
+
+def rotate_invite_code(
+    db: sqlite3.Connection, *, admin_user_id: int, new_code: str
+) -> str:
+    _ensure_admin(db, admin_user_id)
+    now = _now()
+    db.execute(
+        "UPDATE invite_codes SET is_active=0, rotated_at=? WHERE is_active=1",
+        (now,),
+    )
+    db.execute(
+        """
+        INSERT INTO invite_codes(code, is_active, created_by_admin_id, created_at)
+        VALUES (?, 1, ?, ?)
+        """,
+        (new_code, admin_user_id, now),
+    )
+    audit.log_admin_action(
+        db, admin_user_id=admin_user_id, action_type="rotate_invite_code",
+        target_kind="invite", target_id=new_code,
+    )
+    return new_code

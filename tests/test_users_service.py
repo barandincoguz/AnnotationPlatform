@@ -149,3 +149,107 @@ def test_get_user_by_session_after_logout_returns_none(db):
     token = service.login(db, username="alice", password="password123", ip="1.2.3.4")
     service.logout(db, session_token=token)
     assert service.get_user_by_session(db, session_token=token) is None
+
+
+def test_promote_user_to_admin_writes_audit(db):
+    admin_uid = service.register(db, username="admin1", password="admin12345",
+                                  invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin_uid,))
+    target_uid = service.register(db, username="alice", password="password123",
+                                   invite_code="BURSIYER-2026", email=None)
+
+    service.promote_admin(db, admin_user_id=admin_uid, target_user_id=target_uid)
+
+    user = db.execute("SELECT role FROM users WHERE id=?", (target_uid,)).fetchone()
+    assert user["role"] == "admin"
+
+    audit_row = db.execute(
+        "SELECT * FROM admin_audit_log WHERE action_type='promote_admin'"
+    ).fetchone()
+    assert audit_row is not None
+    assert audit_row["admin_user_id"] == admin_uid
+    assert audit_row["target_id"] == str(target_uid)
+
+
+def test_demote_admin_to_user(db):
+    admin1 = service.register(db, username="admin1", password="adminpass1",
+                               invite_code="BURSIYER-2026", email=None)
+    admin2 = service.register(db, username="admin2", password="adminpass2",
+                               invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id IN (?,?)", (admin1, admin2))
+
+    service.demote_admin(db, admin_user_id=admin1, target_user_id=admin2)
+
+    user = db.execute("SELECT role FROM users WHERE id=?", (admin2,)).fetchone()
+    assert user["role"] == "user"
+
+
+def test_demote_last_admin_raises(db):
+    admin_uid = service.register(db, username="admin1", password="adminpass1",
+                                  invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin_uid,))
+
+    with pytest.raises(service.LastAdminCannotBeRemoved):
+        service.demote_admin(db, admin_user_id=admin_uid, target_user_id=admin_uid)
+
+
+def test_disable_user_sets_inactive(db):
+    admin = service.register(db, username="admin1", password="adminpass1",
+                              invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin,))
+    target = service.register(db, username="alice", password="password123",
+                               invite_code="BURSIYER-2026", email=None)
+
+    service.disable_user(db, admin_user_id=admin, target_user_id=target)
+
+    row = db.execute("SELECT is_active FROM users WHERE id=?", (target,)).fetchone()
+    assert row["is_active"] == 0
+
+
+def test_disable_last_admin_raises(db):
+    admin = service.register(db, username="admin1", password="adminpass1",
+                              invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin,))
+    with pytest.raises(service.LastAdminCannotBeRemoved):
+        service.disable_user(db, admin_user_id=admin, target_user_id=admin)
+
+
+def test_enable_user_restores_active(db):
+    admin = service.register(db, username="admin1", password="adminpass1",
+                              invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin,))
+    target = service.register(db, username="alice", password="password123",
+                               invite_code="BURSIYER-2026", email=None)
+    service.disable_user(db, admin_user_id=admin, target_user_id=target)
+    service.enable_user(db, admin_user_id=admin, target_user_id=target)
+    row = db.execute("SELECT is_active FROM users WHERE id=?", (target,)).fetchone()
+    assert row["is_active"] == 1
+
+
+def test_rotate_invite_code_deactivates_old_and_creates_new(db):
+    admin = service.register(db, username="admin1", password="adminpass1",
+                              invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin,))
+
+    new_code = service.rotate_invite_code(db, admin_user_id=admin, new_code="NEW-2026")
+
+    assert new_code == "NEW-2026"
+    rows = db.execute(
+        "SELECT code, is_active FROM invite_codes ORDER BY id"
+    ).fetchall()
+    assert len(rows) == 2
+    assert rows[0]["code"] == "BURSIYER-2026"
+    assert rows[0]["is_active"] == 0
+    assert rows[1]["code"] == "NEW-2026"
+    assert rows[1]["is_active"] == 1
+
+
+def test_count_active_admins(db):
+    a1 = service.register(db, username="admin1", password="adminpass1",
+                          invite_code="BURSIYER-2026", email=None)
+    a2 = service.register(db, username="admin2", password="adminpass2",
+                          invite_code="BURSIYER-2026", email=None)
+    db.execute("UPDATE users SET role='admin' WHERE id IN (?,?)", (a1, a2))
+    assert service.count_active_admins(db) == 2
+    db.execute("UPDATE users SET is_active=0 WHERE id=?", (a1,))
+    assert service.count_active_admins(db) == 1
