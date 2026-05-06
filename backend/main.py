@@ -15,6 +15,7 @@ from backend.shared.db import connect
 from backend.shared import audit
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
+from backend.admin.routes import router as admin_router
 from backend.users.routes import router as users_router
 from backend.docs_help.routes import router as help_router
 from backend.documents.routes import router as documents_router
@@ -65,6 +66,7 @@ app.include_router(annotations_router)
 app.include_router(locks_router)
 app.include_router(shuffle_router)
 app.include_router(sse_router)
+app.include_router(admin_router)
 
 
 @app.get("/api/health")
