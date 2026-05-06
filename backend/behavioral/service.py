@@ -66,8 +66,43 @@ def detect_speed_warning(db, *, user_id: int) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
-# char_limit_warning  (Task 2 implements)
+# char_limit_warning
 # ---------------------------------------------------------------------------
+
+_CHECKED_FIELDS = ("kanun_ad", "source_text")
+
+
+def detect_char_limit_warning(db, *, references: list[dict]) -> Optional[dict]:
+    """Return a verdict if any reference's `kanun_ad` or `source_text` exceeds
+    the warn or alert threshold. Returns the worst severity across all hits.
+    None if every field is below warn.
+    """
+    if not references:
+        return None
+
+    warn = S.get_int(db, "char_limit.warn_threshold", default=300)
+    alert = S.get_int(db, "char_limit.alert_threshold", default=600)
+
+    hits: list[dict] = []
+    for idx, ref in enumerate(references):
+        for field in _CHECKED_FIELDS:
+            value = ref.get(field) or ""
+            length = len(value)
+            if length > alert:
+                hits.append({"ref_index": idx, "field": field, "length": length, "level": "alert"})
+            elif length > warn:
+                hits.append({"ref_index": idx, "field": field, "length": length, "level": "warn"})
+
+    if not hits:
+        return None
+
+    worst = "alert" if any(h["level"] == "alert" for h in hits) else "warn"
+    return {
+        "level": worst,
+        "fields": hits,
+        "warn_threshold": warn,
+        "alert_threshold": alert,
+    }
 
 
 # ---------------------------------------------------------------------------
