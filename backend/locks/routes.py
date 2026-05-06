@@ -1,12 +1,16 @@
 """Lock HTTP endpoints. Auth: require_passed_training on all."""
+import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.locks import service
 from backend.locks.models import LockInfo, LockConflict, OkResponse
+from backend.shared.sse import broker as sse_broker
 from backend.users.deps import get_db, require_passed_training
 
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/locks", tags=["locks"])
 
@@ -21,7 +25,7 @@ def _strip_dup_keys(info: dict) -> dict:
     response_model=LockInfo,
     responses={409: {"model": LockConflict}},
 )
-def acquire(
+async def acquire(
     document_id: str,
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
@@ -41,7 +45,20 @@ def acquire(
                 "expires_at": e.info["expires_at"],
             },
         )
-    return _strip_dup_keys(info)
+    response = _strip_dup_keys(info)
+    try:
+        await sse_broker.publish_broadcast(
+            "lock_acquired",
+            {
+                "document_id": document_id,
+                "by_user_id": info["user_id"],
+                "by_username": info["by_username"],
+                "expires_at": info["expires_at"],
+            },
+        )
+    except Exception:
+        log.exception("publish lock_acquired failed for %s", document_id)
+    return response
 
 
 @router.post("/{document_id}/heartbeat", response_model=LockInfo)
@@ -58,13 +75,26 @@ def heartbeat(
 
 
 @router.post("/{document_id}/release", response_model=OkResponse)
-def release(
+async def release(
     document_id: str,
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
+    # Read whether the user actually held a lock — service.release is silent on absent.
+    held = service.get_lock(db, document_id)
+    holder_user_id = held["user_id"] if held and held["user_id"] == user["id"] else None
+
     try:
         service.release(db, document_id=document_id, user_id=user["id"])
     except service.NotLockHolder:
         raise HTTPException(status_code=404, detail="lock held by another user")
+
+    if holder_user_id is not None:
+        try:
+            await sse_broker.publish_broadcast(
+                "lock_released",
+                {"document_id": document_id, "by_user_id": holder_user_id},
+            )
+        except Exception:
+            log.exception("publish lock_released failed for %s", document_id)
     return {"ok": True}
