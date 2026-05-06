@@ -1,6 +1,3 @@
-import json
-
-
 def test_feed_requires_auth(client):
     r = client.get("/api/feed?tab=new")
     assert r.status_code == 401
@@ -109,14 +106,12 @@ def test_feed_empty_when_no_docs(passed_user):
         assert body["total"] == 0
 
 
-def test_feed_tabs_mutually_exclusive_via_http(second_passed_user, ingest_doc):
+def test_feed_tabs_mutually_exclusive_via_http(passed_user, ingest_doc):
     """Doc 1 unannotated → new; Doc 2 annotated → review; Doc 3 completed → verified."""
-    ctx = second_passed_user
-    c = ctx["client"]
+    c = passed_user["client"]
     for i in range(1, 4):
         ingest_doc(f"doc_x{i}")
 
-    ctx["login"]("alice")
     c.post("/api/annotations", json={"document_id": "doc_x2", "references": []})
     c.post("/api/annotations", json={"document_id": "doc_x3", "references": []})
     c.post("/api/annotations/doc_x3/complete", json={"completed": True})
