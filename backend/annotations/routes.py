@@ -33,6 +33,9 @@ async def save(
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
+    """Save reference list (atomic version + denorm rebuild). Broadcasts
+    annotation_saved on success. 422 on duplicate/invalid refs; 404 on
+    unknown document. Publish errors are logged and swallowed."""
     refs = [r.model_dump() for r in payload.references]
     try:
         result = service.save_annotation(
@@ -73,6 +76,8 @@ def skip(
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
+    """Log a skip activity event and release the caller's lock. Stays sync;
+    intentionally does NOT broadcast (skip is private to the user)."""
     try:
         service.skip_annotation(db, document_id=document_id, user_id=user["id"])
     except service.DocumentNotFound:
@@ -90,6 +95,9 @@ async def complete(
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
+    """Toggle is_completed on the annotation. Broadcasts annotation_completed
+    only when the state actually changes (idempotent same-state toggle is
+    silent). 404 if no annotation row. Publish errors are logged and swallowed."""
     # Read prior state so we know whether this is a real toggle or a no-op
     prior = service.get_annotation(db, document_id)
     will_change = prior is not None and prior["is_completed"] != payload.completed

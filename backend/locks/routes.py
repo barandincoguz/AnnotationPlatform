@@ -81,6 +81,10 @@ async def release(
     user: sqlite3.Row = Depends(require_passed_training),
 ):
     # Read whether the user actually held a lock — service.release is silent on absent.
+    # Note: small TOCTOU window vs. background sweep — between this read and the
+    # release below, a sweep could clear an already-expired lock. Worst case is a
+    # missed lock_released event (the row is gone, nothing to release); never a
+    # phantom event or DB corruption. Acceptable tradeoff under autocommit + WAL.
     held = service.get_lock(db, document_id)
     holder_user_id = held["user_id"] if held and held["user_id"] == user["id"] else None
 

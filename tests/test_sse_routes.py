@@ -22,9 +22,8 @@ The broker→event delivery is also verified end-to-end by the
 dedicated test_sse_publish_*.py suites in later Paket 7 tasks.
 """
 import asyncio
-import json
 import pytest
-from backend.shared.sse import broker as sse_broker, SSEBroker
+from backend.shared.sse import broker as sse_broker
 
 
 def _reset_broker_subscribers():
@@ -65,11 +64,13 @@ def test_events_requires_training_passed(client):
     assert error in ("manual_not_seen", "training_not_passed")
 
 
-def test_events_route_registered_with_event_stream_media_type():
-    """Structural check: the /api/events route is mounted and its
-    StreamingResponse declares text/event-stream as media_type. We
-    inspect the route definition rather than calling the endpoint
-    because TestClient cannot drive an infinite SSE response.
+def test_events_route_registered_for_get():
+    """Structural check: the /api/events route is mounted and accepts GET.
+
+    Note: the StreamingResponse's text/event-stream media_type is set per-response
+    inside the handler (routes.py), not on the FastAPI route object — so it can't
+    be asserted from app.router.routes. The media_type is exercised by the
+    direct-generator tests below (test_stream_for_user_*).
     """
     from backend.main import app
     routes = [r for r in app.router.routes if getattr(r, "path", None) == "/api/events"]

@@ -96,7 +96,7 @@ def test_acquire_held_by_other_does_not_publish(second_passed_user, ingest_doc):
         sse_broker.unsubscribe(bob_id, queue)
 
 
-def test_sweep_publishes_lock_released_for_each_expired(db_path, tmp_path, monkeypatch):
+def test_sweep_publishes_lock_released_for_each_expired(tmp_path, monkeypatch):
     """Background sweep_expired publishes one lock_released per released doc."""
     _reset_broker()
 
