@@ -106,5 +106,55 @@ def detect_char_limit_warning(db, *, references: list[dict]) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator  (Task 3 implements)
+# Orchestrator
 # ---------------------------------------------------------------------------
+
+from backend.shared import audit
+from backend.shared.sse import broker as _broker
+
+
+async def run_after_save(
+    db,
+    *,
+    user_id: int,
+    username: str,
+    references: list[dict],
+) -> None:
+    """Run all behavioral detectors after a successful save and publish
+    personal SSE events for any verdicts. Each detector is isolated — a
+    failure in one does not block the others, and no failure rolls back
+    the already-committed save (callers should call this AFTER commit).
+    """
+    # ---- speed_warning --------------------------------------------------
+    try:
+        verdict = detect_speed_warning(db, user_id=user_id)
+        if verdict is not None:
+            audit.log_behavioral(
+                db, user_id=user_id, detector="speed_warning",
+                threshold_value=float(verdict["threshold"]),
+                actual_value=float(verdict["recent_save_count"]),
+                context=verdict,
+            )
+            await _broker.publish_to([user_id], "speed_warning", verdict)
+    except Exception:
+        log.exception("speed_warning detector failed for user %s", user_id)
+
+    # ---- char_limit_warning --------------------------------------------
+    try:
+        verdict = detect_char_limit_warning(db, references=references)
+        if verdict is not None:
+            worst_length = max((f["length"] for f in verdict["fields"]), default=0)
+            threshold_for_log = (
+                verdict["alert_threshold"]
+                if verdict["level"] == "alert"
+                else verdict["warn_threshold"]
+            )
+            audit.log_behavioral(
+                db, user_id=user_id, detector="char_limit_warning",
+                threshold_value=float(threshold_for_log),
+                actual_value=float(worst_length),
+                context=verdict,
+            )
+            await _broker.publish_to([user_id], "char_limit_warning", verdict)
+    except Exception:
+        log.exception("char_limit_warning detector failed for user %s", user_id)
