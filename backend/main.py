@@ -21,6 +21,7 @@ from backend.documents.routes import router as documents_router
 from backend.annotations.routes import router as annotations_router
 from backend.locks.routes import router as locks_router
 from backend.shuffle.routes import router as shuffle_router
+from backend.sse.routes import router as sse_router
 from backend.locks import sweep as locks_sweep
 
 VERSION = "0.1.0"
@@ -63,6 +64,7 @@ app.include_router(documents_router)
 app.include_router(annotations_router)
 app.include_router(locks_router)
 app.include_router(shuffle_router)
+app.include_router(sse_router)
 
 
 @app.get("/api/health")
