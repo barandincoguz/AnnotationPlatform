@@ -105,7 +105,9 @@ CREATE INDEX idx_ann_editor ON annotations(last_editor_user_id);
 CREATE TABLE annotation_versions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     document_id     TEXT NOT NULL REFERENCES documents_meta(document_id) ON DELETE CASCADE,
-    user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    -- user_id is nullable: ON DELETE SET NULL preserves the version row for chain attribution
+    -- after a user is removed. Service code always writes a non-NULL user_id at INSERT time.
+    user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
     references_json TEXT NOT NULL,                     -- snapshot at this version
     diff_from_previous TEXT,                           -- JSON: {added: [...], removed: [...], modified: [...]}
     is_diff_zero    INTEGER NOT NULL DEFAULT 0,        -- set semantics (canonical sort + match)
@@ -197,7 +199,8 @@ CREATE INDEX idx_session_token ON user_sessions(session_token);
 
 CREATE TABLE activity_events (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    -- user_id nullable so SET NULL on user delete preserves the event row.
+    user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
     session_id      INTEGER REFERENCES user_sessions(id) ON DELETE SET NULL,
     event_type      TEXT NOT NULL,
     document_id     TEXT,
@@ -211,7 +214,8 @@ CREATE INDEX idx_act_type_time ON activity_events(event_type, created_at DESC);
 
 CREATE TABLE behavioral_events (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    -- user_id nullable so SET NULL on user delete preserves the event row.
+    user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
     detector        TEXT NOT NULL,
     threshold_value REAL,
     actual_value    REAL,
@@ -223,7 +227,8 @@ CREATE INDEX idx_beh_detector ON behavioral_events(detector);
 
 CREATE TABLE admin_audit_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    admin_user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    -- admin_user_id nullable so SET NULL on user delete preserves the audit row.
+    admin_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
     action_type     TEXT NOT NULL,
     target_kind     TEXT,
     target_id       TEXT,
