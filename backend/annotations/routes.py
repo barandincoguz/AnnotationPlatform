@@ -1,4 +1,5 @@
 """Annotation HTTP endpoints. Auth: require_passed_training on all."""
+import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,8 +15,11 @@ from backend.annotations.models import (
     AnnotationWithChain,
     CompleteRequest, OkResponse,
 )
+from backend.shared.sse import broker as sse_broker
 from backend.users.deps import get_db, require_passed_training
 
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["annotations"])
 
@@ -24,7 +28,7 @@ router = APIRouter(prefix="/api", tags=["annotations"])
     "/annotations",
     response_model=SaveAnnotationResponse,
 )
-def save(
+async def save(
     payload: SaveAnnotationRequest,
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
@@ -41,6 +45,22 @@ def save(
         raise HTTPException(status_code=404, detail=f"document {payload.document_id} not found")
     except (DuplicateReference, InvalidReference) as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+    try:
+        action = "create" if result["is_new"] else "edit"
+        await sse_broker.publish_broadcast(
+            "annotation_saved",
+            {
+                "document_id": payload.document_id,
+                "user_id": user["id"],
+                "username": user["username"],
+                "action": action,
+                "is_diff_zero": result["is_diff_zero"],
+                "ref_count": len(result["current_references"]),
+            },
+        )
+    except Exception:
+        log.exception("publish annotation_saved failed for %s", payload.document_id)
     return result
 
 
@@ -64,12 +84,16 @@ def skip(
     "/annotations/{document_id}/complete",
     response_model=OkResponse,
 )
-def complete(
+async def complete(
     document_id: str,
     payload: CompleteRequest,
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
+    # Read prior state so we know whether this is a real toggle or a no-op
+    prior = service.get_annotation(db, document_id)
+    will_change = prior is not None and prior["is_completed"] != payload.completed
+
     try:
         service.set_complete(
             db, document_id=document_id, user_id=user["id"],
@@ -77,6 +101,20 @@ def complete(
         )
     except service.AnnotationNotFound:
         raise HTTPException(status_code=404, detail=f"no annotation for {document_id}")
+
+    if will_change:
+        try:
+            await sse_broker.publish_broadcast(
+                "annotation_completed",
+                {
+                    "document_id": document_id,
+                    "user_id": user["id"],
+                    "username": user["username"],
+                    "completed": payload.completed,
+                },
+            )
+        except Exception:
+            log.exception("publish annotation_completed failed for %s", document_id)
     return {"ok": True}
 
 
