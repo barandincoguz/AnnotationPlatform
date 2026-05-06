@@ -4,7 +4,7 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.admin.models import SettingUpdateRequest, SettingUpdateResponse, OkResponse
+from backend.admin.models import SettingUpdateRequest, SettingUpdateResponse
 from backend.shared import audit, settings as S
 from backend.users.deps import get_db, require_admin
 

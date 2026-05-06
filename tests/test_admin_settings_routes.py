@@ -1,4 +1,6 @@
 """HTTP tests for admin settings endpoints."""
+import json
+
 from backend.shared.db import connect
 from backend import config
 
@@ -57,9 +59,6 @@ def test_get_settings_returns_seeded_keys(client):
     assert data["char_limit.alert_threshold"] == 600
 
 
-import json
-
-
 def test_put_settings_requires_auth(client):
     r = client.put("/api/admin/settings/speed_warning.window_seconds", json={"value": 600})
     assert r.status_code == 401
@@ -110,6 +109,34 @@ def test_put_type_mismatch_int_to_dict_422(client):
         json={"value": {"foo": "bar"}},
     )
     assert r.status_code == 422
+
+
+def test_put_type_mismatch_bool_int_either_direction(client):
+    """Locks the bool-before-int ordering in _python_type_label. Without this
+    test, a future reorder of the isinstance checks would silently treat
+    bool as int and vice-versa (because isinstance(True, int) == True)."""
+    _make_admin(client)
+    # int-typed key (window_seconds=300) — PUT with bool should be rejected
+    r = client.put(
+        "/api/admin/settings/speed_warning.window_seconds", json={"value": True},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"]["error"] == "type_mismatch"
+    assert r.json()["detail"]["expected"] == "int"
+    assert r.json()["detail"]["got"] == "bool"
+
+    # bool-typed key (planted) — PUT with int should be rejected
+    conn = connect(config.DB_PATH)
+    try:
+        from backend.shared import settings as S
+        S.set_value(conn, "test.bool_key", True, updated_by_user_id=None)
+    finally:
+        conn.close()
+    r = client.put("/api/admin/settings/test.bool_key", json={"value": 1})
+    assert r.status_code == 422
+    assert r.json()["detail"]["error"] == "type_mismatch"
+    assert r.json()["detail"]["expected"] == "bool"
+    assert r.json()["detail"]["got"] == "int"
 
 
 def test_put_audit_log_written(client):

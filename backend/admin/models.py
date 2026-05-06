@@ -11,7 +11,3 @@ class SettingUpdateRequest(BaseModel):
 class SettingUpdateResponse(BaseModel):
     key: str
     value: Any
-
-
-class OkResponse(BaseModel):
-    ok: bool = True
