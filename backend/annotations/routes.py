@@ -15,6 +15,7 @@ from backend.annotations.models import (
     AnnotationWithChain,
     CompleteRequest, OkResponse,
 )
+from backend.behavioral import service as behavioral_service
 from backend.shared.sse import broker as sse_broker
 from backend.users.deps import get_db, require_passed_training
 
@@ -34,8 +35,10 @@ async def save(
     user: sqlite3.Row = Depends(require_passed_training),
 ):
     """Save reference list (atomic version + denorm rebuild). Broadcasts
-    annotation_saved on success. 422 on duplicate/invalid refs; 404 on
-    unknown document. Publish errors are logged and swallowed."""
+    annotation_saved on success, then runs behavioral detectors which may
+    publish personal speed_warning / char_limit_warning events back to the
+    saving user. 422 on duplicate/invalid refs; 404 on unknown document.
+    Publish errors and detector errors are logged and swallowed."""
     refs = [r.model_dump() for r in payload.references]
     try:
         result = service.save_annotation(
@@ -64,6 +67,16 @@ async def save(
         )
     except Exception:
         log.exception("publish annotation_saved failed for %s", payload.document_id)
+
+    try:
+        await behavioral_service.run_after_save(
+            db,
+            user_id=user["id"],
+            username=user["username"],
+            references=result["current_references"],
+        )
+    except Exception:
+        log.exception("run_after_save failed for %s", payload.document_id)
     return result
 
 
