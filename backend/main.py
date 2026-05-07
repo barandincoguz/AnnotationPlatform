@@ -24,6 +24,7 @@ from backend.locks.routes import router as locks_router
 from backend.notifications.routes import router as notifications_router
 from backend.shuffle.routes import router as shuffle_router
 from backend.sse.routes import router as sse_router
+from backend.training.routes import router as training_router
 from backend.locks import sweep as locks_sweep
 
 VERSION = "0.1.0"
@@ -68,6 +69,7 @@ app.include_router(locks_router)
 app.include_router(notifications_router)
 app.include_router(shuffle_router)
 app.include_router(sse_router)
+app.include_router(training_router)
 app.include_router(admin_router)
 
 
