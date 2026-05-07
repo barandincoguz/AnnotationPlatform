@@ -439,3 +439,71 @@ async def run_after_complete(
         await _publish_unlock_events(user_id, own_earned)
     except Exception:
         log.exception("badge_unlocked publish failed (complete path)")
+
+
+# ---------------------------------------------------------------------------
+# Profile aggregator
+# ---------------------------------------------------------------------------
+
+def get_profile_state(db: sqlite3.Connection, *, user_id: int) -> dict:
+    """Aggregate the gamification slice of a user's profile. Returns zeros
+    if no state row exists (pre-save user)."""
+    state = db.execute(
+        "SELECT total_xp, current_streak_days, longest_streak_days, "
+        "last_active_date, today_save_count, today_complete_count, "
+        "today_review_count, today_skip_count "
+        "FROM gamification_state WHERE user_id=?",
+        (user_id,),
+    ).fetchone()
+    daily_target = S.get_int(db, "gamification.daily_target_docs", default=20)
+
+    if state is None:
+        xp_total = 0
+        current = longest = 0
+        last_active = None
+        save = complete = review = skip = 0
+    else:
+        # Lazy day-rollover: if last_active < today_tr, the today_* counters
+        # the user sees should be zero (mirroring how the next save would reset).
+        today = _today_tr()
+        if state["last_active_date"] != today:
+            save = complete = review = skip = 0
+        else:
+            save = state["today_save_count"]
+            complete = state["today_complete_count"]
+            review = state["today_review_count"]
+            skip = state["today_skip_count"]
+        xp_total = state["total_xp"]
+        current = state["current_streak_days"]
+        longest = state["longest_streak_days"]
+        last_active = state["last_active_date"]
+
+    badge_rows = db.execute(
+        "SELECT badge_id, earned_at FROM badges_earned WHERE user_id=? "
+        "ORDER BY earned_at ASC",
+        (user_id,),
+    ).fetchall()
+    badges_out: list[dict] = []
+    for r in badge_rows:
+        meta = badges_module.BADGE_DEFS.get(
+            r["badge_id"], {"name": r["badge_id"], "description": ""},
+        )
+        badges_out.append({
+            "id": r["badge_id"],
+            "name": meta["name"],
+            "description": meta["description"],
+            "earned_at": r["earned_at"],
+        })
+
+    return {
+        "xp": {"total": xp_total},
+        "streak": {
+            "current": current, "longest": longest,
+            "last_active_date": last_active,
+        },
+        "today": {
+            "save": save, "complete": complete, "review": review,
+            "skip": skip, "daily_target": daily_target,
+        },
+        "badges": badges_out,
+    }

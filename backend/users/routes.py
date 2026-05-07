@@ -11,6 +11,8 @@ from backend.users.deps import (
 from backend.users.models import (
     RegisterRequest, LoginRequest, UserOut, OkResponse,
 )
+from backend.gamification import service as gamification_service
+from backend.gamification.models import ProfileResponse
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -115,6 +117,25 @@ def seen_manual(
         (user["id"],),
     )
     return {"ok": True}
+
+
+@router.get("/me/profile", response_model=ProfileResponse)
+def get_my_profile(
+    db: sqlite3.Connection = Depends(get_db),
+    user: sqlite3.Row = Depends(get_current_user),
+):
+    """Aggregated profile: identity + XP + streak + today counters + badges.
+    Gated by get_current_user only (pre-training users see their zeroed state)."""
+    state = gamification_service.get_profile_state(db, user_id=user["id"])
+    return {
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "role": user["role"],
+            "avatar_color": user["avatar_color"],
+        },
+        **state,
+    }
 
 
 from pydantic import BaseModel as _BaseModel
