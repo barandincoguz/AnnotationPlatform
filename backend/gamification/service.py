@@ -243,3 +243,199 @@ def record_skip(db: sqlite3.Connection, *, user_id: int) -> None:
             user_id,
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator
+# ---------------------------------------------------------------------------
+
+from backend.shared import settings as S
+from backend.shared.sse import broker as sse_broker
+from backend.gamification import badges as badges_module
+from backend.notifications import service as notif_service
+
+
+def _xp_for_save_action(db: sqlite3.Connection, action: str) -> int:
+    if action == "create":
+        return S.get_int(db, "gamification.xp_save", default=1)
+    if action == "edit":
+        return S.get_int(db, "gamification.xp_review", default=2)
+    return 0
+
+
+def _award_badges_and_notify(
+    db: sqlite3.Connection, *, user_id: int, username: str,
+) -> list[dict]:
+    """Insert each newly-earned badge row and return the list of unlock
+    payloads for SSE publishing. Caller does the publishes."""
+    earned: list[dict] = []
+    for badge_id in badges_module.check_badges(db, user_id=user_id):
+        meta = badges_module.BADGE_DEFS.get(badge_id, {"name": badge_id, "description": ""})
+        now = _now_utc_iso()
+        db.execute(
+            "INSERT OR IGNORE INTO badges_earned(user_id, badge_id, earned_at) "
+            "VALUES (?, ?, ?)",
+            (user_id, badge_id, now),
+        )
+        # Persist a notification row (also publishes 'notification' SSE event below)
+        notif_service.create(
+            db, user_id=user_id, kind="badge_unlocked",
+            title=f"Yeni rozet: {meta['name']}",
+            body=meta["description"],
+            data={"badge_id": badge_id, "name": meta["name"],
+                  "description": meta["description"], "earned_at": now},
+        )
+        earned.append({
+            "badge_id": badge_id,
+            "name": meta["name"],
+            "description": meta["description"],
+            "earned_at": now,
+        })
+    return earned
+
+
+async def _publish_unlock_events(user_id: int, earned: list[dict]) -> None:
+    for payload in earned:
+        await sse_broker.publish_to([user_id], "badge_unlocked", payload)
+        # Also publish a generic 'notification' event so the inbox indicator updates
+        await sse_broker.publish_to(
+            [user_id], "notification",
+            {"kind": "badge_unlocked", "data": payload},
+        )
+
+
+def _prior_version_user_id(
+    db: sqlite3.Connection, *, document_id: str, current_user_id: int,
+) -> Optional[int]:
+    """Return the second-most-recent annotation_versions.user_id for the doc
+    (the version BEFORE the one the current save just inserted), if it
+    belongs to a different user. None otherwise."""
+    rows = db.execute(
+        """
+        SELECT user_id FROM annotation_versions
+         WHERE document_id=?
+         ORDER BY id DESC LIMIT 2
+        """,
+        (document_id,),
+    ).fetchall()
+    if len(rows) < 2:
+        return None
+    prior_user_id = rows[1]["user_id"]
+    if prior_user_id == current_user_id:
+        return None
+    return prior_user_id
+
+
+async def run_after_save(
+    db: sqlite3.Connection,
+    *,
+    user_id: int,
+    username: str,
+    action: str,            # 'create' | 'edit'
+    is_diff_zero: bool,
+    document_id: str,
+) -> None:
+    """Run after annotations.service.save_annotation has committed.
+
+    Awards XP (xp_save or xp_review), updates streak/today-counters, checks
+    for badge unlocks, persists a notification per unlock, and publishes
+    personal SSE events. If `action='edit'` and `is_diff_zero=True`, also
+    awards the prior version's editor +3 (xp_review_kept) — except when
+    that prior editor is the same user.
+
+    Each step is independently fault-isolated. Caller must invoke AFTER
+    the save commits."""
+    # --- 1. XP award (own action) ---
+    try:
+        delta = _xp_for_save_action(db, action)
+        if delta > 0:
+            reason = "save" if action == "create" else "review"
+            award_xp(db, user_id=user_id, delta_xp=delta, reason=reason,
+                     related_doc_id=document_id)
+    except Exception:
+        log.exception("award_xp failed for user %s on %s", user_id, document_id)
+
+    # --- 2. Streak + counter update ---
+    try:
+        sub_action = "save_create" if action == "create" else "save_edit"
+        update_streak_and_counters(db, user_id=user_id, action=sub_action)
+    except Exception:
+        log.exception("streak update failed for user %s", user_id)
+
+    # --- 3. Badge check + notify (own user) ---
+    own_earned: list[dict] = []
+    try:
+        own_earned = _award_badges_and_notify(db, user_id=user_id, username=username)
+    except Exception:
+        log.exception("badge check failed for user %s", user_id)
+
+    # --- 4. Post-hoc review_kept for prior editor (if applicable) ---
+    prior_earned: list[dict] = []
+    prior_user_id: Optional[int] = None
+    if action == "edit" and is_diff_zero:
+        try:
+            prior_user_id = _prior_version_user_id(
+                db, document_id=document_id, current_user_id=user_id,
+            )
+            if prior_user_id is not None:
+                kept_xp = S.get_int(db, "gamification.xp_review_kept", default=3)
+                award_xp(db, user_id=prior_user_id, delta_xp=kept_xp,
+                         reason="review_kept", related_doc_id=document_id)
+                prior_earned = _award_badges_and_notify(
+                    db, user_id=prior_user_id, username="",
+                )
+        except Exception:
+            log.exception(
+                "review_kept post-hoc award failed for prior editor %s on %s",
+                prior_user_id, document_id,
+            )
+
+    # --- 5. SSE publishes ---
+    try:
+        await _publish_unlock_events(user_id, own_earned)
+        if prior_user_id is not None:
+            await _publish_unlock_events(prior_user_id, prior_earned)
+    except Exception:
+        log.exception("badge_unlocked publish failed")
+
+
+async def run_after_complete(
+    db: sqlite3.Connection,
+    *,
+    user_id: int,
+    username: str,
+    completed: bool,
+    document_id: str,
+) -> None:
+    """Run after annotations.service.set_complete has committed for a real
+    state change (caller has already filtered out same-state no-ops).
+
+    On `completed=True`: awards xp_complete (default 5), bumps today_complete_count,
+    checks for first_completion badge.
+    On `completed=False`: no XP, no counter bump (clamp), no badge check."""
+    if not completed:
+        return
+
+    try:
+        delta = S.get_int(db, "gamification.xp_complete", default=5)
+        if delta > 0:
+            award_xp(db, user_id=user_id, delta_xp=delta, reason="complete",
+                     related_doc_id=document_id)
+    except Exception:
+        log.exception("complete xp award failed for user %s", user_id)
+
+    try:
+        update_streak_and_counters(db, user_id=user_id, action="complete")
+    except Exception:
+        log.exception("complete counter update failed for user %s", user_id)
+
+    own_earned: list[dict] = []
+    try:
+        own_earned = _award_badges_and_notify(db, user_id=user_id, username=username)
+    except Exception:
+        log.exception("badge check failed for user %s on complete", user_id)
+
+    try:
+        await _publish_unlock_events(user_id, own_earned)
+    except Exception:
+        log.exception("badge_unlocked publish failed (complete path)")
