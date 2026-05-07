@@ -21,6 +21,7 @@ from backend.docs_help.routes import router as help_router
 from backend.documents.routes import router as documents_router
 from backend.annotations.routes import router as annotations_router
 from backend.locks.routes import router as locks_router
+from backend.notifications.routes import router as notifications_router
 from backend.shuffle.routes import router as shuffle_router
 from backend.sse.routes import router as sse_router
 from backend.locks import sweep as locks_sweep
@@ -64,6 +65,7 @@ app.include_router(help_router)
 app.include_router(documents_router)
 app.include_router(annotations_router)
 app.include_router(locks_router)
+app.include_router(notifications_router)
 app.include_router(shuffle_router)
 app.include_router(sse_router)
 app.include_router(admin_router)
