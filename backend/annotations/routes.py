@@ -16,6 +16,7 @@ from backend.annotations.models import (
     CompleteRequest, OkResponse,
 )
 from backend.behavioral import service as behavioral_service
+from backend.gamification import service as gamification_service
 from backend.shared.sse import broker as sse_broker
 from backend.users.deps import get_db, require_passed_training
 
@@ -37,8 +38,10 @@ async def save(
     """Save reference list (atomic version + denorm rebuild). Broadcasts
     annotation_saved on success, then runs behavioral detectors which may
     publish personal speed_warning / char_limit_warning events back to the
-    saving user. 422 on duplicate/invalid refs; 404 on unknown document.
-    Publish errors and detector errors are logged and swallowed."""
+    saving user, then runs the gamification orchestrator (XP, streak,
+    badges, post-hoc review_kept). 422 on duplicate/invalid refs; 404 on
+    unknown document. Publish, detector, and orchestrator errors are logged
+    and swallowed."""
     refs = [r.model_dump() for r in payload.references]
     try:
         result = service.save_annotation(
@@ -77,6 +80,19 @@ async def save(
         )
     except Exception:
         log.exception("run_after_save failed for %s", payload.document_id)
+
+    try:
+        action = "create" if result["is_new"] else "edit"
+        await gamification_service.run_after_save(
+            db,
+            user_id=user["id"],
+            username=user["username"],
+            action=action,
+            is_diff_zero=result["is_diff_zero"],
+            document_id=payload.document_id,
+        )
+    except Exception:
+        log.exception("gamification.run_after_save failed for %s", payload.document_id)
     return result
 
 
@@ -89,12 +105,19 @@ def skip(
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
-    """Log a skip activity event and release the caller's lock. Stays sync;
-    intentionally does NOT broadcast (skip is private to the user)."""
+    """Log a skip activity event and release the caller's lock, then bump
+    gamification today_skip_count (no XP). Stays sync; intentionally does
+    NOT broadcast (skip is private to the user). Orchestrator errors are
+    logged and swallowed."""
     try:
         service.skip_annotation(db, document_id=document_id, user_id=user["id"])
     except service.DocumentNotFound:
         raise HTTPException(status_code=404, detail=f"document {document_id} not found")
+
+    try:
+        gamification_service.record_skip(db, user_id=user["id"])
+    except Exception:
+        log.exception("gamification.record_skip failed for %s", document_id)
     return {"ok": True}
 
 
@@ -109,8 +132,11 @@ async def complete(
     user: sqlite3.Row = Depends(require_passed_training),
 ):
     """Toggle is_completed on the annotation. Broadcasts annotation_completed
-    only when the state actually changes (idempotent same-state toggle is
-    silent). 404 if no annotation row. Publish errors are logged and swallowed."""
+    and runs the gamification orchestrator (XP + first_completion badge on
+    completed=True; uncomplete is a clamp — no decrement) only when the
+    state actually changes (idempotent same-state toggle is silent). 404 if
+    no annotation row. Publish and orchestrator errors are logged and
+    swallowed."""
     # Read prior state so we know whether this is a real toggle or a no-op
     prior = service.get_annotation(db, document_id)
     will_change = prior is not None and prior["is_completed"] != payload.completed
@@ -136,6 +162,17 @@ async def complete(
             )
         except Exception:
             log.exception("publish annotation_completed failed for %s", document_id)
+
+        try:
+            await gamification_service.run_after_complete(
+                db,
+                user_id=user["id"],
+                username=user["username"],
+                completed=payload.completed,
+                document_id=document_id,
+            )
+        except Exception:
+            log.exception("gamification.run_after_complete failed for %s", document_id)
     return {"ok": True}
 
 
