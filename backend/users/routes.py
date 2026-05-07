@@ -4,6 +4,8 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from backend import config
+from backend.gamification import service as gamification_service
+from backend.gamification.models import ProfileResponse
 from backend.users import service
 from backend.users.deps import (
     get_db, get_current_user, get_request_ip
@@ -11,8 +13,6 @@ from backend.users.deps import (
 from backend.users.models import (
     RegisterRequest, LoginRequest, UserOut, OkResponse,
 )
-from backend.gamification import service as gamification_service
-from backend.gamification.models import ProfileResponse
 
 router = APIRouter(prefix="/api", tags=["users"])
 

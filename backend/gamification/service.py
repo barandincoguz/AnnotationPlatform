@@ -17,8 +17,13 @@ orchestrator (Task 6).
 """
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+from backend.gamification import badges as badges_module
+from backend.notifications import service as notif_service
+from backend.shared import settings as S
+from backend.shared.sse import broker as sse_broker
 
 
 log = logging.getLogger(__name__)
@@ -88,8 +93,6 @@ def get_xp_total(db: sqlite3.Connection, *, user_id: int) -> int:
 # ---------------------------------------------------------------------------
 # Streak + today-counter management
 # ---------------------------------------------------------------------------
-
-from datetime import timedelta
 
 VALID_ACTIONS = ("save_create", "save_edit", "complete", "uncomplete", "skip")
 _TR_TZ = timezone(timedelta(hours=3))
@@ -249,12 +252,6 @@ def record_skip(db: sqlite3.Connection, *, user_id: int) -> None:
 # Orchestrator
 # ---------------------------------------------------------------------------
 
-from backend.shared import settings as S
-from backend.shared.sse import broker as sse_broker
-from backend.gamification import badges as badges_module
-from backend.notifications import service as notif_service
-
-
 def _xp_for_save_action(db: sqlite3.Connection, action: str) -> int:
     if action == "create":
         return S.get_int(db, "gamification.xp_save", default=1)
@@ -264,7 +261,7 @@ def _xp_for_save_action(db: sqlite3.Connection, action: str) -> int:
 
 
 def _award_badges_and_notify(
-    db: sqlite3.Connection, *, user_id: int, username: str,
+    db: sqlite3.Connection, *, user_id: int,
 ) -> list[dict]:
     """Insert each newly-earned badge row and return the list of unlock
     payloads for SSE publishing. Caller does the publishes."""
@@ -365,7 +362,7 @@ async def run_after_save(
     # --- 3. Badge check + notify (own user) ---
     own_earned: list[dict] = []
     try:
-        own_earned = _award_badges_and_notify(db, user_id=user_id, username=username)
+        own_earned = _award_badges_and_notify(db, user_id=user_id)
     except Exception:
         log.exception("badge check failed for user %s", user_id)
 
@@ -382,7 +379,7 @@ async def run_after_save(
                 award_xp(db, user_id=prior_user_id, delta_xp=kept_xp,
                          reason="review_kept", related_doc_id=document_id)
                 prior_earned = _award_badges_and_notify(
-                    db, user_id=prior_user_id, username="",
+                    db, user_id=prior_user_id,
                 )
         except Exception:
             log.exception(
@@ -431,7 +428,7 @@ async def run_after_complete(
 
     own_earned: list[dict] = []
     try:
-        own_earned = _award_badges_and_notify(db, user_id=user_id, username=username)
+        own_earned = _award_badges_and_notify(db, user_id=user_id)
     except Exception:
         log.exception("badge check failed for user %s on complete", user_id)
 

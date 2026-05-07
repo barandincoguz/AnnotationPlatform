@@ -1,7 +1,4 @@
 """Integration tests: gamification fires through annotation HTTP routes."""
-import asyncio
-from datetime import datetime, timezone
-
 import pytest
 from backend.shared.sse import broker as sse_broker
 from backend.shared.db import connect

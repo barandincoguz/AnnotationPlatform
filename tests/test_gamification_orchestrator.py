@@ -110,7 +110,8 @@ def test_save_create_unlocks_first_annotation_badge(db):
     assert nrow["kind"] == "badge_unlocked"
 
 
-def test_complete_awards_xp_publishes_no_extra_event_if_no_badge(db):
+def test_complete_awards_xp_and_unlocks_first_completion(db):
+    """Completing a doc awards xp_complete and unlocks first_completion → 2 events."""
     queue = sse_broker.subscribe(user_id=1)
     asyncio.run(gam.run_after_complete(
         db, user_id=1, username="alice",
@@ -211,6 +212,15 @@ def test_personal_scope_other_users_dont_see_alice_badge(db):
 def test_xp_award_failure_does_not_block_streak_or_badges(db, monkeypatch):
     """If award_xp raises, the rest of the orchestrator (streak + badges)
     must still run. Each step is independently fault-isolated."""
+    # Seed a prior save ledger row so the badge check has something to grant
+    # even though this run's XP award will explode.
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(
+        "INSERT INTO gamification_ledger(user_id, delta_xp, reason, related_doc_id, created_at) "
+        "VALUES (1, 1, 'save', 'doc_seed', ?)",
+        (now,),
+    )
+
     original_award = gam.award_xp
     call_count = {"n": 0}
     def boom_award(*a, **kw):
@@ -227,6 +237,10 @@ def test_xp_award_failure_does_not_block_streak_or_badges(db, monkeypatch):
     # Streak still updated
     state = db.execute("SELECT current_streak_days FROM gamification_state WHERE user_id=1").fetchone()
     assert state["current_streak_days"] == 1
+    badges = db.execute(
+        "SELECT badge_id FROM badges_earned WHERE user_id=1"
+    ).fetchall()
+    assert {b["badge_id"] for b in badges} == {"first_annotation"}
 
 
 def test_run_after_complete_uncomplete_does_not_touch_streak(db):
