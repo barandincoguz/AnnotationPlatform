@@ -78,3 +78,343 @@ def get_active_gold_docs(db: sqlite3.Connection) -> list[dict]:
             })
 
     return out
+
+
+# ---------------------------------------------------------------------------
+# Attempt lifecycle — service exceptions
+# ---------------------------------------------------------------------------
+
+class TrainingServiceError(Exception):
+    """Base for all training service exceptions."""
+
+
+class AlreadyPassedError(TrainingServiceError):
+    """User already has has_passed_training=1; can't retake."""
+
+
+class LockedOutError(TrainingServiceError):
+    """User has reached max_attempts without passing. Admin reset required."""
+
+
+class AttemptNotOwnedError(TrainingServiceError):
+    """The given attempt_id doesn't belong to the calling user."""
+
+
+class AttemptNotFoundError(TrainingServiceError):
+    """No training_attempts row for this id."""
+
+
+class QuizAlreadySubmittedError(TrainingServiceError):
+    """Quiz already submitted for this attempt — idempotency guard."""
+
+
+class GoldDocNotInAttemptError(TrainingServiceError):
+    """The supplied gold_id wasn't selected for this attempt."""
+
+
+class GoldDocAlreadySubmittedError(TrainingServiceError):
+    """This gold_id was already annotated within this attempt."""
+
+
+# ---------------------------------------------------------------------------
+# Deterministic selection (attempt_id is the seed)
+# ---------------------------------------------------------------------------
+
+import random
+from datetime import datetime, timezone
+from typing import Optional
+
+from backend.shared import settings as S
+from backend.shared import audit
+from backend.training import quiz_data
+from backend.training import matching
+from backend.gamification import service as gamification_service
+from backend.notifications import service as notif_service
+
+
+def _now_utc_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _select_questions_for_attempt(attempt_id: int) -> list[dict]:
+    """Pick 5 deterministic questions seeded by attempt_id."""
+    rng = random.Random(attempt_id)
+    return rng.sample(quiz_data.QUIZ_QUESTIONS, 5)
+
+
+def _select_gold_docs_for_attempt(db: sqlite3.Connection, attempt_id: int) -> list[dict]:
+    """Pick 3 deterministic gold docs seeded by attempt_id, drawn from the
+    resolved active pool (code baseline + DB overrides)."""
+    pool = get_active_gold_docs(db)
+    if len(pool) < 3:
+        # In production, the user's CLI-imported docs + 3 placeholders
+        # always satisfies this. Defensive: fall back to whatever is available.
+        return pool
+    rng = random.Random(attempt_id)
+    return rng.sample(pool, 3)
+
+
+def _strip_correct_answers(questions: list[dict]) -> list[dict]:
+    return [
+        {"id": q["id"], "text": q["text"], "choices": q["choices"]}
+        for q in questions
+    ]
+
+
+def _strip_gold_answers(docs: list[dict]) -> list[dict]:
+    return [
+        {"gold_id": d["gold_id"], "content": d["content"]}
+        for d in docs
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Attempt lifecycle
+# ---------------------------------------------------------------------------
+
+def is_locked_out(db: sqlite3.Connection, *, user_id: int) -> bool:
+    """True iff user has used >= max_attempts AND none passed."""
+    max_attempts = S.get_int(db, "training.max_attempts", default=3)
+    rows = db.execute(
+        "SELECT passed FROM training_attempts WHERE user_id=?", (user_id,),
+    ).fetchall()
+    if not rows:
+        return False
+    if any(r["passed"] == 1 for r in rows):
+        return False
+    return len(rows) >= max_attempts
+
+
+def _user_passed(db: sqlite3.Connection, user_id: int) -> bool:
+    row = db.execute(
+        "SELECT has_passed_training FROM users WHERE id=?", (user_id,),
+    ).fetchone()
+    return bool(row and row["has_passed_training"])
+
+
+def _attempt_row(db: sqlite3.Connection, attempt_id: int) -> Optional[dict]:
+    row = db.execute(
+        "SELECT * FROM training_attempts WHERE id=?", (attempt_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def _verify_owner(db: sqlite3.Connection, attempt_id: int, user_id: int) -> dict:
+    """Return attempt row dict; raise AttemptNotOwnedError or AttemptNotFoundError."""
+    row = _attempt_row(db, attempt_id)
+    if row is None:
+        raise AttemptNotFoundError(attempt_id)
+    if row["user_id"] != user_id:
+        raise AttemptNotOwnedError(attempt_id)
+    return row
+
+
+def start_attempt(db: sqlite3.Connection, *, user_id: int) -> dict:
+    """Begin a new training attempt for the user.
+
+    Raises:
+      AlreadyPassedError — user.has_passed_training already 1
+      LockedOutError    — user has used max_attempts without passing
+    """
+    if _user_passed(db, user_id):
+        raise AlreadyPassedError(user_id)
+    if is_locked_out(db, user_id=user_id):
+        raise LockedOutError(user_id)
+
+    # Compute next attempt_number
+    row = db.execute(
+        "SELECT COUNT(*) AS c FROM training_attempts WHERE user_id=?", (user_id,),
+    ).fetchone()
+    attempt_number = row["c"] + 1
+    now = _now_utc_iso()
+
+    cur = db.execute(
+        """
+        INSERT INTO training_attempts(
+            user_id, attempt_number, quiz_score, quiz_total,
+            annotation_pass_count, annotation_total, annotation_details_json,
+            passed, started_at, finished_at
+        ) VALUES (?, ?, 0, 5, 0, 3, NULL, 0, ?, ?)
+        """,
+        (user_id, attempt_number, now, now),
+    )
+    attempt_id = cur.lastrowid
+    assert attempt_id is not None  # SQLite always returns an id on successful INSERT
+
+    questions = _select_questions_for_attempt(attempt_id)
+    docs = _select_gold_docs_for_attempt(db, attempt_id)
+
+    audit.log_activity(
+        db, user_id=user_id, event_type="training_start",
+        extra={"attempt_id": attempt_id, "attempt_number": attempt_number},
+    )
+    return {
+        "attempt_id": attempt_id,
+        "attempt_number": attempt_number,
+        "questions": _strip_correct_answers(questions),
+        "gold_docs": _strip_gold_answers(docs),
+    }
+
+
+def submit_quiz(
+    db: sqlite3.Connection,
+    *,
+    attempt_id: int,
+    user_id: int,
+    answers: dict[str, int],
+) -> dict:
+    """Score the quiz portion. Idempotent: re-submit raises QuizAlreadySubmittedError."""
+    row = _verify_owner(db, attempt_id, user_id)
+    # Idempotency: we use a marker in annotation_details_json — but quiz also has
+    # a "submitted" flag. Since the schema lacks a dedicated column, we encode
+    # it as: a non-null annotation_details_json with `_quiz_submitted` key.
+    details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
+    if details.get("_quiz_submitted"):
+        raise QuizAlreadySubmittedError(attempt_id)
+
+    questions = _select_questions_for_attempt(attempt_id)
+    score = matching.score_quiz(questions, answers)
+
+    details["_quiz_submitted"] = True
+    details["_quiz_score"] = score
+    db.execute(
+        "UPDATE training_attempts SET quiz_score=?, annotation_details_json=? WHERE id=?",
+        (score, json.dumps(details), attempt_id),
+    )
+    finalize_if_complete(db, attempt_id=attempt_id, user_id=user_id)
+    return {"score": score, "total": 5}
+
+
+def submit_annotation(
+    db: sqlite3.Connection,
+    *,
+    attempt_id: int,
+    user_id: int,
+    gold_id: str,
+    references: list[dict],
+) -> dict:
+    """Score one gold doc. Idempotent: re-submit same gold_id raises
+    GoldDocAlreadySubmittedError. Auto-finalizes when 3rd distinct doc lands."""
+    _verify_owner(db, attempt_id, user_id)
+    selected_docs = _select_gold_docs_for_attempt(db, attempt_id)
+    by_id = {d["gold_id"]: d for d in selected_docs}
+    if gold_id not in by_id:
+        raise GoldDocNotInAttemptError(gold_id)
+
+    row = _verify_owner(db, attempt_id, user_id)
+    details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
+    if gold_id in details and isinstance(details[gold_id], dict):
+        raise GoldDocAlreadySubmittedError(gold_id)
+
+    doc = by_id[gold_id]
+    summary = matching.match_gold_doc(doc["expected_concepts"], references)
+    passed = matching.is_doc_pass(summary, min_concept_count=doc["min_concept_count"])
+    details[gold_id] = {
+        "passed": passed,
+        "matched_count": summary["matched_count"],
+        "expected_count": summary["expected_count"],
+    }
+
+    # Recompute annotation_pass_count from details
+    pass_count = sum(
+        1 for k, v in details.items()
+        if not k.startswith("_") and isinstance(v, dict) and v.get("passed")
+    )
+
+    db.execute(
+        "UPDATE training_attempts SET annotation_pass_count=?, annotation_details_json=? WHERE id=?",
+        (pass_count, json.dumps(details), attempt_id),
+    )
+    finalize_if_complete(db, attempt_id=attempt_id, user_id=user_id)
+    return {
+        "passed": passed,
+        "matched_count": summary["matched_count"],
+        "expected_count": summary["expected_count"],
+        "min_concept_count": doc["min_concept_count"],
+    }
+
+
+def finalize_if_complete(
+    db: sqlite3.Connection, *, attempt_id: int, user_id: int,
+) -> Optional[dict]:
+    """Check if both quiz + 3 docs submitted; if so, compute pass and apply
+    user/gamification/notification side-effects. Returns the finalize summary
+    or None if not yet complete. Idempotent — finalize is a no-op if attempt
+    is already passed=1 or fail-final."""
+    row = _attempt_row(db, attempt_id)
+    if row is None:
+        return None
+    if row["passed"] == 1:
+        return None  # already finalized as pass
+
+    details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
+    if not details.get("_quiz_submitted"):
+        return None
+    doc_keys = [k for k in details if not k.startswith("_") and isinstance(details[k], dict)]
+    if len(doc_keys) < 3:
+        return None
+    if details.get("_finalized"):
+        return None  # already finalized as fail
+
+    quiz_threshold = S.get_int(db, "training.quiz_pass_threshold", default=4)
+    anno_threshold = S.get_int(db, "training.annotation_pass_threshold", default=2)
+    quiz_pass = row["quiz_score"] >= quiz_threshold
+    anno_pass = row["annotation_pass_count"] >= anno_threshold
+    overall_pass = quiz_pass and anno_pass
+
+    now = _now_utc_iso()
+    details["_finalized"] = True
+    db.execute(
+        "UPDATE training_attempts SET passed=?, finished_at=?, annotation_details_json=? WHERE id=?",
+        (1 if overall_pass else 0, now, json.dumps(details), attempt_id),
+    )
+
+    if overall_pass:
+        try:
+            db.execute("UPDATE users SET has_passed_training=1 WHERE id=?", (user_id,))
+        except Exception:
+            log.exception("flip has_passed_training failed for user %s", user_id)
+        try:
+            xp_delta = S.get_int(db, "gamification.xp_training_pass", default=50)
+            gamification_service.award_xp(
+                db, user_id=user_id, delta_xp=xp_delta,
+                reason="training_pass", related_doc_id=None,
+            )
+        except Exception:
+            log.exception("training_pass xp award failed for user %s", user_id)
+        try:
+            notif_service.create(
+                db, user_id=user_id, kind="training_passed",
+                title="Tebrikler! Eğitimi geçtin",
+                body=f"Bursiyer eğitimini başarıyla tamamladın. +{S.get_int(db, 'gamification.xp_training_pass', default=50)} XP kazandın.",
+                data={"attempt_id": attempt_id},
+            )
+        except Exception:
+            log.exception("training_pass notification create failed")
+        try:
+            audit.log_activity(
+                db, user_id=user_id, event_type="training_pass",
+                extra={"attempt_id": attempt_id},
+            )
+        except Exception:
+            log.exception("training_pass audit log failed")
+    else:
+        try:
+            audit.log_activity(
+                db, user_id=user_id, event_type="training_fail",
+                extra={
+                    "attempt_id": attempt_id,
+                    "quiz_score": row["quiz_score"],
+                    "annotation_pass_count": row["annotation_pass_count"],
+                },
+            )
+        except Exception:
+            log.exception("training_fail audit log failed")
+
+    return {
+        "passed": overall_pass,
+        "quiz_score": row["quiz_score"],
+        "quiz_total": 5,
+        "annotation_pass_count": row["annotation_pass_count"],
+        "annotation_total": 3,
+    }
