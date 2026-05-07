@@ -295,13 +295,12 @@ def submit_annotation(
 ) -> dict:
     """Score one gold doc. Idempotent: re-submit same gold_id raises
     GoldDocAlreadySubmittedError. Auto-finalizes when 3rd distinct doc lands."""
-    _verify_owner(db, attempt_id, user_id)
+    row = _verify_owner(db, attempt_id, user_id)
     selected_docs = _select_gold_docs_for_attempt(db, attempt_id)
     by_id = {d["gold_id"]: d for d in selected_docs}
     if gold_id not in by_id:
         raise GoldDocNotInAttemptError(gold_id)
 
-    row = _verify_owner(db, attempt_id, user_id)
     details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
     if gold_id in details and isinstance(details[gold_id], dict):
         raise GoldDocAlreadySubmittedError(gold_id)
@@ -370,12 +369,12 @@ def finalize_if_complete(
     )
 
     if overall_pass:
+        xp_delta = S.get_int(db, "gamification.xp_training_pass", default=50)
         try:
             db.execute("UPDATE users SET has_passed_training=1 WHERE id=?", (user_id,))
         except Exception:
             log.exception("flip has_passed_training failed for user %s", user_id)
         try:
-            xp_delta = S.get_int(db, "gamification.xp_training_pass", default=50)
             gamification_service.award_xp(
                 db, user_id=user_id, delta_xp=xp_delta,
                 reason="training_pass", related_doc_id=None,
@@ -386,7 +385,7 @@ def finalize_if_complete(
             notif_service.create(
                 db, user_id=user_id, kind="training_passed",
                 title="Tebrikler! Eğitimi geçtin",
-                body=f"Bursiyer eğitimini başarıyla tamamladın. +{S.get_int(db, 'gamification.xp_training_pass', default=50)} XP kazandın.",
+                body=f"Bursiyer eğitimini başarıyla tamamladın. +{xp_delta} XP kazandın.",
                 data={"attempt_id": attempt_id},
             )
         except Exception:

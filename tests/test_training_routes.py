@@ -116,7 +116,7 @@ def test_quiz_submit_unknown_attempt_404(client):
 
 
 def test_quiz_submit_wrong_user_403(client):
-    user_a = _seen_manual_user(client, "u_qa")
+    _seen_manual_user(client, "u_qa")
     r = client.get("/api/training/start")
     aid = r.json()["attempt_id"]
     # Switch to a different user

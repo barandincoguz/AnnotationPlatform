@@ -1,5 +1,4 @@
 """Unit tests for training.matching pure functions."""
-import pytest
 from backend.training import matching
 
 

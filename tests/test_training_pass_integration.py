@@ -13,6 +13,7 @@ from backend import config
 def _seen_manual_user(client, username="u_e2e"):
     conn = connect(config.DB_PATH)
     try:
+        conn.execute("UPDATE invite_codes SET is_active=0 WHERE is_active=1")
         conn.execute(
             "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
             (f"INV-{username}",),
