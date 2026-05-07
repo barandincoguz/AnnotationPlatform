@@ -8,6 +8,7 @@ Usage:
   python -m backend.cli rotate-invite <new_code>
 """
 import argparse
+import json
 import sys
 from datetime import datetime, timezone
 
@@ -149,6 +150,57 @@ def cmd_ingest(args) -> int:
     return 0
 
 
+def cmd_import_gold_docs(args) -> int:
+    path = args.path
+    try:
+        with open(path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except FileNotFoundError:
+        print(f"error: file not found: {path}", file=sys.stderr)
+        return 1
+    except json.JSONDecodeError as e:
+        print(f"error: invalid JSON in {path}: {e}", file=sys.stderr)
+        return 1
+
+    docs = payload.get("gold_docs")
+    if not isinstance(docs, list):
+        print("error: payload must have a top-level 'gold_docs' list", file=sys.stderr)
+        return 1
+
+    required = ("gold_id", "content", "expected_concepts", "min_concept_count")
+    for i, d in enumerate(docs):
+        for k in required:
+            if k not in d:
+                print(f"error: gold_docs[{i}] missing required field '{k}'", file=sys.stderr)
+                return 1
+
+    config.ensure_dirs()
+    conn = connect(config.DB_PATH)
+    try:
+        apply_migrations(conn, discover_migrations())
+        now = datetime.now(timezone.utc).isoformat()
+        for d in docs:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO training_gold_doc_overrides(
+                    gold_id, is_deleted, content, expected_concepts,
+                    min_concept_count, source, created_at, updated_at
+                ) VALUES (?, 0, ?, ?, ?, 'custom', ?, ?)
+                """,
+                (
+                    d["gold_id"], d["content"],
+                    json.dumps(d["expected_concepts"]),
+                    d["min_concept_count"],
+                    now, now,
+                ),
+            )
+    finally:
+        conn.close()
+
+    print(f"imported {len(docs)} gold-doc(s) into training_gold_doc_overrides")
+    return 0
+
+
 COMMANDS = {
     "migrate": cmd_migrate,
     "promote-admin": cmd_promote_admin,
@@ -156,6 +208,7 @@ COMMANDS = {
     "create-invite": cmd_create_invite,
     "rotate-invite": cmd_rotate_invite,
     "ingest": cmd_ingest,
+    "import-gold-docs": cmd_import_gold_docs,
 }
 
 
@@ -178,6 +231,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_ingest = sub.add_parser("ingest", help="Ingest JSON file or directory")
     p_ingest.add_argument("path", help="JSON file or directory containing *.json files")
+
+    p_import_gold = sub.add_parser(
+        "import-gold-docs",
+        help="Import gold docs from a JSON file into training_gold_doc_overrides as source='custom'.",
+    )
+    p_import_gold.add_argument("path", help="path to gold-docs JSON file")
 
     args = parser.parse_args(argv)
     handler = COMMANDS.get(args.command)
