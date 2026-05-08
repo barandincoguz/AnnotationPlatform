@@ -162,3 +162,25 @@ def test_upsert_writes_audit_row(client):
     ).fetchone()
     assert row is not None
     db.close()
+
+
+def test_insufficient_quiz_pool_logs_warning(client, caplog):
+    """Tombstoning enough baseline questions so the active pool drops below 5
+    should produce a warning log when start_attempt fires."""
+    import logging
+    _bootstrap_admin(client)
+    # Tombstone 4 baseline questions, leaving only 4 active (8 - 4 = 4)
+    for qid in ("q01", "q02", "q03", "q04"):
+        client.delete(f"/api/admin/training/quiz/{qid}")
+
+    client.cookies.clear()
+    _seen_manual_user(client, "bursiyer1", "INVITE-2026")
+    with caplog.at_level(logging.WARNING, logger="backend.training.service"):
+        r = client.get("/api/training/start")
+    assert r.status_code == 200
+    # Should be only 4 questions
+    assert len(r.json()["questions"]) == 4
+    assert any(
+        "quiz pool has only" in record.message
+        for record in caplog.records if record.levelno == logging.WARNING
+    )

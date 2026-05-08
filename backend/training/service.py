@@ -145,6 +145,11 @@ def _select_questions_for_attempt(db: sqlite3.Connection, attempt_id: int) -> li
     if len(pool) < 5:
         # Defensive: if admin tombstoned too many baseline questions, fall
         # back to whatever is available so the attempt can still proceed.
+        log.warning(
+            "quiz pool has only %d questions (expected >=5); "
+            "training quiz size degraded; consider restoring a tombstoned question or adding custom ones",
+            len(pool),
+        )
         return pool
     rng = random.Random(attempt_id)
     return rng.sample(pool, 5)
@@ -518,7 +523,9 @@ def upsert_gold_doc_override(
 def soft_delete_gold_doc(
     db: sqlite3.Connection, *, gold_id: str, admin_id: int,
 ) -> None:
-    """Tombstone via is_deleted=1. Idempotent."""
+    """Tombstone via is_deleted=1. Idempotent. Preserves created_at and
+    created_by_admin_id from the original row if any (those columns are
+    absent from the ON CONFLICT DO UPDATE SET clause)."""
     baseline_ids = {d["gold_id"] for d in code_gold.GOLD_DOCS}
     source = "override" if gold_id in baseline_ids else "custom"
     now = datetime.now(timezone.utc).isoformat()
