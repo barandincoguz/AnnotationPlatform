@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from backend.admin import service as admin_service
 from backend.admin.models import SettingUpdateRequest, SettingUpdateResponse
 from backend.shared import audit, settings as S
 from backend.users import service as users_service
@@ -103,5 +104,24 @@ def admin_audit_log(
     return users_service.list_admin_audit(
         db, limit=limit, offset=offset,
         admin_id=admin_id, action=action,
+        date_from=date_from, date_to=date_to,
+    )
+
+
+@router.get("/system-events")
+def admin_system_events(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    event_type: Optional[str] = None,
+    severity: Optional[str] = None,
+    date_from: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    date_to: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    """Paginated + filtered system events log."""
+    return admin_service.list_system_events(
+        db, limit=limit, offset=offset,
+        event_type=event_type, severity=severity,
         date_from=date_from, date_to=date_to,
     )
