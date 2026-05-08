@@ -122,6 +122,9 @@ async def admin_force_release(
         raise HTTPException(status_code=404, detail=f"no lock on {document_id}")
 
     prior_user_id = held["user_id"]
+    # Small TOCTOU window vs. sweep / holder-release — worst case: stale
+    # prior_user_id in the event. Unconditional delete and audit still fire
+    # correctly. Mirrors the analogous comment in the user-release path.
     service.force_release(db, document_id=document_id)
 
     try:

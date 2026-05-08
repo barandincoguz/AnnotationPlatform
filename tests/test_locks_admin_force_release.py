@@ -1,5 +1,4 @@
 """Admin force-release endpoint + SSE reason='admin_force' field."""
-import json
 
 
 def _bootstrap_admin(client, username="root", password="rootpass1"):
@@ -64,38 +63,10 @@ def _seen_manual_user(client, username, invite_code, password="password123"):
     return user_id
 
 
-_SAMPLE_DOC = {
-    "evrakOid": "doc_test",
-    "sayi": 1,
-    "tarih": "20260101",
-    "konu": "Test özelge",
-    "pdfText": "Bu bir test dokümanıdır. Kanun atıfları içerir.",
-    "kanunBilgileri": [],
-    "bkkTebligSirkuBilgileri": [],
-}
-
-
-def _ingest(document_id: str) -> None:
-    """Ingest a doc into the active config DB so /api/locks/{id}/acquire passes."""
-    from backend.shared.db import connect
-    from backend.documents import service as doc_service
-    from backend import config
-
-    payload = {**_SAMPLE_DOC, "evrakOid": document_id}
-    path = config.DOCUMENTS_DIR / f"{document_id}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload), encoding="utf-8")
-    conn = connect(config.DB_PATH)
-    try:
-        doc_service.ingest_file(conn, path)
-    finally:
-        conn.close()
-
-
-def test_force_release_deletes_lock(client):
+def test_force_release_deletes_lock(client, ingest_doc):
     admin_id = _bootstrap_admin(client)
     other_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
-    _ingest("doc-A")
+    ingest_doc("doc-A")
     # bursiyer1 acquires a lock first
     r = client.post("/api/locks/doc-A/acquire")
     assert r.status_code == 200, r.text
@@ -113,10 +84,10 @@ def test_force_release_deletes_lock(client):
     db.close()
 
 
-def test_force_release_writes_audit(client):
+def test_force_release_writes_audit(client, ingest_doc):
     admin_id = _bootstrap_admin(client)
     user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
-    _ingest("doc-B")
+    ingest_doc("doc-B")
     client.post("/api/locks/doc-B/acquire")
     client.cookies.clear()
     client.post("/api/auth/login", json={"username": "root", "password": "rootpass1"})
@@ -141,11 +112,11 @@ def test_force_release_no_lock_returns_404(client):
     assert r.status_code == 404
 
 
-def test_force_release_publishes_lock_released_with_reason(client):
+def test_force_release_publishes_lock_released_with_reason(client, ingest_doc):
     """Direct SSE event capture by patching the broker."""
     admin_id = _bootstrap_admin(client)
     user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
-    _ingest("doc-C")
+    ingest_doc("doc-C")
     client.post("/api/locks/doc-C/acquire")
     client.cookies.clear()
     client.post("/api/auth/login", json={"username": "root", "password": "rootpass1"})
@@ -178,10 +149,10 @@ def test_force_release_requires_admin(client):
     assert r.status_code == 404  # existence-hide
 
 
-def test_user_release_publishes_reason_user_release(client):
+def test_user_release_publishes_reason_user_release(client, ingest_doc):
     """Regression: existing user-driven release now carries reason='user_release'."""
     user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
-    _ingest("doc-D")
+    ingest_doc("doc-D")
     client.post("/api/locks/doc-D/acquire")
 
     captured = []
