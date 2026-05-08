@@ -85,7 +85,7 @@ def test_v0001_idempotent(db_path):
     try:
         first = apply_migrations(conn, discover_migrations())
         second = apply_migrations(conn, discover_migrations())
-        assert first == ["v0001"]
+        assert first == ["v0001", "v0002"]
         assert second == []
     finally:
         conn.close()
