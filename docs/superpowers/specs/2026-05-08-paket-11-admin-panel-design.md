@@ -152,12 +152,14 @@ GET /api/admin/audit-log
   200: {items: [...], total: int, has_more: bool}
 
 GET /api/admin/system-events
-  Query: limit, offset, event_type, user_id, date_from, date_to
+  Query: limit, offset, event_type, severity, date_from, date_to
   Auth: require_admin
   200: {items: [...], total: int, has_more: bool}
+  Note: system_events table has no user_id column — events are system-scoped, not user-scoped.
+  Severity filter accepts: 'info' | 'warn' | 'error'.
 ```
 
-**Note:** Existing `GET /api/admin/audit-log` in `users/routes.py` (Paket 2) is upgraded in-place in Task 7. The route stays at the same path; the response shape changes from a flat list to `{items, total, has_more}`. No frontend depends on the old shape (frontend is Paket 16).
+**Note:** Existing `GET /api/admin/audit-log` in `users/routes.py` (Paket 2) is upgraded in-place in Task 7. The route stays at the same path; the response shape changes from `{events: [...]}` (Paket 2) to `{items, total, has_more}`. No frontend depends on the old shape (frontend is Paket 16). Per-item field names are preserved (`admin_user_id`, `action_type`, `target_kind`, `target_id`, `metadata`, `created_at`); the only change is renaming the outer key (`events` → `items`) and adding `total` + `has_more`.
 
 ## Schema (v0002 migration)
 
@@ -194,7 +196,7 @@ Single new table, additive, no v0001 changes. Symmetric with `training_gold_doc_
 | `training/service.py` | `start_attempt`, `submit_quiz` | Migrate from `quiz_data.QUIZ_QUESTIONS` to `get_active_quiz_questions(db)` (Task 6). |
 | `locks/service.py` | (no signature change) | Existing `force_release` reused. The 3 `lock_released` publish sites add `reason` field (Task 4). |
 | `users/service.py` | `list_admin_audit(db, *, limit, offset, admin_id=None, action=None, date_from=None, date_to=None) -> dict` | Returns `{items, total, has_more}`. Replaces existing simple list. |
-| `admin/service.py` (NEW) | `list_system_events(db, *, limit, offset, event_type=None, user_id=None, date_from=None, date_to=None) -> dict` | Same pagination shape. |
+| `admin/service.py` (NEW) | `list_system_events(db, *, limit, offset, event_type=None, severity=None, date_from=None, date_to=None) -> dict` | Same pagination shape. system_events has no user_id; severity ∈ {info,warn,error}. |
 
 **Audit row writing:** In Paket 5/8 each admin route writes its own audit row inline (no helper extracted). Continue this pattern for Paket 11. If `backend/shared/audit.py` already has a helper, reuse it; otherwise inline.
 
@@ -251,7 +253,7 @@ After all 9 tasks land:
 
 - **None blocking.** All architectural decisions resolved during brainstorming.
 - **Latent risk:** Paket 7 SSE tests may assert on `lock_released` payload shape — Task 4 includes test updates for the `reason` field. Surface area: `tests/test_locks_*` and `tests/test_sse_*`.
-- **Latent risk:** Paket 2 `/admin/audit-log` tests assert on a flat list response. Task 7 changes the response to `{items, total, has_more}` and updates those existing tests in the same commit. Surface area: `tests/test_users_admin_*` (audit-log assertions).
+- **Latent risk:** Paket 2 `/admin/audit-log` test (`tests/test_admin_routes.py::test_admin_audit_log_endpoint_returns_actions`) asserts on `body["events"]`. Task 7 changes the response to `{items, total, has_more}` and updates that test in the same commit.
 - **Latent risk:** If `quiz_data.QUIZ_QUESTIONS` is referenced directly in any existing test, the resolver migration in Task 6 must update those tests. Audit grep before Task 6.
 
 ## Out-of-Scope Notes for Future Pakets
