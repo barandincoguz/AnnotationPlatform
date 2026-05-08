@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.locks import service
 from backend.locks.models import LockInfo, LockConflict, OkResponse
+from backend.shared import audit
 from backend.shared.sse import broker as sse_broker
-from backend.users.deps import get_db, require_passed_training
+from backend.users.deps import get_db, require_admin, require_passed_training
 
 
 log = logging.getLogger(__name__)
@@ -97,8 +98,54 @@ async def release(
         try:
             await sse_broker.publish_broadcast(
                 "lock_released",
-                {"document_id": document_id, "by_user_id": holder_user_id},
+                {
+                    "document_id": document_id,
+                    "by_user_id": holder_user_id,
+                    "reason": "user_release",
+                },
             )
         except Exception:
             log.exception("publish lock_released failed for %s", document_id)
+    return {"ok": True}
+
+
+@router.post("/{document_id}/admin/force-release", response_model=OkResponse)
+async def admin_force_release(
+    document_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    """Admin override — unconditional release. 404 if no lock currently held.
+    Broadcasts lock_released with reason='admin_force'. Writes admin audit."""
+    held = service.get_lock(db, document_id)
+    if held is None:
+        raise HTTPException(status_code=404, detail=f"no lock on {document_id}")
+
+    prior_user_id = held["user_id"]
+    service.force_release(db, document_id=document_id)
+
+    try:
+        await sse_broker.publish_broadcast(
+            "lock_released",
+            {
+                "document_id": document_id,
+                "by_user_id": prior_user_id,
+                "reason": "admin_force",
+            },
+        )
+    except Exception:
+        log.exception("publish lock_released admin_force failed for %s", document_id)
+
+    try:
+        audit.log_admin_action(
+            db,
+            admin_user_id=admin["id"],
+            action_type="lock_force_release",
+            target_kind="document",
+            target_id=document_id,
+            metadata={"prior_holder_user_id": prior_user_id},
+        )
+    except Exception:
+        log.exception("log_admin_action lock_force_release failed for %s", document_id)
+
     return {"ok": True}

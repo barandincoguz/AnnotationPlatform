@@ -48,6 +48,7 @@ def test_release_publishes_lock_released(passed_user, ingest_doc):
         assert event.event_type == "lock_released"
         assert event.data["document_id"] == "doc_pub_release"
         assert event.data["by_user_id"] == user_id
+        assert event.data["reason"] == "user_release"
     finally:
         sse_broker.unsubscribe(user_id, queue)
 
@@ -153,5 +154,6 @@ def test_sweep_publishes_lock_released_for_each_expired(tmp_path, monkeypatch):
         assert event.data["document_id"] == "doc_swp"
         # by_user_id is None for sweep-driven releases (we don't track which user held it)
         assert event.data.get("by_user_id") is None
+        assert event.data["reason"] == "sweep_expired"
     finally:
         sse_broker.unsubscribe(1, queue)

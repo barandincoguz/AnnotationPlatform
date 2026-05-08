@@ -34,7 +34,11 @@ async def sweep_once_and_publish() -> list[str]:
         try:
             await sse_broker.publish_broadcast(
                 "lock_released",
-                {"document_id": document_id, "by_user_id": None},
+                {
+                    "document_id": document_id,
+                    "by_user_id": None,
+                    "reason": "sweep_expired",
+                },
             )
         except Exception:
             log.exception("publish lock_released failed for %s", document_id)
