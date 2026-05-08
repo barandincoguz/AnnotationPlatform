@@ -45,3 +45,22 @@ class AnnotateSubmitResponse(BaseModel):
 
 class OkResponse(BaseModel):
     ok: bool = True
+
+
+class ConceptInput(BaseModel):
+    kanun_no: str
+    kanun_ad: str | None = None
+    madde: str | None = None
+    fikra: str | None = None
+    bent: str | None = None
+
+
+class GoldDocUpsertRequest(BaseModel):
+    content: str
+    expected_concepts: list[ConceptInput]
+    min_concept_count: int
+
+
+class GoldDocsListResponse(BaseModel):
+    resolved: list[dict]
+    overrides: list[dict]

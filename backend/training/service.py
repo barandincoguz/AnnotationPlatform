@@ -469,3 +469,50 @@ def reset_user_training(
         log.exception("log_admin_action reset_training failed for user_id=%s", user_id)
 
     return True
+
+
+# ---------------------------------------------------------------------------
+# Gold-doc admin CRUD helpers (Paket 11 Task 5)
+# ---------------------------------------------------------------------------
+
+def upsert_gold_doc_override(
+    db: sqlite3.Connection, *, gold_id: str, content: str,
+    expected_concepts: list[dict], min_concept_count: int, admin_id: int,
+) -> None:
+    """Upsert a gold-doc override row. source='override' if gold_id exists in
+    code baseline, else 'custom'."""
+    baseline_ids = {d["gold_id"] for d in code_gold.GOLD_DOCS}
+    source = "override" if gold_id in baseline_ids else "custom"
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(
+        """
+        INSERT OR REPLACE INTO training_gold_doc_overrides(
+            gold_id, is_deleted, content, expected_concepts,
+            min_concept_count, source, created_by_admin_id,
+            created_at, updated_at
+        ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            gold_id, content, json.dumps(expected_concepts),
+            min_concept_count, source, admin_id, now, now,
+        ),
+    )
+
+
+def soft_delete_gold_doc(
+    db: sqlite3.Connection, *, gold_id: str, admin_id: int,
+) -> None:
+    """Tombstone via is_deleted=1. Idempotent."""
+    baseline_ids = {d["gold_id"] for d in code_gold.GOLD_DOCS}
+    source = "override" if gold_id in baseline_ids else "custom"
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(
+        """
+        INSERT OR REPLACE INTO training_gold_doc_overrides(
+            gold_id, is_deleted, content, expected_concepts,
+            min_concept_count, source, created_by_admin_id,
+            created_at, updated_at
+        ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
+        """,
+        (gold_id, source, admin_id, now, now),
+    )

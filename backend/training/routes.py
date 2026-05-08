@@ -2,6 +2,7 @@
 
 The user is taking training right now — using require_passed_training would
 be circular. Pre-manual users (has_seen_manual=0) still must read /help first."""
+import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,8 +12,13 @@ from backend.training.models import (
     StartResponse, QuizSubmitRequest, QuizSubmitResponse,
     AnnotateSubmitRequest, AnnotateSubmitResponse,
     OkResponse,
+    GoldDocUpsertRequest, GoldDocsListResponse,
 )
+from backend.shared import audit
 from backend.users.deps import get_db, require_seen_manual, require_admin
+
+
+log = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/training", tags=["training"])
@@ -93,4 +99,61 @@ def admin_reset_user_training(
     )
     if not ok:
         raise HTTPException(status_code=404, detail=f"user {user_id} not found")
+    return {"ok": True}
+
+
+@admin_router.get("/gold-docs", response_model=GoldDocsListResponse)
+def admin_list_gold_docs(
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    resolved = service.get_active_gold_docs(db)
+    rows = db.execute(
+        "SELECT gold_id, is_deleted, content, expected_concepts, "
+        "min_concept_count, source, created_by_admin_id, created_at, updated_at "
+        "FROM training_gold_doc_overrides ORDER BY gold_id"
+    ).fetchall()
+    overrides = [dict(r) for r in rows]
+    return {"resolved": resolved, "overrides": overrides}
+
+
+@admin_router.put("/gold-docs/{gold_id}", response_model=OkResponse)
+def admin_upsert_gold_doc(
+    gold_id: str,
+    payload: GoldDocUpsertRequest,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    concepts = [c.model_dump(exclude_none=False) for c in payload.expected_concepts]
+    service.upsert_gold_doc_override(
+        db, gold_id=gold_id, content=payload.content,
+        expected_concepts=concepts,
+        min_concept_count=payload.min_concept_count,
+        admin_id=admin["id"],
+    )
+    try:
+        audit.log_admin_action(
+            db, admin_user_id=admin["id"], action_type="upsert_gold_doc",
+            target_kind="gold_doc", target_id=gold_id,
+            metadata={"min_concept_count": payload.min_concept_count, "concept_count": len(concepts)},
+        )
+    except Exception:
+        log.exception("audit upsert_gold_doc failed for %s", gold_id)
+    return {"ok": True}
+
+
+@admin_router.delete("/gold-docs/{gold_id}", response_model=OkResponse)
+def admin_delete_gold_doc(
+    gold_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    service.soft_delete_gold_doc(db, gold_id=gold_id, admin_id=admin["id"])
+    try:
+        audit.log_admin_action(
+            db, admin_user_id=admin["id"], action_type="delete_gold_doc",
+            target_kind="gold_doc", target_id=gold_id,
+        )
+    except Exception:
+        log.exception("audit delete_gold_doc failed for %s", gold_id)
     return {"ok": True}
