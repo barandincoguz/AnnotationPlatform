@@ -438,8 +438,14 @@ def reset_user_training(
     if user_row is None:
         return False
 
-    db.execute("DELETE FROM training_attempts WHERE user_id=?", (user_id,))
-    db.execute("UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,))
+    db.execute("BEGIN")
+    try:
+        db.execute("DELETE FROM training_attempts WHERE user_id=?", (user_id,))
+        db.execute("UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,))
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
     try:
         notif_service.create(
