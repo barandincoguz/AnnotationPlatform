@@ -15,6 +15,8 @@ annotating real özelge documents:
   - Skip vs save semantics
   - Empty-references-list legality
 """
+import json
+import sqlite3
 
 QUIZ_QUESTIONS: list[dict] = [
     {
@@ -106,3 +108,62 @@ QUIZ_QUESTIONS: list[dict] = [
         "correct_choice_idx": 1,
     },
 ]
+
+
+def get_active_quiz_questions(db: sqlite3.Connection) -> list[dict]:
+    """Hybrid resolver: code baseline (QUIZ_QUESTIONS) + DB overrides
+    (training_quiz_overrides). Symmetric with
+    backend.training.service.get_active_gold_docs.
+
+    Resolution rules:
+      - For every code-baseline entry:
+          * Override row with is_deleted=1 → exclude.
+          * Override row present → merge (override fields win; NULL means
+            fall back to code).
+          * Otherwise → use code entry as-is.
+      - For every override row with source='custom' AND is_deleted=0 AND
+        question_id NOT in code baseline → append.
+    """
+    rows = db.execute(
+        "SELECT question_id, is_deleted, text, choices_json, "
+        "correct_choice_idx, source FROM training_quiz_overrides"
+    ).fetchall()
+    overrides = {r["question_id"]: r for r in rows}
+
+    out: list[dict] = []
+    seen: set[str] = set()
+    for code in QUIZ_QUESTIONS:
+        qid = code["id"]
+        ov = overrides.get(qid)
+        if ov is not None and ov["is_deleted"]:
+            continue
+        if ov is not None:
+            text = ov["text"] if ov["text"] is not None else code["text"]
+            choices = (
+                json.loads(ov["choices_json"]) if ov["choices_json"] is not None
+                else code["choices"]
+            )
+            cci = (
+                ov["correct_choice_idx"] if ov["correct_choice_idx"] is not None
+                else code["correct_choice_idx"]
+            )
+            out.append({
+                "id": qid, "text": text,
+                "choices": choices, "correct_choice_idx": cci,
+            })
+        else:
+            out.append(dict(code))
+        seen.add(qid)
+
+    for qid, ov in overrides.items():
+        if ov["source"] == "custom" and not ov["is_deleted"] and qid not in seen:
+            out.append({
+                "id": qid,
+                "text": ov["text"],
+                "choices": json.loads(ov["choices_json"]) if ov["choices_json"] else [],
+                "correct_choice_idx": (
+                    ov["correct_choice_idx"] if ov["correct_choice_idx"] is not None else 0
+                ),
+            })
+
+    return out
