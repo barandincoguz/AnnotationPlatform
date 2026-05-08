@@ -486,11 +486,19 @@ def upsert_gold_doc_override(
     now = datetime.now(timezone.utc).isoformat()
     db.execute(
         """
-        INSERT OR REPLACE INTO training_gold_doc_overrides(
+        INSERT INTO training_gold_doc_overrides(
             gold_id, is_deleted, content, expected_concepts,
             min_concept_count, source, created_by_admin_id,
             created_at, updated_at
         ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(gold_id) DO UPDATE SET
+            is_deleted = excluded.is_deleted,
+            content = excluded.content,
+            expected_concepts = excluded.expected_concepts,
+            min_concept_count = excluded.min_concept_count,
+            source = excluded.source,
+            created_by_admin_id = excluded.created_by_admin_id,
+            updated_at = excluded.updated_at
         """,
         (
             gold_id, content, json.dumps(expected_concepts),
@@ -508,11 +516,17 @@ def soft_delete_gold_doc(
     now = datetime.now(timezone.utc).isoformat()
     db.execute(
         """
-        INSERT OR REPLACE INTO training_gold_doc_overrides(
+        INSERT INTO training_gold_doc_overrides(
             gold_id, is_deleted, content, expected_concepts,
             min_concept_count, source, created_by_admin_id,
             created_at, updated_at
         ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
+        ON CONFLICT(gold_id) DO UPDATE SET
+            is_deleted = 1,
+            content = NULL,
+            expected_concepts = NULL,
+            min_concept_count = NULL,
+            updated_at = excluded.updated_at
         """,
         (gold_id, source, admin_id, now, now),
     )

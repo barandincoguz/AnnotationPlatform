@@ -173,3 +173,34 @@ def test_endpoints_require_admin(client):
     assert r.status_code == 404
     r = client.delete("/api/admin/training/gold-docs/x")
     assert r.status_code == 404
+
+
+def test_upsert_twice_preserves_created_at(client):
+    _bootstrap_admin(client)
+    payload = {
+        "content": "v1", "expected_concepts": [{"kanun_no": "5520"}],
+        "min_concept_count": 1,
+    }
+    client.put("/api/admin/training/gold-docs/sample_kvk_5", json=payload)
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    first_created_at = db.execute(
+        "SELECT created_at FROM training_gold_doc_overrides WHERE gold_id='sample_kvk_5'"
+    ).fetchone()["created_at"]
+    db.close()
+
+    # Second upsert with different content
+    payload["content"] = "v2"
+    client.put("/api/admin/training/gold-docs/sample_kvk_5", json=payload)
+
+    db = connect(DB_PATH)
+    row = db.execute(
+        "SELECT created_at, updated_at, content FROM training_gold_doc_overrides WHERE gold_id='sample_kvk_5'"
+    ).fetchone()
+    assert row["created_at"] == first_created_at  # preserved
+    assert row["content"] == "v2"  # updated
+    # updated_at may be ==first_created_at if both upserts hit the same ISO timestamp
+    # under fast test execution; that's acceptable. Just verify content is v2.
+    db.close()

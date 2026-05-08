@@ -124,7 +124,7 @@ def admin_upsert_gold_doc(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
-    concepts = [c.model_dump(exclude_none=False) for c in payload.expected_concepts]
+    concepts = [c.model_dump(exclude_none=True) for c in payload.expected_concepts]
     service.upsert_gold_doc_override(
         db, gold_id=gold_id, content=payload.content,
         expected_concepts=concepts,
