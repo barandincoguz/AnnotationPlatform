@@ -113,6 +113,24 @@ def test_audit_log_filter_date_range(client):
     assert body["total"] >= 1
 
 
+def test_audit_log_invalid_date_returns_422(client):
+    """Malformed date_from should be rejected with 422, not silently return
+    an empty result set."""
+    _bootstrap_admin(client)
+    r = client.get("/api/admin/audit-log?date_from=not-a-date")
+    assert r.status_code == 422
+
+    r = client.get("/api/admin/audit-log?date_to=2026/05/08")  # wrong separator
+    assert r.status_code == 422
+
+    r = client.get("/api/admin/audit-log?date_from=2026-5-8")  # missing zero pad
+    assert r.status_code == 422
+
+    # Valid date formats still work
+    r = client.get("/api/admin/audit-log?date_from=2026-05-08")
+    assert r.status_code == 200
+
+
 def test_audit_log_requires_admin(client):
     # Bootstrap admin to seed invite, then logout and register as non-admin.
     _bootstrap_admin(client)

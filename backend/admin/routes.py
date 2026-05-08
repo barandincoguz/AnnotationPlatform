@@ -94,8 +94,8 @@ def admin_audit_log(
     offset: int = Query(0, ge=0),
     admin_id: Optional[int] = None,
     action: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    date_from: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    date_to: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     db: sqlite3.Connection = Depends(get_db),
     _admin: sqlite3.Row = Depends(require_admin),
 ):
