@@ -226,27 +226,3 @@ def admin_rotate_invite(
         db, admin_user_id=admin["id"], new_code=payload.new_code
     )
     return {"ok": True, "new_code": new_code}
-
-
-@router.get("/admin/audit-log")
-def admin_audit_log(
-    limit: int = 100,
-    db: sqlite3.Connection = Depends(get_db),
-    _admin: sqlite3.Row = Depends(require_admin),
-):
-    rows = db.execute(
-        "SELECT * FROM admin_audit_log ORDER BY id DESC LIMIT ?", (limit,)
-    ).fetchall()
-    events = [
-        {
-            "id": r["id"],
-            "admin_user_id": r["admin_user_id"],
-            "action_type": r["action_type"],
-            "target_kind": r["target_kind"],
-            "target_id": r["target_id"],
-            "metadata": r["metadata_json"],
-            "created_at": r["created_at"],
-        }
-        for r in rows
-    ]
-    return {"events": events}

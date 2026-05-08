@@ -94,4 +94,7 @@ def test_admin_audit_log_endpoint_returns_actions(client):
     r = client.get("/api/admin/audit-log")
     assert r.status_code == 200
     body = r.json()
-    assert any(e["action_type"] == "rotate_invite_code" for e in body["events"])
+    assert "items" in body
+    assert "total" in body
+    assert "has_more" in body
+    assert any(e["action_type"] == "rotate_invite_code" for e in body["items"])

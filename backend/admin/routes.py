@@ -1,11 +1,13 @@
 """Admin-only HTTP endpoints. Currently: site_settings read/write."""
 import logging
 import sqlite3
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.admin.models import SettingUpdateRequest, SettingUpdateResponse
 from backend.shared import audit, settings as S
+from backend.users import service as users_service
 from backend.users.deps import get_db, require_admin
 
 
@@ -84,3 +86,22 @@ def update_setting(
         metadata={"old_value": old_value, "new_value": new_value},
     )
     return {"key": key, "value": new_value}
+
+
+@router.get("/audit-log")
+def admin_audit_log(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    admin_id: Optional[int] = None,
+    action: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    """Paginated + filtered admin audit log."""
+    return users_service.list_admin_audit(
+        db, limit=limit, offset=offset,
+        admin_id=admin_id, action=action,
+        date_from=date_from, date_to=date_to,
+    )
