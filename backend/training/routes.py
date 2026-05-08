@@ -10,11 +10,13 @@ from backend.training import service
 from backend.training.models import (
     StartResponse, QuizSubmitRequest, QuizSubmitResponse,
     AnnotateSubmitRequest, AnnotateSubmitResponse,
+    OkResponse,
 )
-from backend.users.deps import get_db, require_seen_manual
+from backend.users.deps import get_db, require_seen_manual, require_admin
 
 
 router = APIRouter(prefix="/api/training", tags=["training"])
+admin_router = APIRouter(prefix="/api/admin/training", tags=["admin-training"])
 
 
 @router.get("/start", response_model=StartResponse)
@@ -75,3 +77,20 @@ def submit_annotation(
         raise HTTPException(status_code=404, detail={"error": "gold_doc_not_in_attempt"})
     except service.GoldDocAlreadySubmittedError:
         raise HTTPException(status_code=409, detail={"error": "gold_doc_already_submitted"})
+
+
+@admin_router.post("/users/{user_id}/reset", response_model=OkResponse)
+def admin_reset_user_training(
+    user_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    """Admin endpoint — soft reset of a user's training. Clears attempts,
+    sets has_passed_training=0, creates training_reset notification,
+    writes audit row. Idempotent."""
+    ok = service.reset_user_training(
+        db, user_id=user_id, admin_id=admin["id"],
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"user {user_id} not found")
+    return {"ok": True}

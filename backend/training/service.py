@@ -417,3 +417,49 @@ def finalize_if_complete(
         "annotation_pass_count": row["annotation_pass_count"],
         "annotation_total": 3,
     }
+
+
+def reset_user_training(
+    db: sqlite3.Connection, *, user_id: int, admin_id: int
+) -> bool:
+    """Soft reset: delete training_attempts rows, flip has_passed_training=0,
+    create training_reset notification, write admin audit row.
+
+    Returns True if user existed (operation completed), False if user not found.
+    Idempotent: running on an already-reset user is a no-op success.
+
+    Per-step fault isolation pattern from Paket 9: notification + audit
+    failures are logged and swallowed; the core state change (DELETE +
+    UPDATE) is the source of truth.
+    """
+    user_row = db.execute(
+        "SELECT id, username FROM users WHERE id=?", (user_id,)
+    ).fetchone()
+    if user_row is None:
+        return False
+
+    db.execute("DELETE FROM training_attempts WHERE user_id=?", (user_id,))
+    db.execute("UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,))
+
+    try:
+        notif_service.create(
+            db,
+            user_id=user_id,
+            kind="training_reset",
+            title="Eğitiminiz sıfırlandı",
+            body="Bir admin eğitim ilerlemenizi sıfırladı. Yeniden başlayabilirsiniz.",
+            data={"admin_id": admin_id},
+        )
+    except Exception:
+        log.exception("create training_reset notification failed for user_id=%s", user_id)
+
+    try:
+        audit.log_admin_action(
+            db, admin_user_id=admin_id, action_type="reset_training",
+            target_kind="user", target_id=str(user_id),
+            metadata={"username": user_row["username"]},
+        )
+    except Exception:
+        log.exception("log_admin_action reset_training failed for user_id=%s", user_id)
+
+    return True
