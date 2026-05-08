@@ -136,10 +136,18 @@ def _now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _select_questions_for_attempt(attempt_id: int) -> list[dict]:
-    """Pick 5 deterministic questions seeded by attempt_id."""
+def _select_questions_for_attempt(db: sqlite3.Connection, attempt_id: int) -> list[dict]:
+    """Pick 5 deterministic questions seeded by attempt_id, drawn from the
+    resolved active pool (code baseline + DB overrides). Migrated from
+    direct QUIZ_QUESTIONS import in Paket 11 T6 so admin overrides take
+    effect on next attempt without code changes."""
+    pool = quiz_data.get_active_quiz_questions(db)
+    if len(pool) < 5:
+        # Defensive: if admin tombstoned too many baseline questions, fall
+        # back to whatever is available so the attempt can still proceed.
+        return pool
     rng = random.Random(attempt_id)
-    return rng.sample(quiz_data.QUIZ_QUESTIONS, 5)
+    return rng.sample(pool, 5)
 
 
 def _select_gold_docs_for_attempt(db: sqlite3.Connection, attempt_id: int) -> list[dict]:
@@ -241,7 +249,7 @@ def start_attempt(db: sqlite3.Connection, *, user_id: int) -> dict:
     attempt_id = cur.lastrowid
     assert attempt_id is not None  # SQLite always returns an id on successful INSERT
 
-    questions = _select_questions_for_attempt(attempt_id)
+    questions = _select_questions_for_attempt(db, attempt_id)
     docs = _select_gold_docs_for_attempt(db, attempt_id)
 
     audit.log_activity(
@@ -272,7 +280,7 @@ def submit_quiz(
     if details.get("_quiz_submitted"):
         raise QuizAlreadySubmittedError(attempt_id)
 
-    questions = _select_questions_for_attempt(attempt_id)
+    questions = _select_questions_for_attempt(db, attempt_id)
     score = matching.score_quiz(questions, answers)
 
     details["_quiz_submitted"] = True
@@ -529,4 +537,65 @@ def soft_delete_gold_doc(
             updated_at = excluded.updated_at
         """,
         (gold_id, source, admin_id, now, now),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Quiz admin CRUD helpers (Paket 11 Task 6)
+# ---------------------------------------------------------------------------
+
+def upsert_quiz_override(
+    db: sqlite3.Connection, *, question_id: str, text: str,
+    choices: list[str], correct_choice_idx: int, admin_id: int,
+) -> None:
+    """Upsert a quiz override row. source='override' if question_id is in
+    code baseline (QUIZ_QUESTIONS), else 'custom'.
+    Uses ON CONFLICT DO UPDATE to preserve created_at across edits."""
+    baseline_ids = {q["id"] for q in quiz_data.QUIZ_QUESTIONS}
+    source = "override" if question_id in baseline_ids else "custom"
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(
+        """
+        INSERT INTO training_quiz_overrides(
+            question_id, is_deleted, text, choices_json, correct_choice_idx,
+            source, created_by_admin_id, created_at, updated_at
+        ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(question_id) DO UPDATE SET
+            is_deleted = excluded.is_deleted,
+            text = excluded.text,
+            choices_json = excluded.choices_json,
+            correct_choice_idx = excluded.correct_choice_idx,
+            source = excluded.source,
+            created_by_admin_id = excluded.created_by_admin_id,
+            updated_at = excluded.updated_at
+        """,
+        (
+            question_id, text, json.dumps(choices), correct_choice_idx,
+            source, admin_id, now, now,
+        ),
+    )
+
+
+def soft_delete_quiz_override(
+    db: sqlite3.Connection, *, question_id: str, admin_id: int,
+) -> None:
+    """Tombstone via is_deleted=1. Preserves created_at, source,
+    created_by_admin_id from the original row if any."""
+    baseline_ids = {q["id"] for q in quiz_data.QUIZ_QUESTIONS}
+    source = "override" if question_id in baseline_ids else "custom"
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(
+        """
+        INSERT INTO training_quiz_overrides(
+            question_id, is_deleted, text, choices_json, correct_choice_idx,
+            source, created_by_admin_id, created_at, updated_at
+        ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
+        ON CONFLICT(question_id) DO UPDATE SET
+            is_deleted = 1,
+            text = NULL,
+            choices_json = NULL,
+            correct_choice_idx = NULL,
+            updated_at = excluded.updated_at
+        """,
+        (question_id, source, admin_id, now, now),
     )

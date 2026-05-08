@@ -13,7 +13,9 @@ from backend.training.models import (
     AnnotateSubmitRequest, AnnotateSubmitResponse,
     OkResponse,
     GoldDocUpsertRequest, GoldDocsListResponse,
+    QuizUpsertRequest, QuizListResponse,
 )
+from backend.training.quiz_data import get_active_quiz_questions
 from backend.shared import audit
 from backend.users.deps import get_db, require_seen_manual, require_admin
 
@@ -156,4 +158,58 @@ def admin_delete_gold_doc(
         )
     except Exception:
         log.exception("audit delete_gold_doc failed for %s", gold_id)
+    return {"ok": True}
+
+
+@admin_router.get("/quiz", response_model=QuizListResponse)
+def admin_list_quiz(
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    resolved = get_active_quiz_questions(db)
+    rows = db.execute(
+        "SELECT question_id, is_deleted, text, choices_json, correct_choice_idx, "
+        "source, created_by_admin_id, created_at, updated_at "
+        "FROM training_quiz_overrides ORDER BY question_id"
+    ).fetchall()
+    overrides = [dict(r) for r in rows]
+    return {"resolved": resolved, "overrides": overrides}
+
+
+@admin_router.put("/quiz/{question_id}", response_model=OkResponse)
+def admin_upsert_quiz(
+    question_id: str,
+    payload: QuizUpsertRequest,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    service.upsert_quiz_override(
+        db, question_id=question_id, text=payload.text,
+        choices=payload.choices, correct_choice_idx=payload.correct_choice_idx,
+        admin_id=admin["id"],
+    )
+    try:
+        audit.log_admin_action(
+            db, admin_user_id=admin["id"], action_type="upsert_quiz_question",
+            target_kind="quiz_question", target_id=question_id,
+        )
+    except Exception:
+        log.exception("audit upsert_quiz_question failed for %s", question_id)
+    return {"ok": True}
+
+
+@admin_router.delete("/quiz/{question_id}", response_model=OkResponse)
+def admin_delete_quiz(
+    question_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    service.soft_delete_quiz_override(db, question_id=question_id, admin_id=admin["id"])
+    try:
+        audit.log_admin_action(
+            db, admin_user_id=admin["id"], action_type="delete_quiz_question",
+            target_kind="quiz_question", target_id=question_id,
+        )
+    except Exception:
+        log.exception("audit delete_quiz_question failed for %s", question_id)
     return {"ok": True}

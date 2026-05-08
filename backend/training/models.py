@@ -64,3 +64,14 @@ class GoldDocUpsertRequest(BaseModel):
 class GoldDocsListResponse(BaseModel):
     resolved: list[dict]
     overrides: list[dict]
+
+
+class QuizUpsertRequest(BaseModel):
+    text: str
+    choices: list[str]
+    correct_choice_idx: int
+
+
+class QuizListResponse(BaseModel):
+    resolved: list[dict]
+    overrides: list[dict]

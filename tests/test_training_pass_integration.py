@@ -58,7 +58,11 @@ def test_full_pass_flow(client):
     # 2. Quiz: get the correct answers via the service's helper (test-only access
     #    to the deterministic selection — frontend obviously doesn't have this).
     from backend.training.service import _select_questions_for_attempt
-    questions = _select_questions_for_attempt(aid)
+    conn = connect(config.DB_PATH)
+    try:
+        questions = _select_questions_for_attempt(conn, aid)
+    finally:
+        conn.close()
     answers = {q["id"]: q["correct_choice_idx"] for q in questions}
     r = client.post("/api/training/quiz/submit", json={
         "attempt_id": aid, "answers": answers,
@@ -120,7 +124,11 @@ def test_fail_flow_keeps_user_pre_training(client):
     aid = r.json()["attempt_id"]
 
     from backend.training.service import _select_questions_for_attempt
-    questions = _select_questions_for_attempt(aid)
+    conn = connect(config.DB_PATH)
+    try:
+        questions = _select_questions_for_attempt(conn, aid)
+    finally:
+        conn.close()
     bad = {q["id"]: (q["correct_choice_idx"] + 1) % 4 for q in questions}
     client.post("/api/training/quiz/submit", json={"attempt_id": aid, "answers": bad})
 

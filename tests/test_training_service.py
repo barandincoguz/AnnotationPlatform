@@ -91,8 +91,8 @@ def test_start_attempt_lockout_after_max_attempts(db):
 def test_start_attempt_seed_is_deterministic(db):
     """Same attempt_id → same questions and gold doc selection."""
     out = training_service.start_attempt(db, user_id=1)
-    questions_a = training_service._select_questions_for_attempt(out["attempt_id"])
-    questions_b = training_service._select_questions_for_attempt(out["attempt_id"])
+    questions_a = training_service._select_questions_for_attempt(db, out["attempt_id"])
+    questions_b = training_service._select_questions_for_attempt(db, out["attempt_id"])
     assert [q["id"] for q in questions_a] == [q["id"] for q in questions_b]
 
 
@@ -100,7 +100,7 @@ def test_start_attempt_seed_is_deterministic(db):
 
 def test_submit_quiz_scores_and_persists(db):
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     # Answer all correctly
     answers = {q["id"]: q["correct_choice_idx"] for q in selected}
     result = training_service.submit_quiz(
@@ -116,7 +116,7 @@ def test_submit_quiz_scores_and_persists(db):
 
 def test_submit_quiz_partial_score(db):
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     answers = {q["id"]: (q["correct_choice_idx"] + 1) % 4 for q in selected}  # all wrong
     result = training_service.submit_quiz(
         db, attempt_id=out["attempt_id"], user_id=1, answers=answers,
@@ -127,7 +127,7 @@ def test_submit_quiz_partial_score(db):
 def test_submit_quiz_idempotent_409_on_resubmit(db):
     """Re-submitting quiz for the same attempt is a 409 conflict."""
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     answers = {q["id"]: q["correct_choice_idx"] for q in selected}
     training_service.submit_quiz(db, attempt_id=out["attempt_id"], user_id=1, answers=answers)
     with pytest.raises(training_service.QuizAlreadySubmittedError):
@@ -138,7 +138,7 @@ def test_submit_quiz_zero_score_can_still_submit_once(db):
     """Zero score is the legitimate first submission — must NOT trigger the
     idempotency guard. Guard logic must use a separate marker, not quiz_score>0."""
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     bad_answers = {q["id"]: (q["correct_choice_idx"] + 1) % 4 for q in selected}
     result = training_service.submit_quiz(
         db, attempt_id=out["attempt_id"], user_id=1, answers=bad_answers,
@@ -216,7 +216,7 @@ def test_finalize_does_nothing_when_quiz_or_docs_missing(db):
 
 def test_finalize_marks_passed_when_all_thresholds_met(db):
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     docs = training_service._select_gold_docs_for_attempt(db, out["attempt_id"])
 
     # Quiz: all correct
@@ -248,7 +248,7 @@ def test_finalize_marks_passed_when_all_thresholds_met(db):
 
 def test_finalize_awards_xp_and_notification(db):
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     docs = training_service._select_gold_docs_for_attempt(db, out["attempt_id"])
 
     training_service.submit_quiz(
@@ -282,7 +282,7 @@ def test_finalize_awards_xp_and_notification(db):
 
 def test_finalize_fail_does_not_award_xp_or_pass_user(db):
     out = training_service.start_attempt(db, user_id=1)
-    selected = training_service._select_questions_for_attempt(out["attempt_id"])
+    selected = training_service._select_questions_for_attempt(db, out["attempt_id"])
     docs = training_service._select_gold_docs_for_attempt(db, out["attempt_id"])
 
     # Quiz: all wrong → score 0, below threshold 4
