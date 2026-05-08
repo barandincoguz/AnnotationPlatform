@@ -44,12 +44,20 @@ def test_v0002_quiz_overrides_source_check(fresh_db):
     apply_migrations(fresh_db, discover_migrations())
     fresh_db.execute(
         "INSERT INTO training_quiz_overrides(question_id, source, created_at, updated_at) "
-        "VALUES (?, 'override', ?, ?)", ("q01", "2026-05-08T00:00:00+00:00", "2026-05-08T00:00:00+00:00"),
+        "VALUES (?, 'override', ?, ?)",
+        ("q01", "2026-05-08T00:00:00+00:00", "2026-05-08T00:00:00+00:00"),
     )
+    fresh_db.commit()
+    row = fresh_db.execute(
+        "SELECT question_id, source FROM training_quiz_overrides WHERE question_id='q01'"
+    ).fetchone()
+    assert row is not None
+    assert row["source"] == "override"
     with pytest.raises(sqlite3.IntegrityError):
         fresh_db.execute(
             "INSERT INTO training_quiz_overrides(question_id, source, created_at, updated_at) "
-            "VALUES (?, 'invalid', ?, ?)", ("q02", "2026-05-08T00:00:00+00:00", "2026-05-08T00:00:00+00:00"),
+            "VALUES (?, 'invalid', ?, ?)",
+            ("q02", "2026-05-08T00:00:00+00:00", "2026-05-08T00:00:00+00:00"),
         )
 
 

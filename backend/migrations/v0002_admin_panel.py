@@ -10,15 +10,15 @@ import sqlite3
 
 SCHEMA_SQL = """
 CREATE TABLE training_quiz_overrides (
-    question_id          TEXT    PRIMARY KEY,
-    is_deleted           INTEGER NOT NULL DEFAULT 0,
-    text                 TEXT,
-    choices_json         TEXT,
-    correct_choice_idx   INTEGER,
-    source               TEXT    NOT NULL CHECK(source IN ('override','custom')),
-    created_by_admin_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at           TIMESTAMP NOT NULL,
-    updated_at           TIMESTAMP NOT NULL
+    question_id         TEXT PRIMARY KEY,
+    is_deleted          INTEGER NOT NULL DEFAULT 0,
+    text                TEXT,
+    choices_json        TEXT,
+    correct_choice_idx  INTEGER,
+    source              TEXT NOT NULL CHECK(source IN ('override','custom')),
+    created_by_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at          TIMESTAMP NOT NULL,
+    updated_at          TIMESTAMP NOT NULL
 );
 
 CREATE INDEX idx_quiz_overrides_active

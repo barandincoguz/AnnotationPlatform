@@ -80,7 +80,7 @@ def test_v0001_seeds_default_settings(db_path):
         conn.close()
 
 
-def test_v0001_idempotent(db_path):
+def test_all_migrations_idempotent(db_path):
     conn = connect(db_path)
     try:
         first = apply_migrations(conn, discover_migrations())
