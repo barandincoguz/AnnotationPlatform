@@ -135,3 +135,100 @@ def second_passed_user(client, passed_user):
         assert r.status_code == 200, r.text
 
     return {"alice": passed_user["user"], "bob": bob, "login": login, "client": client}
+
+
+# === Paket 11 admin helpers ===
+
+
+@pytest.fixture
+def bootstrap_admin(client):
+    """Register a user, promote to admin via direct DB, login. Returns admin_id."""
+    def _do(username="root", password="rootpass1"):
+        from backend.shared.db import connect
+        from backend import config
+        conn = connect(config.DB_PATH)
+        try:
+            conn.execute(
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
+                ("BURSIYER-2026",),
+            )
+        finally:
+            conn.close()
+        client.post("/api/auth/register", json={
+            "username": username, "password": password, "invite_code": "BURSIYER-2026",
+        })
+        conn = connect(config.DB_PATH)
+        try:
+            conn.execute("UPDATE users SET role='admin' WHERE username=?", (username,))
+            row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+            admin_id = row["id"]
+        finally:
+            conn.close()
+        client.post("/api/auth/login", json={"username": username, "password": password})
+        return admin_id
+    return _do
+
+
+@pytest.fixture
+def seen_manual_user(client):
+    """Register a new user, mark has_seen_manual=1, login. Returns user_id (int).
+    Deactivates existing active invites first to avoid idx_invite_active conflict."""
+    def _do(username, invite_code, password="password123"):
+        from backend.shared.db import connect
+        from backend import config
+        conn = connect(config.DB_PATH)
+        try:
+            conn.execute("UPDATE invite_codes SET is_active=0")
+            conn.execute(
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
+                (invite_code,),
+            )
+        finally:
+            conn.close()
+        client.post("/api/auth/register", json={
+            "username": username, "password": password, "invite_code": invite_code,
+        })
+        conn = connect(config.DB_PATH)
+        try:
+            conn.execute("UPDATE users SET has_seen_manual=1 WHERE username=?", (username,))
+            row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+            user_id = row["id"]
+        finally:
+            conn.close()
+        client.post("/api/auth/login", json={"username": username, "password": password})
+        return user_id
+    return _do
+
+
+@pytest.fixture
+def seen_manual_passed_user(client):
+    """Like seen_manual_user, but ALSO sets has_passed_training=1.
+    Used by tests where the user must pass require_passed_training (e.g. lock acquire)."""
+    def _do(username, invite_code, password="password123"):
+        from backend.shared.db import connect
+        from backend import config
+        conn = connect(config.DB_PATH)
+        try:
+            conn.execute("UPDATE invite_codes SET is_active=0")
+            conn.execute(
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
+                (invite_code,),
+            )
+        finally:
+            conn.close()
+        client.post("/api/auth/register", json={
+            "username": username, "password": password, "invite_code": invite_code,
+        })
+        conn = connect(config.DB_PATH)
+        try:
+            conn.execute(
+                "UPDATE users SET has_seen_manual=1, has_passed_training=1 WHERE username=?",
+                (username,),
+            )
+            row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+            user_id = row["id"]
+        finally:
+            conn.close()
+        client.post("/api/auth/login", json={"username": username, "password": password})
+        return user_id
+    return _do

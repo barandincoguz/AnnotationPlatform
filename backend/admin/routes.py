@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.admin import service as admin_service
 from backend.admin.models import SettingUpdateRequest, SettingUpdateResponse
 from backend.shared import audit, settings as S
-from backend.users import service as users_service
 from backend.users.deps import get_db, require_admin
 
 
@@ -101,7 +100,7 @@ def admin_audit_log(
     _admin: sqlite3.Row = Depends(require_admin),
 ):
     """Paginated + filtered admin audit log."""
-    return users_service.list_admin_audit(
+    return admin_service.list_admin_audit(
         db, limit=limit, offset=offset,
         admin_id=admin_id, action=action,
         date_from=date_from, date_to=date_to,

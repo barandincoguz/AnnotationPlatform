@@ -2,35 +2,8 @@
 from datetime import datetime, timedelta, timezone
 
 
-def _bootstrap_admin(client, username="root", password="rootpass1"):
-    """Register a user, promote to admin via direct DB, login.
-    Returns: admin user_id (int)."""
-    from backend.shared.db import connect
-    from backend import config
-    conn = connect(config.DB_PATH)
-    try:
-        conn.execute(
-            "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
-            ("BURSIYER-2026",),
-        )
-    finally:
-        conn.close()
-    client.post("/api/auth/register", json={
-        "username": username, "password": password, "invite_code": "BURSIYER-2026",
-    })
-    conn = connect(config.DB_PATH)
-    try:
-        conn.execute("UPDATE users SET role='admin' WHERE username=?", (username,))
-        row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
-        admin_id = row["id"]
-    finally:
-        conn.close()
-    client.post("/api/auth/login", json={"username": username, "password": password})
-    return admin_id
-
-
-def test_audit_log_returns_paginated_shape(client):
-    _bootstrap_admin(client)
+def test_audit_log_returns_paginated_shape(client, bootstrap_admin):
+    bootstrap_admin()
     # Create some audit entries
     for i in range(5):
         client.post("/api/admin/invite/rotate", json={"new_code": f"CODE-{i}-2026"})
@@ -46,8 +19,8 @@ def test_audit_log_returns_paginated_shape(client):
     assert isinstance(body["has_more"], bool)
 
 
-def test_audit_log_default_limit_50(client):
-    _bootstrap_admin(client)
+def test_audit_log_default_limit_50(client, bootstrap_admin):
+    bootstrap_admin()
     for i in range(60):
         client.post("/api/admin/invite/rotate", json={"new_code": f"CODE-{i}-2026"})
 
@@ -57,8 +30,8 @@ def test_audit_log_default_limit_50(client):
     assert body["has_more"] is True
 
 
-def test_audit_log_offset_and_limit(client):
-    _bootstrap_admin(client)
+def test_audit_log_offset_and_limit(client, bootstrap_admin):
+    bootstrap_admin()
     for i in range(10):
         client.post("/api/admin/invite/rotate", json={"new_code": f"CODE-{i}-2026"})
 
@@ -69,8 +42,8 @@ def test_audit_log_offset_and_limit(client):
     assert body["has_more"] is True
 
 
-def test_audit_log_max_limit_clamped_to_200(client):
-    _bootstrap_admin(client)
+def test_audit_log_max_limit_clamped_to_200(client, bootstrap_admin):
+    bootstrap_admin()
     r = client.get("/api/admin/audit-log?limit=999")
     # FastAPI Query(le=200) returns 422 by default; design choice: 422 OR clamp.
     # Plan accepts either; here we verify behavior matches our actual impl.
@@ -81,8 +54,8 @@ def test_audit_log_max_limit_clamped_to_200(client):
         assert r.status_code == 422
 
 
-def test_audit_log_filter_by_action(client):
-    admin_id = _bootstrap_admin(client)
+def test_audit_log_filter_by_action(client, bootstrap_admin):
+    bootstrap_admin()
     client.post("/api/admin/invite/rotate", json={"new_code": "CODE-A-2026"})
 
     r = client.get("/api/admin/audit-log?action=rotate_invite_code")
@@ -90,8 +63,8 @@ def test_audit_log_filter_by_action(client):
     assert all(item["action_type"] == "rotate_invite_code" for item in body["items"])
 
 
-def test_audit_log_filter_by_admin_id(client):
-    admin_id = _bootstrap_admin(client)
+def test_audit_log_filter_by_admin_id(client, bootstrap_admin):
+    admin_id = bootstrap_admin()
     client.post("/api/admin/invite/rotate", json={"new_code": "CODE-A-2026"})
 
     r = client.get(f"/api/admin/audit-log?admin_id={admin_id}")
@@ -99,8 +72,8 @@ def test_audit_log_filter_by_admin_id(client):
     assert all(item["admin_user_id"] == admin_id for item in body["items"])
 
 
-def test_audit_log_filter_date_range(client):
-    _bootstrap_admin(client)
+def test_audit_log_filter_date_range(client, bootstrap_admin):
+    bootstrap_admin()
     client.post("/api/admin/invite/rotate", json={"new_code": "TODAY-1-2026"})
 
     today = datetime.now(timezone.utc).date().isoformat()
@@ -113,10 +86,10 @@ def test_audit_log_filter_date_range(client):
     assert body["total"] >= 1
 
 
-def test_audit_log_invalid_date_returns_422(client):
+def test_audit_log_invalid_date_returns_422(client, bootstrap_admin):
     """Malformed date_from should be rejected with 422, not silently return
     an empty result set."""
-    _bootstrap_admin(client)
+    bootstrap_admin()
     r = client.get("/api/admin/audit-log?date_from=not-a-date")
     assert r.status_code == 422
 
@@ -131,9 +104,9 @@ def test_audit_log_invalid_date_returns_422(client):
     assert r.status_code == 200
 
 
-def test_audit_log_requires_admin(client):
+def test_audit_log_requires_admin(client, bootstrap_admin):
     # Bootstrap admin to seed invite, then logout and register as non-admin.
-    _bootstrap_admin(client)
+    bootstrap_admin()
     client.post("/api/auth/logout")
     client.post("/api/auth/register", json={
         "username": "alice", "password": "password123",

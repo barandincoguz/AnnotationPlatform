@@ -1,7 +1,7 @@
 """Admin-side service helpers for cross-cutting features.
 
-Currently houses list_system_events. Future T9 polish may relocate
-list_admin_audit here from backend/users/service.py."""
+Houses list_system_events and list_admin_audit (paginated/filtered queries
+over system_events and admin_audit_log respectively)."""
 import sqlite3
 
 
@@ -54,6 +54,63 @@ def list_system_events(
             "severity": r["severity"],
             "message": r["message"],
             "extra": r["extra_json"],
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+    return {
+        "items": items,
+        "total": total,
+        "has_more": offset + len(items) < total,
+    }
+
+
+def list_admin_audit(
+    db: sqlite3.Connection, *,
+    limit: int, offset: int,
+    admin_id: int | None = None,
+    action: str | None = None,
+    date_from: str | None = None,  # ISO date "2026-05-08"
+    date_to: str | None = None,
+) -> dict:
+    """Paginated + filtered admin_audit_log query.
+    Returns {items, total, has_more}."""
+    where = []
+    params: list = []
+    if admin_id is not None:
+        where.append("admin_user_id = ?")
+        params.append(admin_id)
+    if action is not None:
+        where.append("action_type = ?")
+        params.append(action)
+    if date_from is not None:
+        where.append("created_at >= ?")
+        params.append(f"{date_from}T00:00:00+00:00")
+    if date_to is not None:
+        where.append("created_at <= ?")
+        params.append(f"{date_to}T23:59:59+00:00")
+    where_clause = f"WHERE {' AND '.join(where)}" if where else ""
+
+    total = db.execute(
+        f"SELECT COUNT(*) AS c FROM admin_audit_log {where_clause}", params
+    ).fetchone()["c"]
+
+    rows = db.execute(
+        f"""SELECT id, admin_user_id, action_type, target_kind, target_id,
+                   metadata_json, created_at
+            FROM admin_audit_log {where_clause}
+            ORDER BY id DESC LIMIT ? OFFSET ?""",
+        [*params, limit, offset],
+    ).fetchall()
+
+    items = [
+        {
+            "id": r["id"],
+            "admin_user_id": r["admin_user_id"],
+            "action_type": r["action_type"],
+            "target_kind": r["target_kind"],
+            "target_id": r["target_id"],
+            "metadata": r["metadata_json"],
             "created_at": r["created_at"],
         }
         for r in rows

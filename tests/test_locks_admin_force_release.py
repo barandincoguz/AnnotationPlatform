@@ -1,71 +1,9 @@
 """Admin force-release endpoint + SSE reason='admin_force' field."""
 
 
-def _bootstrap_admin(client, username="root", password="rootpass1"):
-    """Register a user, promote to admin via direct DB, login.
-    Returns: admin user_id (int)."""
-    from backend.shared.db import connect
-    from backend import config
-    conn = connect(config.DB_PATH)
-    try:
-        conn.execute(
-            "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
-            ("BURSIYER-2026",),
-        )
-    finally:
-        conn.close()
-    client.post("/api/auth/register", json={
-        "username": username, "password": password, "invite_code": "BURSIYER-2026",
-    })
-    conn = connect(config.DB_PATH)
-    try:
-        conn.execute("UPDATE users SET role='admin' WHERE username=?", (username,))
-        row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
-        admin_id = row["id"]
-    finally:
-        conn.close()
-    client.post("/api/auth/login", json={"username": username, "password": password})
-    return admin_id
-
-
-def _seen_manual_user(client, username, invite_code, password="password123"):
-    """Register a new user with the given invite code; mark has_seen_manual=1
-    AND has_passed_training=1 so they pass require_passed_training (which is
-    the gate for /api/locks/*/acquire).
-    Returns: user_id (int).
-    Note: deactivates the existing active invite first to avoid
-    idx_invite_active uniqueness conflict."""
-    from backend.shared.db import connect
-    from backend import config
-    conn = connect(config.DB_PATH)
-    try:
-        conn.execute("UPDATE invite_codes SET is_active=0")
-        conn.execute(
-            "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
-            (invite_code,),
-        )
-    finally:
-        conn.close()
-    client.post("/api/auth/register", json={
-        "username": username, "password": password, "invite_code": invite_code,
-    })
-    conn = connect(config.DB_PATH)
-    try:
-        conn.execute(
-            "UPDATE users SET has_seen_manual=1, has_passed_training=1 WHERE username=?",
-            (username,),
-        )
-        row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
-        user_id = row["id"]
-    finally:
-        conn.close()
-    client.post("/api/auth/login", json={"username": username, "password": password})
-    return user_id
-
-
-def test_force_release_deletes_lock(client, ingest_doc):
-    admin_id = _bootstrap_admin(client)
-    other_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
+def test_force_release_deletes_lock(client, ingest_doc, bootstrap_admin, seen_manual_passed_user):
+    admin_id = bootstrap_admin()
+    other_id = seen_manual_passed_user("bursiyer1", "INVITE-2026")
     ingest_doc("doc-A")
     # bursiyer1 acquires a lock first
     r = client.post("/api/locks/doc-A/acquire")
@@ -84,9 +22,9 @@ def test_force_release_deletes_lock(client, ingest_doc):
     db.close()
 
 
-def test_force_release_writes_audit(client, ingest_doc):
-    admin_id = _bootstrap_admin(client)
-    user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
+def test_force_release_writes_audit(client, ingest_doc, bootstrap_admin, seen_manual_passed_user):
+    admin_id = bootstrap_admin()
+    user_id = seen_manual_passed_user("bursiyer1", "INVITE-2026")
     ingest_doc("doc-B")
     client.post("/api/locks/doc-B/acquire")
     client.cookies.clear()
@@ -106,16 +44,18 @@ def test_force_release_writes_audit(client, ingest_doc):
     db.close()
 
 
-def test_force_release_no_lock_returns_404(client):
-    _bootstrap_admin(client)
+def test_force_release_no_lock_returns_404(client, bootstrap_admin):
+    bootstrap_admin()
     r = client.post("/api/locks/doc-doesnotexist/admin/force-release")
     assert r.status_code == 404
 
 
-def test_force_release_publishes_lock_released_with_reason(client, ingest_doc):
+def test_force_release_publishes_lock_released_with_reason(
+    client, ingest_doc, bootstrap_admin, seen_manual_passed_user,
+):
     """Direct SSE event capture by patching the broker."""
-    admin_id = _bootstrap_admin(client)
-    user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
+    admin_id = bootstrap_admin()
+    user_id = seen_manual_passed_user("bursiyer1", "INVITE-2026")
     ingest_doc("doc-C")
     client.post("/api/locks/doc-C/acquire")
     client.cookies.clear()
@@ -142,16 +82,16 @@ def test_force_release_publishes_lock_released_with_reason(client, ingest_doc):
     assert released[0][1]["document_id"] == "doc-C"
 
 
-def test_force_release_requires_admin(client):
-    user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
+def test_force_release_requires_admin(client, seen_manual_passed_user):
+    user_id = seen_manual_passed_user("bursiyer1", "INVITE-2026")
     # bursiyer1 is logged in (not admin)
     r = client.post("/api/locks/doc-X/admin/force-release")
     assert r.status_code == 404  # existence-hide
 
 
-def test_user_release_publishes_reason_user_release(client, ingest_doc):
+def test_user_release_publishes_reason_user_release(client, ingest_doc, seen_manual_passed_user):
     """Regression: existing user-driven release now carries reason='user_release'."""
-    user_id = _seen_manual_user(client, "bursiyer1", "INVITE-2026")
+    user_id = seen_manual_passed_user("bursiyer1", "INVITE-2026")
     ingest_doc("doc-D")
     client.post("/api/locks/doc-D/acquire")
 
