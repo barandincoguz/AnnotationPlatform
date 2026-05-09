@@ -134,8 +134,8 @@ def test_force_release_audit_row_carries_trace_id(
     assert r.status_code == 200, r.text
 
     from backend.shared.db import connect
-    from backend.config import DB_PATH
-    db = connect(DB_PATH)
+    from backend import config
+    db = connect(config.DB_PATH)
     try:
         row = db.execute(
             "SELECT trace_id FROM admin_audit_log "

@@ -206,5 +206,13 @@ def test_settings_update_audit_row_carries_trace_id(client):
         assert row is not None
         assert isinstance(row["trace_id"], str)
         assert len(row["trace_id"]) == 16
+
+        # Group B negative contract: settings_update writes only to
+        # admin_audit_log; no system_events row should match this trace_id.
+        # Mirrors the symmetric assertion in test_locks_admin_force_release.
+        sys_rows = conn.execute(
+            "SELECT 1 FROM system_events WHERE trace_id=?", (row["trace_id"],)
+        ).fetchall()
+        assert len(sys_rows) == 0
     finally:
         conn.close()
