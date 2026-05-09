@@ -1,6 +1,7 @@
 """Admin HTTP endpoint for manual backup trigger."""
 import logging
 import sqlite3
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -32,7 +33,6 @@ def admin_backup_run_now(
         )
 
     try:
-        from pathlib import Path
         snapshot_filename = Path(result["snapshot_path"]).name
         audit.log_admin_action(
             db, admin_user_id=admin["id"], action_type="backup_run_now",
