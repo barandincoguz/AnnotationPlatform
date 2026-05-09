@@ -29,6 +29,7 @@ from backend.backup.routes import router as backup_router
 from backend.retention.routes import router as retention_router
 from backend.locks import sweep as locks_sweep
 from backend.backup import loop as backup_loop
+from backend.retention import loop as retention_loop
 
 VERSION = "0.1.0"
 
@@ -47,8 +48,9 @@ async def lifespan(_app: FastAPI):
     finally:
         conn.close()
 
-    sweep_task = locks_sweep.start(interval_seconds=60)
-    backup_task = backup_loop.start()
+    sweep_task     = locks_sweep.start(interval_seconds=60)
+    backup_task    = backup_loop.start()
+    retention_task = retention_loop.start()
     yield
 
     locks_sweep.stop()
@@ -60,6 +62,12 @@ async def lifespan(_app: FastAPI):
     backup_loop.stop()
     try:
         await backup_task
+    except Exception:
+        pass
+
+    retention_loop.stop()
+    try:
+        await retention_task
     except Exception:
         pass
 
