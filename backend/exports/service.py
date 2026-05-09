@@ -9,6 +9,8 @@ No async, no DB session state, no caller-side mutation — generators
 consume a cursor passed in and yield bytes for FastAPI's
 StreamingResponse to chunk to the client.
 """
+import csv
+import io
 from typing import Iterator
 
 from backend.exports.models import ExportFilters
@@ -103,3 +105,29 @@ def build_query(filters: ExportFilters) -> tuple[str, tuple]:
     sql_parts.append("ORDER BY a.document_id, ar.seq")
 
     return "\n".join(sql_parts), tuple(params)
+
+
+def stream_csv_rows(cursor) -> Iterator[str]:
+    """Yield CSV-encoded chunks from a SQLite cursor (or any iterable of
+    tuples in _BASE_SELECT column order). Header is the first chunk,
+    even if cursor is empty.
+
+    Uses a per-row io.StringIO buffer + seek/truncate so memory stays
+    bounded regardless of result size.
+    """
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+
+    # Header
+    writer.writerow(CSV_COLUMNS)
+    yield buf.getvalue()
+    buf.seek(0)
+    buf.truncate()
+
+    for row in cursor:
+        # NULL → empty string (csv writer renders None as 'None' otherwise)
+        clean = tuple("" if v is None else v for v in row)
+        writer.writerow(clean)
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate()

@@ -123,3 +123,103 @@ def test_build_query_combines_multiple_filters():
     assert "ORDER BY a.document_id, ar.seq" in sql
     # 2 dates + 1 doc_id + 2 user_ids = 5 params
     assert len(params) == 5
+
+
+# ---------------- stream_csv_rows ----------------
+
+
+def _fake_row(**kwargs):
+    """Helper: produces a tuple matching the SELECT column order in
+    build_query. Defaults are non-empty for required fields, NULL for
+    nullable ones. Override only what the test cares about."""
+    defaults = {
+        "document_id": "doc_42",
+        "doc_sayi": 1234,
+        "doc_tarih": "20260101",
+        "doc_konu": "Test özelge",
+        "last_editor_user_id": 42,
+        "last_editor_username": "ahmet",
+        "last_edited_at": "2026-04-15T10:30:00+00:00",
+        "is_completed": 1,
+        "completed_by_user_id": 42,
+        "completed_by_username": "ahmet",
+        "edit_count": 3,
+        "unique_users_count": 2,
+        "ref_seq": 0,
+        "ref_kanun_no": "5520",
+        "ref_kanun_ad": "Kurumlar Vergisi Kanunu",
+        "ref_madde": "30",
+        "ref_fikra": "2",
+        "ref_bent": "a",
+        "ref_source_text": "madde 30/2-a",
+    }
+    defaults.update(kwargs)
+    # Match the SELECT order from _BASE_SELECT
+    return (
+        defaults["document_id"], defaults["doc_sayi"], defaults["doc_tarih"],
+        defaults["doc_konu"], defaults["last_editor_user_id"],
+        defaults["last_editor_username"], defaults["last_edited_at"],
+        defaults["is_completed"], defaults["completed_by_user_id"],
+        defaults["completed_by_username"], defaults["edit_count"],
+        defaults["unique_users_count"], defaults["ref_seq"],
+        defaults["ref_kanun_no"], defaults["ref_kanun_ad"],
+        defaults["ref_madde"], defaults["ref_fikra"], defaults["ref_bent"],
+        defaults["ref_source_text"],
+    )
+
+
+def test_stream_csv_rows_emits_header_first():
+    """Header row is the FIRST yielded chunk, regardless of data presence."""
+    from backend.exports.service import stream_csv_rows, CSV_COLUMNS
+    chunks = list(stream_csv_rows(iter([])))  # zero data rows
+    assert chunks[0].startswith(",".join(CSV_COLUMNS))
+    assert chunks[0].endswith("\r\n") or chunks[0].endswith("\n")
+    assert len(chunks) == 1  # only header
+
+
+def test_stream_csv_rows_one_row_per_reference():
+    """Two reference rows for the same document → 2 CSV data lines, all
+    fields except ref_* repeated exactly."""
+    from backend.exports.service import stream_csv_rows
+    rows = [
+        _fake_row(ref_seq=0, ref_kanun_no="5520", ref_madde="30"),
+        _fake_row(ref_seq=1, ref_kanun_no="5901", ref_madde="91"),
+    ]
+    out = "".join(stream_csv_rows(iter(rows)))
+    lines = out.strip().split("\n")
+    assert len(lines) == 3  # header + 2 data
+    assert "5520" in lines[1]
+    assert "5901" in lines[2]
+    # Same document_id + last_editor on both data rows
+    assert "doc_42" in lines[1] and "doc_42" in lines[2]
+    assert "ahmet" in lines[1] and "ahmet" in lines[2]
+
+
+def test_stream_csv_rows_zero_reference_annotation_emits_one_row_with_nulls():
+    """An annotation with no references comes back as a single row with
+    LEFT JOIN producing NULL for ar.* — verify those land as empty cells,
+    not the literal 'None' or 'null'."""
+    from backend.exports.service import stream_csv_rows
+    row = _fake_row(
+        ref_seq=None, ref_kanun_no=None, ref_kanun_ad=None,
+        ref_madde=None, ref_fikra=None, ref_bent=None, ref_source_text=None,
+    )
+    out = "".join(stream_csv_rows(iter([row])))
+    lines = out.strip().split("\n")
+    assert len(lines) == 2  # header + 1 row
+    # Trailing fields should be empty (the row ends in a string of commas)
+    assert lines[1].rstrip().endswith(",,,,,,,") or lines[1].rstrip().endswith(",,,,,,")
+    assert "None" not in lines[1]
+    assert "null" not in lines[1]
+
+
+def test_stream_csv_rows_escapes_special_chars():
+    """Source text containing quotes, commas, and newlines must be
+    RFC 4180-escaped: wrapped in double quotes, embedded quotes doubled.
+    Otherwise downstream Excel/pandas parsers misalign columns."""
+    from backend.exports.service import stream_csv_rows
+    tricky = 'has "quotes", commas, and\nnewlines'
+    row = _fake_row(ref_source_text=tricky)
+    out = "".join(stream_csv_rows(iter([row])))
+    # The dangerous cell must be quoted with internal quotes doubled.
+    assert '"has ""quotes"", commas, and\nnewlines"' in out
