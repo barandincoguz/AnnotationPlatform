@@ -46,8 +46,9 @@ def test_lifespan_logs_startup_includes_backup_task(tmp_path, monkeypatch):
     from backend import main, config
     from backend.shared.db import connect
 
+    db_path = tmp_path / "db" / "test.db"
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(config, "DB_PATH", tmp_path / "db" / "test.db")
+    monkeypatch.setattr(config, "DB_PATH", db_path)
     monkeypatch.setattr(config, "BACKUP_DIR", tmp_path / "backup")
     monkeypatch.setattr(config, "DB_DIR", tmp_path / "db")
     monkeypatch.setattr(config, "DOCUMENTS_DIR", tmp_path / "documents")
@@ -56,11 +57,13 @@ def test_lifespan_logs_startup_includes_backup_task(tmp_path, monkeypatch):
     with TestClient(main.app) as client:
         client.get("/api/health")
 
-    conn = connect(config.DB_PATH)
+    # Use the captured local path; this is robust under refactors that might
+    # move the assertion outside the test scope where monkeypatch is no longer active.
+    conn = connect(db_path)
     try:
         rows = conn.execute(
             "SELECT * FROM system_events WHERE event_type='startup'"
         ).fetchall()
-        assert len(rows) >= 1
+        assert len(rows) == 1
     finally:
         conn.close()
