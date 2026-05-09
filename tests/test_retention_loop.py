@@ -66,6 +66,38 @@ async def test_loop_swallows_cycle_exception_and_continues():
         assert call_count[0] >= 2
 
 
+@pytest.mark.asyncio
+async def test_retention_loop_emits_system_events_with_null_trace_id(tmp_path, monkeypatch):
+    """Background retention cycles must emit system_events with NULL trace_id —
+    autonomous origin marker."""
+    from backend.retention import loop as retention_loop
+    from backend.shared.db import connect
+    from backend.migrations import discover_migrations
+    from backend.migrations.runner import apply_migrations
+    from backend import config
+
+    db_path = tmp_path / "test.db"
+    conn = connect(db_path)
+    apply_migrations(conn, discover_migrations())
+    conn.close()
+
+    monkeypatch.setattr("backend.retention.loop.config.DB_PATH", db_path)
+
+    await retention_loop.retention_once()
+
+    db = connect(db_path)
+    try:
+        # The cycle on a fresh DB will run successfully (nothing to purge)
+        # → emits retention_success with NULL trace_id.
+        rows = db.execute(
+            "SELECT trace_id FROM system_events WHERE event_type='retention_success'"
+        ).fetchall()
+        assert len(rows) >= 1
+        assert all(r["trace_id"] is None for r in rows)
+    finally:
+        db.close()
+
+
 def test_read_interval_returns_default_when_setting_missing(tmp_path, monkeypatch):
     """If retention.interval_seconds is absent from site_settings,
     _read_interval falls back to DEFAULT_INTERVAL_SECONDS (86400)."""

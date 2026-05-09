@@ -24,14 +24,15 @@ def admin_retention_run_now(
     admin: sqlite3.Row = Depends(require_admin),
 ):
     """Trigger a retention cycle synchronously. Blocks until commit/rollback.
-    Returns 500 on any failure (system_events row already written by
-    run_purge's failure path)."""
+    Returns 500 on any failure (system_events row already written by run_purge).
+    A trace_id is generated at entry and threaded through the cycle + audit."""
+    trace_id = audit.gen_trace_id()
     try:
-        result = run_purge(db)
+        result = run_purge(db, trace_id=trace_id)
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail={"error": "retention_failed", "message": str(e)},
+            detail={"error": "retention_failed", "message": str(e), "trace_id": trace_id},
         )
 
     try:
@@ -42,11 +43,12 @@ def admin_retention_run_now(
                 "total": result["total"],
                 "by_table": result["purged"],
             },
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("audit retention_run_now failed")
 
-    return result
+    return {**result, "trace_id": trace_id}
 
 
 @router.get("/preview", response_model=RetentionPreviewResponse)

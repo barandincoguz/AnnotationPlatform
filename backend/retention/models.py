@@ -12,6 +12,11 @@ class RetentionRunNowResponse(BaseModel):
                     "Kill-switched tables show 0.",
     )
     total: int = Field(..., description="Sum of purged values")
+    trace_id: Optional[str] = Field(
+        None,
+        description="16-char hex correlation token. Set on admin-triggered "
+                    "runs; None on loop-origin runs.",
+    )
 
 
 class RetentionPolicyEntry(BaseModel):

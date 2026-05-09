@@ -103,13 +103,20 @@ def purge_single_table(
     return cur.rowcount
 
 
-def run_purge(db: sqlite3.Connection) -> dict:
+def run_purge(
+    db: sqlite3.Connection, *, trace_id: Optional[str] = None,
+) -> dict:
     """Run a single retention cycle. Resolves cutoffs, opens a
     BEGIN IMMEDIATE transaction, runs purge_single_table for each
     PURGE_POLICY entry that has a cutoff (kill-switched entries are
     omitted from the dict). On any failure rolls back, records a
     retention_failed system_event, and re-raises. On success commits
     and records retention_success.
+
+    trace_id: admin-triggered runs pass a 16-char hex token (generated
+    at route entry) so retention_failed/retention_success system_events
+    correlate with the admin_audit_log row. Loop-origin calls omit it
+    → NULL in system_events (autonomous origin marker).
 
     Caller must pass a connection opened with isolation_level=None (the
     project standard via backend.shared.db.connect) so that explicit
@@ -142,6 +149,7 @@ def run_purge(db: sqlite3.Connection) -> dict:
             db, "retention_failed", "error",
             message="retention cycle failed",
             extra={"step": "purge", "table": current_table, "error": str(e)},
+            trace_id=trace_id,
         )
         raise
 
@@ -151,6 +159,7 @@ def run_purge(db: sqlite3.Connection) -> dict:
         db, "retention_success", "info",
         message=f"purged {total} rows across {active_table_count} active tables",
         extra={"purged": purged},
+        trace_id=trace_id,
     )
     return {"ok": True, "purged": purged, "total": total}
 
