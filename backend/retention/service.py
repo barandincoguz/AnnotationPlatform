@@ -140,3 +140,41 @@ def run_purge(db: sqlite3.Connection) -> dict:
         extra={"purged": purged},
     )
     return {"ok": True, "purged": purged, "total": total}
+
+
+def preview_purge(db: sqlite3.Connection) -> dict:
+    """Dry-run: COUNT(*) rows that would be deleted by run_purge, without
+    deleting anything. Returns:
+        {
+            'rows_to_purge': {table: count},
+            'total': N,
+            'policy': [{'table', 'days', 'cutoff_iso'}, ...]
+        }
+    Kill-switched tables appear in 'policy' with days=0 and cutoff_iso=None;
+    they are absent from 'rows_to_purge' so the count never includes them.
+    """
+    now_cutoffs = compute_cutoffs(db)  # only non-killed tables
+
+    counts: dict[str, int] = {}
+    policy: list[dict] = []
+    for entry in PURGE_POLICY:
+        days = _resolve_days(db, entry)
+        cutoff_iso: Optional[str] = None
+        if entry.table in now_cutoffs:
+            cutoff = now_cutoffs[entry.table]
+            cutoff_iso = cutoff.isoformat()
+            sql = f"SELECT COUNT(*) FROM {entry.table} WHERE {entry.cutoff_column} < ?"
+            if entry.extra_where:
+                sql += f" AND {entry.extra_where}"
+            counts[entry.table] = db.execute(sql, (cutoff_iso,)).fetchone()[0]
+        policy.append({
+            "table": entry.table,
+            "days": days,
+            "cutoff_iso": cutoff_iso,
+        })
+
+    return {
+        "rows_to_purge": counts,
+        "total": sum(counts.values()),
+        "policy": policy,
+    }
