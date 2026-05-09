@@ -87,3 +87,19 @@ def test_compute_cutoffs_raises_on_negative_days(fresh_db):
     with pytest.raises(ValueError) as exc:
         compute_cutoffs(fresh_db)
     assert "negative" in str(exc.value).lower() or "-1" in str(exc.value)
+
+
+def test_compute_cutoffs_raises_on_non_numeric_value(fresh_db):
+    """Non-JSON-numeric value (e.g. 'abc') yields a ValueError carrying the
+    key name, so the eventual retention_failed audit log is actionable
+    rather than a raw json.JSONDecodeError fragment."""
+    from backend.retention.service import compute_cutoffs
+
+    fresh_db.execute(
+        "UPDATE site_settings SET value='abc' WHERE key='retention.drafts.days'"
+    )
+    fresh_db.commit()
+
+    with pytest.raises(ValueError) as exc:
+        compute_cutoffs(fresh_db)
+    assert "retention.drafts.days" in str(exc.value)

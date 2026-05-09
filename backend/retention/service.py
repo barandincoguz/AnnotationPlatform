@@ -10,6 +10,7 @@ retention applied. site_settings provides per-deployment overrides.
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import json
 import sqlite3
 
 from backend.shared import settings
@@ -36,9 +37,17 @@ PURGE_POLICY: list[PurgePolicyEntry] = [
 def _resolve_days(db: sqlite3.Connection, entry: PurgePolicyEntry) -> int:
     """Return effective retention days for `entry`. Reads
     site_settings retention.<table>.days; falls back to entry.default_days
-    if missing. Raises ValueError on negative values (operator error)."""
+    if missing. Raises ValueError on:
+      - negative value (operator error)
+      - non-numeric value (e.g. someone wrote 'abc' via raw SQL UPDATE)
+    so the eventual retention_failed audit row carries the key name."""
     key = f"retention.{entry.table}.days"
-    days = settings.get_int(db, key, default=entry.default_days)
+    try:
+        days = settings.get_int(db, key, default=entry.default_days)
+    except (json.JSONDecodeError, TypeError) as e:
+        raise ValueError(
+            f"site_settings {key} is not a valid integer: {e}"
+        ) from e
     if days < 0:
         raise ValueError(
             f"site_settings {key}={days} is negative; retention windows "
