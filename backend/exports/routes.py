@@ -52,12 +52,24 @@ def admin_export_dataset(
     by the time the first chunk is generated. The dedicated connection is
     closed by the background task once both the stream and the audit write
     are done.
+
+    BackgroundTasks coupling: we register _record_audit_and_close on the
+    shared `background` instance, then pass that SAME instance to
+    StreamingResponse via the `background` kwarg. This is NOT double-wiring —
+    Starlette's StreamingResponse fires the BackgroundTasks instance after the
+    body generator is fully consumed (or the connection is broken), so the
+    audit row + stream_conn.close() happen exactly once, after the stream's
+    natural lifecycle ends.
     """
     stream_conn = connect(config.DB_PATH)
     sql, params = build_query(filters)
     cursor = stream_conn.execute(sql, params)
 
-    # Counter is mutable so the background task can read the post-stream value.
+    # Mutable counter cell so the BackgroundTask can read the post-stream value.
+    # NOTE: on client cancellation mid-stream, the counter reflects rows
+    # streamed up to the cancel point — the audit row will say
+    # exported_count=N_partial with no explicit incomplete flag. Operators
+    # rely on the download itself being incomplete as the failure signal.
     counter = [0]
 
     if filters.format == "csv":

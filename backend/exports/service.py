@@ -177,6 +177,10 @@ def stream_jsonl_objects(cursor) -> Iterator[str]:
                     ),
                     "last_edited_at": last_edited_at,
                     "is_completed": bool(is_completed),
+                    # ↑ JSONL coerces 0/1 → False/True so JSON renders as
+                    # boolean. CSV path (stream_csv_rows) leaves the integer
+                    # as-is — tabular consumers expect 0/1, JSON consumers
+                    # expect bool. Intentional asymmetry.
                     "completed_by": (
                         {"id": completed_by_user_id, "username": completed_by_username}
                         if completed_by_user_id is not None else None

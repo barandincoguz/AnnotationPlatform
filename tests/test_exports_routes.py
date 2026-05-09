@@ -184,3 +184,61 @@ def test_export_empty_result_returns_header_only_csv(client, bootstrap_admin):
     assert body  # not literally empty
     assert "\n" not in body  # exactly one line: the header
     assert body.startswith("document_id,")
+
+
+def test_export_no_audit_row_when_stream_fails_mid_iteration(
+    client, bootstrap_admin, monkeypatch,
+):
+    """Contract: a stream that fails mid-way must NOT leave an audit row.
+    The operator's signal is the incomplete download, not a misleading
+    'success' audit entry. Implementation detail: the BackgroundTask
+    closure raises before audit.log_admin_action runs OR the audit call
+    itself never gets a chance to fire because the body generator died.
+
+    Approach: monkey-patch stream_csv_rows to a generator that raises
+    after yielding the header. The HTTP response will still return 200
+    (status was already sent) but the body is malformed. The audit
+    insert should NOT have run.
+    """
+    bootstrap_admin()
+
+    # Capture the count of pre-existing export_dataset audit rows.
+    from backend.shared.db import connect
+    from backend import config
+    conn = connect(config.DB_PATH)
+    try:
+        before_count = conn.execute(
+            "SELECT COUNT(*) FROM admin_audit_log "
+            "WHERE action_type='export_dataset'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    def _broken_stream(_cursor):
+        yield "document_id,doc_sayi\n"  # plausible header
+        raise RuntimeError("simulated mid-stream failure")
+
+    from backend.exports import routes as routes_mod
+    monkeypatch.setattr(routes_mod, "stream_csv_rows", _broken_stream)
+
+    # The request will produce a malformed/truncated body. We don't
+    # assert a specific status code — different middleware versions
+    # may surface this differently. We only assert no audit row landed.
+    try:
+        client.get("/api/admin/export?format=csv")
+    except Exception:
+        pass
+
+    conn = connect(config.DB_PATH)
+    try:
+        after_count = conn.execute(
+            "SELECT COUNT(*) FROM admin_audit_log "
+            "WHERE action_type='export_dataset'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert after_count == before_count, (
+        f"audit row leaked: {before_count} → {after_count}. "
+        "A failed export must not write to admin_audit_log."
+    )
