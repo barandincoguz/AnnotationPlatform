@@ -38,8 +38,13 @@ async def test_backup_loop_cancellation_is_graceful():
         task = asyncio.create_task(backup_loop_mod.backup_loop())
         await asyncio.sleep(0.01)
         task.cancel()
+        # Cancellation should propagate cleanly: backup_loop catches
+        # CancelledError and returns, so awaiting the task should NOT
+        # raise. The task should be done with no exception.
         await asyncio.wait_for(task, timeout=1.0)
         assert task.done()
+        assert not task.cancelled()  # we returned cleanly, didn't bubble cancel
+        assert task.exception() is None
 
 
 @pytest.mark.asyncio

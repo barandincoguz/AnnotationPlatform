@@ -55,6 +55,8 @@ async def backup_loop() -> None:
             interval = 600
 
         try:
+            # Sleep-first ordering: avoids piling backup I/O on top of
+            # server-startup work. First cycle fires after one interval.
             await asyncio.sleep(interval)
             await backup_once()
         except asyncio.CancelledError:
