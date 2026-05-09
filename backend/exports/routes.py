@@ -71,6 +71,12 @@ def admin_export_dataset(
     else:  # jsonl
         # JSONL counts annotations (= unique document_ids), not cursor rows.
         def _count_annotations(cursor_inner):
+            """Count unique document_ids in the cursor stream. Relies on
+            row[0] being document_id per _BASE_SELECT column order; if
+            that ordering ever changes, this counter silently miscounts.
+            (CSV_COLUMNS[0] == 'document_id' is the source-of-truth
+            contract — keep _BASE_SELECT and CSV_COLUMNS in sync.)
+            """
             seen = None
             for row in cursor_inner:
                 doc_id = row[0]
@@ -96,7 +102,10 @@ def admin_export_dataset(
                     "exported_count": counter[0],
                 },
             )
-            stream_conn.commit()
+            # No explicit commit needed — connect() uses isolation_level=None
+            # (autocommit), so log_admin_action's INSERT is durable on
+            # statement execution. Kept the close() in finally so the
+            # connection is released even if log_admin_action raises.
         except Exception:
             log.exception("audit export_dataset failed")
         finally:
