@@ -8,6 +8,7 @@ Four log channels:
 """
 import json
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -16,6 +17,16 @@ VALID_SEVERITIES = {"info", "warn", "error"}
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def gen_trace_id() -> str:
+    """16-char lowercase hex token (64 bits of entropy, uuid4-derived).
+
+    Used to correlate one admin action across admin_audit_log and
+    system_events. Generated at admin route entry; threaded through
+    audit + service calls down the call chain.
+    """
+    return uuid.uuid4().hex[:16]
 
 
 def log_activity(
@@ -76,18 +87,20 @@ def log_admin_action(
     target_kind: Optional[str] = None,
     target_id: Optional[str] = None,
     metadata: Optional[dict] = None,
+    trace_id: Optional[str] = None,
 ) -> None:
     conn.execute(
         """
         INSERT INTO admin_audit_log(
             admin_user_id, action_type, target_kind, target_id,
-            metadata_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+            metadata_json, created_at, trace_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
             admin_user_id, action_type, target_kind, target_id,
             json.dumps(metadata) if metadata is not None else None,
             _now(),
+            trace_id,
         ),
     )
 
@@ -99,18 +112,20 @@ def log_system_event(
     *,
     message: Optional[str] = None,
     extra: Optional[dict] = None,
+    trace_id: Optional[str] = None,
 ) -> None:
     if severity not in VALID_SEVERITIES:
         raise ValueError(f"invalid severity: {severity!r} (must be one of {VALID_SEVERITIES})")
     conn.execute(
         """
         INSERT INTO system_events(
-            event_type, severity, message, extra_json, created_at
-        ) VALUES (?, ?, ?, ?, ?)
+            event_type, severity, message, extra_json, created_at, trace_id
+        ) VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
             event_type, severity, message,
             json.dumps(extra) if extra is not None else None,
             _now(),
+            trace_id,
         ),
     )

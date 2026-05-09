@@ -65,3 +65,49 @@ def test_log_system_event_inserts(db):
 def test_log_system_event_invalid_severity(db):
     with pytest.raises(ValueError):
         audit.log_system_event(db, event_type="x", severity="bogus")
+
+
+def test_gen_trace_id_format():
+    """16-char lowercase hex token (64 bits of entropy)."""
+    from backend.shared.audit import gen_trace_id
+    tid = gen_trace_id()
+    assert isinstance(tid, str)
+    assert len(tid) == 16
+    assert all(c in "0123456789abcdef" for c in tid)
+
+
+def test_gen_trace_id_is_unique_in_practice():
+    """1000 calls produce 1000 distinct values (uniqueness sanity)."""
+    from backend.shared.audit import gen_trace_id
+    values = {gen_trace_id() for _ in range(1000)}
+    assert len(values) == 1000
+
+
+def test_log_admin_action_writes_trace_id(db):
+    audit.log_admin_action(
+        db, admin_user_id=1, action_type="settings_update",
+        trace_id="abc123def4567890",
+    )
+    row = db.execute("SELECT trace_id FROM admin_audit_log").fetchone()
+    assert row["trace_id"] == "abc123def4567890"
+
+
+def test_log_admin_action_default_trace_id_is_null(db):
+    audit.log_admin_action(db, admin_user_id=1, action_type="something")
+    row = db.execute("SELECT trace_id FROM admin_audit_log").fetchone()
+    assert row["trace_id"] is None
+
+
+def test_log_system_event_writes_trace_id(db):
+    audit.log_system_event(
+        db, event_type="backup_started", severity="info",
+        trace_id="0fedcba987654321",
+    )
+    row = db.execute("SELECT trace_id FROM system_events").fetchone()
+    assert row["trace_id"] == "0fedcba987654321"
+
+
+def test_log_system_event_default_trace_id_is_null(db):
+    audit.log_system_event(db, event_type="boot", severity="info")
+    row = db.execute("SELECT trace_id FROM system_events").fetchone()
+    assert row["trace_id"] is None
