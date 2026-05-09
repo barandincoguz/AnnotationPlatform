@@ -8,15 +8,20 @@ from datetime import date
 
 def test_build_query_no_filters():
     """With format-only filters, no conditional WHERE clauses are added.
-    The SQL still has a `WHERE 1=1` skeleton so future appends are uniform."""
+    The SQL still has a `WHERE 1=1` skeleton so future appends are uniform.
+    Assertions target WHERE-clause fragments specifically (not column-name
+    substring), because the SELECT always references is_completed,
+    updated_at, etc. as projected columns."""
     from backend.exports.models import ExportFilters
     from backend.exports.service import build_query
 
     sql, params = build_query(ExportFilters(format="csv", status="all"))
     assert "WHERE 1=1" in sql
-    assert "is_completed" not in sql       # status=all → no completion clause
-    assert "updated_at >=" not in sql
-    assert "updated_at < date" not in sql
+    assert "AND a.is_completed = 1" not in sql       # status=all → no completion clause
+    assert "AND a.updated_at >=" not in sql
+    assert "AND a.updated_at <" not in sql
+    assert "AND a.document_id = ?" not in sql
+    assert "AND (a.last_editor_user_id" not in sql
     assert params == ()
 
 
@@ -31,13 +36,17 @@ def test_build_query_status_completed_default():
 
 
 def test_build_query_status_all_omits_completion_clause():
-    """Explicit status=all suppresses the is_completed clause so the
-    export includes uncompleted (saved-but-not-finalized) annotations."""
+    """Explicit status=all suppresses the is_completed WHERE clause so the
+    export includes uncompleted (saved-but-not-finalized) annotations.
+    The SELECT still projects a.is_completed (operators see the column);
+    only the filter is dropped."""
     from backend.exports.models import ExportFilters
     from backend.exports.service import build_query
 
     sql, params = build_query(ExportFilters(format="csv", status="all"))
-    assert "is_completed" not in sql
+    assert "AND a.is_completed = 1" not in sql
+    # The column is still selected so consumers see the value:
+    assert "a.is_completed" in sql
 
 
 def test_build_query_from_date_filter():
