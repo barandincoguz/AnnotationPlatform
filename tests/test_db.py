@@ -38,3 +38,20 @@ def test_connect_uses_row_factory(db_path):
         assert row["b"] == "hi"
     finally:
         conn.close()
+
+
+def test_connect_sets_busy_timeout(db_path):
+    """connect() must set PRAGMA busy_timeout so concurrent BEGIN IMMEDIATE
+    writes (retention loop, backup loop, locks sweep) wait for the lock
+    instead of failing immediately. Without this, the docstrings in
+    loop.py modules that claim 'serializes via busy_timeout' would be
+    false, and a future task firing more frequently could see
+    'database is locked' on the first contended cycle."""
+    conn = connect(db_path)
+    try:
+        timeout_ms = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        # 5000 ms is the project default; assert >= 1000 to allow tuning later
+        # without silently regressing to 0.
+        assert timeout_ms >= 1000, f"busy_timeout too low: {timeout_ms}ms"
+    finally:
+        conn.close()
