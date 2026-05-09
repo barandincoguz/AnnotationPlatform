@@ -122,6 +122,7 @@ async def admin_force_release(
         raise HTTPException(status_code=404, detail=f"no lock on {document_id}")
 
     prior_user_id = held["user_id"]
+    trace_id = audit.gen_trace_id()
     # Small TOCTOU window vs. sweep / holder-release — worst case: stale
     # prior_user_id in the event. Unconditional delete and audit still fire
     # correctly. Mirrors the analogous comment in the user-release path.
@@ -147,6 +148,7 @@ async def admin_force_release(
             target_kind="document",
             target_id=document_id,
             metadata={"prior_holder_user_id": prior_user_id},
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("log_admin_action lock_force_release failed for %s", document_id)

@@ -113,3 +113,44 @@ def test_user_release_publishes_reason_user_release(client, ingest_doc, seen_man
     released = [(t, d) for t, d in captured if t == "lock_released"]
     assert len(released) == 1
     assert released[0][1]["reason"] == "user_release"
+
+
+def test_force_release_audit_row_carries_trace_id(
+    client, ingest_doc, bootstrap_admin, seen_manual_passed_user
+):
+    """Group B audit-only: trace_id present on the audit row, no
+    system_events follow-up. Operator can grep system_events by trace_id
+    and correctly find zero rows."""
+    bootstrap_admin()
+    seen_manual_passed_user("bursiyer1", "INVITE-2026")
+    ingest_doc("doc-trace-fr")
+    # bursiyer1 is logged in after seen_manual_passed_user — acquire as them
+    client.post("/api/locks/doc-trace-fr/acquire")
+    # Switch to admin
+    client.cookies.clear()
+    client.post("/api/auth/login", json={"username": "root", "password": "rootpass1"})
+
+    r = client.post("/api/locks/doc-trace-fr/admin/force-release")
+    assert r.status_code == 200, r.text
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='lock_force_release' AND target_id=? "
+            "ORDER BY id DESC LIMIT 1",
+            ("doc-trace-fr",),
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str)
+        assert len(row["trace_id"]) == 16
+
+        # No system_events for this trace_id (force-release is audit-only)
+        sys_rows = db.execute(
+            "SELECT * FROM system_events WHERE trace_id=?", (row["trace_id"],)
+        ).fetchall()
+        assert len(sys_rows) == 0
+    finally:
+        db.close()

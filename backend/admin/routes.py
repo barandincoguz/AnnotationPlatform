@@ -79,11 +79,13 @@ def update_setting(
             },
         )
 
+    trace_id = audit.gen_trace_id()
     S.set_value(db, key, new_value, updated_by_user_id=admin["id"])
     audit.log_admin_action(
         db, admin_user_id=admin["id"], action_type="settings_update",
         target_kind="setting", target_id=key,
         metadata={"old_value": old_value, "new_value": new_value},
+        trace_id=trace_id,
     )
     return {"key": key, "value": new_value}
 

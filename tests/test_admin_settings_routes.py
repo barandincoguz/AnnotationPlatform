@@ -183,3 +183,28 @@ def test_put_same_value_still_audited(client):
     finally:
         conn.close()
     assert count == 1
+
+
+def test_settings_update_audit_row_carries_trace_id(client):
+    """Group B audit-only: trace_id populated on the audit row.
+    settings_update writes only to admin_audit_log, no system_events."""
+    _make_admin(client)
+    r = client.put(
+        "/api/admin/settings/speed_warning.window_seconds",
+        json={"value": 600},
+    )
+    assert r.status_code == 200
+
+    conn = connect(config.DB_PATH)
+    try:
+        row = conn.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='settings_update' AND target_id=? "
+            "ORDER BY id DESC LIMIT 1",
+            ("speed_warning.window_seconds",),
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str)
+        assert len(row["trace_id"]) == 16
+    finally:
+        conn.close()
