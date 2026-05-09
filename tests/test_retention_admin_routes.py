@@ -5,9 +5,11 @@ import pytest
 
 
 def test_run_now_admin_only(client, passed_user):
-    """A non-admin gets 404 (existence-hide pattern)."""
+    """A non-admin gets 404 (require_admin existence-hide pattern, not
+    401, because revealing 'admin endpoint exists' to non-admins is the
+    threat model we're guarding against)."""
     r = client.post("/api/admin/retention/run-now")
-    assert r.status_code in (401, 404)
+    assert r.status_code == 404
 
 
 def test_run_now_returns_purged_counts(client, bootstrap_admin):
@@ -65,8 +67,9 @@ def test_run_now_returns_500_on_internal_failure(client, bootstrap_admin, monkey
 
 
 def test_preview_admin_only(client, passed_user):
+    """Same existence-hide as run-now: non-admin gets 404, not 401."""
     r = client.get("/api/admin/retention/preview")
-    assert r.status_code in (401, 404)
+    assert r.status_code == 404
 
 
 def test_preview_returns_dry_run_counts(client, bootstrap_admin):
