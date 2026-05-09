@@ -155,7 +155,7 @@ def _fake_row(**kwargs):
     }
     defaults.update(kwargs)
     # Match the SELECT order from _BASE_SELECT
-    return (
+    result = (
         defaults["document_id"], defaults["doc_sayi"], defaults["doc_tarih"],
         defaults["doc_konu"], defaults["last_editor_user_id"],
         defaults["last_editor_username"], defaults["last_edited_at"],
@@ -166,6 +166,13 @@ def _fake_row(**kwargs):
         defaults["ref_madde"], defaults["ref_fikra"], defaults["ref_bent"],
         defaults["ref_source_text"],
     )
+    # Guard against silent short-tuples if _BASE_SELECT ever gains a column.
+    from backend.exports.service import CSV_COLUMNS
+    assert len(result) == len(CSV_COLUMNS), (
+        f"_fake_row produces {len(result)} fields but CSV_COLUMNS has "
+        f"{len(CSV_COLUMNS)} — update the helper's tuple to match the SELECT."
+    )
+    return result
 
 
 def test_stream_csv_rows_emits_header_first():
@@ -207,8 +214,9 @@ def test_stream_csv_rows_zero_reference_annotation_emits_one_row_with_nulls():
     out = "".join(stream_csv_rows(iter([row])))
     lines = out.strip().split("\n")
     assert len(lines) == 2  # header + 1 row
-    # Trailing fields should be empty (the row ends in a string of commas)
-    assert lines[1].rstrip().endswith(",,,,,,,") or lines[1].rstrip().endswith(",,,,,,")
+    # 7 trailing ref_* fields are NULL → 7 trailing commas exactly:
+    # ref_seq, ref_kanun_no, ref_kanun_ad, ref_madde, ref_fikra, ref_bent, ref_source_text
+    assert lines[1].rstrip().endswith(",,,,,,,")
     assert "None" not in lines[1]
     assert "null" not in lines[1]
 
