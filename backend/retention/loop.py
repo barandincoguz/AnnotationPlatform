@@ -1,6 +1,9 @@
 """Async retention loop. Mirrors backend/backup/loop.py: lifespan-driven
 asyncio task, sleep-first ordering, settings live-tuned interval, never
 dies on per-cycle exceptions.
+
+Single-process; safe with WAL mode (concurrent readers OK, BEGIN
+IMMEDIATE serializes against backup_loop's writer via busy_timeout).
 """
 import asyncio
 import logging
