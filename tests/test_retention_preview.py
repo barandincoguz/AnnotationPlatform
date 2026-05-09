@@ -89,3 +89,42 @@ def test_preview_uses_db_override_in_policy_snapshot(fresh_db):
     out = preview_purge(fresh_db)
     drafts_entry = next(p for p in out["policy"] if p["table"] == "drafts")
     assert drafts_entry["days"] == 1
+
+
+def test_preview_kill_switch_omits_table_from_rows_to_purge(fresh_db):
+    """When retention.<table>.days=0, the table appears in 'policy' with
+    days=0 and cutoff_iso=None, AND is absent from 'rows_to_purge' so the
+    total never inflates with rows that are protected by the kill switch.
+
+    Kill switch is the operator's panic button: setting days=0 in
+    site_settings stops that table from ever being purged, regardless of
+    how many old rows exist. Preview must reflect this so the admin UI
+    doesn't show '1247 rows will be purged from behavioral_events' when
+    in fact 0 will be (because that table is killed)."""
+    from backend.retention.service import preview_purge
+    from datetime import datetime, timedelta, timezone
+
+    fresh_db.execute(
+        "UPDATE site_settings SET value='0' WHERE key='retention.behavioral_events.days'"
+    )
+    fresh_db.commit()
+
+    _seed_user(fresh_db)
+    old = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+    fresh_db.execute(
+        """INSERT INTO behavioral_events
+           (user_id, detector, threshold_value, actual_value, context_json, created_at)
+           VALUES (1, 't', 1.0, 1.0, '{}', ?)""",
+        (old,),
+    )
+    fresh_db.commit()
+
+    out = preview_purge(fresh_db)
+    # Killed table absent from rows_to_purge.
+    assert "behavioral_events" not in out["rows_to_purge"]
+    # Killed table present in policy with days=0 and cutoff_iso=None.
+    entry = next(p for p in out["policy"] if p["table"] == "behavioral_events")
+    assert entry["days"] == 0
+    assert entry["cutoff_iso"] is None
+    # The very-old row is NOT counted in the total (kill-switched).
+    assert out["total"] == 0 or "behavioral_events" not in out["rows_to_purge"]

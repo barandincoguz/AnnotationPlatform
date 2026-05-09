@@ -74,6 +74,19 @@ def compute_cutoffs(db: sqlite3.Connection) -> dict[str, datetime]:
     return cutoffs
 
 
+def _build_where_clause(entry: PurgePolicyEntry, verb: str) -> str:
+    """Compose the cutoff-filter SQL fragment that purge_single_table and
+    preview_purge both use. Centralizing the construction prevents the two
+    callers from drifting (e.g., one adding a new condition the other
+    misses) — which would silently mislead admin UI confirmation flows.
+
+    `verb` must be 'SELECT COUNT(*)' or 'DELETE' (the only two callers)."""
+    sql = f"{verb} FROM {entry.table} WHERE {entry.cutoff_column} < ?"
+    if entry.extra_where:
+        sql += f" AND {entry.extra_where}"
+    return sql
+
+
 def purge_single_table(
     db: sqlite3.Connection,
     entry: PurgePolicyEntry,
@@ -85,11 +98,8 @@ def purge_single_table(
 
     The cutoff is bound as an ISO timestamp string; SQLite's text-comparison
     on ISO-8601 produces correct chronological ordering."""
-    cutoff_iso = cutoff.isoformat()
-    sql = f"DELETE FROM {entry.table} WHERE {entry.cutoff_column} < ?"
-    if entry.extra_where:
-        sql += f" AND {entry.extra_where}"
-    cur = db.execute(sql, (cutoff_iso,))
+    sql = _build_where_clause(entry, "DELETE")
+    cur = db.execute(sql, (cutoff.isoformat(),))
     return cur.rowcount
 
 
@@ -152,6 +162,12 @@ def preview_purge(db: sqlite3.Connection) -> dict:
         }
     Kill-switched tables appear in 'policy' with days=0 and cutoff_iso=None;
     they are absent from 'rows_to_purge' so the count never includes them.
+
+    Counts are non-transactional: each table's COUNT is a separate read.
+    In a concurrent environment the per-table totals may reflect slightly
+    different moments in time. For a single-server deployment with a
+    handful of users this is acceptable since admin runs preview right
+    before run_purge anyway.
     """
     now_cutoffs = compute_cutoffs(db)  # only non-killed tables
 
@@ -163,9 +179,7 @@ def preview_purge(db: sqlite3.Connection) -> dict:
         if entry.table in now_cutoffs:
             cutoff = now_cutoffs[entry.table]
             cutoff_iso = cutoff.isoformat()
-            sql = f"SELECT COUNT(*) FROM {entry.table} WHERE {entry.cutoff_column} < ?"
-            if entry.extra_where:
-                sql += f" AND {entry.extra_where}"
+            sql = _build_where_clause(entry, "SELECT COUNT(*)")
             counts[entry.table] = db.execute(sql, (cutoff_iso,)).fetchone()[0]
         policy.append({
             "table": entry.table,
