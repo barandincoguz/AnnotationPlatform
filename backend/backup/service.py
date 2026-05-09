@@ -62,6 +62,8 @@ def write_snapshot(payload: dict, backup_dir: Path, ts: str) -> Path:
     backup_dir.mkdir(parents=True, exist_ok=True)
     latest = backup_dir / "latest.json"
     timestamped = backup_dir / f"{ts}.json"
+    # sort_keys=True produces byte-stable JSON when rows are unchanged
+    # between cycles, so git sees no diff and avoids meaningless commits.
     body = json.dumps(payload, ensure_ascii=False, indent=None, sort_keys=True)
 
     for target in (latest, timestamped):
@@ -74,9 +76,12 @@ def write_snapshot(payload: dict, backup_dir: Path, ts: str) -> Path:
 
 def rotate_snapshots(backup_dir: Path, keep: int = 144) -> list[Path]:
     """Delete oldest timestamped snapshots, keeping the `keep` most recent
-    by modification time. Never touches latest.json or the .git/ directory.
+    by modification time. Never touches latest.json or directories
+    (including .git/, which is excluded by the is_file() filter).
 
-    Returns the list of deleted paths.
+    Returns the list of paths that were actually deleted (excluding any
+    that failed to unlink). Callers using the count for audit logging
+    can trust the value matches reality.
     """
     candidates = [
         p for p in backup_dir.iterdir()
@@ -85,12 +90,14 @@ def rotate_snapshots(backup_dir: Path, keep: int = 144) -> list[Path]:
     ]
     candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     to_delete = candidates[keep:]
+    deleted: list[Path] = []
     for p in to_delete:
         try:
             p.unlink()
+            deleted.append(p)
         except Exception:
             log.exception("failed to delete old snapshot %s", p)
-    return to_delete
+    return deleted
 
 
 def utc_timestamp() -> str:
