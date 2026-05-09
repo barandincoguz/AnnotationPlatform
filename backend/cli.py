@@ -252,72 +252,70 @@ def cmd_restore_from_github(args) -> int:
     # so `git clone` can create it fresh (git clone refuses non-empty targets).
     clone_parent = Path(tempfile.mkdtemp(prefix="restore-"))
     clone_dir = clone_parent / "repo"
-
     try:
-        _clone_backup_repo(pat_url, clone_dir)
-    except Exception as e:
-        print(f"error: clone failed: {e}", file=sys.stderr)
-        if bak_path is not None:
-            bak_path.rename(db_path)
-        return 1
-
-    try:
-        if args.snapshot:
-            snap_path = clone_dir / f"{args.snapshot}.json"
-        else:
-            snap_path = clone_dir / "latest.json"
-        if not snap_path.exists():
-            print(f"error: snapshot not found: {snap_path.name}", file=sys.stderr)
+        try:
+            _clone_backup_repo(pat_url, clone_dir)
+        except Exception as e:
+            print(f"error: clone failed: {e}", file=sys.stderr)
             if bak_path is not None:
                 bak_path.rename(db_path)
             return 1
 
-        if not args.yes:
-            with open(snap_path, encoding="utf-8") as f:
-                preview = json.load(f)
-            n_tables = len(preview)
-            n_rows = sum(len(rows) for rows in preview.values())
-            print(f"Will restore {n_tables} tables, {n_rows} total rows from {snap_path.name}.")
-            answer = input("Continue? [y/N] ").strip().lower()
-            if answer != "y":
-                print("aborted")
+        try:
+            if args.snapshot:
+                snap_path = clone_dir / f"{args.snapshot}.json"
+            else:
+                snap_path = clone_dir / "latest.json"
+            if not snap_path.exists():
+                print(f"error: snapshot not found: {snap_path.name}", file=sys.stderr)
                 if bak_path is not None:
                     bak_path.rename(db_path)
                 return 1
 
-        config.ensure_dirs()
-        conn = connect(db_path)
-        try:
-            apply_migrations(conn, discover_migrations())
+            if not args.yes:
+                with open(snap_path, encoding="utf-8") as f:
+                    preview = json.load(f)
+                n_tables = len(preview)
+                n_rows = sum(len(rows) for rows in preview.values())
+                print(f"Will restore {n_tables} tables, {n_rows} total rows from {snap_path.name}.")
+                answer = input("Continue? [y/N] ").strip().lower()
+                if answer != "y":
+                    print("aborted")
+                    if bak_path is not None:
+                        bak_path.rename(db_path)
+                    return 1
 
-            from backend.backup.restore import restore_from_snapshot
-            result = restore_from_snapshot(conn, snap_path)
-        finally:
-            conn.close()
+            config.ensure_dirs()
+            conn = connect(db_path)
+            try:
+                apply_migrations(conn, discover_migrations())
 
-        print(f"Restored {result['total_rows']} rows across {len(result['tables'])} tables:")
-        for table, count in result["tables"].items():
-            print(f"  {table}: {count}")
-        if result.get("skipped_tables"):
-            print("Skipped tables (not in current schema):")
-            for t in result["skipped_tables"]:
-                print(f"  {t}")
+                from backend.backup.restore import restore_from_snapshot
+                result = restore_from_snapshot(conn, snap_path)
+            finally:
+                conn.close()
 
-    except Exception as e:
-        print(f"error: restore failed: {e}", file=sys.stderr)
-        if db_path.exists():
-            db_path.unlink()
-        if bak_path is not None:
-            bak_path.rename(db_path)
-        if clone_parent.exists():
-            shutil.rmtree(clone_parent, ignore_errors=True)
-        return 1
+            print(f"Restored {result['total_rows']} rows across {len(result['tables'])} tables:")
+            for table, count in result["tables"].items():
+                print(f"  {table}: {count}")
+            if result.get("skipped_tables"):
+                print("Skipped tables (not in current schema):")
+                for t in result["skipped_tables"]:
+                    print(f"  {t}")
 
-    if clone_parent.exists():
+        except Exception as e:
+            print(f"error: restore failed: {e}", file=sys.stderr)
+            if db_path.exists():
+                db_path.unlink()
+            if bak_path is not None:
+                bak_path.rename(db_path)
+            return 1
+
+        bak_msg = str(bak_path) if bak_path is not None else "(none — DB did not exist before restore)"
+        print(f"\nRestore complete. Pre-restore DB saved at: {bak_msg}")
+        return 0
+    finally:
         shutil.rmtree(clone_parent, ignore_errors=True)
-
-    print(f"\nRestore complete. Pre-restore DB saved at: {bak_path}")
-    return 0
 
 
 COMMANDS = {

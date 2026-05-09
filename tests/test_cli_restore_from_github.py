@@ -188,3 +188,34 @@ def test_restore_rolls_back_on_failure(fresh_data_dir, monkeypatch):
     ).fetchone()
     assert row is not None
     conn.close()
+
+
+def test_restore_rolls_back_on_clone_failure(fresh_data_dir, monkeypatch):
+    """If the git clone step fails, the corrupt-bak is restored to
+    annotations.db so the operator's pre-clone state is preserved."""
+    monkeypatch.setattr(config, "BACKUP_REPO_URL", "https://github.com/x/y.git")
+    monkeypatch.setattr(config, "GITHUB_PAT", "fake-pat")
+
+    # Pre-write a recognizable row so we can verify it's preserved
+    conn = connect(config.DB_PATH)
+    conn.execute(
+        "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,?)",
+        ("BEFORE_CLONE_FAIL", "2026-05-01T00:00:00+00:00"),
+    )
+    conn.commit()
+    conn.close()
+
+    def fake_clone(_url, _dest):
+        raise RuntimeError("git clone failed: network unreachable")
+
+    with patch("backend.cli._clone_backup_repo", side_effect=fake_clone):
+        rc = cli.main(["restore-from-github", "--yes"])
+    assert rc == 1
+
+    # Original DB content was restored from corrupt-bak
+    conn = connect(config.DB_PATH)
+    row = conn.execute(
+        "SELECT code FROM invite_codes WHERE code='BEFORE_CLONE_FAIL'"
+    ).fetchone()
+    assert row is not None
+    conn.close()
