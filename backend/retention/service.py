@@ -72,3 +72,22 @@ def compute_cutoffs(db: sqlite3.Connection) -> dict[str, datetime]:
             continue  # kill switch
         cutoffs[entry.table] = now - timedelta(days=days)
     return cutoffs
+
+
+def purge_single_table(
+    db: sqlite3.Connection,
+    entry: PurgePolicyEntry,
+    cutoff: datetime,
+) -> int:
+    """Delete rows where entry.cutoff_column < cutoff (and extra_where if any).
+    Caller manages the transaction (typically a multi-table BEGIN IMMEDIATE).
+    Returns the rowcount of the DELETE statement.
+
+    The cutoff is bound as an ISO timestamp string; SQLite's text-comparison
+    on ISO-8601 produces correct chronological ordering."""
+    cutoff_iso = cutoff.isoformat()
+    sql = f"DELETE FROM {entry.table} WHERE {entry.cutoff_column} < ?"
+    if entry.extra_where:
+        sql += f" AND {entry.extra_where}"
+    cur = db.execute(sql, (cutoff_iso,))
+    return cur.rowcount

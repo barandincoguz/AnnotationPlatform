@@ -103,3 +103,161 @@ def test_compute_cutoffs_raises_on_non_numeric_value(fresh_db):
     with pytest.raises(ValueError) as exc:
         compute_cutoffs(fresh_db)
     assert "retention.drafts.days" in str(exc.value)
+
+
+# ---------------- purge_single_table ----------------
+
+
+def _seed_behavioral_event(db, *, days_ago: int) -> int:
+    """Insert a behavioral_events row dated `days_ago` days in the past."""
+    cur = db.execute(
+        """
+        INSERT INTO behavioral_events
+            (user_id, detector, threshold_value, actual_value, context_json, created_at)
+        VALUES (1, 'test', 1.0, 1.0, '{}', datetime('now', ?))
+        """,
+        (f"-{days_ago} days",),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def _seed_user(db, user_id: int = 1):
+    """Insert a row into users so behavioral_events FK is satisfied."""
+    db.execute(
+        """
+        INSERT INTO users (id, username, password_hash, role, is_active,
+                           has_seen_manual, has_passed_training,
+                           avatar_color, created_at, updated_at)
+        VALUES (?, 'u', 'x', 'user', 1, 1, 1, '#000', datetime('now'), datetime('now'))
+        """,
+        (user_id,),
+    )
+    db.commit()
+
+
+def test_purge_single_table_deletes_rows_older_than_cutoff(fresh_db):
+    """A row dated 31 days ago is deleted when retention is 30 days."""
+    from backend.retention.service import (
+        purge_single_table, PURGE_POLICY,
+    )
+    from datetime import datetime, timedelta, timezone
+
+    _seed_user(fresh_db)
+    old_id = _seed_behavioral_event(fresh_db, days_ago=31)
+
+    entry = next(p for p in PURGE_POLICY if p.table == "behavioral_events")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    fresh_db.execute("BEGIN IMMEDIATE")
+    count = purge_single_table(fresh_db, entry, cutoff)
+    fresh_db.execute("COMMIT")
+
+    assert count == 1
+    row = fresh_db.execute(
+        "SELECT id FROM behavioral_events WHERE id=?", (old_id,)
+    ).fetchone()
+    assert row is None
+
+
+def test_purge_single_table_keeps_rows_younger_than_cutoff(fresh_db):
+    """A row dated 5 days ago is preserved when retention is 30 days."""
+    from backend.retention.service import (
+        purge_single_table, PURGE_POLICY,
+    )
+    from datetime import datetime, timedelta, timezone
+
+    _seed_user(fresh_db)
+    young_id = _seed_behavioral_event(fresh_db, days_ago=5)
+
+    entry = next(p for p in PURGE_POLICY if p.table == "behavioral_events")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    fresh_db.execute("BEGIN IMMEDIATE")
+    count = purge_single_table(fresh_db, entry, cutoff)
+    fresh_db.execute("COMMIT")
+
+    assert count == 0
+    row = fresh_db.execute(
+        "SELECT id FROM behavioral_events WHERE id=?", (young_id,)
+    ).fetchone()
+    assert row is not None
+
+
+def test_purge_single_table_respects_extra_where(fresh_db):
+    """notifications has extra_where='is_read=1' so unread rows are NEVER
+    purged regardless of age."""
+    from backend.retention.service import (
+        purge_single_table, PURGE_POLICY,
+    )
+    from datetime import datetime, timedelta, timezone
+
+    _seed_user(fresh_db)
+    # Insert two old (60-day) notifications: one read, one unread.
+    fresh_db.execute(
+        """INSERT INTO notifications (user_id, kind, title, body, data_json,
+           is_read, created_at)
+           VALUES (1, 't', 'old read', 'b', '{}', 1, datetime('now', '-60 days'))""",
+    )
+    fresh_db.execute(
+        """INSERT INTO notifications (user_id, kind, title, body, data_json,
+           is_read, created_at)
+           VALUES (1, 't', 'old unread', 'b', '{}', 0, datetime('now', '-60 days'))""",
+    )
+    fresh_db.commit()
+
+    entry = next(p for p in PURGE_POLICY if p.table == "notifications")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    fresh_db.execute("BEGIN IMMEDIATE")
+    count = purge_single_table(fresh_db, entry, cutoff)
+    fresh_db.execute("COMMIT")
+
+    assert count == 1  # only the read one
+    rows = fresh_db.execute(
+        "SELECT title, is_read FROM notifications ORDER BY title"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["title"] == "old unread"
+    assert rows[0]["is_read"] == 0
+
+
+def test_purge_single_table_uses_correct_cutoff_column(fresh_db):
+    """user_sessions uses ended_at (not created_at). Verify by inserting
+    an old started_at + recent ended_at row — it must NOT be purged."""
+    from backend.retention.service import (
+        purge_single_table, PURGE_POLICY,
+    )
+    from datetime import datetime, timedelta, timezone
+
+    _seed_user(fresh_db)
+    # Old started_at, recent ended_at → should be kept.
+    fresh_db.execute(
+        """INSERT INTO user_sessions
+           (user_id, session_token, ip_hash, user_agent,
+            started_at, ended_at, last_activity_at)
+           VALUES (1, 'tok-recent', '', '',
+                   datetime('now', '-60 days'),
+                   datetime('now', '-1 days'),
+                   datetime('now', '-1 days'))""",
+    )
+    # Old started_at AND old ended_at → should be purged.
+    fresh_db.execute(
+        """INSERT INTO user_sessions
+           (user_id, session_token, ip_hash, user_agent,
+            started_at, ended_at, last_activity_at)
+           VALUES (1, 'tok-old', '', '',
+                   datetime('now', '-90 days'),
+                   datetime('now', '-60 days'),
+                   datetime('now', '-60 days'))""",
+    )
+    fresh_db.commit()
+
+    entry = next(p for p in PURGE_POLICY if p.table == "user_sessions")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    fresh_db.execute("BEGIN IMMEDIATE")
+    count = purge_single_table(fresh_db, entry, cutoff)
+    fresh_db.execute("COMMIT")
+
+    assert count == 1
+    rows = fresh_db.execute(
+        "SELECT session_token FROM user_sessions ORDER BY session_token"
+    ).fetchall()
+    assert [r["session_token"] for r in rows] == ["tok-recent"]
