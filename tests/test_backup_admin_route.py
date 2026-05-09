@@ -63,6 +63,10 @@ def test_run_now_returns_500_on_cycle_failure(client, bootstrap_admin):
     body = r.json()
     assert body["detail"]["error"] == "backup_failed"
     assert "git push failed" in body["detail"]["message"]
+    # 500 detail must carry trace_id so operator can grep system_events
+    # for the partial failure trail emitted before the raise propagated.
+    assert isinstance(body["detail"]["trace_id"], str)
+    assert len(body["detail"]["trace_id"]) == 16
 
 
 def test_run_now_threads_trace_id_across_audit_and_system_events(client, bootstrap_admin):
@@ -82,12 +86,14 @@ def test_run_now_threads_trace_id_across_audit_and_system_events(client, bootstr
     from backend import config
     db = connect(config.DB_PATH)
     try:
-        audit_rows = db.execute(
-            "SELECT trace_id FROM admin_audit_log WHERE action_type='backup_run_now'"
-        ).fetchall()
-        # exactly one audit row, with our trace_id
-        assert len(audit_rows) >= 1
-        assert audit_rows[-1]["trace_id"] == trace_id
+        # Order DESC + LIMIT 1 so we don't depend on SQLite's default scan order
+        # if a future fixture seeds prior rows.
+        audit_row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='backup_run_now' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        assert audit_row is not None
+        assert audit_row["trace_id"] == trace_id
 
         sys_rows = db.execute(
             "SELECT trace_id FROM system_events WHERE trace_id=?", (trace_id,)

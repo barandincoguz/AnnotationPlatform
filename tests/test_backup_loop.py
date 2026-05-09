@@ -118,9 +118,13 @@ async def test_backup_loop_emits_system_events_with_null_trace_id(tmp_path, monk
 
     db = connect(db_path)
     try:
+        # BACKUP_REPO_URL="" is set above, which forces the cycle into the
+        # backup_skipped_no_remote branch. Filter to that exact event so a
+        # 0-row result fails with a clear "no skipped event written"
+        # signal rather than silently passing.
         rows = db.execute(
             "SELECT trace_id FROM system_events "
-            "WHERE event_type IN ('backup_success','backup_skipped_no_remote')"
+            "WHERE event_type = 'backup_skipped_no_remote'"
         ).fetchall()
         assert len(rows) >= 1
         assert all(r["trace_id"] is None for r in rows)
