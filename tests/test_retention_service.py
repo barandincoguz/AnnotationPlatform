@@ -109,14 +109,18 @@ def test_compute_cutoffs_raises_on_non_numeric_value(fresh_db):
 
 
 def _seed_behavioral_event(db, *, days_ago: int) -> int:
-    """Insert a behavioral_events row dated `days_ago` days in the past."""
+    """Insert a behavioral_events row dated `days_ago` days in the past.
+    Uses Python datetime bound as isoformat (matching production write
+    format from backend.shared.audit) so test data is byte-identical
+    to what real flows produce."""
+    ts = (datetime.now(timezone.utc) - timedelta(days=days_ago)).isoformat()
     cur = db.execute(
         """
         INSERT INTO behavioral_events
             (user_id, detector, threshold_value, actual_value, context_json, created_at)
-        VALUES (1, 'test', 1.0, 1.0, '{}', datetime('now', ?))
+        VALUES (1, 'test', 1.0, 1.0, '{}', ?)
         """,
-        (f"-{days_ago} days",),
+        (ts,),
     )
     db.commit()
     return cur.lastrowid
@@ -191,16 +195,19 @@ def test_purge_single_table_respects_extra_where(fresh_db):
     from datetime import datetime, timedelta, timezone
 
     _seed_user(fresh_db)
+    sixty_days_ago = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
     # Insert two old (60-day) notifications: one read, one unread.
     fresh_db.execute(
         """INSERT INTO notifications (user_id, kind, title, body, data_json,
            is_read, created_at)
-           VALUES (1, 't', 'old read', 'b', '{}', 1, datetime('now', '-60 days'))""",
+           VALUES (1, 't', 'old read', 'b', '{}', 1, ?)""",
+        (sixty_days_ago,),
     )
     fresh_db.execute(
         """INSERT INTO notifications (user_id, kind, title, body, data_json,
            is_read, created_at)
-           VALUES (1, 't', 'old unread', 'b', '{}', 0, datetime('now', '-60 days'))""",
+           VALUES (1, 't', 'old unread', 'b', '{}', 0, ?)""",
+        (sixty_days_ago,),
     )
     fresh_db.commit()
 
@@ -228,25 +235,26 @@ def test_purge_single_table_uses_correct_cutoff_column(fresh_db):
     from datetime import datetime, timedelta, timezone
 
     _seed_user(fresh_db)
+    now_utc = datetime.now(timezone.utc)
+    started_60 = (now_utc - timedelta(days=60)).isoformat()
+    ended_1    = (now_utc - timedelta(days=1)).isoformat()
+    started_90 = (now_utc - timedelta(days=90)).isoformat()
+    ended_60   = (now_utc - timedelta(days=60)).isoformat()
     # Old started_at, recent ended_at → should be kept.
     fresh_db.execute(
         """INSERT INTO user_sessions
            (user_id, session_token, ip_hash, user_agent,
             started_at, ended_at, last_activity_at)
-           VALUES (1, 'tok-recent', '', '',
-                   datetime('now', '-60 days'),
-                   datetime('now', '-1 days'),
-                   datetime('now', '-1 days'))""",
+           VALUES (1, 'tok-recent', '', '', ?, ?, ?)""",
+        (started_60, ended_1, ended_1),
     )
     # Old started_at AND old ended_at → should be purged.
     fresh_db.execute(
         """INSERT INTO user_sessions
            (user_id, session_token, ip_hash, user_agent,
             started_at, ended_at, last_activity_at)
-           VALUES (1, 'tok-old', '', '',
-                   datetime('now', '-90 days'),
-                   datetime('now', '-60 days'),
-                   datetime('now', '-60 days'))""",
+           VALUES (1, 'tok-old', '', '', ?, ?, ?)""",
+        (started_90, ended_60, ended_60),
     )
     fresh_db.commit()
 
@@ -261,3 +269,40 @@ def test_purge_single_table_uses_correct_cutoff_column(fresh_db):
         "SELECT session_token FROM user_sessions ORDER BY session_token"
     ).fetchall()
     assert [r["session_token"] for r in rows] == ["tok-recent"]
+
+
+def test_purge_single_table_spares_active_sessions_with_null_ended_at(fresh_db):
+    """user_sessions extra_where='ended_at IS NOT NULL' must spare active
+    sessions (NULL ended_at) regardless of how old started_at is. Without
+    this guard, every active long-running session would be deleted on
+    every cycle, instantly logging out every user."""
+    from backend.retention.service import (
+        purge_single_table, PURGE_POLICY,
+    )
+    from datetime import datetime, timedelta, timezone
+
+    _seed_user(fresh_db)
+    very_old_started = (
+        datetime.now(timezone.utc) - timedelta(days=365)
+    ).isoformat()
+    fresh_db.execute(
+        """INSERT INTO user_sessions
+           (user_id, session_token, ip_hash, user_agent,
+            started_at, ended_at, last_activity_at)
+           VALUES (1, 'tok-active', '', '', ?, NULL, ?)""",
+        (very_old_started, very_old_started),
+    )
+    fresh_db.commit()
+
+    entry = next(p for p in PURGE_POLICY if p.table == "user_sessions")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    fresh_db.execute("BEGIN IMMEDIATE")
+    count = purge_single_table(fresh_db, entry, cutoff)
+    fresh_db.execute("COMMIT")
+
+    assert count == 0
+    row = fresh_db.execute(
+        "SELECT session_token FROM user_sessions WHERE session_token=?",
+        ("tok-active",),
+    ).fetchone()
+    assert row is not None
