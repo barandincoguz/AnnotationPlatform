@@ -9,8 +9,12 @@ Usage:
 """
 import argparse
 import json
+import shutil
+import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 from backend import config
 from backend.shared.db import connect
@@ -201,6 +205,121 @@ def cmd_import_gold_docs(args) -> int:
     return 0
 
 
+def _clone_backup_repo(pat_url: str, dest: Path) -> None:
+    """Wrapper for `git clone <pat-url> <dest>`. Extracted as its own
+    function so tests can patch it without spawning real git processes."""
+    result = subprocess.run(
+        ["git", "clone", pat_url, str(dest)],
+        capture_output=True, text=True, timeout=60,
+    )
+    if result.returncode != 0:
+        from backend.backup.git_remote import scrub_pat
+        stderr = scrub_pat(result.stderr or "")
+        raise RuntimeError(f"git clone failed: {stderr}")
+
+
+def cmd_restore_from_github(args) -> int:
+    """Restore the local DB from a snapshot in the GitHub backup repo.
+
+    Flow:
+      1. Read BACKUP_REPO_URL + GITHUB_PAT from config (env-backed).
+      2. Rename current DB to corrupt-<UTC ISO>.db.bak.
+      3. Clone the backup repo to /tmp/restore-<ts>/.
+      4. Pick the requested snapshot (default: latest.json).
+      5. Confirmation prompt (skipped with --yes).
+      6. Run migrations on the new (empty) DB, then restore.
+      7. On error: rename corrupt-bak back to annotations.db.
+      8. Clean up the /tmp clone.
+    """
+    if not config.BACKUP_REPO_URL or not config.GITHUB_PAT:
+        print(
+            "error: BACKUP_REPO_URL and GITHUB_PAT must both be set "
+            "in the environment.",
+            file=sys.stderr,
+        )
+        return 1
+
+    db_path = config.DB_PATH
+    bak_path = None
+    if db_path.exists():
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        bak_path = db_path.parent / f"corrupt-{ts}.db.bak"
+        db_path.rename(bak_path)
+
+    from backend.backup.git_remote import inject_pat
+    pat_url = inject_pat(config.BACKUP_REPO_URL, config.GITHUB_PAT)
+    # tempfile.mkdtemp gives a guaranteed-unique path; remove the empty dir
+    # so `git clone` can create it fresh (git clone refuses non-empty targets).
+    clone_parent = Path(tempfile.mkdtemp(prefix="restore-"))
+    clone_dir = clone_parent / "repo"
+
+    try:
+        _clone_backup_repo(pat_url, clone_dir)
+    except Exception as e:
+        print(f"error: clone failed: {e}", file=sys.stderr)
+        if bak_path is not None:
+            bak_path.rename(db_path)
+        return 1
+
+    try:
+        if args.snapshot:
+            snap_path = clone_dir / f"{args.snapshot}.json"
+        else:
+            snap_path = clone_dir / "latest.json"
+        if not snap_path.exists():
+            print(f"error: snapshot not found: {snap_path.name}", file=sys.stderr)
+            if bak_path is not None:
+                bak_path.rename(db_path)
+            return 1
+
+        if not args.yes:
+            with open(snap_path, encoding="utf-8") as f:
+                preview = json.load(f)
+            n_tables = len(preview)
+            n_rows = sum(len(rows) for rows in preview.values())
+            print(f"Will restore {n_tables} tables, {n_rows} total rows from {snap_path.name}.")
+            answer = input("Continue? [y/N] ").strip().lower()
+            if answer != "y":
+                print("aborted")
+                if bak_path is not None:
+                    bak_path.rename(db_path)
+                return 1
+
+        config.ensure_dirs()
+        conn = connect(db_path)
+        try:
+            apply_migrations(conn, discover_migrations())
+
+            from backend.backup.restore import restore_from_snapshot
+            result = restore_from_snapshot(conn, snap_path)
+        finally:
+            conn.close()
+
+        print(f"Restored {result['total_rows']} rows across {len(result['tables'])} tables:")
+        for table, count in result["tables"].items():
+            print(f"  {table}: {count}")
+        if result.get("skipped_tables"):
+            print("Skipped tables (not in current schema):")
+            for t in result["skipped_tables"]:
+                print(f"  {t}")
+
+    except Exception as e:
+        print(f"error: restore failed: {e}", file=sys.stderr)
+        if db_path.exists():
+            db_path.unlink()
+        if bak_path is not None:
+            bak_path.rename(db_path)
+        if clone_parent.exists():
+            shutil.rmtree(clone_parent, ignore_errors=True)
+        return 1
+
+    if clone_parent.exists():
+        shutil.rmtree(clone_parent, ignore_errors=True)
+
+    print(f"\nRestore complete. Pre-restore DB saved at: {bak_path}")
+    return 0
+
+
 COMMANDS = {
     "migrate": cmd_migrate,
     "promote-admin": cmd_promote_admin,
@@ -209,6 +328,7 @@ COMMANDS = {
     "rotate-invite": cmd_rotate_invite,
     "ingest": cmd_ingest,
     "import-gold-docs": cmd_import_gold_docs,
+    "restore-from-github": cmd_restore_from_github,
 }
 
 
@@ -237,6 +357,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Import gold docs from a JSON file into training_gold_doc_overrides as source='custom'.",
     )
     p_import_gold.add_argument("path", help="path to gold-docs JSON file")
+
+    p_restore = sub.add_parser(
+        "restore-from-github", help="Restore DB from latest GitHub backup snapshot",
+    )
+    p_restore.add_argument(
+        "--snapshot", default=None,
+        help="Specific snapshot stamp (e.g. 20260509-1430); default uses latest.json",
+    )
+    p_restore.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
+    p_restore.add_argument("--force", action="store_true",
+        help="Reserved for future WAL-lock detection bypass",
+    )
 
     args = parser.parse_args(argv)
     handler = COMMANDS.get(args.command)
