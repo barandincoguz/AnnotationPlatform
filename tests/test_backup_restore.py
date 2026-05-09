@@ -129,3 +129,51 @@ def test_restore_skips_unknown_table(fresh_db, tmp_path):
     out = restore_from_snapshot(fresh_db, snap)
     assert out["tables"]["invite_codes"] == 1
     assert "future_table_does_not_exist_yet" not in out["tables"]
+
+
+def test_restore_raises_on_unknown_column(fresh_db, tmp_path):
+    """Snapshot row with a column that doesn't exist in the current schema
+    raises a ValueError with a clear message; transaction is rolled back."""
+    fresh_db.execute(
+        "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,?)",
+        ("PRESERVED", "2026-05-01T00:00:00+00:00"),
+    )
+    fresh_db.commit()
+
+    from backend.backup.restore import restore_from_snapshot
+    payload = {
+        "invite_codes": [
+            {"id": 1, "code": "X", "is_active": 0,
+             "created_at": "2026-05-09T00:00:00+00:00",
+             "future_column_added_in_v0099": "uh oh"},
+        ],
+    }
+    snap = _write_snapshot(tmp_path, payload)
+    with pytest.raises(ValueError) as exc:
+        restore_from_snapshot(fresh_db, snap)
+    assert "future_column_added_in_v0099" in str(exc.value)
+
+    # Pre-existing row preserved by rollback
+    row = fresh_db.execute(
+        "SELECT code FROM invite_codes WHERE code='PRESERVED'"
+    ).fetchone()
+    assert row is not None
+
+
+def test_restore_returns_skipped_tables_list(fresh_db, tmp_path):
+    """Skipped tables are returned in the result dict so callers (CLI) can
+    display them to the operator without scraping logs."""
+    from backend.backup.restore import restore_from_snapshot
+    payload = {
+        "future_table_a": [{"x": "y"}],
+        "future_table_b": [],
+        "invite_codes": [
+            {"id": 1, "code": "A", "is_active": 1,
+             "created_at": "2026-05-09T00:00:00+00:00"},
+        ],
+    }
+    snap = _write_snapshot(tmp_path, payload)
+    out = restore_from_snapshot(fresh_db, snap)
+    assert "skipped_tables" in out
+    assert sorted(out["skipped_tables"]) == ["future_table_a", "future_table_b"]
+    assert out["tables"]["invite_codes"] == 1
