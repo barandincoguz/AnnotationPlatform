@@ -298,3 +298,33 @@ def test_stream_jsonl_handles_turkish_chars():
     lines = list(stream_jsonl_objects(iter([row])))
     assert "ö" in lines[0] and "ü" in lines[0]
     assert "\\u00" not in lines[0]
+
+
+def test_stream_jsonl_renders_is_completed_false_as_boolean():
+    """is_completed=0 from SQLite must render as JSON boolean `false`,
+    not as the integer `0`. The bool() coercion guards against this."""
+    from backend.exports.service import stream_jsonl_objects
+    import json
+    row = _fake_row(is_completed=0)
+    lines = list(stream_jsonl_objects(iter([row])))
+    obj = json.loads(lines[0])
+    assert obj["annotation"]["is_completed"] is False
+    # Confirm the raw bytes contain the JSON literal "false", not "0":
+    assert '"is_completed": false' in lines[0]
+
+
+def test_stream_jsonl_emits_null_when_user_id_missing():
+    """last_editor and completed_by are dict objects when user_id is set,
+    but null when the FK is NULL. Defensive — should never happen for
+    last_editor in practice (annotations always have a writer), but
+    completed_by is null for uncompleted annotations in status=all."""
+    from backend.exports.service import stream_jsonl_objects
+    import json
+    row = _fake_row(
+        last_editor_user_id=None, last_editor_username=None,
+        completed_by_user_id=None, completed_by_username=None,
+    )
+    lines = list(stream_jsonl_objects(iter([row])))
+    obj = json.loads(lines[0])
+    assert obj["annotation"]["last_editor"] is None
+    assert obj["annotation"]["completed_by"] is None

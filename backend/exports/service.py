@@ -189,6 +189,12 @@ def stream_jsonl_objects(cursor) -> Iterator[str]:
 
         # Reference is present iff the LEFT JOIN found a row.
         if ref_seq is not None:
+            # current_obj is guaranteed non-None at this point: on the very
+            # first iteration document_id != None triggers the conditional
+            # block above which sets current_obj. Assert silences Pyright
+            # and serves as a runtime tripwire if the loop logic ever
+            # changes.
+            assert current_obj is not None
             current_obj["references"].append({
                 "seq": ref_seq,
                 "kanun_no": ref_kanun_no,
