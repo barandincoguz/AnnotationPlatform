@@ -11,6 +11,7 @@ StreamingResponse to chunk to the client.
 """
 import csv
 import io
+import json
 from typing import Iterator
 
 from backend.exports.models import ExportFilters
@@ -131,3 +132,73 @@ def stream_csv_rows(cursor) -> Iterator[str]:
         yield buf.getvalue()
         buf.seek(0)
         buf.truncate()
+
+
+def stream_jsonl_objects(cursor) -> Iterator[str]:
+    """Yield NDJSON-encoded annotation objects, one per line, with
+    references nested as an array. Cursor MUST be ordered by
+    (document_id, ref_seq) so all references of one annotation are
+    contiguous; we accumulate and flush whenever document_id changes.
+
+    Tuple field positions follow the SELECT order in _BASE_SELECT.
+    """
+    current_doc_id: str | None = None
+    current_obj: dict | None = None
+
+    def _flush():
+        if current_obj is not None:
+            return json.dumps(current_obj, ensure_ascii=False) + "\n"
+        return None
+
+    for row in cursor:
+        (document_id, doc_sayi, doc_tarih, doc_konu,
+         last_editor_user_id, last_editor_username, last_edited_at,
+         is_completed, completed_by_user_id, completed_by_username,
+         edit_count, unique_users_count,
+         ref_seq, ref_kanun_no, ref_kanun_ad,
+         ref_madde, ref_fikra, ref_bent, ref_source_text) = row
+
+        if document_id != current_doc_id:
+            chunk = _flush()
+            if chunk is not None:
+                yield chunk
+            current_doc_id = document_id
+            current_obj = {
+                "document_id": document_id,
+                "document": {
+                    "sayi": doc_sayi,
+                    "tarih": doc_tarih,
+                    "konu": doc_konu,
+                },
+                "annotation": {
+                    "last_editor": (
+                        {"id": last_editor_user_id, "username": last_editor_username}
+                        if last_editor_user_id is not None else None
+                    ),
+                    "last_edited_at": last_edited_at,
+                    "is_completed": bool(is_completed),
+                    "completed_by": (
+                        {"id": completed_by_user_id, "username": completed_by_username}
+                        if completed_by_user_id is not None else None
+                    ),
+                    "edit_count": edit_count,
+                    "unique_users_count": unique_users_count,
+                },
+                "references": [],
+            }
+
+        # Reference is present iff the LEFT JOIN found a row.
+        if ref_seq is not None:
+            current_obj["references"].append({
+                "seq": ref_seq,
+                "kanun_no": ref_kanun_no,
+                "kanun_ad": ref_kanun_ad,
+                "madde": ref_madde,
+                "fikra": ref_fikra,
+                "bent": ref_bent,
+                "source_text": ref_source_text,
+            })
+
+    chunk = _flush()
+    if chunk is not None:
+        yield chunk

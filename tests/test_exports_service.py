@@ -231,3 +231,70 @@ def test_stream_csv_rows_escapes_special_chars():
     out = "".join(stream_csv_rows(iter([row])))
     # The dangerous cell must be quoted with internal quotes doubled.
     assert '"has ""quotes"", commas, and\nnewlines"' in out
+
+
+# ---------------- stream_jsonl_objects ----------------
+
+
+def test_stream_jsonl_objects_one_per_annotation():
+    """Each contiguous group of cursor rows with the same document_id
+    yields exactly one JSON line."""
+    from backend.exports.service import stream_jsonl_objects
+    import json
+    rows = [
+        _fake_row(document_id="doc_a", ref_seq=0, ref_kanun_no="A"),
+        _fake_row(document_id="doc_a", ref_seq=1, ref_kanun_no="B"),
+        _fake_row(document_id="doc_b", ref_seq=0, ref_kanun_no="C"),
+    ]
+    lines = list(stream_jsonl_objects(iter(rows)))
+    assert len(lines) == 2
+    obj_a = json.loads(lines[0])
+    obj_b = json.loads(lines[1])
+    assert obj_a["document_id"] == "doc_a"
+    assert obj_b["document_id"] == "doc_b"
+
+
+def test_stream_jsonl_objects_groups_references_per_annotation():
+    """One JSON line for doc_a contains BOTH its references in order.
+    The references list must be sorted by ref_seq."""
+    from backend.exports.service import stream_jsonl_objects
+    import json
+    rows = [
+        _fake_row(document_id="doc_a", ref_seq=0, ref_kanun_no="5520"),
+        _fake_row(document_id="doc_a", ref_seq=1, ref_kanun_no="5901"),
+    ]
+    lines = list(stream_jsonl_objects(iter(rows)))
+    assert len(lines) == 1
+    obj = json.loads(lines[0])
+    assert len(obj["references"]) == 2
+    assert obj["references"][0]["kanun_no"] == "5520"
+    assert obj["references"][1]["kanun_no"] == "5901"
+
+
+def test_stream_jsonl_objects_empty_references_array():
+    """An annotation with zero references produces a row where ref_seq
+    and ref_kanun_no are NULL (LEFT JOIN miss). The JSONL must emit
+    `references: []`, not omit the field and not put a single null
+    entry."""
+    from backend.exports.service import stream_jsonl_objects
+    import json
+    row = _fake_row(
+        document_id="doc_a",
+        ref_seq=None, ref_kanun_no=None, ref_kanun_ad=None,
+        ref_madde=None, ref_fikra=None, ref_bent=None, ref_source_text=None,
+    )
+    lines = list(stream_jsonl_objects(iter([row])))
+    assert len(lines) == 1
+    obj = json.loads(lines[0])
+    assert obj["references"] == []
+
+
+def test_stream_jsonl_handles_turkish_chars():
+    """ensure_ascii=False so 'özelge' stays readable as 'özelge', not
+    escaped to '\\u00f6zelge'. Critical for downstream readability and
+    common-sense file size."""
+    from backend.exports.service import stream_jsonl_objects
+    row = _fake_row(doc_konu="Türkçe özelge başlık")
+    lines = list(stream_jsonl_objects(iter([row])))
+    assert "ö" in lines[0] and "ü" in lines[0]
+    assert "\\u00" not in lines[0]
