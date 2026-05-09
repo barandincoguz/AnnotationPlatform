@@ -219,3 +219,22 @@ def test_restore_rolls_back_on_clone_failure(fresh_data_dir, monkeypatch):
     ).fetchone()
     assert row is not None
     conn.close()
+
+
+def test_clone_helper_scrubs_pat_on_timeout(monkeypatch):
+    """If subprocess.run raises TimeoutExpired during git clone, the raised
+    error must NOT contain the raw PAT (it's in the cmd argv)."""
+    import subprocess
+    from backend import cli
+
+    pat_url = "https://x-access-token:supersecret@github.com/o/r.git"
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=60)
+
+    with patch("backend.cli.subprocess.run", side_effect=fake_run):
+        with pytest.raises(RuntimeError) as exc:
+            cli._clone_backup_repo(pat_url, Path("/tmp/whatever"))
+    msg = str(exc.value)
+    assert "supersecret" not in msg
+    assert "x-access-token:***" in msg

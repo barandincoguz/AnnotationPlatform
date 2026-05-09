@@ -207,13 +207,24 @@ def cmd_import_gold_docs(args) -> int:
 
 def _clone_backup_repo(pat_url: str, dest: Path) -> None:
     """Wrapper for `git clone <pat-url> <dest>`. Extracted as its own
-    function so tests can patch it without spawning real git processes."""
-    result = subprocess.run(
-        ["git", "clone", pat_url, str(dest)],
-        capture_output=True, text=True, timeout=60,
-    )
+    function so tests can patch it without spawning real git processes.
+
+    Catches subprocess.TimeoutExpired and scrubs the PAT from the argv
+    before re-raising as RuntimeError. Without scrubbing, the timeout
+    exception's str() contains the raw PAT URL, which would leak into
+    stderr/logs when the caller surfaces the error."""
+    from backend.backup.git_remote import scrub_pat
+    cmd = ["git", "clone", pat_url, str(dest)]
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        scrubbed_cmd = [scrub_pat(arg) for arg in cmd]
+        raise RuntimeError(
+            f"git clone timed out after 60s: {scrubbed_cmd}"
+        ) from None
     if result.returncode != 0:
-        from backend.backup.git_remote import scrub_pat
         stderr = scrub_pat(result.stderr or "")
         raise RuntimeError(f"git clone failed: {stderr}")
 
@@ -357,7 +368,15 @@ def main(argv: list[str] | None = None) -> int:
     p_import_gold.add_argument("path", help="path to gold-docs JSON file")
 
     p_restore = sub.add_parser(
-        "restore-from-github", help="Restore DB from latest GitHub backup snapshot",
+        "restore-from-github",
+        help="Restore DB from latest GitHub backup snapshot",
+        description=(
+            "Restore the local DB from a GitHub backup snapshot. "
+            "WARNING: This is a destructive operation that overwrites the "
+            "current DB. The CLI does NOT currently detect a running server's "
+            "WAL lock — STOP THE SERVER before running this command, or you "
+            "may corrupt the DB."
+        ),
     )
     p_restore.add_argument(
         "--snapshot", default=None,
