@@ -306,3 +306,97 @@ def test_purge_single_table_spares_active_sessions_with_null_ended_at(fresh_db):
         ("tok-active",),
     ).fetchone()
     assert row is not None
+
+
+# ---------------- run_purge ----------------
+
+
+def test_run_purge_writes_retention_success_event_with_counts(fresh_db):
+    """Successful cycle writes one system_events row with event_type=
+    'retention_success', severity='info', extra_json containing per-table
+    purge counts."""
+    from backend.retention.service import run_purge
+
+    _seed_user(fresh_db)
+    _seed_behavioral_event(fresh_db, days_ago=31)
+    _seed_behavioral_event(fresh_db, days_ago=5)  # young, must survive
+
+    out = run_purge(fresh_db)
+
+    assert out["ok"] is True
+    assert out["purged"]["behavioral_events"] == 1
+    assert out["total"] >= 1
+
+    row = fresh_db.execute(
+        """SELECT event_type, severity, extra_json FROM system_events
+           WHERE event_type='retention_success' ORDER BY id DESC LIMIT 1"""
+    ).fetchone()
+    assert row is not None
+    assert row["severity"] == "info"
+    import json
+    extra = json.loads(row["extra_json"])
+    assert extra["purged"]["behavioral_events"] == 1
+
+
+def test_run_purge_atomic_rollback_on_mid_cycle_failure(fresh_db, monkeypatch):
+    """If purge_single_table raises mid-cycle, all DELETEs roll back,
+    a retention_failed event is recorded, and the exception propagates."""
+    from backend.retention import service as svc
+
+    _seed_user(fresh_db)
+    old_id = _seed_behavioral_event(fresh_db, days_ago=60)
+
+    call_count = [0]
+    real_purge = svc.purge_single_table
+
+    def flaky(db, entry, cutoff):
+        call_count[0] += 1
+        if call_count[0] == 2:
+            raise sqlite3.OperationalError("simulated mid-cycle failure")
+        return real_purge(db, entry, cutoff)
+
+    monkeypatch.setattr(svc, "purge_single_table", flaky)
+
+    with pytest.raises(sqlite3.OperationalError):
+        svc.run_purge(fresh_db)
+
+    # First entry's DELETE was rolled back; old_id must still exist.
+    row = fresh_db.execute(
+        "SELECT id FROM behavioral_events WHERE id=?", (old_id,)
+    ).fetchone()
+    assert row is not None  # rolled back
+
+    # retention_failed event recorded with step + error in extra_json.
+    fail = fresh_db.execute(
+        """SELECT event_type, severity, extra_json FROM system_events
+           WHERE event_type='retention_failed' ORDER BY id DESC LIMIT 1"""
+    ).fetchone()
+    assert fail is not None
+    assert fail["severity"] == "error"
+    import json
+    extra = json.loads(fail["extra_json"])
+    assert extra["step"] == "purge"
+    assert "simulated mid-cycle failure" in extra["error"]
+
+
+def test_run_purge_skips_table_when_kill_switch_set(fresh_db):
+    """retention.behavioral_events.days=0 means that table is skipped
+    entirely; count is reported as 0 (not absent), so admin UI shows
+    'this table not purged this cycle'."""
+    from backend.retention.service import run_purge
+
+    fresh_db.execute(
+        "UPDATE site_settings SET value='0' WHERE key='retention.behavioral_events.days'"
+    )
+    fresh_db.commit()
+
+    _seed_user(fresh_db)
+    old_id = _seed_behavioral_event(fresh_db, days_ago=60)
+
+    out = run_purge(fresh_db)
+
+    assert out["purged"]["behavioral_events"] == 0
+    row = fresh_db.execute(
+        "SELECT id FROM behavioral_events WHERE id=?", (old_id,)
+    ).fetchone()
+    assert row is not None  # kill switch preserved it

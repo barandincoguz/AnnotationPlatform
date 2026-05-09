@@ -7,13 +7,16 @@ state; callers manage connections.
 The PURGE_POLICY list is the source of truth for which tables get
 retention applied. site_settings provides per-deployment overrides.
 """
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import json
 import sqlite3
 
-from backend.shared import settings
+from backend.shared import audit, settings
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -91,3 +94,43 @@ def purge_single_table(
         sql += f" AND {entry.extra_where}"
     cur = db.execute(sql, (cutoff_iso,))
     return cur.rowcount
+
+
+def run_purge(db: sqlite3.Connection) -> dict:
+    """Run a single retention cycle. Resolves cutoffs, opens a
+    BEGIN IMMEDIATE transaction, runs purge_single_table for each
+    PURGE_POLICY entry that has a cutoff (kill-switched entries are
+    omitted from the dict). On any failure rolls back, records a
+    retention_failed system_event, and re-raises. On success commits
+    and records retention_success.
+
+    Returns {ok: True, purged: {table: count}, total: N}.
+    """
+    cutoffs = compute_cutoffs(db)
+
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        purged: dict[str, int] = {}
+        for entry in PURGE_POLICY:
+            if entry.table not in cutoffs:
+                purged[entry.table] = 0  # kill switch — report 0, not absent
+                continue
+            count = purge_single_table(db, entry, cutoffs[entry.table])
+            purged[entry.table] = count
+        db.execute("COMMIT")
+    except Exception as e:
+        db.execute("ROLLBACK")
+        audit.log_system_event(
+            db, "retention_failed", "error",
+            message="retention cycle failed",
+            extra={"step": "purge", "error": str(e)},
+        )
+        raise
+
+    total = sum(purged.values())
+    audit.log_system_event(
+        db, "retention_success", "info",
+        message=f"purged {total} rows across {len(purged)} tables",
+        extra={"purged": purged},
+    )
+    return {"ok": True, "purged": purged, "total": total}
