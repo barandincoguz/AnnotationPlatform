@@ -6,6 +6,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 from backend import config
 from backend.backup import git_remote
@@ -117,7 +118,9 @@ def utc_timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
 
 
-def run_backup_cycle(db: sqlite3.Connection) -> dict:
+def run_backup_cycle(
+    db: sqlite3.Connection, *, trace_id: Optional[str] = None,
+) -> dict:
     """Top-level orchestrator. Runs:
        dump → write → rotate → (git if env set) → log.
 
@@ -128,6 +131,10 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
     the manual route translates to 500). Missing BACKUP_REPO_URL/GITHUB_PAT
     is NOT a failure: dump+rotate still run, git is skipped, success event
     is event_type='backup_skipped_no_remote' (severity='info').
+
+    trace_id: when set (e.g. by the admin run-now route), every emitted
+    system_events row carries it for cross-table correlation. Background
+    loop callers omit it → NULL.
     """
     backup_dir = config.BACKUP_DIR
     repo_url = config.BACKUP_REPO_URL
@@ -141,6 +148,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             db, "backup_failed", "error",
             message="dump failed",
             extra={"step": "dump", "error": str(e)},
+            trace_id=trace_id,
         )
         raise
 
@@ -153,6 +161,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             db, "backup_failed", "error",
             message="write failed",
             extra={"step": "write", "error": str(e)},
+            trace_id=trace_id,
         )
         raise
 
@@ -164,6 +173,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             db, "backup_failed", "error",
             message="rotate failed",
             extra={"step": "rotate", "error": str(e)},
+            trace_id=trace_id,
         )
         raise
 
@@ -173,6 +183,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             db, "backup_skipped_no_remote", "info",
             message="BACKUP_REPO_URL or GITHUB_PAT not set; skipping git push",
             extra={"snapshot_path": str(snapshot_path), "rotated_count": len(rotated)},
+            trace_id=trace_id,
         )
         return {
             "snapshot_path": str(snapshot_path),
@@ -188,6 +199,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             db, "backup_failed", "error",
             message="git init failed",
             extra={"step": "init", "error": str(e)},
+            trace_id=trace_id,
         )
         raise
 
@@ -198,6 +210,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             db, "backup_failed", "error",
             message="git push failed",
             extra={"step": "push", "error": str(e)},
+            trace_id=trace_id,
         )
         raise
 
@@ -210,6 +223,7 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
             "committed_sha": sha,
             "rotated_count": len(rotated),
         },
+        trace_id=trace_id,
     )
     return {
         "snapshot_path": str(snapshot_path),

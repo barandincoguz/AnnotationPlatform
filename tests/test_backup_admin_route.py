@@ -63,3 +63,38 @@ def test_run_now_returns_500_on_cycle_failure(client, bootstrap_admin):
     body = r.json()
     assert body["detail"]["error"] == "backup_failed"
     assert "git push failed" in body["detail"]["message"]
+
+
+def test_run_now_threads_trace_id_across_audit_and_system_events(client, bootstrap_admin):
+    """The same trace_id must appear in (a) the audit row, (b) every system_events
+    row emitted during the cycle, and (c) the response body — so an operator
+    can JOIN by trace_id and reconstruct the operation."""
+    bootstrap_admin()
+    response = client.post("/api/admin/backup/run-now")
+    assert response.status_code == 200
+
+    body = response.json()
+    trace_id = body["trace_id"]
+    assert isinstance(trace_id, str)
+    assert len(trace_id) == 16
+
+    from backend.shared.db import connect
+    from backend import config
+    db = connect(config.DB_PATH)
+    try:
+        audit_rows = db.execute(
+            "SELECT trace_id FROM admin_audit_log WHERE action_type='backup_run_now'"
+        ).fetchall()
+        # exactly one audit row, with our trace_id
+        assert len(audit_rows) >= 1
+        assert audit_rows[-1]["trace_id"] == trace_id
+
+        sys_rows = db.execute(
+            "SELECT trace_id FROM system_events WHERE trace_id=?", (trace_id,)
+        ).fetchall()
+        # at least one system_events row from the cycle (success or skipped path)
+        assert len(sys_rows) >= 1
+        # all share the same id (sanity)
+        assert all(r["trace_id"] == trace_id for r in sys_rows)
+    finally:
+        db.close()

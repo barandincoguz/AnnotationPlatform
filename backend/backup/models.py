@@ -1,4 +1,6 @@
 """Pydantic schemas for backup endpoints."""
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -8,3 +10,4 @@ class BackupRunNowResponse(BaseModel):
     committed_sha: str | None
     pushed: bool
     rotated_count: int
+    trace_id: Optional[str] = None  # set on admin-triggered runs; NULL on loop-origin

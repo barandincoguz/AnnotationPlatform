@@ -23,13 +23,18 @@ def admin_backup_run_now(
 ):
     """Trigger a backup cycle synchronously. Blocks until complete.
     Returns 500 on any cycle failure (system_events row already written
-    by the cycle's per-step error logging)."""
+    by the cycle's per-step error logging).
+
+    A trace_id is generated at entry and threaded through the cycle and
+    the audit row so an operator can reconstruct the chain via trace_id.
+    """
+    trace_id = audit.gen_trace_id()
     try:
-        result = run_backup_cycle(db)
+        result = run_backup_cycle(db, trace_id=trace_id)
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail={"error": "backup_failed", "message": str(e)},
+            detail={"error": "backup_failed", "message": str(e), "trace_id": trace_id},
         )
 
     try:
@@ -42,6 +47,7 @@ def admin_backup_run_now(
                 "committed_sha": result["committed_sha"],
                 "rotated_count": result["rotated_count"],
             },
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("audit backup_run_now failed")
@@ -52,4 +58,5 @@ def admin_backup_run_now(
         "committed_sha": result["committed_sha"],
         "pushed": result["pushed"],
         "rotated_count": result["rotated_count"],
+        "trace_id": trace_id,
     }
