@@ -150,13 +150,18 @@ Side effects:
 
 ### CSV (one row per `annotation × reference`)
 
+The `annotations` table is keyed by `document_id` (one annotation row per
+document; not a separate `annotation_id`). Completion is a boolean
+(`is_completed`); there is no `completed_at` timestamp.
+
 Header columns (in this exact order):
 
 ```
 document_id, doc_sayi, doc_tarih, doc_konu,
-annotation_id, last_editor_user_id, last_editor_username, last_edited_at,
-completed_by_user_id, completed_by_username, completed_at,
-ref_kanun_no, ref_kanun_ad, ref_madde, ref_fikra, ref_bent, ref_source_text
+last_editor_user_id, last_editor_username, last_edited_at,
+is_completed, completed_by_user_id, completed_by_username,
+edit_count, unique_users_count,
+ref_seq, ref_kanun_no, ref_kanun_ad, ref_madde, ref_fikra, ref_bent, ref_source_text
 ```
 
 Behavior:
@@ -171,7 +176,7 @@ Behavior:
 ### JSONL (one annotation per line, references nested)
 
 ```jsonl
-{"document_id":"doc_42","document":{"sayi":1234,"tarih":"20260101","konu":"Test özelge"},"annotation":{"id":12,"last_editor":{"id":42,"username":"ahmet"},"last_edited_at":"2026-04-15T10:30:00+00:00","completed_by":{"id":42,"username":"ahmet"},"completed_at":"2026-04-16T14:00:00+00:00"},"references":[{"kanun_no":"5520","kanun_ad":"Kurumlar Vergisi Kanunu","madde":"30","fikra":"2","bent":"a","source_text":"madde 30/2-a"},{"kanun_no":"5901","kanun_ad":"T.C. Kimlik Kanunu","madde":"91","fikra":null,"bent":null,"source_text":"madde 91"}]}
+{"document_id":"doc_42","document":{"sayi":1234,"tarih":"20260101","konu":"Test özelge"},"annotation":{"last_editor":{"id":42,"username":"ahmet"},"last_edited_at":"2026-04-15T10:30:00+00:00","is_completed":true,"completed_by":{"id":42,"username":"ahmet"},"edit_count":3,"unique_users_count":2},"references":[{"seq":0,"kanun_no":"5520","kanun_ad":"Kurumlar Vergisi Kanunu","madde":"30","fikra":"2","bent":"a","source_text":"madde 30/2-a"},{"seq":1,"kanun_no":"5901","kanun_ad":"T.C. Kimlik Kanunu","madde":"91","fikra":null,"bent":null,"source_text":"madde 91"}]}
 ```
 
 Behavior:
@@ -179,8 +184,9 @@ Behavior:
 - `ensure_ascii=False` — Turkish chars stay readable
 - Compact (no indent)
 - `references: []` if annotation has no references (always an array, never absent)
-- `last_editor: null` if `last_editor_user_id` is NULL (defensive — should never happen per schema, but JSONL must be well-formed regardless)
-- `completed_by: null` if `completed_at` is NULL (uncompleted annotation in `status=all` export)
+- `last_editor: null` if `last_editor_user_id` is NULL (defensive)
+- `completed_by: null` if `completed_by_user_id` is NULL (uncompleted annotation in `status=all` export)
+- `is_completed: true | false` is the boolean from the column directly
 - Encoding: UTF-8
 
 ---
@@ -218,42 +224,43 @@ on response close:
 ### SQL template (parameterized; no string interpolation of user input)
 
 ```sql
-SELECT d.id        AS document_id,
-       d.sayi      AS doc_sayi,
-       d.tarih     AS doc_tarih,
-       d.konu      AS doc_konu,
-       a.id        AS annotation_id,
+SELECT d.document_id AS document_id,
+       d.sayi        AS doc_sayi,
+       d.tarih       AS doc_tarih,
+       d.konu        AS doc_konu,
        a.last_editor_user_id,
-       ue.username AS last_editor_username,
-       a.updated_at AS last_edited_at,
+       ue.username   AS last_editor_username,
+       a.updated_at  AS last_edited_at,
+       a.is_completed,
        a.completed_by_user_id,
-       uc.username AS completed_by_username,
-       a.completed_at,
-       ar.id       AS reference_id,
+       uc.username   AS completed_by_username,
+       a.edit_count,
+       a.unique_users_count,
+       ar.seq        AS ref_seq,
        ar.kanun_no, ar.kanun_ad, ar.madde, ar.fikra, ar.bent, ar.source_text
 FROM annotations a
-JOIN documents_meta d ON a.document_id = d.id
+JOIN documents_meta d           ON a.document_id = d.document_id
 LEFT JOIN users ue              ON a.last_editor_user_id = ue.id
 LEFT JOIN users uc              ON a.completed_by_user_id = uc.id
-LEFT JOIN annotation_references ar ON ar.annotation_id = a.id
+LEFT JOIN annotation_references ar ON ar.document_id = a.document_id
 WHERE 1=1
   -- conditional clauses appended by build_query:
-  [AND a.completed_at IS NOT NULL]                       -- if status=completed
+  [AND a.is_completed = 1]                               -- if status=completed
   [AND a.updated_at >= ?]                                -- if from_date
   [AND a.updated_at < date(?, '+1 day')]                 -- if to_date (inclusive end)
   [AND a.document_id = ?]                                -- if document_id
   [AND (a.last_editor_user_id = ? OR a.completed_by_user_id = ?)]  -- if user_id
-ORDER BY d.id, a.id, ar.id
+ORDER BY a.document_id, ar.seq
 ```
 
-JSONL grouping relies on the `ORDER BY d.id, a.id, ar.id` so references of one annotation are contiguous.
+JSONL grouping relies on the `ORDER BY a.document_id, ar.seq` so references of one document's annotation are contiguous and ordered. Note that `annotation_references` joins to `annotations` by `document_id` (not by an `annotation_id` FK) because the `annotations` table is keyed by `document_id` — there is one annotation row per document.
 
 ### exported_count tracking
 
 Streaming generator wraps row iteration with a counter. Counter accessible by reference (mutable list `[0]` or counter object) so the BackgroundTask reads the final value after stream completion.
 
 For CSV: counter increments per data row (= reference count + zero-ref annotations).
-For JSONL: counter increments per annotation flushed.
+For JSONL: counter increments per annotation (i.e. per document) flushed.
 
 Two different counts; `metadata.exported_count` reflects the format.
 
@@ -334,7 +341,7 @@ tests/test_exports_routes.py
 | Username PII leaks via external sharing of the export file | Medium (operator error) | Medium | Documented in admin UI tooltip + commit message: "outputs include usernames; sanitize before external sharing." Not enforced in code (operator's job). |
 | Very long source_text (> 32K chars) breaks Excel CSV parsing | Low | Low | RFC 4180 escape is correct; Excel limit is on its end. Operator using Excel knows the workaround (open in text editor / use LibreOffice). |
 | Export running during a write storm causes lock retries | Low | Low | Read-only query + 5s busy_timeout absorbs short writes. If contention is sustained the generator's first chunk delays a few seconds but does not fail. |
-| `ORDER BY d.id, a.id, ar.id` requires sort; large result sets use temp space | Medium | Low | annotations and annotation_references both have indexes on relevant FKs. Sort is on already-indexed columns; cost is bounded. |
+| `ORDER BY a.document_id, ar.seq` requires sort; large result sets use temp space | Medium | Low | annotations is PK'd on document_id; annotation_references has document_id+seq indexed. Sort is on already-indexed columns; cost is bounded. |
 
 ---
 
