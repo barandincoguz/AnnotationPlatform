@@ -431,3 +431,63 @@ def test_run_purge_failed_event_records_failing_table(fresh_db, monkeypatch):
     extra = json.loads(fail["extra_json"])
     assert extra["table"] == "activity_events"
     assert extra["step"] == "purge"
+
+
+def test_run_purge_preserves_original_exception_when_rollback_fails(tmp_path, monkeypatch):
+    """If db.execute('ROLLBACK') itself raises (e.g., transaction already
+    auto-rolled back by SQLite on COMMIT failure), the original purge
+    exception must still propagate — operator needs to see the real
+    failure, not a misleading 'no transaction is active' rollback error.
+
+    sqlite3.Connection.execute is read-only in CPython 3.13+, so we wrap
+    the connection in a thin proxy that intercepts ROLLBACK calls.
+    """
+    from backend.retention import service as svc
+    from backend.migrations import discover_migrations
+    from backend.migrations.runner import apply_migrations
+    from backend.shared.db import connect
+
+    db_path = tmp_path / "test.db"
+    real_conn = connect(db_path)
+    apply_migrations(real_conn, discover_migrations())
+
+    _seed_user(real_conn)
+    _seed_behavioral_event(real_conn, days_ago=60)
+
+    class RollbackBombProxy:
+        """Proxy that delegates all attribute access to the wrapped connection
+        but raises on 'ROLLBACK' execute calls — simulating the case where
+        SQLite already auto-rolled-back (e.g., after a COMMIT failure) and the
+        explicit ROLLBACK would raise 'no transaction is active'."""
+
+        def __init__(self, conn):
+            self._conn = conn
+
+        def execute(self, sql, *args, **kwargs):
+            if sql == "ROLLBACK":
+                raise sqlite3.OperationalError("simulated rollback failure")
+            return self._conn.execute(sql, *args, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(self._conn, name)
+
+    proxy = RollbackBombProxy(real_conn)
+
+    real_purge = svc.purge_single_table
+
+    def flaky(db, entry, cutoff):
+        if entry.table == "activity_events":
+            raise RuntimeError("real purge failure")
+        return real_purge(db, entry, cutoff)
+
+    monkeypatch.setattr(svc, "purge_single_table", flaky)
+
+    try:
+        with pytest.raises(RuntimeError) as exc:
+            svc.run_purge(proxy)
+        # The ORIGINAL exception ("real purge failure") must propagate, NOT
+        # the rollback failure. If this assertion fails, the rollback
+        # exception masked the original.
+        assert "real purge failure" in str(exc.value)
+    finally:
+        real_conn.close()

@@ -19,7 +19,7 @@ def fresh_db(tmp_path: Path):
 
 
 EXPECTED_KEYS = {
-    "retention.cycle_interval_seconds": "86400",
+    "retention.interval_seconds":        "86400",
     "retention.behavioral_events.days": "30",
     "retention.activity_events.days":   "90",
     "retention.system_events.days":     "180",

@@ -22,7 +22,7 @@ DEFAULT_INTERVAL_SECONDS = 86400  # 24h
 
 
 def _read_interval() -> int:
-    """Re-read site_settings.retention.cycle_interval_seconds each cycle.
+    """Re-read site_settings.retention.interval_seconds each cycle.
     Falls back to DEFAULT_INTERVAL_SECONDS if missing or unparseable.
     Uses its own short-lived connection (called from async context)."""
     try:
@@ -30,7 +30,7 @@ def _read_interval() -> int:
         try:
             return settings_mod.get_int(
                 conn,
-                "retention.cycle_interval_seconds",
+                "retention.interval_seconds",
                 default=DEFAULT_INTERVAL_SECONDS,
             )
         finally:

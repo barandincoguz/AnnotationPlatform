@@ -67,7 +67,7 @@ async def test_loop_swallows_cycle_exception_and_continues():
 
 
 def test_read_interval_returns_default_when_setting_missing(tmp_path, monkeypatch):
-    """If retention.cycle_interval_seconds is absent from site_settings,
+    """If retention.interval_seconds is absent from site_settings,
     _read_interval falls back to DEFAULT_INTERVAL_SECONDS (86400)."""
     from backend.retention import loop as retention_loop_mod
     from backend.shared.db import connect
@@ -83,7 +83,7 @@ def test_read_interval_returns_default_when_setting_missing(tmp_path, monkeypatc
     conn = connect(db_path)
     apply_migrations(conn, discover_migrations())
     conn.execute(
-        "DELETE FROM site_settings WHERE key='retention.cycle_interval_seconds'"
+        "DELETE FROM site_settings WHERE key='retention.interval_seconds'"
     )
     conn.commit()
     conn.close()
@@ -92,8 +92,8 @@ def test_read_interval_returns_default_when_setting_missing(tmp_path, monkeypatc
 
 
 def test_read_interval_picks_up_admin_change(tmp_path, monkeypatch):
-    """When admin updates retention.cycle_interval_seconds via /api/admin/
-    settings, the next loop iteration's _read_interval reflects it.
+    """When admin updates retention.interval_seconds via /api/admin/settings,
+    the next loop iteration's _read_interval reflects it.
     Live-tuning is the whole point of the per-cycle re-read."""
     from backend.retention import loop as retention_loop_mod
     from backend.shared.db import connect
@@ -107,7 +107,7 @@ def test_read_interval_picks_up_admin_change(tmp_path, monkeypatch):
     apply_migrations(conn, discover_migrations())
     # Admin sets a faster cadence (e.g., 30 minutes for a stress test).
     conn.execute(
-        "UPDATE site_settings SET value='1800' WHERE key='retention.cycle_interval_seconds'"
+        "UPDATE site_settings SET value='1800' WHERE key='retention.interval_seconds'"
     )
     conn.commit()
     conn.close()

@@ -134,7 +134,10 @@ def run_purge(db: sqlite3.Connection) -> dict:
             purged[entry.table] = count
         db.execute("COMMIT")
     except Exception as e:
-        db.execute("ROLLBACK")
+        try:
+            db.execute("ROLLBACK")
+        except Exception:
+            pass  # rollback failure should not mask the original purge failure
         audit.log_system_event(
             db, "retention_failed", "error",
             message="retention cycle failed",
