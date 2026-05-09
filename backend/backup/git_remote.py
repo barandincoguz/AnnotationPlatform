@@ -12,6 +12,12 @@ log = logging.getLogger(__name__)
 # raise TimeoutExpired which the orchestrator catches.
 GIT_TIMEOUT = 30
 
+# Clone is bounded separately because a fresh clone transfers the entire
+# backup repo history, which can take longer than a single push of one
+# changed file. 60s gives slow networks headroom without hanging the
+# operator-driven restore command indefinitely.
+CLONE_TIMEOUT = 60
+
 
 class GitRemoteError(RuntimeError):
     """Wrapped git error with PAT scrubbed from message."""

@@ -160,6 +160,26 @@ def test_restore_raises_on_unknown_column(fresh_db, tmp_path):
     assert row is not None
 
 
+def test_restore_silently_skips_format_version_metadata(fresh_db, tmp_path):
+    """__format_version is payload-level metadata, not a table. Restore must
+    not log it as 'unknown table' or surface it in skipped_tables (which is
+    reserved for forward-compat unknown table names operators may want to
+    investigate)."""
+    from backend.backup.restore import restore_from_snapshot
+    payload = {
+        "__format_version": 1,
+        "invite_codes": [
+            {"id": 1, "code": "VERSIONED", "is_active": 1,
+             "created_at": "2026-05-09T00:00:00+00:00"},
+        ],
+    }
+    snap = _write_snapshot(tmp_path, payload)
+    out = restore_from_snapshot(fresh_db, snap)
+    assert out["tables"]["invite_codes"] == 1
+    assert "__format_version" not in out["tables"]
+    assert "__format_version" not in out["skipped_tables"]
+
+
 def test_restore_handles_cross_table_fk_regardless_of_iteration_order(fresh_db, tmp_path):
     """Snapshot iteration order is alphabetical (admin_audit_log before users),
     but admin_audit_log.admin_user_id is a FK to users.id. Restore must succeed

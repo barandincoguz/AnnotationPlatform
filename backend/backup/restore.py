@@ -51,6 +51,11 @@ def restore_from_snapshot(db: sqlite3.Connection, snapshot_path: Path) -> dict:
         skipped_tables: list[str] = []
         total = 0
         for table, rows in payload.items():
+            # __-prefixed keys are payload-level metadata (e.g. __format_version)
+            # not table data; silently skip without polluting skipped_tables,
+            # which is reserved for actually-unknown table names.
+            if table.startswith("__"):
+                continue
             if table not in existing_tables:
                 log.warning("restore: skipping unknown table %s", table)
                 skipped_tables.append(table)

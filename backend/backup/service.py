@@ -19,6 +19,13 @@ log = logging.getLogger(__name__)
 # on the restored DB, so persisting it would create version-skew risk.
 EXCLUDED_TABLES = {"schema_migrations"}
 
+# Snapshot format version. Stored under "__format_version" (double-underscore
+# prefix marks payload-level metadata, distinct from table names). Bump when
+# making breaking changes to snapshot shape; restore_from_snapshot ignores
+# unknown __-prefixed keys so older code can still read newer snapshots
+# (forward compat for additive metadata).
+SNAPSHOT_FORMAT_VERSION = 1
+
 
 def dump_all_tables_to_json(db: sqlite3.Connection) -> dict:
     """Return a snapshot dict {<table>: [{col: val, ...}, ...]} of every
@@ -37,7 +44,7 @@ def dump_all_tables_to_json(db: sqlite3.Connection) -> dict:
             if r["name"] not in EXCLUDED_TABLES
         ]
 
-        out: dict = {}
+        out: dict = {"__format_version": SNAPSHOT_FORMAT_VERSION}
         for table in tables:
             cols = [
                 r["name"] for r in db.execute(
@@ -194,9 +201,10 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
         )
         raise
 
+    table_count = sum(1 for k in payload if not k.startswith("__"))
     audit.log_system_event(
         db, "backup_success", "info",
-        message=f"backed up {len(payload)} tables",
+        message=f"backed up {table_count} tables",
         extra={
             "snapshot_path": str(snapshot_path),
             "committed_sha": sha,

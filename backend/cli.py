@@ -213,16 +213,16 @@ def _clone_backup_repo(pat_url: str, dest: Path) -> None:
     before re-raising as RuntimeError. Without scrubbing, the timeout
     exception's str() contains the raw PAT URL, which would leak into
     stderr/logs when the caller surfaces the error."""
-    from backend.backup.git_remote import scrub_pat
+    from backend.backup.git_remote import scrub_pat, CLONE_TIMEOUT
     cmd = ["git", "clone", pat_url, str(dest)]
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=60,
+            cmd, capture_output=True, text=True, timeout=CLONE_TIMEOUT,
         )
     except subprocess.TimeoutExpired:
         scrubbed_cmd = [scrub_pat(arg) for arg in cmd]
         raise RuntimeError(
-            f"git clone timed out after 60s: {scrubbed_cmd}"
+            f"git clone timed out after {CLONE_TIMEOUT}s: {scrubbed_cmd}"
         ) from None
     if result.returncode != 0:
         stderr = scrub_pat(result.stderr or "")

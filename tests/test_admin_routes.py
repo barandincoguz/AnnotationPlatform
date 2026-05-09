@@ -71,3 +71,26 @@ def test_admin_audit_log_endpoint_returns_actions(client, bootstrap_admin):
     assert "total" in body
     assert "has_more" in body
     assert any(e["action_type"] == "rotate_invite_code" for e in body["items"])
+
+
+def test_bootstrap_admin_fixture_is_idempotent(client, bootstrap_admin):
+    """The fixture uses INSERT OR IGNORE on the BURSIYER-2026 invite code so
+    it can be called multiple times in a single test (e.g. to seed two admins)
+    without IntegrityError on the second insert. Without OR IGNORE, the second
+    call would crash before the second register, masking real test failures."""
+    admin1 = bootstrap_admin(username="root1", password="rootpass1")
+    admin2 = bootstrap_admin(username="root2", password="rootpass2")
+    assert admin1 != admin2
+    # Sanity-check both admins exist
+    from backend.shared.db import connect
+    from backend import config
+    conn = connect(config.DB_PATH)
+    try:
+        rows = conn.execute(
+            "SELECT username, role FROM users WHERE id IN (?, ?)",
+            (admin1, admin2),
+        ).fetchall()
+    finally:
+        conn.close()
+    assert {r["username"] for r in rows} == {"root1", "root2"}
+    assert all(r["role"] == "admin" for r in rows)

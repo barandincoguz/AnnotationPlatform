@@ -53,16 +53,21 @@ async def test_backup_loop_swallows_cycle_exception_and_continues():
     from backend.backup import loop as backup_loop_mod
 
     call_count = [0]
+    second_call_done = asyncio.Event()
 
     async def cycle_then_raise():
         call_count[0] += 1
         if call_count[0] == 1:
             raise RuntimeError("boom")
+        second_call_done.set()
 
     with patch("backend.backup.loop.backup_once", side_effect=cycle_then_raise), \
          patch("backend.backup.loop._read_interval", return_value=0):
         task = asyncio.create_task(backup_loop_mod.backup_loop())
-        await asyncio.sleep(0.05)
+        # Wait for the second call to actually happen (proves the loop didn't
+        # die on the first exception). 1s ceiling guards against deadlocks
+        # without coupling the assertion to scheduler timing.
+        await asyncio.wait_for(second_call_done.wait(), timeout=1.0)
         task.cancel()
         try:
             await task

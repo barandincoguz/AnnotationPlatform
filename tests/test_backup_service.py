@@ -38,6 +38,15 @@ def test_dump_returns_dict_keyed_by_table(fresh_db):
     assert "training_quiz_overrides" in out
 
 
+def test_dump_includes_format_version(fresh_db):
+    """Snapshot has __format_version metadata at top level so future restorers
+    can detect breaking schema changes. The key is __-prefixed to distinguish
+    from table names."""
+    from backend.backup.service import dump_all_tables_to_json, SNAPSHOT_FORMAT_VERSION
+    out = dump_all_tables_to_json(fresh_db)
+    assert out["__format_version"] == SNAPSHOT_FORMAT_VERSION
+
+
 def test_dump_excludes_schema_migrations(fresh_db):
     from backend.backup.service import dump_all_tables_to_json
     out = dump_all_tables_to_json(fresh_db)
