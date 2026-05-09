@@ -150,3 +150,33 @@ def test_upsert_twice_preserves_created_at(client, bootstrap_admin):
     # updated_at may be ==first_created_at if both upserts hit the same ISO timestamp
     # under fast test execution; that's acceptable. Just verify content is v2.
     db.close()
+
+
+def test_upsert_by_second_admin_preserves_original_created_by(client, bootstrap_admin):
+    """Admin A creates override; Admin B edits it; created_by_admin_id stays as A."""
+    admin_a_id = bootstrap_admin(username="admin_a", password="adminapass1")
+
+    client.put(
+        "/api/admin/training/gold-docs/sample_kvk_5",
+        json={"content": "v1", "expected_concepts": [{"kanun_no": "5520"}], "min_concept_count": 1},
+    )
+
+    # Switch to a second admin
+    client.cookies.clear()
+    admin_b_id = bootstrap_admin(username="admin_b", password="adminbpass1")
+
+    client.put(
+        "/api/admin/training/gold-docs/sample_kvk_5",
+        json={"content": "v2", "expected_concepts": [{"kanun_no": "5520"}], "min_concept_count": 1},
+    )
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    row = db.execute(
+        "SELECT created_by_admin_id, content FROM training_gold_doc_overrides WHERE gold_id='sample_kvk_5'"
+    ).fetchone()
+    assert row["created_by_admin_id"] == admin_a_id  # original creator preserved
+    assert row["content"] == "v2"  # content updated
+    assert admin_a_id != admin_b_id  # sanity
+    db.close()

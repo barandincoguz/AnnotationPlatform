@@ -149,7 +149,7 @@ def bootstrap_admin(client):
         conn = connect(config.DB_PATH)
         try:
             conn.execute(
-                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
+                "INSERT OR IGNORE INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
                 ("BURSIYER-2026",),
             )
         finally:

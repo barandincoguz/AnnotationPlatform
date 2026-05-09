@@ -42,16 +42,11 @@ def test_audit_log_offset_and_limit(client, bootstrap_admin):
     assert body["has_more"] is True
 
 
-def test_audit_log_max_limit_clamped_to_200(client, bootstrap_admin):
+def test_audit_log_max_limit_returns_422(client, bootstrap_admin):
+    """limit > 200 should return 422 from FastAPI Query(le=200) validation."""
     bootstrap_admin()
     r = client.get("/api/admin/audit-log?limit=999")
-    # FastAPI Query(le=200) returns 422 by default; design choice: 422 OR clamp.
-    # Plan accepts either; here we verify behavior matches our actual impl.
-    if r.status_code == 200:
-        body = r.json()
-        assert len(body["items"]) <= 200
-    else:
-        assert r.status_code == 422
+    assert r.status_code == 422
 
 
 def test_audit_log_filter_by_action(client, bootstrap_admin):

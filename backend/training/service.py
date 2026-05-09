@@ -451,6 +451,11 @@ def reset_user_training(
     if user_row is None:
         return False
 
+    # Atomic transaction wraps DELETE + UPDATE so concurrent readers cannot
+    # observe a torn state where attempts are gone but has_passed_training=1.
+    # The two mutations target different tables, so SQLite's autocommit
+    # semantics aren't sufficient. Notification + audit are intentionally
+    # outside this transaction (best-effort side effects).
     db.execute("BEGIN")
     try:
         db.execute("DELETE FROM training_attempts WHERE user_id=?", (user_id,))
@@ -493,7 +498,12 @@ def upsert_gold_doc_override(
     expected_concepts: list[dict], min_concept_count: int, admin_id: int,
 ) -> None:
     """Upsert a gold-doc override row. source='override' if gold_id exists in
-    code baseline, else 'custom'."""
+    code baseline, else 'custom'.
+
+    On INSERT: created_by_admin_id is set to the calling admin.
+    On UPDATE: created_by_admin_id is preserved from the original row so that
+    the original author attribution is not overwritten by a subsequent editor.
+    """
     baseline_ids = {d["gold_id"] for d in code_gold.GOLD_DOCS}
     source = "override" if gold_id in baseline_ids else "custom"
     now = datetime.now(timezone.utc).isoformat()
@@ -510,7 +520,6 @@ def upsert_gold_doc_override(
             expected_concepts = excluded.expected_concepts,
             min_concept_count = excluded.min_concept_count,
             source = excluded.source,
-            created_by_admin_id = excluded.created_by_admin_id,
             updated_at = excluded.updated_at
         """,
         (
@@ -557,7 +566,12 @@ def upsert_quiz_override(
 ) -> None:
     """Upsert a quiz override row. source='override' if question_id is in
     code baseline (QUIZ_QUESTIONS), else 'custom'.
-    Uses ON CONFLICT DO UPDATE to preserve created_at across edits."""
+    Uses ON CONFLICT DO UPDATE to preserve created_at across edits.
+
+    On INSERT: created_by_admin_id is set to the calling admin.
+    On UPDATE: created_by_admin_id is preserved from the original row so that
+    the original author attribution is not overwritten by a subsequent editor.
+    """
     baseline_ids = {q["id"] for q in quiz_data.QUIZ_QUESTIONS}
     source = "override" if question_id in baseline_ids else "custom"
     now = datetime.now(timezone.utc).isoformat()
@@ -573,7 +587,6 @@ def upsert_quiz_override(
             choices_json = excluded.choices_json,
             correct_choice_idx = excluded.correct_choice_idx,
             source = excluded.source,
-            created_by_admin_id = excluded.created_by_admin_id,
             updated_at = excluded.updated_at
         """,
         (
