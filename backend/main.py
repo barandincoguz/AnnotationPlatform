@@ -26,6 +26,7 @@ from backend.shuffle.routes import router as shuffle_router
 from backend.sse.routes import router as sse_router
 from backend.training.routes import router as training_router, admin_router as training_admin_router
 from backend.locks import sweep as locks_sweep
+from backend.backup import loop as backup_loop
 
 VERSION = "0.1.0"
 
@@ -45,11 +46,18 @@ async def lifespan(_app: FastAPI):
         conn.close()
 
     sweep_task = locks_sweep.start(interval_seconds=60)
+    backup_task = backup_loop.start()
     yield
 
     locks_sweep.stop()
     try:
         await sweep_task
+    except Exception:
+        pass
+
+    backup_loop.stop()
+    try:
+        await backup_task
     except Exception:
         pass
 
