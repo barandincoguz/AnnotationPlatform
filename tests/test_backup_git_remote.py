@@ -154,3 +154,24 @@ def test_commit_and_push_raises_on_real_failure(tmp_path):
             commit_and_push(backup_dir, "test")
         assert "Permission denied" in str(exc.value)
         assert "pat" not in str(exc.value).lower() or "x-access-token:***" in str(exc.value)
+
+
+def test_run_scrubs_pat_from_timeout_error(tmp_path):
+    """If a git command times out and the PAT is in argv, the raised
+    error must NOT contain the raw PAT."""
+    from backend.backup.git_remote import _run, GitRemoteError, GIT_TIMEOUT
+    from unittest.mock import patch
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=GIT_TIMEOUT)
+
+    pat_argv = [
+        "git", "remote", "add", "origin",
+        "https://x-access-token:supersecret@github.com/o/r.git",
+    ]
+    with patch("backend.backup.git_remote.subprocess.run", side_effect=fake_run):
+        with pytest.raises(GitRemoteError) as exc:
+            _run(pat_argv, tmp_path)
+    msg = str(exc.value)
+    assert "supersecret" not in msg
+    assert "x-access-token:***" in msg
