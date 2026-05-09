@@ -41,12 +41,13 @@ def test_v0004_creates_partial_index_on_system_events(fresh_db):
     assert "idx_sys_trace" in _index_names(fresh_db, "system_events")
 
 
-def test_v0004_is_idempotent(fresh_db):
-    """Re-running v0004 directly must not raise (schema_migrations gates it,
-    but verify the up() function itself is safe to call twice on a fresh DB)."""
+def test_v0004_up_raises_on_direct_reapplication(fresh_db):
+    """Calling up() a second time on an already-migrated DB must raise.
+    The migration relies on the schema_migrations runner gate for
+    idempotency — up() itself is intentionally non-reentrant
+    (ALTER TABLE ADD COLUMN errors on duplicate column). This test
+    pins the contract: anyone wrapping up() outside the runner must
+    handle the raise."""
     from backend.migrations.v0004_trace_id import up
     with pytest.raises(Exception):
-        # ALTER TABLE ADD COLUMN errors if column exists; this is the expected
-        # behavior. The migration runner protects against re-application via
-        # schema_migrations, so this raise is fine in production.
         up(fresh_db)
