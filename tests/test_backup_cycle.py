@@ -1,6 +1,8 @@
 """Tests for run_backup_cycle orchestrator."""
 import json
+import os
 import sqlite3
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -34,8 +36,8 @@ def test_run_backup_cycle_no_remote_skips_git(fresh_db, tmp_path, monkeypatch):
     """BACKUP_REPO_URL empty → dump + rotate happen, git is skipped,
     system_events row written with event_type='backup_skipped_no_remote'."""
     from backend.backup import service
-    monkeypatch.setattr("backend.backup.service.config.BACKUP_REPO_URL", "")
-    monkeypatch.setattr("backend.backup.service.config.GITHUB_PAT", "")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
     result = service.run_backup_cycle(fresh_db)
     assert result["pushed"] is False
     assert result["committed_sha"] is None
@@ -52,9 +54,9 @@ def test_run_backup_cycle_no_remote_skips_git(fresh_db, tmp_path, monkeypatch):
 def test_run_backup_cycle_logs_success_when_git_succeeds(fresh_db, tmp_path, monkeypatch):
     """Stub the git wrapper; verify event_type='backup_success' is logged."""
     from backend.backup import service
-    monkeypatch.setattr("backend.backup.service.config.BACKUP_REPO_URL",
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL",
                         "https://github.com/x/y.git")
-    monkeypatch.setattr("backend.backup.service.config.GITHUB_PAT", "fake")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "fake")
 
     with patch("backend.backup.service.git_remote.ensure_initialized"), \
          patch("backend.backup.service.git_remote.commit_and_push", return_value="abc123def"):
@@ -74,9 +76,9 @@ def test_run_backup_cycle_logs_failure_on_git_error(fresh_db, tmp_path, monkeypa
     extra_json has step + error fields. Cycle raises so the route can 500."""
     from backend.backup import service
     from backend.backup.git_remote import GitRemoteError
-    monkeypatch.setattr("backend.backup.service.config.BACKUP_REPO_URL",
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL",
                         "https://github.com/x/y.git")
-    monkeypatch.setattr("backend.backup.service.config.GITHUB_PAT", "fake")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "fake")
 
     with patch("backend.backup.service.git_remote.ensure_initialized"), \
          patch("backend.backup.service.git_remote.commit_and_push",
@@ -97,8 +99,8 @@ def test_run_backup_cycle_logs_failure_on_git_error(fresh_db, tmp_path, monkeypa
 def test_run_backup_cycle_dump_failure_logged_and_raised(fresh_db, monkeypatch):
     """If dump_all_tables_to_json raises, log failure with step='dump' and re-raise."""
     from backend.backup import service
-    monkeypatch.setattr("backend.backup.service.config.BACKUP_REPO_URL", "")
-    monkeypatch.setattr("backend.backup.service.config.GITHUB_PAT", "")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
 
     with patch("backend.backup.service.dump_all_tables_to_json",
                side_effect=sqlite3.OperationalError("database is locked")):
@@ -115,11 +117,10 @@ def test_run_backup_cycle_dump_failure_logged_and_raised(fresh_db, monkeypatch):
 
 def test_run_backup_cycle_rotates_snapshots(fresh_db, tmp_path, monkeypatch):
     from backend.backup import service
-    monkeypatch.setattr("backend.backup.service.config.BACKUP_REPO_URL", "")
-    monkeypatch.setattr("backend.backup.service.config.GITHUB_PAT", "")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
 
     backup_dir = tmp_path / "backup"
-    import os, time
     for i in range(200):
         f = backup_dir / f"20260101-{i:04d}.json"
         f.write_text("{}")

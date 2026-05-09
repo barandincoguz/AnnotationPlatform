@@ -176,20 +176,21 @@ def run_backup_cycle(db: sqlite3.Connection) -> dict:
 
     try:
         git_remote.ensure_initialized(backup_dir, repo_url, pat)
+    except Exception as e:
+        audit.log_system_event(
+            db, "backup_failed", "error",
+            message="git init failed",
+            extra={"step": "init", "error": str(e)},
+        )
+        raise
+
+    try:
         sha = git_remote.commit_and_push(backup_dir, f"auto-backup {ts}")
     except Exception as e:
-        # Determine step for the event. The git_remote module raises
-        # GitRemoteError with a message that starts with the failing
-        # operation; "init" appears in init failures, "push" in push.
-        msg = str(e)
-        if "init" in msg.lower() and "push" not in msg.lower():
-            step = "init"
-        else:
-            step = "push"
         audit.log_system_event(
             db, "backup_failed", "error",
             message="git push failed",
-            extra={"step": step, "error": msg},
+            extra={"step": "push", "error": str(e)},
         )
         raise
 
