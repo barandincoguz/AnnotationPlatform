@@ -41,6 +41,12 @@ def restore_from_snapshot(db: sqlite3.Connection, snapshot_path: Path) -> dict:
 
     db.execute("BEGIN IMMEDIATE")
     try:
+        # Defer FK checks to COMMIT so cross-table inserts succeed regardless
+        # of iteration order. Without this, a snapshot dumped alphabetically
+        # processes admin_audit_log (FK admin_user_id → users.id) before users
+        # and fails on the first row. Resets to OFF automatically at COMMIT/
+        # ROLLBACK so it's transaction-scoped.
+        db.execute("PRAGMA defer_foreign_keys=ON")
         result_tables: dict[str, int] = {}
         skipped_tables: list[str] = []
         total = 0

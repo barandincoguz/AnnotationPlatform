@@ -160,6 +160,37 @@ def test_restore_raises_on_unknown_column(fresh_db, tmp_path):
     assert row is not None
 
 
+def test_restore_handles_cross_table_fk_regardless_of_iteration_order(fresh_db, tmp_path):
+    """Snapshot iteration order is alphabetical (admin_audit_log before users),
+    but admin_audit_log.admin_user_id is a FK to users.id. Restore must succeed
+    by deferring FK checks until COMMIT — otherwise real-world snapshots fail
+    with 'FOREIGN KEY constraint failed' on the first INSERT."""
+    from backend.backup.restore import restore_from_snapshot
+    payload = {
+        "admin_audit_log": [
+            {"id": 1, "admin_user_id": 42, "action_type": "test",
+             "target_kind": "x", "target_id": "y",
+             "metadata_json": "{}", "created_at": "2026-05-09T00:00:00+00:00"},
+        ],
+        "users": [
+            {"id": 42, "username": "admin", "email": None, "password_hash": "x",
+             "role": "admin", "is_active": 1,
+             "has_passed_training": 1, "has_seen_manual": 1,
+             "avatar_color": "#000000",
+             "created_at": "2026-05-09T00:00:00+00:00",
+             "updated_at": "2026-05-09T00:00:00+00:00"},
+        ],
+    }
+    snap = _write_snapshot(tmp_path, payload)
+    out = restore_from_snapshot(fresh_db, snap)
+    assert out["tables"]["admin_audit_log"] == 1
+    assert out["tables"]["users"] == 1
+    row = fresh_db.execute(
+        "SELECT admin_user_id FROM admin_audit_log WHERE id=1"
+    ).fetchone()
+    assert row["admin_user_id"] == 42
+
+
 def test_restore_returns_skipped_tables_list(fresh_db, tmp_path):
     """Skipped tables are returned in the result dict so callers (CLI) can
     display them to the operator without scraping logs."""
