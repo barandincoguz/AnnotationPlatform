@@ -7,7 +7,6 @@ state; callers manage connections.
 The PURGE_POLICY list is the source of truth for which tables get
 retention applied. site_settings provides per-deployment overrides.
 """
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -15,8 +14,6 @@ import json
 import sqlite3
 
 from backend.shared import audit, settings
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -104,14 +101,22 @@ def run_purge(db: sqlite3.Connection) -> dict:
     retention_failed system_event, and re-raises. On success commits
     and records retention_success.
 
-    Returns {ok: True, purged: {table: count}, total: N}.
+    Caller must pass a connection opened with isolation_level=None (the
+    project standard via backend.shared.db.connect) so that explicit
+    BEGIN/COMMIT/ROLLBACK statements behave correctly.
+
+    Returns {ok: True, purged: {table: count}, total: N}. Kill-switched
+    tables appear in `purged` with value 0 so callers can distinguish
+    'no rows matched' (also 0) from 'this table was not in the cycle'.
     """
     cutoffs = compute_cutoffs(db)
 
     db.execute("BEGIN IMMEDIATE")
+    current_table: Optional[str] = None  # for failure-row observability
     try:
         purged: dict[str, int] = {}
         for entry in PURGE_POLICY:
+            current_table = entry.table
             if entry.table not in cutoffs:
                 purged[entry.table] = 0  # kill switch — report 0, not absent
                 continue
@@ -123,14 +128,15 @@ def run_purge(db: sqlite3.Connection) -> dict:
         audit.log_system_event(
             db, "retention_failed", "error",
             message="retention cycle failed",
-            extra={"step": "purge", "error": str(e)},
+            extra={"step": "purge", "table": current_table, "error": str(e)},
         )
         raise
 
     total = sum(purged.values())
+    active_table_count = sum(1 for v in purged.values() if v > 0)
     audit.log_system_event(
         db, "retention_success", "info",
-        message=f"purged {total} rows across {len(purged)} tables",
+        message=f"purged {total} rows across {active_table_count} active tables",
         extra={"purged": purged},
     )
     return {"ok": True, "purged": purged, "total": total}

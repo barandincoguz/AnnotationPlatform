@@ -400,3 +400,34 @@ def test_run_purge_skips_table_when_kill_switch_set(fresh_db):
         "SELECT id FROM behavioral_events WHERE id=?", (old_id,)
     ).fetchone()
     assert row is not None  # kill switch preserved it
+
+
+def test_run_purge_failed_event_records_failing_table(fresh_db, monkeypatch):
+    """When purge_single_table raises mid-cycle, retention_failed extra_json
+    must record which table failed so operators can debug from audit logs
+    without reading exception traces."""
+    from backend.retention import service as svc
+
+    _seed_user(fresh_db)
+    _seed_behavioral_event(fresh_db, days_ago=60)
+
+    real = svc.purge_single_table
+
+    def flaky(db, entry, cutoff):
+        if entry.table == "activity_events":
+            raise sqlite3.OperationalError("simulated activity_events failure")
+        return real(db, entry, cutoff)
+
+    monkeypatch.setattr(svc, "purge_single_table", flaky)
+
+    with pytest.raises(sqlite3.OperationalError):
+        svc.run_purge(fresh_db)
+
+    fail = fresh_db.execute(
+        """SELECT extra_json FROM system_events
+           WHERE event_type='retention_failed' ORDER BY id DESC LIMIT 1"""
+    ).fetchone()
+    import json
+    extra = json.loads(fail["extra_json"])
+    assert extra["table"] == "activity_events"
+    assert extra["step"] == "purge"
