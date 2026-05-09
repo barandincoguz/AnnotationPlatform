@@ -26,6 +26,7 @@ from backend.shuffle.routes import router as shuffle_router
 from backend.sse.routes import router as sse_router
 from backend.training.routes import router as training_router, admin_router as training_admin_router
 from backend.backup.routes import router as backup_router
+from backend.retention.routes import router as retention_router
 from backend.locks import sweep as locks_sweep
 from backend.backup import loop as backup_loop
 
@@ -82,6 +83,7 @@ app.include_router(training_router)
 app.include_router(training_admin_router)
 app.include_router(admin_router)
 app.include_router(backup_router)
+app.include_router(retention_router)
 
 
 @app.get("/api/health")
