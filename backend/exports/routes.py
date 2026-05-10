@@ -1,10 +1,12 @@
 """Admin HTTP endpoint for streaming the annotation dataset export."""
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 
 from backend import config
 from backend.exports.models import ExportFilters
@@ -19,6 +21,45 @@ from backend.users.deps import require_admin
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin/export", tags=["admin-export"])
+
+
+def parse_export_filters(
+    format: Literal["csv", "jsonl"] = Query(...),
+    status: Literal["completed", "all"] = Query(default="completed"),
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    document_id: Optional[str] = Query(default=None),
+    user_id: Optional[int] = Query(default=None, gt=0),
+) -> ExportFilters:
+    """Build ExportFilters from query string + map model_validator errors
+    to HTTP 422.
+
+    Why this wrapper exists: `Depends(ExportFilters)` instantiates the
+    Pydantic model directly, but the cross-field check on dates is a
+    `model_validator(mode='after')` that raises ValidationError. FastAPI's
+    class-based Depends path does NOT auto-translate that to a
+    RequestValidationError, so without this wrapper an invalid date range
+    surfaces as a 500. Routing the construction through a callable
+    dependency lets us catch ValidationError once, format it, and re-raise
+    as HTTPException(422). All field-level checks (Literal, gt=0, ISO
+    date parse) still take their normal 422 path via FastAPI's Query
+    validation BEFORE this body runs.
+    """
+    try:
+        return ExportFilters(
+            format=format, status=status,
+            from_date=from_date, to_date=to_date,
+            document_id=document_id, user_id=user_id,
+        )
+    except ValidationError as e:
+        # include_input=False drops the raw input dict (non-JSON-serializable
+        # date objects); include_context=False drops ctx.error, which holds
+        # the raw ValueError instance and likewise breaks FastAPI's JSON
+        # encoder. Both together yield a clean error array of {type, loc, msg}.
+        raise HTTPException(
+            status_code=422,
+            detail=e.errors(include_input=False, include_context=False),
+        )
 
 
 def _utc_filename_stamp() -> str:
@@ -41,7 +82,7 @@ def _filters_for_audit(filters: ExportFilters) -> dict:
 @router.get("")
 def admin_export_dataset(
     background: BackgroundTasks,
-    filters: ExportFilters = Depends(),
+    filters: ExportFilters = Depends(parse_export_filters),
     admin: sqlite3.Row = Depends(require_admin),
 ):
     """Stream the annotation dataset matching `filters` as CSV or JSONL.

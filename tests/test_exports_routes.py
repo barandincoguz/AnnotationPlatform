@@ -280,3 +280,23 @@ def test_export_audit_row_carries_trace_id(client, bootstrap_admin):
         assert len(sys_rows) == 0
     finally:
         db.close()
+
+
+def test_invalid_date_range_returns_422(client, bootstrap_admin):
+    """from_date > to_date is a contract violation — must surface as 422,
+    not 500. Pydantic v2's model_validator(mode='after') raises ValueError,
+    which Pydantic wraps in ValidationError. FastAPI's class-based
+    Depends() path does NOT auto-convert that to RequestValidationError —
+    the parse_export_filters wrapper in routes.py catches ValidationError
+    explicitly and re-raises as HTTPException(422)."""
+    bootstrap_admin()
+    r = client.get(
+        "/api/admin/export?format=csv"
+        "&from_date=2026-05-10&to_date=2026-05-01"
+    )
+    assert r.status_code == 422, r.text
+    body = r.json()
+    # Detail surfaces the model_validator's ValueError message
+    detail_str = json.dumps(body["detail"])
+    assert "from_date" in detail_str
+    assert "to_date" in detail_str
