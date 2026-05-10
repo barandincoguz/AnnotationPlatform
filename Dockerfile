@@ -16,16 +16,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Layer-cache strategy: copy requirements + pyproject first, install
+# pinned deps, THEN copy backend/. Code-only changes (the frequent case)
+# do not bust the dependency layer; only requirements.txt or pyproject.toml
+# edits trigger a re-install.
 COPY requirements.txt pyproject.toml ./
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --target=/install -r requirements.txt
+
 COPY backend/ ./backend/
 
 # --target=/install collects all packages + console scripts under one
 # directory the runtime stage copies in a single layer.
-# --no-deps on the editable install is safe: pyproject.toml does NOT
-# declare [project.dependencies]; all runtime deps come from requirements.txt.
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --target=/install -r requirements.txt && \
-    pip install --no-cache-dir --target=/install --no-deps .
+# WARNING: --no-deps is safe ONLY while pyproject.toml has no
+# [project.dependencies]. If you add dependencies there, DROP --no-deps
+# or they will be silently skipped at install time.
+RUN pip install --no-cache-dir --target=/install --no-deps .
 
 # ============================================================
 # Stage 2 — runtime
@@ -39,6 +46,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/site-packages \
     PATH=/app/site-packages/bin:$PATH
 
+# git (~109 MB) is a runtime dependency: backup_loop's optional GitHub
+# push uses it. Deployments that omit BACKUP_REPO_URL/GITHUB_PAT still
+# carry this cost. A future Dockerfile.minimal could drop git for those
+# deployments — deferred to Paket 17 per spec §14.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
     && rm -rf /var/lib/apt/lists/*
