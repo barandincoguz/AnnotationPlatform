@@ -242,3 +242,37 @@ def test_export_no_audit_row_when_stream_fails_mid_iteration(
         f"audit row leaked: {before_count} → {after_count}. "
         "A failed export must not write to admin_audit_log."
     )
+
+
+def test_export_audit_row_carries_trace_id(client, bootstrap_admin):
+    """The BackgroundTask that writes the audit row after streaming must
+    receive the trace_id captured in the route's closure. This is the
+    exports analog of the locks/settings Group B contract: trace_id on
+    audit row, no system_events follow-up."""
+    bootstrap_admin()
+
+    response = client.get("/api/admin/export?format=csv&status=all")
+    assert response.status_code == 200
+    # Force the body to fully iterate so the BackgroundTask runs.
+    _ = response.content
+
+    from backend.shared.db import connect
+    from backend import config
+    db = connect(config.DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='export_dataset' "
+            "ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str)
+        assert len(row["trace_id"]) == 16
+
+        # Group B negative contract: export emits no system_events row.
+        sys_rows = db.execute(
+            "SELECT 1 FROM system_events WHERE trace_id=?", (row["trace_id"],)
+        ).fetchall()
+        assert len(sys_rows) == 0
+    finally:
+        db.close()

@@ -61,6 +61,8 @@ def admin_export_dataset(
     audit row + stream_conn.close() happen exactly once, after the stream's
     natural lifecycle ends.
     """
+    trace_id = audit.gen_trace_id()
+
     stream_conn = connect(config.DB_PATH)
     sql, params = build_query(filters)
     cursor = stream_conn.execute(sql, params)
@@ -113,6 +115,7 @@ def admin_export_dataset(
                     "filters": _filters_for_audit(filters),
                     "exported_count": counter[0],
                 },
+                trace_id=trace_id,
             )
             # No explicit commit needed — connect() uses isolation_level=None
             # (autocommit), so log_admin_action's INSERT is durable on
