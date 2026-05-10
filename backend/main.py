@@ -34,6 +34,11 @@ from backend.retention import loop as retention_loop
 
 VERSION = "0.1.0"
 
+DEV_SESSION_SECRETS = {
+    "dev-secret-DO-NOT-USE-IN-PROD",  # backend/config.py default
+    "dev-secret-change-me",            # docker-compose.yml default
+}
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -46,6 +51,12 @@ async def lifespan(_app: FastAPI):
             message=f"app v{VERSION} started; migrations applied: {applied}",
             extra={"version": VERSION, "migrations_applied": applied},
         )
+        if config.SESSION_SECRET in DEV_SESSION_SECRETS:
+            audit.log_system_event(
+                conn, "session_secret_dev_default", "warn",
+                message="SESSION_SECRET is set to a dev default; set a real "
+                        "secret via env var for production.",
+            )
     finally:
         conn.close()
 
