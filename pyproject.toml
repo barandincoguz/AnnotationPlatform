@@ -17,6 +17,9 @@ backend = ["**/*.py"]
 pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "docker: smoke tests that require the docker CLI on PATH (slow, ~40-60s per test)",
+]
 
 [tool.pyright]
 include = ["backend", "tests"]
