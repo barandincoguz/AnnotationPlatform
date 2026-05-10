@@ -268,6 +268,10 @@ def test_export_audit_row_carries_trace_id(client, bootstrap_admin):
         assert row is not None
         assert isinstance(row["trace_id"], str)
         assert len(row["trace_id"]) == 16
+        # Format check: gen_trace_id produces lowercase hex; this guards
+        # against a future swap to a different generator that still yields
+        # 16-char strings but breaks the audit-log query tooling.
+        assert all(c in "0123456789abcdef" for c in row["trace_id"])
 
         # Group B negative contract: export emits no system_events row.
         sys_rows = db.execute(
