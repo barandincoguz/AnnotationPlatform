@@ -74,7 +74,10 @@ def test_admin_audit_log_endpoint_returns_actions(client, bootstrap_admin):
 
 
 def test_user_admin_actions_carry_trace_id(client, bootstrap_admin):
-    """Group B audit-only: trace_id populated on audit row for all 5 user admin actions."""
+    """Group B audit-only: trace_id populated on audit row for ALL 5 user admin actions.
+    Each action is asserted to succeed (200) so every plumbing path is exercised — a
+    regression in any one of the 5 service.<fn>(..., trace_id=...) propagations would
+    fail this test rather than silently skip an unverified branch."""
     bootstrap_admin()
     # Register a target user
     client.post("/api/auth/register", json={
@@ -84,39 +87,45 @@ def test_user_admin_actions_carry_trace_id(client, bootstrap_admin):
     target = next(u for u in r.json()["users"] if u["username"] == "trace_target")
     target_id = target["id"]
 
-    # 1. Promote
+    # 1. Promote — fresh non-admin target → must 200
     r = client.post(f"/api/admin/users/{target_id}/promote")
-    assert r.status_code in (200, 400, 409)
-
-    # 2. Demote (promote succeeded → now 2 admins, demote is safe)
-    if r.status_code == 200:
-        client.post(f"/api/admin/users/{target_id}/demote")
-
-    # 3. Disable
-    client.post(f"/api/admin/users/{target_id}/disable")
-
+    assert r.status_code == 200, r.text
+    # 2. Demote — now 2 admins (root + trace_target), so last-admin guardrail is OK
+    r = client.post(f"/api/admin/users/{target_id}/demote")
+    assert r.status_code == 200, r.text
+    # 3. Disable — trace_target is now a regular user
+    r = client.post(f"/api/admin/users/{target_id}/disable")
+    assert r.status_code == 200, r.text
     # 4. Enable
-    client.post(f"/api/admin/users/{target_id}/enable")
-
+    r = client.post(f"/api/admin/users/{target_id}/enable")
+    assert r.status_code == 200, r.text
     # 5. Rotate invite
-    client.post("/api/admin/invite/rotate", json={"new_code": "TRACE-TEST-T5A"})
+    r = client.post("/api/admin/invite/rotate", json={"new_code": "TRACE-TEST-T5A"})
+    assert r.status_code == 200, r.text
 
     from backend.shared.db import connect
     from backend import config
     db = connect(config.DB_PATH)
     try:
-        rows = db.execute(
-            "SELECT action_type, trace_id FROM admin_audit_log "
-            "WHERE action_type IN "
-            "('promote_admin','demote_admin','disable_user','enable_user','rotate_invite_code')"
-        ).fetchall()
-        assert len(rows) >= 1, "expected at least one audit row from user admin actions"
-        for row in rows:
+        # Assert each of the 5 action types produced a row with a 16-char trace_id —
+        # a regression in any single service-level propagation would now fail with
+        # an action-specific message rather than passing on a 4-of-5 partial.
+        for action_type in (
+            "promote_admin", "demote_admin",
+            "disable_user", "enable_user",
+            "rotate_invite_code",
+        ):
+            row = db.execute(
+                "SELECT trace_id FROM admin_audit_log "
+                "WHERE action_type=? ORDER BY id DESC LIMIT 1",
+                (action_type,),
+            ).fetchone()
+            assert row is not None, f"no audit row for {action_type}"
             assert isinstance(row["trace_id"], str), (
-                f"action {row['action_type']} has trace_id={row['trace_id']!r}"
+                f"{action_type} has trace_id={row['trace_id']!r}"
             )
             assert len(row["trace_id"]) == 16, (
-                f"action {row['action_type']} trace_id len={len(row['trace_id'])}"
+                f"{action_type} trace_id len={len(row['trace_id'])}"
             )
     finally:
         db.close()

@@ -115,5 +115,16 @@ def test_reset_training_audit_row_carries_trace_id(client, bootstrap_admin, seen
         assert row is not None
         assert isinstance(row["trace_id"], str), f"trace_id={row['trace_id']!r}"
         assert len(row["trace_id"]) == 16
+
+        # Group B negative contract (precedent set in T4 polish): reset_training
+        # writes only to admin_audit_log; querying system_events by this
+        # trace_id must return zero rows. This anchors the no-system-events
+        # half of the Group B contract for the entire training admin surface
+        # (one representative test is enough — the 4 CRUD routes follow the
+        # same shape and would emit system_events the same way if regressed).
+        sys_rows = db.execute(
+            "SELECT 1 FROM system_events WHERE trace_id=?", (row["trace_id"],)
+        ).fetchall()
+        assert len(sys_rows) == 0
     finally:
         db.close()
