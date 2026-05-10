@@ -1,11 +1,39 @@
+# Python build artefacts
 __pycache__/
 *.pyc
+*.pyo
 *.egg-info/
+
+# Virtualenvs and tooling caches
 .venv/
+venv/
 .pytest_cache/
+
+# Git internals
 .git/
+.gitignore
+
+# Local env files
 .env
+.env.*
+
+# Data dirs (mounted at runtime, never baked into image)
 data/
+deneme-dev/
+
+# Docs and tests do not belong in the production image
 docs/
 tests/
 *.md
+README.md
+
+# Self-ignore (defense in depth)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Dev artefacts
+annotations.db
+sensitive/
+.planning/
+*.log

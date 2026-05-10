@@ -13,3 +13,7 @@ data/documents/*
 !data/documents/.gitkeep
 data/exports/
 .DS_Store
+deneme-dev/
+sensitive
+
+annotations.db
