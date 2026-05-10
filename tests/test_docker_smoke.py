@@ -55,9 +55,25 @@ def running_container(built_image):
     ])
     cid = result.stdout.strip()
     try:
-        port_out = _run([DOCKER, "port", cid, "8000"]).stdout.strip()
+        # `docker run -d` returns once the container is created, but the
+        # port mapping in the network namespace may take tens of ms to
+        # become visible to `docker port`. Poll up to 5s before failing.
+        port_out = ""
+        for _ in range(10):
+            port_out = _run(
+                [DOCKER, "port", cid, "8000"], check=False,
+            ).stdout.strip()
+            if port_out:
+                break
+            time.sleep(0.5)
+        if not port_out:
+            raise RuntimeError(
+                f"`docker port {cid} 8000` returned no mapping after 5s"
+            )
         # Format: "0.0.0.0:NNNNN\n[::]:NNNNN" — take the first line, then
-        # the integer after the last ':'.
+        # the integer after the last ':'. Both IPv4-first and IPv6-first
+        # orderings are handled because rsplit(':', 1) takes the LAST ':',
+        # which always sits directly before the port number.
         first_line = port_out.splitlines()[0]
         host_port = int(first_line.rsplit(":", 1)[1])
         yield cid, host_port
