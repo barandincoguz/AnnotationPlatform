@@ -152,6 +152,55 @@ def test_upsert_twice_preserves_created_at(client, bootstrap_admin):
     db.close()
 
 
+def test_upsert_gold_doc_audit_carries_trace_id(client, bootstrap_admin):
+    """Group B audit-only: upsert_gold_doc audit row carries a non-NULL 16-char trace_id."""
+    bootstrap_admin()
+    gold_id = "gold_trace_upsert_t5"
+    r = client.put(
+        f"/api/admin/training/gold-docs/{gold_id}",
+        json={"content": "trace test content", "expected_concepts": [], "min_concept_count": 0},
+    )
+    assert r.status_code == 200
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='upsert_gold_doc' AND target_id=? "
+            "ORDER BY id DESC LIMIT 1",
+            (gold_id,),
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str), f"trace_id={row['trace_id']!r}"
+        assert len(row["trace_id"]) == 16
+    finally:
+        db.close()
+
+
+def test_delete_gold_doc_audit_carries_trace_id(client, bootstrap_admin):
+    """Group B audit-only: delete_gold_doc audit row carries a non-NULL 16-char trace_id."""
+    bootstrap_admin()
+    r = client.delete("/api/admin/training/gold-docs/sample_kvk_5")
+    assert r.status_code == 200
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='delete_gold_doc' AND target_id='sample_kvk_5' "
+            "ORDER BY id DESC LIMIT 1",
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str), f"trace_id={row['trace_id']!r}"
+        assert len(row["trace_id"]) == 16
+    finally:
+        db.close()
+
+
 def test_upsert_by_second_admin_preserves_original_created_by(client, bootstrap_admin):
     """Admin A creates override; Admin B edits it; created_by_admin_id stays as A."""
     admin_a_id = bootstrap_admin(username="admin_a", password="adminapass1")

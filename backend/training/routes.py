@@ -96,8 +96,9 @@ def admin_reset_user_training(
     """Admin endpoint — soft reset of a user's training. Clears attempts,
     sets has_passed_training=0, creates training_reset notification,
     writes audit row. Idempotent."""
+    trace_id = audit.gen_trace_id()
     ok = service.reset_user_training(
-        db, user_id=user_id, admin_id=admin["id"],
+        db, user_id=user_id, admin_id=admin["id"], trace_id=trace_id,
     )
     if not ok:
         raise HTTPException(status_code=404, detail=f"user {user_id} not found")
@@ -126,6 +127,7 @@ def admin_upsert_gold_doc(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     concepts = [c.model_dump(exclude_none=True) for c in payload.expected_concepts]
     service.upsert_gold_doc_override(
         db, gold_id=gold_id, content=payload.content,
@@ -138,6 +140,7 @@ def admin_upsert_gold_doc(
             db, admin_user_id=admin["id"], action_type="upsert_gold_doc",
             target_kind="gold_doc", target_id=gold_id,
             metadata={"min_concept_count": payload.min_concept_count, "concept_count": len(concepts)},
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("audit upsert_gold_doc failed for %s", gold_id)
@@ -150,11 +153,13 @@ def admin_delete_gold_doc(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     service.soft_delete_gold_doc(db, gold_id=gold_id, admin_id=admin["id"])
     try:
         audit.log_admin_action(
             db, admin_user_id=admin["id"], action_type="delete_gold_doc",
             target_kind="gold_doc", target_id=gold_id,
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("audit delete_gold_doc failed for %s", gold_id)
@@ -183,6 +188,7 @@ def admin_upsert_quiz(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     service.upsert_quiz_override(
         db, question_id=question_id, text=payload.text,
         choices=payload.choices, correct_choice_idx=payload.correct_choice_idx,
@@ -192,6 +198,7 @@ def admin_upsert_quiz(
         audit.log_admin_action(
             db, admin_user_id=admin["id"], action_type="upsert_quiz_question",
             target_kind="quiz_question", target_id=question_id,
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("audit upsert_quiz_question failed for %s", question_id)
@@ -204,11 +211,13 @@ def admin_delete_quiz(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     service.soft_delete_quiz_override(db, question_id=question_id, admin_id=admin["id"])
     try:
         audit.log_admin_action(
             db, admin_user_id=admin["id"], action_type="delete_quiz_question",
             target_kind="quiz_question", target_id=question_id,
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("audit delete_quiz_question failed for %s", question_id)

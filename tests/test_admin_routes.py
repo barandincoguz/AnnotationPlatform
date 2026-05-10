@@ -73,6 +73,55 @@ def test_admin_audit_log_endpoint_returns_actions(client, bootstrap_admin):
     assert any(e["action_type"] == "rotate_invite_code" for e in body["items"])
 
 
+def test_user_admin_actions_carry_trace_id(client, bootstrap_admin):
+    """Group B audit-only: trace_id populated on audit row for all 5 user admin actions."""
+    bootstrap_admin()
+    # Register a target user
+    client.post("/api/auth/register", json={
+        "username": "trace_target", "password": "password123", "invite_code": "BURSIYER-2026",
+    })
+    r = client.get("/api/admin/users")
+    target = next(u for u in r.json()["users"] if u["username"] == "trace_target")
+    target_id = target["id"]
+
+    # 1. Promote
+    r = client.post(f"/api/admin/users/{target_id}/promote")
+    assert r.status_code in (200, 400, 409)
+
+    # 2. Demote (promote succeeded → now 2 admins, demote is safe)
+    if r.status_code == 200:
+        client.post(f"/api/admin/users/{target_id}/demote")
+
+    # 3. Disable
+    client.post(f"/api/admin/users/{target_id}/disable")
+
+    # 4. Enable
+    client.post(f"/api/admin/users/{target_id}/enable")
+
+    # 5. Rotate invite
+    client.post("/api/admin/invite/rotate", json={"new_code": "TRACE-TEST-T5A"})
+
+    from backend.shared.db import connect
+    from backend import config
+    db = connect(config.DB_PATH)
+    try:
+        rows = db.execute(
+            "SELECT action_type, trace_id FROM admin_audit_log "
+            "WHERE action_type IN "
+            "('promote_admin','demote_admin','disable_user','enable_user','rotate_invite_code')"
+        ).fetchall()
+        assert len(rows) >= 1, "expected at least one audit row from user admin actions"
+        for row in rows:
+            assert isinstance(row["trace_id"], str), (
+                f"action {row['action_type']} has trace_id={row['trace_id']!r}"
+            )
+            assert len(row["trace_id"]) == 16, (
+                f"action {row['action_type']} trace_id len={len(row['trace_id'])}"
+            )
+    finally:
+        db.close()
+
+
 def test_bootstrap_admin_fixture_is_idempotent(client, bootstrap_admin):
     """The fixture uses INSERT OR IGNORE on the BURSIYER-2026 invite code so
     it can be called multiple times in a single test (e.g. to seed two admins)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from backend import config
 from backend.gamification import service as gamification_service
 from backend.gamification.models import ProfileResponse
+from backend.shared import audit
 from backend.users import service
 from backend.users.deps import (
     get_db, get_current_user, get_request_ip
@@ -166,8 +167,12 @@ def admin_promote(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     try:
-        service.promote_admin(db, admin_user_id=admin["id"], target_user_id=user_id)
+        service.promote_admin(
+            db, admin_user_id=admin["id"], target_user_id=user_id,
+            trace_id=trace_id,
+        )
     except service.UserNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"ok": True}
@@ -179,8 +184,12 @@ def admin_demote(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     try:
-        service.demote_admin(db, admin_user_id=admin["id"], target_user_id=user_id)
+        service.demote_admin(
+            db, admin_user_id=admin["id"], target_user_id=user_id,
+            trace_id=trace_id,
+        )
     except service.UserNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except service.LastAdminCannotBeRemoved as e:
@@ -194,8 +203,12 @@ def admin_disable(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     try:
-        service.disable_user(db, admin_user_id=admin["id"], target_user_id=user_id)
+        service.disable_user(
+            db, admin_user_id=admin["id"], target_user_id=user_id,
+            trace_id=trace_id,
+        )
     except service.UserNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except service.LastAdminCannotBeRemoved as e:
@@ -209,8 +222,12 @@ def admin_enable(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     try:
-        service.enable_user(db, admin_user_id=admin["id"], target_user_id=user_id)
+        service.enable_user(
+            db, admin_user_id=admin["id"], target_user_id=user_id,
+            trace_id=trace_id,
+        )
     except service.UserNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"ok": True}
@@ -222,7 +239,9 @@ def admin_rotate_invite(
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
+    trace_id = audit.gen_trace_id()
     new_code = service.rotate_invite_code(
-        db, admin_user_id=admin["id"], new_code=payload.new_code
+        db, admin_user_id=admin["id"], new_code=payload.new_code,
+        trace_id=trace_id,
     )
     return {"ok": True, "new_code": new_code}

@@ -110,6 +110,53 @@ def test_upsert_writes_audit_row(client, bootstrap_admin):
     db.close()
 
 
+def test_upsert_quiz_audit_carries_trace_id(client, bootstrap_admin):
+    """Group B audit-only: upsert_quiz_question audit row carries a non-NULL 16-char trace_id."""
+    bootstrap_admin()
+    r = client.put(
+        "/api/admin/training/quiz/q01",
+        json={"text": "Trace test question?", "choices": ["A", "B", "C", "D"], "correct_choice_idx": 0},
+    )
+    assert r.status_code == 200
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='upsert_quiz_question' AND target_id='q01' "
+            "ORDER BY id DESC LIMIT 1",
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str), f"trace_id={row['trace_id']!r}"
+        assert len(row["trace_id"]) == 16
+    finally:
+        db.close()
+
+
+def test_delete_quiz_audit_carries_trace_id(client, bootstrap_admin):
+    """Group B audit-only: delete_quiz_question audit row carries a non-NULL 16-char trace_id."""
+    bootstrap_admin()
+    r = client.delete("/api/admin/training/quiz/q01")
+    assert r.status_code == 200
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='delete_quiz_question' AND target_id='q01' "
+            "ORDER BY id DESC LIMIT 1",
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str), f"trace_id={row['trace_id']!r}"
+        assert len(row["trace_id"]) == 16
+    finally:
+        db.close()
+
+
 def test_insufficient_quiz_pool_logs_warning(client, caplog, bootstrap_admin, seen_manual_user):
     """Tombstoning enough baseline questions so the active pool drops below 5
     should produce a warning log when start_attempt fires."""

@@ -433,7 +433,8 @@ def finalize_if_complete(
 
 
 def reset_user_training(
-    db: sqlite3.Connection, *, user_id: int, admin_id: int
+    db: sqlite3.Connection, *, user_id: int, admin_id: int,
+    trace_id: Optional[str] = None,
 ) -> bool:
     """Soft reset: delete training_attempts rows, flip has_passed_training=0,
     create training_reset notification, write admin audit row.
@@ -482,6 +483,7 @@ def reset_user_training(
             db, admin_user_id=admin_id, action_type="reset_training",
             target_kind="user", target_id=str(user_id),
             metadata={"username": user_row["username"]},
+            trace_id=trace_id,
         )
     except Exception:
         log.exception("log_admin_action reset_training failed for user_id=%s", user_id)

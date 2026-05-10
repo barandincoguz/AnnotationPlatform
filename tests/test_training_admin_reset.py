@@ -91,3 +91,29 @@ def test_reset_requires_admin(client, seen_manual_user):
     # bursiyer1 is logged in (not admin)
     r = client.post(f"/api/admin/training/users/{user_id}/reset")
     assert r.status_code == 404  # existence-hide
+
+
+def test_reset_training_audit_row_carries_trace_id(client, bootstrap_admin, seen_manual_user):
+    """Group B audit-only: reset_training audit row carries a non-NULL 16-char trace_id."""
+    bootstrap_admin()
+    user_id = seen_manual_user("bursiyer1", "INVITE-2026")
+    client.post("/api/auth/login", json={"username": "root", "password": "rootpass1"})
+
+    r = client.post(f"/api/admin/training/users/{user_id}/reset")
+    assert r.status_code == 200
+
+    from backend.shared.db import connect
+    from backend.config import DB_PATH
+    db = connect(DB_PATH)
+    try:
+        row = db.execute(
+            "SELECT trace_id FROM admin_audit_log "
+            "WHERE action_type='reset_training' AND target_id=? "
+            "ORDER BY id DESC LIMIT 1",
+            (str(user_id),),
+        ).fetchone()
+        assert row is not None
+        assert isinstance(row["trace_id"], str), f"trace_id={row['trace_id']!r}"
+        assert len(row["trace_id"]) == 16
+    finally:
+        db.close()

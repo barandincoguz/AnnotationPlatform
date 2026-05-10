@@ -213,7 +213,8 @@ def _ensure_admin(db: sqlite3.Connection, user_id: int) -> sqlite3.Row:
 
 
 def promote_admin(
-    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int,
+    trace_id: Optional[str] = None,
 ) -> None:
     _ensure_admin(db, admin_user_id)
     target = db.execute(
@@ -228,11 +229,13 @@ def promote_admin(
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="promote_admin",
         target_kind="user", target_id=str(target_user_id),
+        trace_id=trace_id,
     )
 
 
 def demote_admin(
-    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int,
+    trace_id: Optional[str] = None,
 ) -> None:
     _ensure_admin(db, admin_user_id)
     target = db.execute(
@@ -250,11 +253,13 @@ def demote_admin(
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="demote_admin",
         target_kind="user", target_id=str(target_user_id),
+        trace_id=trace_id,
     )
 
 
 def disable_user(
-    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int,
+    trace_id: Optional[str] = None,
 ) -> None:
     _ensure_admin(db, admin_user_id)
     target = db.execute(
@@ -271,11 +276,13 @@ def disable_user(
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="disable_user",
         target_kind="user", target_id=str(target_user_id),
+        trace_id=trace_id,
     )
 
 
 def enable_user(
-    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int
+    db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int,
+    trace_id: Optional[str] = None,
 ) -> None:
     _ensure_admin(db, admin_user_id)
     db.execute(
@@ -285,11 +292,13 @@ def enable_user(
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="enable_user",
         target_kind="user", target_id=str(target_user_id),
+        trace_id=trace_id,
     )
 
 
 def rotate_invite_code(
-    db: sqlite3.Connection, *, admin_user_id: int, new_code: str
+    db: sqlite3.Connection, *, admin_user_id: int, new_code: str,
+    trace_id: Optional[str] = None,
 ) -> str:
     _ensure_admin(db, admin_user_id)
     now = _now()
@@ -307,5 +316,6 @@ def rotate_invite_code(
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="rotate_invite_code",
         target_kind="invite", target_id=new_code,
+        trace_id=trace_id,
     )
     return new_code
