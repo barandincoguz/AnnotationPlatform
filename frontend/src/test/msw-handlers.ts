@@ -1,5 +1,9 @@
 import { http, HttpResponse } from 'msw'
 import type { components } from '@/api/types'
+import type {
+  ProfileResponse, Notification, NotificationsList, BadgeCatalogItem,
+  OnlineUser,
+} from '@/lib/profileSchemas'
 
 type User = components['schemas']['UserOut']
 type FeedItem = components['schemas']['FeedItem']
@@ -80,6 +84,114 @@ export function makeReferenceItem(overrides: Partial<ReferenceItem> = {}): Refer
 // MUST use absolute URLs (relative paths silently fail to match —
 // see client.test.ts for the established pattern).
 const API = 'http://localhost'
+
+// ----- 16d Gamification factories -----
+
+export function makeProfile(overrides: Partial<ProfileResponse> = {}): ProfileResponse {
+  return {
+    user: { id: 1, username: 'tester', role: 'user', avatar_color: '#3b82f6' },
+    xp: { total: 1240 },
+    streak: { current: 3, longest: 12, last_active_date: '2026-05-11' },
+    today: { save: 3, complete: 1, review: 0, skip: 0, daily_target: 10 },
+    badges: [{
+      id: 'first_annotation', name: 'İlk Annotation',
+      description: 'İlk kayıt başarıyla yapıldı.',
+      earned_at: '2026-05-10T12:00:00+00:00',
+    }],
+    ...overrides,
+  }
+}
+
+export function makeNotification(overrides: Partial<Notification> = {}): Notification {
+  return {
+    id: 1, kind: 'admin_announcement', title: 'Test bildirimi',
+    body: null, data: null, is_read: false,
+    created_at: '2026-05-11T12:00:00+00:00',
+    ...overrides,
+  }
+}
+
+export function makeBadgeCatalogItem(
+  overrides: Partial<BadgeCatalogItem> = {},
+): BadgeCatalogItem {
+  return {
+    id: 'first_annotation', name: 'İlk Annotation',
+    description: 'İlk kayıt başarıyla yapıldı.',
+    criterion: 'İlk anotasyon kaydını yap.',
+    ...overrides,
+  }
+}
+
+export function defaultBadgesCatalog(): BadgeCatalogItem[] {
+  return [
+    makeBadgeCatalogItem({ id: 'first_annotation', name: 'İlk Annotation',
+      description: 'İlk kayıt başarıyla yapıldı.',
+      criterion: 'İlk anotasyon kaydını yap.' }),
+    makeBadgeCatalogItem({ id: 'annotations_10', name: '10 Annotation',
+      description: '10 kayıt biriktirdin.',
+      criterion: '10 anotasyon kaydı biriktir.' }),
+    makeBadgeCatalogItem({ id: 'annotations_100', name: '100 Annotation',
+      description: '100 kayıt — istikrarlı çalışıyorsun.',
+      criterion: '100 anotasyon kaydı biriktir.' }),
+    makeBadgeCatalogItem({ id: 'annotations_1000', name: '1000 Annotation',
+      description: 'Bin kayıt: ekibin omurgası oldun.',
+      criterion: '1000 anotasyon kaydı biriktir.' }),
+    makeBadgeCatalogItem({ id: 'first_completion', name: 'İlk Tamamlama',
+      description: 'İlk dokümanı tamamlandı olarak işaretledin.',
+      criterion: 'İlk dokümanı tamamlandı olarak işaretle.' }),
+    makeBadgeCatalogItem({ id: 'marathoner', name: 'Maratoncu',
+      description: '7 gün üst üste çalıştın.',
+      criterion: '7 gün üst üste çalış.' }),
+    makeBadgeCatalogItem({ id: 'good_reviewer', name: 'Good Reviewer',
+      description: 'Yaptığın review\'lerin çoğu sonraki kullanıcılar tarafından korundu.',
+      criterion: 'Review\'lerinin çoğunluğu korunsun (en az 20 review, 15+ kept).' }),
+  ]
+}
+
+export function makeOnlineUser(overrides: Partial<OnlineUser> = {}): OnlineUser {
+  return { id: 1, username: 'tester', avatar_color: '#3b82f6', ...overrides }
+}
+
+const GAMIFICATION_DEFAULTS = [
+  http.get(`${API}/api/me/profile`, () => HttpResponse.json(makeProfile())),
+
+  http.get(`${API}/api/me/notifications`, ({ request }) => {
+    const url = new URL(request.url)
+    const unreadOnly = url.searchParams.get('unread_only') !== 'false'
+    const items: Notification[] = [
+      makeNotification({
+        id: 1, is_read: false, kind: 'admin_announcement',
+        title: 'Bir bildirim',
+      }),
+      ...(unreadOnly
+        ? []
+        : [
+            makeNotification({
+              id: 2, is_read: true, kind: 'training_passed',
+              title: 'Eğitim geçildi', body: null,
+              created_at: '2026-05-10T00:00:00+00:00',
+            }),
+          ]),
+    ]
+    return HttpResponse.json({ items } satisfies NotificationsList)
+  }),
+
+  http.post(`${API}/api/me/notifications/:id/read`, () =>
+    HttpResponse.json({ ok: true }),
+  ),
+
+  http.post(`${API}/api/me/notifications/read-all`, () =>
+    HttpResponse.json({ marked_count: 1 }),
+  ),
+
+  http.get(`${API}/api/badges/catalog`, () =>
+    HttpResponse.json(defaultBadgesCatalog()),
+  ),
+
+  http.get(`${API}/api/users/online`, () =>
+    HttpResponse.json([makeOnlineUser({ id: 1, username: 'tester', avatar_color: '#3b82f6' })]),
+  ),
+]
 
 const HELP_DEFAULT_SECTIONS = [
   { id: '01-welcome', order: 1, title: 'Hoş geldin', body: '# Hoş geldin\n\nMerhaba.' },
@@ -222,6 +334,7 @@ export const handlers = [
   HELP_DEFAULT_HANDLER,
   ...TRAINING_DEFAULT_HANDLERS,
   ...ANNOTATE_DEFAULTS,
+  ...GAMIFICATION_DEFAULTS,
 ]
 
 export function mockAuthedUser(overrides: Partial<User> = {}) {
