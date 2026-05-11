@@ -50,6 +50,14 @@ async def save(
             user_id=user["id"],
             references=refs,
         )
+    except service.LockOwnedByOther:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "lock_owned_by_other",
+                "message": "Bu doküman başka bir kullanıcı tarafından kilitli.",
+            },
+        )
     except service.DocumentNotFound:
         raise HTTPException(status_code=404, detail=f"document {payload.document_id} not found")
     except (DuplicateReference, InvalidReference) as e:
@@ -145,6 +153,14 @@ async def complete(
         service.set_complete(
             db, document_id=document_id, user_id=user["id"],
             completed=payload.completed,
+        )
+    except service.LockOwnedByOther:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "lock_owned_by_other",
+                "message": "Bu doküman başka bir kullanıcı tarafından kilitli.",
+            },
         )
     except service.AnnotationNotFound:
         raise HTTPException(status_code=404, detail=f"no annotation for {document_id}")
