@@ -81,7 +81,7 @@ def test_upsert_writes_audit_row(client, bootstrap_admin):
     admin_id = bootstrap_admin()
     client.put(
         "/api/admin/training/gold-docs/x_new",
-        json={"content": "X", "expected_concepts": [], "min_concept_count": 0},
+        json={"content": "X", "expected_concepts": [{"kanun_no": "5520"}], "min_concept_count": 1},
     )
 
     from backend.shared.db import connect
@@ -158,7 +158,7 @@ def test_upsert_gold_doc_audit_carries_trace_id(client, bootstrap_admin):
     gold_id = "gold_trace_upsert_t5"
     r = client.put(
         f"/api/admin/training/gold-docs/{gold_id}",
-        json={"content": "trace test content", "expected_concepts": [], "min_concept_count": 0},
+        json={"content": "trace test content", "expected_concepts": [{"kanun_no": "5520"}], "min_concept_count": 1},
     )
     assert r.status_code == 200
 

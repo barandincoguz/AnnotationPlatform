@@ -228,8 +228,11 @@ def admin_enable(
             db, admin_user_id=admin["id"], target_user_id=user_id,
             trace_id=trace_id,
         )
-    except service.UserNotFound as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except service.UserNotFound:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "user_not_found", "message": f"User {user_id} not found"},
+        )
     return {"ok": True}
 
 
