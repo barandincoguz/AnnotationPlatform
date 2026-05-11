@@ -33,10 +33,10 @@ function makeNotif(over: Partial<{ id: number; is_read: boolean; kind: string; t
 
 describe('useUnreadNotifications', () => {
   it('fetches with unread_only=true & limit=50', async () => {
-    let calledWith: URL | null = null
+    const captured: URL[] = []
     server.use(
       http.get('http://localhost/api/me/notifications', ({ request }) => {
-        calledWith = new URL(request.url)
+        captured.push(new URL(request.url))
         return HttpResponse.json({ items: [makeNotif()] })
       }),
     )
@@ -44,33 +44,33 @@ describe('useUnreadNotifications', () => {
     const { result } = renderHook(() => useUnreadNotifications(), { wrapper: Wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.items.length).toBe(1)
-    expect(calledWith?.searchParams.get('unread_only')).toBe('true')
-    expect(calledWith?.searchParams.get('limit')).toBe('50')
+    expect(captured[0]?.searchParams.get('unread_only')).toBe('true')
+    expect(captured[0]?.searchParams.get('limit')).toBe('50')
   })
 })
 
 describe('useNotificationsHistory', () => {
   it('fetches with unread_only=false', async () => {
-    let calledWith: URL | null = null
+    const captured: URL[] = []
     server.use(
       http.get('http://localhost/api/me/notifications', ({ request }) => {
-        calledWith = new URL(request.url)
+        captured.push(new URL(request.url))
         return HttpResponse.json({ items: [] })
       }),
     )
     const { Wrapper } = wrap()
     const { result } = renderHook(() => useNotificationsHistory(), { wrapper: Wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(calledWith?.searchParams.get('unread_only')).toBe('false')
+    expect(captured[0]?.searchParams.get('unread_only')).toBe('false')
   })
 })
 
 describe('useMarkReadMutation', () => {
   it('POSTs /{id}/read and invalidates the notifications cache', async () => {
-    let posted: string | null = null
+    const posted: string[] = []
     server.use(
       http.post('http://localhost/api/me/notifications/:id/read', ({ params }) => {
-        posted = String(params.id)
+        posted.push(String(params.id))
         return HttpResponse.json({ ok: true })
       }),
     )
@@ -78,7 +78,7 @@ describe('useMarkReadMutation', () => {
     const spy = vi.spyOn(qc, 'invalidateQueries')
     const { result } = renderHook(() => useMarkReadMutation(), { wrapper: Wrapper })
     await act(async () => { await result.current.mutateAsync(42) })
-    expect(posted).toBe('42')
+    expect(posted[0]).toBe('42')
     expect(spy).toHaveBeenCalledWith({ queryKey: notificationsKeys.all })
   })
 })
