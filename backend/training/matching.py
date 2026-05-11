@@ -8,7 +8,7 @@ Subset-semantic concept matching contract:
     for every key k in c:
       if k == "source_text": skip (source_text is never a constraint)
       if c[k] is empty (None or ""): skip (empty value = wildcard)
-      else: r.get(k) must equal c[k] (exact string match)
+      else: r.get(k) must equal c[k] (after string normalization)
 
   A concept "matches" a reference list if AT LEAST ONE reference satisfies
   the above.
@@ -17,6 +17,7 @@ Subset-semantic concept matching contract:
   A gold doc passes if match_count >= min_concept_count.
 """
 from typing import Iterable
+import unicodedata
 
 
 _IGNORED_FIELDS = ("source_text",)
@@ -51,16 +52,57 @@ def _concept_constraints(concept: dict) -> dict:
     }
 
 
+def _normalize_value(v):
+    """Normalize a concept/reference field value for tolerant comparison.
+
+    Pipeline:
+      1. None → return None (preserves wildcard semantics in
+         _concept_constraints).
+      2. unicodedata.normalize('NFC', str(v)) — combine code points
+         so 'ü' and 'ü' compare equal.
+      3. .strip().lower() — Turkish-safe; Python's str.lower() handles
+         most cases, including İ → i + combining dot.
+      4. Strip U+0307 (combining dot above) that lower() introduced on İ.
+      5. ' '.join(s.split()) — collapse runs of whitespace.
+      6. For each space-separated token that is pure digits, strip
+         leading zeros (preserving '0' as '0' so it never becomes empty).
+
+    Returns '' for inputs that became empty after strip, so that
+    _concept_constraints' empty-value filter still excludes them as
+    'wildcard' values.
+    """
+    if v is None:
+        return None
+    s = unicodedata.normalize("NFC", str(v))
+    if not s.strip():
+        return ""
+    s = s.strip().lower().replace("̇", "")
+    s = " ".join(s.split())
+    parts = s.split(" ")
+    out_parts: list[str] = []
+    for p in parts:
+        if p.isdigit():
+            out_parts.append(p.lstrip("0") or "0")
+        else:
+            out_parts.append(p)
+    return " ".join(out_parts)
+
+
 def match_concept(concept: dict, references: Iterable[dict]) -> bool:
     """Return True iff at least one reference satisfies all constraints
-    in `concept` (subset semantics)."""
-    constraints = _concept_constraints(concept)
+    in `concept` (subset semantics) after string normalization.
+
+    Normalization is applied symmetrically to concept values AND
+    reference values before equality comparison; see _normalize_value
+    for the pipeline. source_text is still excluded from constraints.
+    """
+    constraints_raw = _concept_constraints(concept)
+    constraints = {k: _normalize_value(v) for k, v in constraints_raw.items()}
     if not constraints:
-        # A concept with zero constraints is a "match anything" placeholder;
-        # treat as matching iff there's at least one reference.
         return any(True for _ in references)
     for r in references:
-        if all(r.get(k) == v for k, v in constraints.items()):
+        normed = {k: _normalize_value(r.get(k)) for k in constraints}
+        if all(normed.get(k) == v for k, v in constraints.items()):
             return True
     return False
 
