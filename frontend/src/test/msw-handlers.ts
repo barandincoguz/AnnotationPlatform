@@ -281,6 +281,8 @@ const TRAINING_DEFAULT_HANDLERS = [
     HttpResponse.json({ passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 }),
   ),
   http.post(`${API}/api/me/seen-manual`, () => HttpResponse.json({ ok: true })),
+  // 16c.1: skip training escape hatch
+  http.post(`${API}/api/training/skip`, () => HttpResponse.json({ ok: true })),
 ]
 
 export function mockTrainingStartLockedOut() {

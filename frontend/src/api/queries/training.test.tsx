@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
 import type { ReactNode } from 'react'
 import {
   mockTrainingStartLockedOut,
@@ -12,7 +14,13 @@ import {
   useTrainingStartMutation,
   useQuizSubmitMutation,
   useAnnotateSubmitMutation,
+  useSkipTrainingMutation,
 } from './training'
+import { toast } from 'sonner'
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}))
 
 function createWrapper() {
   const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
@@ -85,5 +93,56 @@ describe('useAnnotateSubmitMutation', () => {
       references: [],
     })
     expect(data).toMatchObject({ passed: true, matched_count: 2 })
+  })
+})
+
+function wrapWithRouter() {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  const Wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
+  )
+  Wrapper.displayName = 'TestWrapperWithRouter'
+  return Wrapper
+}
+
+describe('useSkipTrainingMutation (16c.1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('POSTs /skip, refreshes auth, and shows warning toast on success', async () => {
+    let posted = false
+    server.use(
+      http.post('http://localhost/api/training/skip', () => {
+        posted = true
+        return HttpResponse.json({ ok: true })
+      }),
+      http.get('http://localhost/api/auth/me', () =>
+        HttpResponse.json({
+          id: 1, username: 'tester', email: null, role: 'user',
+          is_active: true, has_seen_manual: true, has_passed_training: true,
+          avatar_color: '#3b82f6', created_at: '2026-05-01T00:00:00+00:00',
+        })),
+    )
+    const { result } = renderHook(() => useSkipTrainingMutation(), { wrapper: wrapWithRouter() })
+    await act(async () => { await result.current.mutateAsync() })
+    expect(posted).toBe(true)
+    expect(toast.warning).toHaveBeenCalled()
+  })
+
+  it('shows toast.error on backend failure', async () => {
+    server.use(
+      http.post('http://localhost/api/training/skip', () =>
+        HttpResponse.json({ detail: 'boom' }, { status: 500 })),
+    )
+    const { result } = renderHook(() => useSkipTrainingMutation(), { wrapper: wrapWithRouter() })
+    await act(async () => {
+      await result.current.mutateAsync().catch(() => null)
+    })
+    expect(toast.error).toHaveBeenCalled()
   })
 })
