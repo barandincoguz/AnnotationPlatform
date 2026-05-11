@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.notifications import service
 from backend.notifications.models import (
-    NotificationListResponse, OkResponse,
+    NotificationListResponse, OkResponse, MarkAllReadResponse,
 )
 from backend.users.deps import get_current_user, get_db
 
@@ -41,3 +41,14 @@ def mark_read(
     except service.NotificationNotFound:
         raise HTTPException(status_code=404, detail="notification not found")
     return {"ok": True}
+
+
+@router.post("/read-all", response_model=MarkAllReadResponse)
+def mark_all_read(
+    db: sqlite3.Connection = Depends(get_db),
+    user: sqlite3.Row = Depends(get_current_user),
+):
+    """Atomic 'read everything' for the caller's inbox. Returns the count
+    of rows newly marked read; 0 if nothing was unread."""
+    count = service.mark_all_read(db, user_id=user["id"])
+    return {"marked_count": count}

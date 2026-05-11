@@ -20,3 +20,7 @@ class NotificationListResponse(BaseModel):
 
 class OkResponse(BaseModel):
     ok: bool = True
+
+
+class MarkAllReadResponse(BaseModel):
+    marked_count: int
