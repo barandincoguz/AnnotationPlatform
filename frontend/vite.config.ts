@@ -48,7 +48,6 @@ export default defineConfig({
         'src/routes/Annotate.tsx',
         'src/routes/Profile.tsx',
         'src/routes/Help.tsx',
-        'src/routes/Training.tsx',
         'src/routes/NotFound.tsx',
         'src/routes/admin/AdminLayout.tsx',
         // shadcn primitives installed for later use — vendor-style code
