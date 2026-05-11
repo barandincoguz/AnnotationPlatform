@@ -240,3 +240,34 @@ def seen_manual_passed_user(client):
         client.post("/api/auth/login", json={"username": username, "password": password})
         return user_id
     return _do
+
+
+# === Paket 16d helpers ===
+
+
+@pytest.fixture
+def db_conn(client):
+    """Direct database connection for test setup. Uses the same DB as client."""
+    from backend.shared.db import connect
+    from backend import config
+    conn = connect(config.DB_PATH)
+    yield conn
+    conn.close()
+
+
+@pytest.fixture
+def seed_extra_user(db_conn):
+    """Insert a user row and return its id. Caller picks username."""
+    def _seed(*, username: str = "watcher", avatar_color: str = "#22c55e",
+              role: str = "user") -> int:
+        cur = db_conn.execute(
+            "INSERT INTO users(username, email, password_hash, role, "
+            "is_active, has_seen_manual, has_passed_training, avatar_color, "
+            "created_at, updated_at) "
+            "VALUES (?, NULL, 'pbkdf2_sha256$1$test$x', ?, 1, 1, 1, ?, "
+            "datetime('now'), datetime('now'))",
+            (username, role, avatar_color),
+        )
+        db_conn.commit()
+        return cur.lastrowid
+    return _seed
