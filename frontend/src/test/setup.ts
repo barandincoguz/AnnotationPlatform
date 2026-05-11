@@ -25,5 +25,5 @@ afterAll(() => server.close())
 
 /** Opt-in helper for tests that intentionally trigger React errors. */
 export function silenceConsoleError() {
-  return vi.spyOn(console, 'error').mockImplementation(() => {})
+  return vi.spyOn(console, 'error').mockImplementation(() => undefined)
 }

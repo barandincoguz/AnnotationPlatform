@@ -6,8 +6,8 @@ import { afterEach } from 'vitest'
 
 interface RenderOpts extends Omit<RenderOptions, 'wrapper'> {
   initialEntries?: string[]
-  destinationStubs?: Array<{ path: string; testId: string }>
-  extraDestinationStubs?: Array<{ path: string; testId: string }>
+  destinationStubs?: { path: string; testId: string }[]
+  extraDestinationStubs?: { path: string; testId: string }[]
 }
 
 function makeTestQueryClient() {

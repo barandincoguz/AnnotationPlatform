@@ -9,7 +9,17 @@ import prettier from 'eslint-config-prettier'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'src/api/types.ts'] },
+  {
+    ignores: [
+      'dist',
+      'coverage',
+      'node_modules',
+      'src/api/types.ts',
+      'src/components/ui/**',
+      'tailwind.config.ts',
+      'postcss.config.js',
+    ],
+  },
   // ----- Block 1: app code (type-aware) -----
   {
     files: ['src/**/*.{ts,tsx}'],

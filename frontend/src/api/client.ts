@@ -21,6 +21,9 @@ export function _resetHydrationStateForTests() {
 }
 
 const authInterceptor: Middleware = {
+  // openapi-fetch's Middleware type declares onResponse as async; we keep
+  // the signature to honor the contract even though no await is needed.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async onResponse({ response, request }) {
     if (response.status !== 401) return
     const url = new URL(request.url)
@@ -33,8 +36,13 @@ const authInterceptor: Middleware = {
   },
 }
 
+const baseUrl: string =
+  typeof import.meta.env.VITE_API_BASE_URL === 'string'
+    ? import.meta.env.VITE_API_BASE_URL
+    : ''
+
 export const client = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_BASE_URL ?? '',
+  baseUrl,
   credentials: 'include',
   // Resolve fetch at call time, not at module-import time. This lets MSW's
   // server.listen() (which runs in beforeAll) install its interceptor by
@@ -65,7 +73,11 @@ export class UnexpectedEmptyResponse extends Error {
   }
 }
 
-type FetchResult<T> = { data?: T; error?: unknown; response: Response }
+interface FetchResult<T> {
+  data?: T
+  error?: unknown
+  response: Response
+}
 
 function parseErrorDetail(
   detail: unknown,
@@ -84,10 +96,13 @@ function parseErrorDetail(
   }
   if (Array.isArray(detail) && detail.length > 0) {
     const msgs = detail
-      .map((e: any) => e?.msg ?? String(e))
+      .map((e) => {
+        const m = (e as { msg?: unknown })?.msg
+        return typeof m === 'string' ? m : String(e)
+      })
       .filter(Boolean)
       .join('; ')
-    const firstType = (detail[0] as any)?.type
+    const firstType = (detail[0] as { type?: unknown })?.type
     return {
       code: typeof firstType === 'string' ? firstType : 'validation_error',
       message: msgs || 'Doğrulama hatası',
@@ -97,9 +112,15 @@ function parseErrorDetail(
 }
 
 /** Unwrap a result where a body is expected. Throws on empty body or error. */
+// `async` is intentional: callers/tests rely on thrown errors becoming
+// rejected promises (e.g. `await expect(unwrap(...)).rejects.toBeInstanceOf`).
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function unwrap<T>(result: FetchResult<T>): Promise<T> {
   if (result.error !== undefined) {
-    const detail = (result.error as any)?.detail ?? result.error
+    const detail =
+      result.error && typeof result.error === 'object' && 'detail' in result.error
+        ? result.error.detail
+        : result.error
     const { code, message } = parseErrorDetail(detail, result.response.status)
     throw new ApiError(result.response.status, code, message, result.error)
   }
@@ -112,11 +133,16 @@ export async function unwrap<T>(result: FetchResult<T>): Promise<T> {
 }
 
 /** Unwrap a result where no body is expected (204, {ok:true}). */
+// `async` is intentional: see comment on `unwrap` above.
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function unwrapVoid(
   result: FetchResult<unknown>,
 ): Promise<void> {
   if (result.error !== undefined) {
-    const detail = (result.error as any)?.detail ?? result.error
+    const detail =
+      result.error && typeof result.error === 'object' && 'detail' in result.error
+        ? result.error.detail
+        : result.error
     const { code, message } = parseErrorDetail(detail, result.response.status)
     throw new ApiError(result.response.status, code, message, result.error)
   }
