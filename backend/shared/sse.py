@@ -42,13 +42,37 @@ class SSEBroker:
         self, user_ids: Iterable[int], event_type: str, data: dict
     ) -> None:
         event = SSEEvent(event_type=event_type, data=data)
-        for uid in user_ids:
+        # Drained queues are cleaned up below. We iterate over a snapshot
+        # because cleanup mutates self._subscribers.
+        dropped: list[tuple[int, asyncio.Queue]] = []
+        for uid in list(user_ids):
             for q in list(self._subscribers.get(uid, [])):
                 try:
                     q.put_nowait(event)
                 except asyncio.QueueFull:
-                    # Slow consumer — drop
-                    pass
+                    # Slow consumer — remove the dead queue so it does not
+                    # ghost the online roster forever (Codex BROKEN, Pass 3).
+                    dropped.append((uid, q))
+
+        for uid, q in dropped:
+            self.unsubscribe(uid, q)
+            # Only fire user_offline when the cleanup removed the user's
+            # LAST queue — they may still be online via another tab.
+            if uid not in self._subscribers:
+                offline_event = SSEEvent(
+                    event_type="user_offline", data={"id": uid},
+                )
+                for target_uid in list(self._subscribers.keys()):
+                    if target_uid == uid:
+                        continue
+                    for q2 in list(self._subscribers.get(target_uid, [])):
+                        try:
+                            q2.put_nowait(offline_event)
+                        except asyncio.QueueFull:
+                            # Don't recurse into cleanup-of-cleanup; accept
+                            # the drop. Next 30s polling reconcile will
+                            # converge state.
+                            pass
 
     async def publish_broadcast(self, event_type: str, data: dict) -> None:
         await self.publish_to(self._subscribers.keys(), event_type, data)
