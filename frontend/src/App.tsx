@@ -14,6 +14,8 @@ import { Login } from '@/routes/Login'
 import { Register } from '@/routes/Register'
 import { NotFound } from '@/routes/NotFound'
 import { Annotate } from '@/routes/Annotate'
+import { AnnotateLayout } from '@/routes/AnnotateLayout'
+import { AnnotateDoc } from '@/routes/AnnotateDoc'
 import { Profile } from '@/routes/Profile'
 import { Help } from '@/routes/Help'
 import { Training } from '@/routes/Training'
@@ -93,7 +95,10 @@ export default function App() {
 
           <Route element={<RequirePassedTraining />}>
             <Route element={<AppShell />}>
-              <Route path="/" element={<Annotate />} />
+              <Route element={<AnnotateLayout />}>
+                <Route path="/" element={<Annotate />} />
+                <Route path="/docs/:docId" element={<AnnotateDoc />} />
+              </Route>
               <Route path="/me" element={<Profile />} />
             </Route>
           </Route>

@@ -1,10 +1,10 @@
 export function Annotate() {
   return (
-    <div className="p-8" data-testid="stub-annotate">
-      <h1 className="text-xl font-semibold">Annotate</h1>
-      <p className="text-sm text-muted-foreground">
-        16b&apos;de aktive edilecek (DocList, DocViewer, ReferencePanel).
-      </p>
+    <div
+      className="flex h-full items-center justify-center p-8 text-muted-foreground"
+      data-testid="stub-annotate"
+    >
+      <p>Listeden bir doküman seçin.</p>
     </div>
   )
 }
