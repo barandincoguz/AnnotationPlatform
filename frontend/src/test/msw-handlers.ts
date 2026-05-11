@@ -81,6 +81,20 @@ export function makeReferenceItem(overrides: Partial<ReferenceItem> = {}): Refer
 // see client.test.ts for the established pattern).
 const API = 'http://localhost'
 
+const HELP_DEFAULT_SECTIONS = [
+  { id: '01-welcome', order: 1, title: 'Hoş geldin', body: '# Hoş geldin\n\nMerhaba.' },
+  { id: '02-getting-started', order: 2, title: 'Başlarken', body: '# Başlarken\n\nİlk adım.' },
+  { id: '03-annotation-guide', order: 3, title: 'Anotasyon', body: '# Anotasyon\n\nReferans ekle.' },
+]
+
+export function makeHelpResponse(overrides?: { sections?: typeof HELP_DEFAULT_SECTIONS }) {
+  return { sections: overrides?.sections ?? HELP_DEFAULT_SECTIONS }
+}
+
+const HELP_DEFAULT_HANDLER = http.get(`${API}/api/help`, () =>
+  HttpResponse.json(makeHelpResponse()),
+)
+
 const ANNOTATE_DEFAULTS = [
   http.get(`${API}/api/feed`, () => HttpResponse.json({ items: [makeFeedItem()], total: 1 })),
   http.get(`${API}/api/documents/:docId`, ({ params }) =>
@@ -145,6 +159,7 @@ export const handlers = [
       status: 201,
     }),
   ),
+  HELP_DEFAULT_HANDLER,
   ...ANNOTATE_DEFAULTS,
 ]
 
