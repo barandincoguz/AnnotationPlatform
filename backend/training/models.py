@@ -11,6 +11,8 @@ class QuestionOut(BaseModel):
 class GoldDocOut(BaseModel):
     gold_id: str
     content: str
+    expected_concepts: list[dict]   # 16c.1 — reveal panel needs this
+    min_concept_count: int          # 16c.1 — reveal panel label
 
 
 class StartResponse(BaseModel):

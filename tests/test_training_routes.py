@@ -67,11 +67,12 @@ def test_start_returns_5_questions_and_3_gold_docs(client):
     assert "attempt_id" in data
     assert len(data["questions"]) == 5
     assert len(data["gold_docs"]) == 3
-    # No leaks
+    # No leaks on quiz answers
     for q in data["questions"]:
         assert "correct_choice_idx" not in q
+    # Per 16c.1: gold doc expected_concepts ARE exposed (reveal panel, no penalty)
     for g in data["gold_docs"]:
-        assert "expected_concepts" not in g
+        assert set(g.keys()) == {"gold_id", "content", "expected_concepts", "min_concept_count"}
 
 
 def test_start_409_when_already_passed(client):
@@ -167,3 +168,31 @@ def test_annotate_submit_resubmit_409(client):
         "attempt_id": aid, "gold_id": gid, "references": [],
     })
     assert r.status_code == 409
+
+
+def test_start_response_includes_expected_concepts(passed_user, db_conn):
+    """Per Paket 16c.1: the start payload exposes expected_concepts and
+    min_concept_count per gold doc so the reveal panel can render them.
+
+    NOTE: this leaks answers to the client. Acceptable in 16c.1
+    because the design decision was 'reveal panel, no penalty'.
+    """
+    me_id = passed_user["user"]["id"]
+    db_conn.execute(
+        "DELETE FROM training_attempts WHERE user_id=?", (me_id,),
+    )
+    db_conn.execute(
+        "UPDATE users SET has_passed_training=0 WHERE id=?", (me_id,),
+    )
+    db_conn.commit()
+
+    res = passed_user["client"].get("/api/training/start")
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert "gold_docs" in body
+    assert len(body["gold_docs"]) >= 1
+    for doc in body["gold_docs"]:
+        assert "expected_concepts" in doc, doc
+        assert isinstance(doc["expected_concepts"], list)
+        assert "min_concept_count" in doc
+        assert isinstance(doc["min_concept_count"], int)

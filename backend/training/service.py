@@ -175,8 +175,20 @@ def _strip_correct_answers(questions: list[dict]) -> list[dict]:
 
 
 def _strip_gold_answers(docs: list[dict]) -> list[dict]:
+    """Project the resolver gold-doc dicts down to the wire shape.
+
+    Per 16c.1: expected_concepts and min_concept_count are preserved
+    (not stripped) so the AnnotateStep reveal panel can render them.
+    The "strip" name is kept for git-history continuity even though
+    we no longer strip those two fields.
+    """
     return [
-        {"gold_id": d["gold_id"], "content": d["content"]}
+        {
+            "gold_id": d["gold_id"],
+            "content": d["content"],
+            "expected_concepts": d["expected_concepts"],
+            "min_concept_count": d["min_concept_count"],
+        }
         for d in docs
     ]
 
