@@ -49,7 +49,7 @@ export function SkipConfirmDialog({ open, onClose }: SkipConfirmDialogProps) {
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={() => { setConfirmText(''); onClose() }}
             disabled={skip.isPending}
           >
             Vazgeç

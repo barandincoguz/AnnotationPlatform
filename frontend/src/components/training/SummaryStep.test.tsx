@@ -7,9 +7,9 @@ import { SummaryStep } from './SummaryStep'
 import { makeUser } from '@/test/msw-handlers'
 
 const goldDocs = [
-  { gold_id: 'gold_a', content: 'A' },
-  { gold_id: 'gold_b', content: 'B' },
-  { gold_id: 'gold_c', content: 'C' },
+  { gold_id: 'gold_a', content: 'A', expected_concepts: [], min_concept_count: 1 },
+  { gold_id: 'gold_b', content: 'B', expected_concepts: [], min_concept_count: 1 },
+  { gold_id: 'gold_c', content: 'C', expected_concepts: [], min_concept_count: 1 },
 ]
 
 describe('SummaryStep', () => {

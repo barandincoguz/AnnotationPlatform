@@ -5,9 +5,9 @@ import { useTrainingStore } from '@/stores/trainingStore'
 import { AnnotateStep } from './AnnotateStep'
 
 const goldDocs = [
-  { gold_id: 'gold_a', content: 'Doc A içeriği — KVK 5/1-a uyarınca...' },
-  { gold_id: 'gold_b', content: 'Doc B içeriği — KDV 29...' },
-  { gold_id: 'gold_c', content: 'Doc C içeriği — GVK Geçici 67...' },
+  { gold_id: 'gold_a', content: 'Doc A içeriği — KVK 5/1-a uyarınca...', expected_concepts: [{ kanun_no: '5520', madde: '5' }], min_concept_count: 1 },
+  { gold_id: 'gold_b', content: 'Doc B içeriği — KDV 29...', expected_concepts: [{ kanun_no: '3065', madde: '29' }], min_concept_count: 1 },
+  { gold_id: 'gold_c', content: 'Doc C içeriği — GVK Geçici 67...', expected_concepts: [{ kanun_no: '193', madde: 'Geçici 67' }], min_concept_count: 1 },
 ]
 
 describe('AnnotateStep', () => {
