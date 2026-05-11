@@ -12,13 +12,13 @@ export function registerPresenceHandlers(
   es: EventSource, opts: PresenceHandlerOpts,
 ) {
   es.addEventListener('user_online', (e) => {
-    const data = parseEventData(e as MessageEvent, userOnlinePayloadSchema)
+    const data = parseEventData(e, userOnlinePayloadSchema)
     if (!data) return
     void opts.qc.invalidateQueries({ queryKey: usersKeys.online() })
   })
 
   es.addEventListener('user_offline', (e) => {
-    const data = parseEventData(e as MessageEvent, userOfflinePayloadSchema)
+    const data = parseEventData(e, userOfflinePayloadSchema)
     if (!data) return
     void opts.qc.invalidateQueries({ queryKey: usersKeys.online() })
   })

@@ -1,3 +1,4 @@
+/* eslint-disable react/display-name -- test wrappers, no display name needed */
 import { describe, it, expect } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

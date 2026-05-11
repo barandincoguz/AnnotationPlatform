@@ -57,7 +57,7 @@ describe('parseEventData', () => {
 
   it('returns null on invalid JSON without throwing', () => {
     const e = new MessageEvent('badge_unlocked', { data: 'not-json' })
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     expect(parseEventData(e, badgeUnlockedSchema)).toBeNull()
     warn.mockRestore()
   })
@@ -66,7 +66,7 @@ describe('parseEventData', () => {
     const e = new MessageEvent('badge_unlocked', {
       data: JSON.stringify({ wrong: 'shape' }),
     })
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     expect(parseEventData(e, badgeUnlockedSchema)).toBeNull()
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()

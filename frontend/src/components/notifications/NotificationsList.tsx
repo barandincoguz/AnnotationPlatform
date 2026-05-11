@@ -20,7 +20,7 @@ export function NotificationsList() {
           <button
             type="button"
             className="underline"
-            onClick={() => history.refetch()}
+            onClick={() => { void history.refetch() }}
           >
             Yeniden dene
           </button>

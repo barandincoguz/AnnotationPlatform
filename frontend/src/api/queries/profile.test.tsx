@@ -1,3 +1,4 @@
+/* eslint-disable react/display-name -- test wrappers, no display name needed */
 import { describe, it, expect } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
