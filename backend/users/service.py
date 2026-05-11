@@ -285,6 +285,11 @@ def enable_user(
     trace_id: Optional[str] = None,
 ) -> None:
     _ensure_admin(db, admin_user_id)
+    target = db.execute(
+        "SELECT id FROM users WHERE id=?", (target_user_id,)
+    ).fetchone()
+    if target is None:
+        raise UserNotFound(f"user {target_user_id} not found")
     db.execute(
         "UPDATE users SET is_active=1, updated_at=? WHERE id=?",
         (_now(), target_user_id),

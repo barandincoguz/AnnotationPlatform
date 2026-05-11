@@ -1,5 +1,5 @@
 """Pydantic schemas for the training endpoints."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class QuestionOut(BaseModel):
@@ -56,9 +56,18 @@ class ConceptInput(BaseModel):
 
 
 class GoldDocUpsertRequest(BaseModel):
-    content: str
-    expected_concepts: list[ConceptInput]
-    min_concept_count: int
+    content: str = Field(min_length=1)
+    expected_concepts: list[ConceptInput] = Field(min_length=1, max_length=50)
+    min_concept_count: int = Field(ge=1)
+
+    @model_validator(mode='after')
+    def check_min_concept_count_in_range(self):
+        if self.min_concept_count > len(self.expected_concepts):
+            raise ValueError(
+                f"min_concept_count ({self.min_concept_count}) cannot exceed "
+                f"expected_concepts length ({len(self.expected_concepts)})"
+            )
+        return self
 
 
 class GoldDocsListResponse(BaseModel):
@@ -67,9 +76,20 @@ class GoldDocsListResponse(BaseModel):
 
 
 class QuizUpsertRequest(BaseModel):
-    text: str
-    choices: list[str]
-    correct_choice_idx: int
+    text: str = Field(min_length=1)
+    choices: list[str] = Field(min_length=2, max_length=8)
+    correct_choice_idx: int = Field(ge=0)
+
+    @model_validator(mode='after')
+    def check_correct_idx_in_range(self):
+        if self.correct_choice_idx >= len(self.choices):
+            raise ValueError(
+                f"correct_choice_idx ({self.correct_choice_idx}) must be in range "
+                f"[0, {len(self.choices)})"
+            )
+        if any(not c.strip() for c in self.choices):
+            raise ValueError("choices entries must be non-empty strings")
+        return self
 
 
 class QuizListResponse(BaseModel):
