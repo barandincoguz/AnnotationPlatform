@@ -1,8 +1,7 @@
 """B4: enable_user / disable_user must 404 for non-existent target users."""
-import sqlite3
 
 
-def _register_target_user(client, bootstrap_admin):
+def _register_target_user(client):
     """Helper: admin already logged in; registers a plain target user, returns user_id."""
     client.post("/api/auth/register", json={
         "username": "target_user", "password": "password123",
@@ -32,7 +31,7 @@ def test_enable_user_returns_404_includes_message(client, bootstrap_admin):
 
 def test_enable_existing_user_succeeds(client, bootstrap_admin):
     bootstrap_admin()
-    target_id = _register_target_user(client, bootstrap_admin)
+    target_id = _register_target_user(client)
     # Disable first, then re-enable
     client.post(f"/api/admin/users/{target_id}/disable")
     resp = client.post(f"/api/admin/users/{target_id}/enable")
@@ -102,7 +101,7 @@ def test_disable_nonexistent_does_not_write_audit_log(client, bootstrap_admin):
 
 def test_disable_existing_user_succeeds(client, bootstrap_admin):
     bootstrap_admin()
-    target_id = _register_target_user(client, bootstrap_admin)
+    target_id = _register_target_user(client)
     resp = client.post(f"/api/admin/users/{target_id}/disable")
     assert resp.status_code == 200
     assert resp.json() == {"ok": True}
