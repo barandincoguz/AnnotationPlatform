@@ -3,19 +3,8 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/test/msw-server'
-import type { ProfileResponse } from '@/lib/profileSchemas'
+import { makeProfile } from '@/test/msw-handlers'
 import { useProfile, profileKeys } from './profile'
-
-function makeProfile(overrides: Partial<ProfileResponse> = {}): ProfileResponse {
-  return {
-    user: { id: 1, username: 'tester', role: 'user', avatar_color: '#3b82f6' },
-    xp: { total: 0 },
-    streak: { current: 0, longest: 0, last_active_date: null },
-    today: { save: 0, complete: 0, review: 0, skip: 0, daily_target: 10 },
-    badges: [],
-    ...overrides,
-  }
-}
 
 function wrap() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
