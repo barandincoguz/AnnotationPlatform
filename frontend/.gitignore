@@ -6,3 +6,8 @@ coverage
 *.log
 .DS_Store
 .vite
+
+# tsc -b composite build artifacts (regenerated on every build)
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js

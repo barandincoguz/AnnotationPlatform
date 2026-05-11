@@ -3,11 +3,7 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { server } from './msw-server'
 import { useAuthStore } from '@/stores/authStore'
-import {
-  setNavigator,
-  setAuthHandlers,
-  _resetHydrationStateForTests,
-} from '@/api/client'
+import { setNavigator, setAuthHandlers, _resetHydrationStateForTests } from '@/api/client'
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 

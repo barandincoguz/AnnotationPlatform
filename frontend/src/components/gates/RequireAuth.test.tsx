@@ -32,9 +32,15 @@ describe('RequireAuth', () => {
 
   it('renders the outlet when authed', () => {
     useAuthStore.getState().setUser({
-      id: 1, username: 'a', email: null, role: 'user',
-      is_active: true, has_seen_manual: true, has_passed_training: true,
-      avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+      id: 1,
+      username: 'a',
+      email: null,
+      role: 'user',
+      is_active: true,
+      has_seen_manual: true,
+      has_passed_training: true,
+      avatar_color: null,
+      created_at: '2026-05-01T00:00:00+00:00',
     })
     renderWithProviders(<ProtectedTree />, {
       initialEntries: ['/'],

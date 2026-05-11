@@ -24,7 +24,9 @@ describe('App hydration', () => {
     renderWithProviders(<App />, { initialEntries: ['/'], wildcardEntry: true })
     await waitFor(() => expect(useAuthStore.getState().status).toBe('anon'))
     // RequireAuth redirects to /login; the Login form should render
-    await waitFor(() => expect(screen.getByRole('button', { name: /giriş yap/i })).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /giriş yap/i })).toBeInTheDocument(),
+    )
   })
 
   it('on network error: shows error mode + retry button works', async () => {
@@ -39,9 +41,7 @@ describe('App hydration', () => {
       }),
     )
     renderWithProviders(<App />, { initialEntries: ['/'], wildcardEntry: true })
-    await waitFor(() =>
-      expect(screen.getByText(/Sunucuya bağlanılamadı/i)).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText(/Sunucuya bağlanılamadı/i)).toBeInTheDocument())
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /tekrar dene/i }))

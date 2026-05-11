@@ -1,9 +1,5 @@
 import { useAuthStore, selectIsAuthed, selectIsAdmin } from '@/stores/authStore'
-import {
-  useLoginMutation,
-  useRegisterMutation,
-  useLogoutMutation,
-} from '@/api/queries/auth'
+import { useLoginMutation, useRegisterMutation, useLogoutMutation } from '@/api/queries/auth'
 
 export function useAuth() {
   const status = useAuthStore((s) => s.status)

@@ -15,19 +15,14 @@ describe('Register route', () => {
     await user.type(screen.getByLabelText(/şifre/i), 'StrongPw1!')
     await user.type(screen.getByLabelText(/davet kodu/i), 'XYZ')
     await user.click(screen.getByRole('button', { name: /kayıt ol/i }))
-    await waitFor(() =>
-      expect(screen.getByTestId('route-login')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByTestId('route-login')).toBeInTheDocument())
     expect(useAuthStore.getState().status).not.toBe('authed')
   })
 
   it('on 409 username taken: shows error', async () => {
     server.use(
       http.post('http://localhost/api/auth/register', () =>
-        HttpResponse.json(
-          { detail: "username 'newone' already taken" },
-          { status: 409 },
-        ),
+        HttpResponse.json({ detail: "username 'newone' already taken" }, { status: 409 }),
       ),
     )
     const user = userEvent.setup()
@@ -36,9 +31,7 @@ describe('Register route', () => {
     await user.type(screen.getByLabelText(/şifre/i), 'StrongPw1!')
     await user.type(screen.getByLabelText(/davet kodu/i), 'XYZ')
     await user.click(screen.getByRole('button', { name: /kayıt ol/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/already taken/i)).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText(/already taken/i)).toBeInTheDocument())
   })
 
   it('on 403 invalid invite: shows error', async () => {
@@ -53,8 +46,6 @@ describe('Register route', () => {
     await user.type(screen.getByLabelText(/şifre/i), 'StrongPw1!')
     await user.type(screen.getByLabelText(/davet kodu/i), 'WRONG')
     await user.click(screen.getByRole('button', { name: /kayıt ol/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/invalid invite/i)).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText(/invalid invite/i)).toBeInTheDocument())
   })
 })

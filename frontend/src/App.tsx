@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Route, Routes } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  client,
-  setNavigator,
-  setAuthHandlers,
-  markHydrated,
-} from '@/api/client'
+import { client, setNavigator, setAuthHandlers, markHydrated } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import { authKeys } from '@/api/queries/auth'
 import { LoadingScreen } from '@/components/shell/LoadingScreen'
@@ -83,8 +78,7 @@ export default function App() {
   }
 
   if (status === 'loading') return <LoadingScreen />
-  if (status === 'error')
-    return <LoadingScreen mode="error" onRetry={handleRetry} />
+  if (status === 'error') return <LoadingScreen mode="error" onRetry={handleRetry} />
 
   return (
     <Routes>

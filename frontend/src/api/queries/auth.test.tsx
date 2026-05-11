@@ -6,12 +6,7 @@ import { server } from '@/test/msw-server'
 import { mockAuthedUser, makeUser } from '@/test/msw-handlers'
 import { http, HttpResponse } from 'msw'
 import type { ApiError } from '@/api/client'
-import {
-  useMe,
-  useLoginMutation,
-  useRegisterMutation,
-  useLogoutMutation,
-} from './auth'
+import { useMe, useLoginMutation, useRegisterMutation, useLogoutMutation } from './auth'
 
 beforeEach(() => {
   useAuthStore.setState({ status: 'loading', user: null, error: null })
@@ -26,9 +21,7 @@ describe('useMe', () => {
       return <div data-testid="result">{q.data?.username ?? 'pending'}</div>
     }
     renderWithProviders(<Probe />)
-    await waitFor(() =>
-      expect(screen.getByTestId('result').textContent).toBe('alice'),
-    )
+    await waitFor(() => expect(screen.getByTestId('result').textContent).toBe('alice'))
   })
 
   it('is disabled when status is anon', () => {
@@ -52,9 +45,7 @@ describe('useRegisterMutation', () => {
       return (
         <button
           data-testid="trigger"
-          onClick={() =>
-            m.mutate({ username: 'new', password: 'Strong1!', invite_code: 'XYZ' })
-          }
+          onClick={() => m.mutate({ username: 'new', password: 'Strong1!', invite_code: 'XYZ' })}
         >
           go
         </button>
@@ -62,9 +53,7 @@ describe('useRegisterMutation', () => {
     }
     renderWithProviders(<Probe />, { initialEntries: ['/register'] })
     act(() => screen.getByTestId('trigger').click())
-    await waitFor(() =>
-      expect(screen.getByTestId('route-login')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByTestId('route-login')).toBeInTheDocument())
     expect(toastSpy).toHaveBeenCalled()
     // authStore must NOT be seeded — backend register did not set a session
     expect(useAuthStore.getState().status).not.toBe('authed')
@@ -85,27 +74,20 @@ describe('useLogoutMutation', () => {
     renderWithProviders(<Probe />, { initialEntries: ['/'] })
     act(() => screen.getByTestId('trigger').click())
     await waitFor(() => expect(useAuthStore.getState().status).toBe('anon'))
-    await waitFor(() =>
-      expect(screen.getByTestId('route-login')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByTestId('route-login')).toBeInTheDocument())
   })
 })
 
 describe('useLoginMutation', () => {
   it('on success: makes a follow-up /me call, seeds authStore', async () => {
     server.use(
-      http.post('http://localhost/api/auth/login', () =>
-        HttpResponse.json({ ok: true }),
-      ),
+      http.post('http://localhost/api/auth/login', () => HttpResponse.json({ ok: true })),
       mockAuthedUser({ username: 'bob' }),
     )
     function Probe() {
       const m = useLoginMutation()
       return (
-        <button
-          data-testid="trigger"
-          onClick={() => m.mutate({ username: 'bob', password: 'pw' })}
-        >
+        <button data-testid="trigger" onClick={() => m.mutate({ username: 'bob', password: 'pw' })}>
           go
         </button>
       )
@@ -132,9 +114,7 @@ describe('useLoginMutation', () => {
           <button data-testid="trigger" onClick={() => m.mutate({ username: 'x', password: 'y' })}>
             go
           </button>
-          <div data-testid="state">
-            {m.isError ? `err:${(m.error as ApiError).code}` : '...'}
-          </div>
+          <div data-testid="state">{m.isError ? `err:${(m.error as ApiError).code}` : '...'}</div>
         </>
       )
     }

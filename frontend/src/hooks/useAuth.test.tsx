@@ -17,9 +17,15 @@ beforeEach(() => useAuthStore.setState({ status: 'loading', user: null, error: n
 describe('useAuth', () => {
   it('exposes status, user, isAuthed, isAdmin', () => {
     useAuthStore.getState().setUser({
-      id: 1, username: 'a', email: null, role: 'admin',
-      is_active: true, has_seen_manual: true, has_passed_training: true,
-      avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+      id: 1,
+      username: 'a',
+      email: null,
+      role: 'admin',
+      is_active: true,
+      has_seen_manual: true,
+      has_passed_training: true,
+      avatar_color: null,
+      created_at: '2026-05-01T00:00:00+00:00',
     })
     const { result } = renderHook(() => useAuth(), { wrapper })
     expect(result.current.status).toBe('authed')

@@ -6,8 +6,13 @@ import { useAuthStore } from '@/stores/authStore'
 import { RequirePassedTraining } from './RequirePassedTraining'
 
 const baseUser = {
-  id: 1, username: 'u', email: null, role: 'user' as const,
-  is_active: true, avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+  id: 1,
+  username: 'u',
+  email: null,
+  role: 'user' as const,
+  is_active: true,
+  avatar_color: null,
+  created_at: '2026-05-01T00:00:00+00:00',
 }
 
 beforeEach(() => useAuthStore.setState({ status: 'loading', user: null, error: null }))
@@ -26,7 +31,9 @@ function Tree() {
 describe('RequirePassedTraining', () => {
   it('redirects to /training when has_passed_training is false', async () => {
     useAuthStore.getState().setUser({
-      ...baseUser, has_seen_manual: true, has_passed_training: false,
+      ...baseUser,
+      has_seen_manual: true,
+      has_passed_training: false,
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
@@ -37,7 +44,9 @@ describe('RequirePassedTraining', () => {
 
   it('renders outlet when has_passed_training is true', () => {
     useAuthStore.getState().setUser({
-      ...baseUser, has_seen_manual: true, has_passed_training: true,
+      ...baseUser,
+      has_seen_manual: true,
+      has_passed_training: true,
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],

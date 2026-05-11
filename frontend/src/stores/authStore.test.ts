@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import {
-  useAuthStore,
-  selectUser,
-  selectIsAuthed,
-  selectIsAdmin,
-  type User,
-} from './authStore'
+import { useAuthStore, selectUser, selectIsAuthed, selectIsAdmin, type User } from './authStore'
 
 const makeUser = (overrides: Partial<User> = {}): User => ({
   id: 1,

@@ -17,8 +17,7 @@ export function useMe() {
   const status = useAuthStore((s) => s.status)
   return useQuery({
     queryKey: authKeys.me,
-    queryFn: async ({ signal }) =>
-      unwrap(await client.GET('/api/auth/me', { signal })),
+    queryFn: async ({ signal }) => unwrap(await client.GET('/api/auth/me', { signal })),
     enabled: status !== 'anon' && status !== 'loading',
     refetchOnWindowFocus: true,
     staleTime: 60_000,

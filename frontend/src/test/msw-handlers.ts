@@ -38,24 +38,18 @@ export const handlers = [
   // Frontend useRegisterMutation treats this as "account created, navigate
   // to /login with success toast" — NOT an authed transition.
   http.post(`${API}/api/auth/register`, () =>
-    HttpResponse.json(
-      makeUser({ has_seen_manual: false, has_passed_training: false }),
-      { status: 201 },
-    ),
+    HttpResponse.json(makeUser({ has_seen_manual: false, has_passed_training: false }), {
+      status: 201,
+    }),
   ),
 ]
 
 export function mockAuthedUser(overrides: Partial<User> = {}) {
-  return http.get(`${API}/api/auth/me`, () =>
-    HttpResponse.json(makeUser(overrides)),
-  )
+  return http.get(`${API}/api/auth/me`, () => HttpResponse.json(makeUser(overrides)))
 }
 
 export function mockAnonUser() {
   return http.get(`${API}/api/auth/me`, () =>
-    HttpResponse.json(
-      { detail: { error: 'unauthorized', message: '' } },
-      { status: 401 },
-    ),
+    HttpResponse.json({ detail: { error: 'unauthorized', message: '' } }, { status: 401 }),
   )
 }

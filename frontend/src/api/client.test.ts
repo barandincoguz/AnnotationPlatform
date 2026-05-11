@@ -30,9 +30,7 @@ afterEach(() => {
 
 describe('unwrap()', () => {
   it('returns data on 2xx with body', async () => {
-    server.use(
-      http.get('http://localhost/api/echo', () => HttpResponse.json({ value: 42 })),
-    )
+    server.use(http.get('http://localhost/api/echo', () => HttpResponse.json({ value: 42 })))
     const result = await client.GET('/api/echo' as never)
     expect(await unwrap(result)).toEqual({ value: 42 })
   })

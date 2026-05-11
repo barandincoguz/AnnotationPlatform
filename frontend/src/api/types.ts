@@ -4,3126 +4,3126 @@
  */
 
 export interface paths {
-    "/api/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Register */
-        post: operations["register_api_auth_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Login */
-        post: operations["login_api_auth_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Logout */
-        post: operations["logout_api_auth_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Me */
-        get: operations["me_api_auth_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/seen-manual": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Seen Manual */
-        post: operations["seen_manual_api_me_seen_manual_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get My Profile
-         * @description Aggregated profile: identity + XP + streak + today counters + badges.
-         *     Gated by get_current_user only (pre-training users see their zeroed state).
-         */
-        get: operations["get_my_profile_api_me_profile_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Users */
-        get: operations["list_users_api_admin_users_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/users/{user_id}/promote": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Promote */
-        post: operations["admin_promote_api_admin_users__user_id__promote_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/users/{user_id}/demote": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Demote */
-        post: operations["admin_demote_api_admin_users__user_id__demote_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/users/{user_id}/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Disable */
-        post: operations["admin_disable_api_admin_users__user_id__disable_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/users/{user_id}/enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Enable */
-        post: operations["admin_enable_api_admin_users__user_id__enable_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/invite/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Rotate Invite */
-        post: operations["admin_rotate_invite_api_admin_invite_rotate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/help": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Help
-         * @description Return all help sections in order. Auth required, has_seen_manual NOT required.
-         */
-        get: operations["get_help_api_help_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/documents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Docs */
-        get: operations["list_docs_api_documents_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/documents/{document_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Doc */
-        get: operations["get_doc_api_documents__document_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/annotations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Save
-         * @description Save reference list (atomic version + denorm rebuild). Broadcasts
-         *     annotation_saved on success, then runs behavioral detectors which may
-         *     publish personal speed_warning / char_limit_warning events back to the
-         *     saving user, then runs the gamification orchestrator (XP, streak,
-         *     badges, post-hoc review_kept). 422 on duplicate/invalid refs; 404 on
-         *     unknown document. Publish, detector, and orchestrator errors are logged
-         *     and swallowed.
-         */
-        post: operations["save_api_annotations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/annotations/{document_id}/skip": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Skip
-         * @description Log a skip activity event and release the caller's lock, then bump
-         *     gamification today_skip_count (no XP). Stays sync; intentionally does
-         *     NOT broadcast (skip is private to the user). Orchestrator errors are
-         *     logged and swallowed.
-         */
-        post: operations["skip_api_annotations__document_id__skip_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/annotations/{document_id}/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Complete
-         * @description Toggle is_completed on the annotation. Broadcasts annotation_completed
-         *     and runs the gamification orchestrator (XP + first_completion badge on
-         *     completed=True; uncomplete is a clamp — no decrement) only when the
-         *     state actually changes (idempotent same-state toggle is silent). 404 if
-         *     no annotation row. Publish and orchestrator errors are logged and
-         *     swallowed.
-         */
-        post: operations["complete_api_annotations__document_id__complete_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/documents/{document_id}/annotation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Annotation With Chain
-         * @description Returns current annotation + version chain. Caller uses this for chain review.
-         */
-        get: operations["get_annotation_with_chain_api_documents__document_id__annotation_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/drafts/{document_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Draft */
-        get: operations["get_draft_api_drafts__document_id__get"];
-        /** Put Draft */
-        put: operations["put_draft_api_drafts__document_id__put"];
-        post?: never;
-        /** Delete Draft */
-        delete: operations["delete_draft_api_drafts__document_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/locks/{document_id}/acquire": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Acquire */
-        post: operations["acquire_api_locks__document_id__acquire_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/locks/{document_id}/heartbeat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Heartbeat */
-        post: operations["heartbeat_api_locks__document_id__heartbeat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/locks/{document_id}/release": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Release */
-        post: operations["release_api_locks__document_id__release_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/locks/{document_id}/admin/force-release": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Admin Force Release
-         * @description Admin override — unconditional release. 404 if no lock currently held.
-         *     Broadcasts lock_released with reason='admin_force'. Writes admin audit.
-         */
-        post: operations["admin_force_release_api_locks__document_id__admin_force_release_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/notifications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Notifications */
-        get: operations["list_notifications_api_me_notifications_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/notifications/{notification_id}/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Mark Read */
-        post: operations["mark_read_api_me_notifications__notification_id__read_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/feed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Feed */
-        get: operations["get_feed_api_feed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Events */
-        get: operations["events_api_events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/training/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Start
-         * @description Begin a new training attempt. 409 if user already passed; 403 if locked out.
-         */
-        get: operations["start_api_training_start_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/training/quiz/submit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Submit Quiz */
-        post: operations["submit_quiz_api_training_quiz_submit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/training/annotate/submit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Submit Annotation */
-        post: operations["submit_annotation_api_training_annotate_submit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/training/users/{user_id}/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Admin Reset User Training
-         * @description Admin endpoint — soft reset of a user's training. Clears attempts,
-         *     sets has_passed_training=0, creates training_reset notification,
-         *     writes audit row. Idempotent.
-         */
-        post: operations["admin_reset_user_training_api_admin_training_users__user_id__reset_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/training/gold-docs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin List Gold Docs */
-        get: operations["admin_list_gold_docs_api_admin_training_gold_docs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/training/gold-docs/{gold_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Admin Upsert Gold Doc */
-        put: operations["admin_upsert_gold_doc_api_admin_training_gold_docs__gold_id__put"];
-        post?: never;
-        /** Admin Delete Gold Doc */
-        delete: operations["admin_delete_gold_doc_api_admin_training_gold_docs__gold_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/training/quiz": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin List Quiz */
-        get: operations["admin_list_quiz_api_admin_training_quiz_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/training/quiz/{question_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Admin Upsert Quiz */
-        put: operations["admin_upsert_quiz_api_admin_training_quiz__question_id__put"];
-        post?: never;
-        /** Admin Delete Quiz */
-        delete: operations["admin_delete_quiz_api_admin_training_quiz__question_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Settings
-         * @description Return the full key→value map of site_settings.
-         */
-        get: operations["list_settings_api_admin_settings_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/settings/{key}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Setting
-         * @description Update an existing site_settings entry. Allowlist: 404 if the key isn't
-         *     already in the table (use migrations to add new keys). Type guard: 422 if
-         *     the new value's Python type does not match the existing value's type.
-         *     Successful writes are audited.
-         */
-        put: operations["update_setting_api_admin_settings__key__put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/audit-log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Admin Audit Log
-         * @description Paginated + filtered admin audit log.
-         */
-        get: operations["admin_audit_log_api_admin_audit_log_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/system-events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Admin System Events
-         * @description Paginated + filtered system events log.
-         */
-        get: operations["admin_system_events_api_admin_system_events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/backup/run-now": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Admin Backup Run Now
-         * @description Trigger a backup cycle synchronously. Blocks until complete.
-         *     Returns 500 on any cycle failure (system_events row already written
-         *     by the cycle's per-step error logging).
-         *
-         *     A trace_id is generated at entry and threaded through the cycle and
-         *     the audit row so an operator can reconstruct the chain via trace_id.
-         */
-        post: operations["admin_backup_run_now_api_admin_backup_run_now_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/retention/run-now": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Admin Retention Run Now
-         * @description Trigger a retention cycle synchronously. Blocks until commit/rollback.
-         *     Returns 500 on any failure (system_events row already written by run_purge).
-         *     A trace_id is generated at entry and threaded through the cycle + audit.
-         */
-        post: operations["admin_retention_run_now_api_admin_retention_run_now_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/retention/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Admin Retention Preview
-         * @description Read-only dry-run. Returns per-table count of rows that would be
-         *     purged plus the active policy snapshot.
-         */
-        get: operations["admin_retention_preview_api_admin_retention_preview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Admin Export Dataset
-         * @description Stream the annotation dataset matching `filters` as CSV or JSONL.
-         *
-         *     We open a dedicated connection here (not via get_db) because
-         *     StreamingResponse consumes the body iterator lazily — after the route
-         *     handler returns — so a get_db-yielded connection would already be closed
-         *     by the time the first chunk is generated. The dedicated connection is
-         *     closed by the background task once both the stream and the audit write
-         *     are done.
-         *
-         *     BackgroundTasks coupling: we register _record_audit_and_close on the
-         *     shared `background` instance, then pass that SAME instance to
-         *     StreamingResponse via the `background` kwarg. This is NOT double-wiring —
-         *     Starlette's StreamingResponse fires the BackgroundTasks instance after the
-         *     body generator is fully consumed (or the connection is broken), so the
-         *     audit row + stream_conn.close() happen exactly once, after the stream's
-         *     natural lifecycle ends.
-         */
-        get: operations["admin_export_dataset_api_admin_export_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_api_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/health/db": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health Db */
-        get: operations["health_db_api_health_db_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  '/api/auth/register': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Register */
+    post: operations['register_api_auth_register_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/login': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Login */
+    post: operations['login_api_auth_login_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/logout': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Logout */
+    post: operations['logout_api_auth_logout_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/auth/me': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Me */
+    get: operations['me_api_auth_me_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/me/seen-manual': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Seen Manual */
+    post: operations['seen_manual_api_me_seen_manual_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/me/profile': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get My Profile
+     * @description Aggregated profile: identity + XP + streak + today counters + badges.
+     *     Gated by get_current_user only (pre-training users see their zeroed state).
+     */
+    get: operations['get_my_profile_api_me_profile_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/users': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Users */
+    get: operations['list_users_api_admin_users_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/users/{user_id}/promote': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Admin Promote */
+    post: operations['admin_promote_api_admin_users__user_id__promote_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/users/{user_id}/demote': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Admin Demote */
+    post: operations['admin_demote_api_admin_users__user_id__demote_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/users/{user_id}/disable': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Admin Disable */
+    post: operations['admin_disable_api_admin_users__user_id__disable_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/users/{user_id}/enable': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Admin Enable */
+    post: operations['admin_enable_api_admin_users__user_id__enable_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/invite/rotate': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Admin Rotate Invite */
+    post: operations['admin_rotate_invite_api_admin_invite_rotate_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/help': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Help
+     * @description Return all help sections in order. Auth required, has_seen_manual NOT required.
+     */
+    get: operations['get_help_api_help_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/documents': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Docs */
+    get: operations['list_docs_api_documents_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/documents/{document_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Doc */
+    get: operations['get_doc_api_documents__document_id__get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/annotations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Save
+     * @description Save reference list (atomic version + denorm rebuild). Broadcasts
+     *     annotation_saved on success, then runs behavioral detectors which may
+     *     publish personal speed_warning / char_limit_warning events back to the
+     *     saving user, then runs the gamification orchestrator (XP, streak,
+     *     badges, post-hoc review_kept). 422 on duplicate/invalid refs; 404 on
+     *     unknown document. Publish, detector, and orchestrator errors are logged
+     *     and swallowed.
+     */
+    post: operations['save_api_annotations_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/annotations/{document_id}/skip': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Skip
+     * @description Log a skip activity event and release the caller's lock, then bump
+     *     gamification today_skip_count (no XP). Stays sync; intentionally does
+     *     NOT broadcast (skip is private to the user). Orchestrator errors are
+     *     logged and swallowed.
+     */
+    post: operations['skip_api_annotations__document_id__skip_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/annotations/{document_id}/complete': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Complete
+     * @description Toggle is_completed on the annotation. Broadcasts annotation_completed
+     *     and runs the gamification orchestrator (XP + first_completion badge on
+     *     completed=True; uncomplete is a clamp — no decrement) only when the
+     *     state actually changes (idempotent same-state toggle is silent). 404 if
+     *     no annotation row. Publish and orchestrator errors are logged and
+     *     swallowed.
+     */
+    post: operations['complete_api_annotations__document_id__complete_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/documents/{document_id}/annotation': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Annotation With Chain
+     * @description Returns current annotation + version chain. Caller uses this for chain review.
+     */
+    get: operations['get_annotation_with_chain_api_documents__document_id__annotation_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/drafts/{document_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Draft */
+    get: operations['get_draft_api_drafts__document_id__get']
+    /** Put Draft */
+    put: operations['put_draft_api_drafts__document_id__put']
+    post?: never
+    /** Delete Draft */
+    delete: operations['delete_draft_api_drafts__document_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/locks/{document_id}/acquire': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Acquire */
+    post: operations['acquire_api_locks__document_id__acquire_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/locks/{document_id}/heartbeat': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Heartbeat */
+    post: operations['heartbeat_api_locks__document_id__heartbeat_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/locks/{document_id}/release': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Release */
+    post: operations['release_api_locks__document_id__release_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/locks/{document_id}/admin/force-release': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Admin Force Release
+     * @description Admin override — unconditional release. 404 if no lock currently held.
+     *     Broadcasts lock_released with reason='admin_force'. Writes admin audit.
+     */
+    post: operations['admin_force_release_api_locks__document_id__admin_force_release_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/me/notifications': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Notifications */
+    get: operations['list_notifications_api_me_notifications_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/me/notifications/{notification_id}/read': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Mark Read */
+    post: operations['mark_read_api_me_notifications__notification_id__read_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/feed': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Feed */
+    get: operations['get_feed_api_feed_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/events': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Events */
+    get: operations['events_api_events_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/training/start': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Start
+     * @description Begin a new training attempt. 409 if user already passed; 403 if locked out.
+     */
+    get: operations['start_api_training_start_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/training/quiz/submit': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Submit Quiz */
+    post: operations['submit_quiz_api_training_quiz_submit_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/training/annotate/submit': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Submit Annotation */
+    post: operations['submit_annotation_api_training_annotate_submit_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/training/users/{user_id}/reset': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Admin Reset User Training
+     * @description Admin endpoint — soft reset of a user's training. Clears attempts,
+     *     sets has_passed_training=0, creates training_reset notification,
+     *     writes audit row. Idempotent.
+     */
+    post: operations['admin_reset_user_training_api_admin_training_users__user_id__reset_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/training/gold-docs': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Admin List Gold Docs */
+    get: operations['admin_list_gold_docs_api_admin_training_gold_docs_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/training/gold-docs/{gold_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Admin Upsert Gold Doc */
+    put: operations['admin_upsert_gold_doc_api_admin_training_gold_docs__gold_id__put']
+    post?: never
+    /** Admin Delete Gold Doc */
+    delete: operations['admin_delete_gold_doc_api_admin_training_gold_docs__gold_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/training/quiz': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Admin List Quiz */
+    get: operations['admin_list_quiz_api_admin_training_quiz_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/training/quiz/{question_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Admin Upsert Quiz */
+    put: operations['admin_upsert_quiz_api_admin_training_quiz__question_id__put']
+    post?: never
+    /** Admin Delete Quiz */
+    delete: operations['admin_delete_quiz_api_admin_training_quiz__question_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Settings
+     * @description Return the full key→value map of site_settings.
+     */
+    get: operations['list_settings_api_admin_settings_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/settings/{key}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /**
+     * Update Setting
+     * @description Update an existing site_settings entry. Allowlist: 404 if the key isn't
+     *     already in the table (use migrations to add new keys). Type guard: 422 if
+     *     the new value's Python type does not match the existing value's type.
+     *     Successful writes are audited.
+     */
+    put: operations['update_setting_api_admin_settings__key__put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/audit-log': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Admin Audit Log
+     * @description Paginated + filtered admin audit log.
+     */
+    get: operations['admin_audit_log_api_admin_audit_log_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/system-events': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Admin System Events
+     * @description Paginated + filtered system events log.
+     */
+    get: operations['admin_system_events_api_admin_system_events_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/backup/run-now': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Admin Backup Run Now
+     * @description Trigger a backup cycle synchronously. Blocks until complete.
+     *     Returns 500 on any cycle failure (system_events row already written
+     *     by the cycle's per-step error logging).
+     *
+     *     A trace_id is generated at entry and threaded through the cycle and
+     *     the audit row so an operator can reconstruct the chain via trace_id.
+     */
+    post: operations['admin_backup_run_now_api_admin_backup_run_now_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/retention/run-now': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Admin Retention Run Now
+     * @description Trigger a retention cycle synchronously. Blocks until commit/rollback.
+     *     Returns 500 on any failure (system_events row already written by run_purge).
+     *     A trace_id is generated at entry and threaded through the cycle + audit.
+     */
+    post: operations['admin_retention_run_now_api_admin_retention_run_now_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/retention/preview': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Admin Retention Preview
+     * @description Read-only dry-run. Returns per-table count of rows that would be
+     *     purged plus the active policy snapshot.
+     */
+    get: operations['admin_retention_preview_api_admin_retention_preview_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/admin/export': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Admin Export Dataset
+     * @description Stream the annotation dataset matching `filters` as CSV or JSONL.
+     *
+     *     We open a dedicated connection here (not via get_db) because
+     *     StreamingResponse consumes the body iterator lazily — after the route
+     *     handler returns — so a get_db-yielded connection would already be closed
+     *     by the time the first chunk is generated. The dedicated connection is
+     *     closed by the background task once both the stream and the audit write
+     *     are done.
+     *
+     *     BackgroundTasks coupling: we register _record_audit_and_close on the
+     *     shared `background` instance, then pass that SAME instance to
+     *     StreamingResponse via the `background` kwarg. This is NOT double-wiring —
+     *     Starlette's StreamingResponse fires the BackgroundTasks instance after the
+     *     body generator is fully consumed (or the connection is broken), so the
+     *     audit row + stream_conn.close() happen exactly once, after the stream's
+     *     natural lifecycle ends.
+     */
+    get: operations['admin_export_dataset_api_admin_export_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Health */
+    get: operations['health_api_health_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/health/db': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Health Db */
+    get: operations['health_db_api_health_db_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
-    schemas: {
-        /** AnnotateSubmitRequest */
-        AnnotateSubmitRequest: {
-            /** Attempt Id */
-            attempt_id: number;
-            /** Gold Id */
-            gold_id: string;
-            /** References */
-            references: {
-                [key: string]: unknown;
-            }[];
-        };
-        /** AnnotateSubmitResponse */
-        AnnotateSubmitResponse: {
-            /** Passed */
-            passed: boolean;
-            /** Matched Count */
-            matched_count: number;
-            /** Expected Count */
-            expected_count: number;
-            /** Min Concept Count */
-            min_concept_count: number;
-        };
-        /** AnnotationDetail */
-        AnnotationDetail: {
-            /** Document Id */
-            document_id: string;
-            /** References */
-            references: components["schemas"]["ReferenceItem"][];
-            /** Is Completed */
-            is_completed: boolean;
-            /** Last Editor User Id */
-            last_editor_user_id: number | null;
-            /** Completed By User Id */
-            completed_by_user_id: number | null;
-            /** Edit Count */
-            edit_count: number;
-            /** Unique Users Count */
-            unique_users_count: number;
-            /** Created At */
-            created_at: string;
-            /** Updated At */
-            updated_at: string;
-        };
-        /** AnnotationWithChain */
-        AnnotationWithChain: {
-            annotation: components["schemas"]["AnnotationDetail"] | null;
-            /** Chain */
-            chain: components["schemas"]["ChainEntry"][];
-        };
-        /** BackupRunNowResponse */
-        BackupRunNowResponse: {
-            /** Ok */
-            ok: boolean;
-            /** Snapshot Path */
-            snapshot_path: string;
-            /** Committed Sha */
-            committed_sha: string | null;
-            /** Pushed */
-            pushed: boolean;
-            /** Rotated Count */
-            rotated_count: number;
-            /** Trace Id */
-            trace_id?: string | null;
-        };
-        /** BadgeOut */
-        BadgeOut: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Description */
-            description: string;
-            /** Earned At */
-            earned_at: string;
-        };
-        /** ChainEntry */
-        ChainEntry: {
-            /** Version Id */
-            version_id: number;
-            /** User Id */
-            user_id: number | null;
-            /** Username */
-            username: string | null;
-            /** Action */
-            action: string;
-            /** Is Diff Zero */
-            is_diff_zero: boolean;
-            /** Ref Count */
-            ref_count: number;
-            /** Diff Summary */
-            diff_summary: {
-                [key: string]: unknown;
-            };
-            /** Created At */
-            created_at: string;
-        };
-        /** CompleteRequest */
-        CompleteRequest: {
-            /** Completed */
-            completed: boolean;
-        };
-        /** ConceptInput */
-        ConceptInput: {
-            /** Kanun No */
-            kanun_no: string;
-            /** Kanun Ad */
-            kanun_ad?: string | null;
-            /** Madde */
-            madde?: string | null;
-            /** Fikra */
-            fikra?: string | null;
-            /** Bent */
-            bent?: string | null;
-        };
-        /** DocumentDetail */
-        DocumentDetail: {
-            /** Document Id */
-            document_id: string;
-            /** Sayi */
-            sayi: number | null;
-            /** Tarih */
-            tarih: string | null;
-            /** Basvuru Tarihi */
-            basvuru_tarihi: string | null;
-            /** Vergi Donemi */
-            vergi_donemi: string | null;
-            /** Konu */
-            konu: string | null;
-            /** Vergi Turu */
-            vergi_turu: string | null;
-            /** Mukellefiyet Turu */
-            mukellefiyet_turu: string | null;
-            /** Word Count */
-            word_count: number;
-            /** Sentence Count */
-            sentence_count: number;
-            /** Text Density */
-            text_density: number;
-            /** Estimated Difficulty */
-            estimated_difficulty: string;
-            /** Topic Category */
-            topic_category: string | null;
-            /** Created At */
-            created_at: string;
-            /** Pdf Text */
-            pdf_text: string;
-            /** Html Text */
-            html_text: string | null;
-        };
-        /** DocumentSummary */
-        DocumentSummary: {
-            /** Document Id */
-            document_id: string;
-            /** Sayi */
-            sayi: number | null;
-            /** Tarih */
-            tarih: string | null;
-            /** Basvuru Tarihi */
-            basvuru_tarihi: string | null;
-            /** Vergi Donemi */
-            vergi_donemi: string | null;
-            /** Konu */
-            konu: string | null;
-            /** Vergi Turu */
-            vergi_turu: string | null;
-            /** Mukellefiyet Turu */
-            mukellefiyet_turu: string | null;
-            /** Word Count */
-            word_count: number;
-            /** Sentence Count */
-            sentence_count: number;
-            /** Text Density */
-            text_density: number;
-            /** Estimated Difficulty */
-            estimated_difficulty: string;
-            /** Topic Category */
-            topic_category: string | null;
-            /** Created At */
-            created_at: string;
-        };
-        /** DocumentsListResponse */
-        DocumentsListResponse: {
-            /** Documents */
-            documents: components["schemas"]["DocumentSummary"][];
-            /** Total */
-            total: number;
-        };
-        /** FeedItem */
-        FeedItem: {
-            /** Document Id */
-            document_id: string;
-            /** Sayi */
-            sayi: number | null;
-            /** Tarih */
-            tarih: string | null;
-            /** Konu */
-            konu: string | null;
-            /** Vergi Turu */
-            vergi_turu: string | null;
-            /** Estimated Difficulty */
-            estimated_difficulty: string;
-            /** Word Count */
-            word_count: number;
-            /** Has Annotation */
-            has_annotation: boolean;
-            /** Is Completed */
-            is_completed: boolean;
-            /** Last Editor User Id */
-            last_editor_user_id: number | null;
-            /** Last Editor Username */
-            last_editor_username: string | null;
-            /** Edit Count */
-            edit_count: number;
-            /** Unique Users Count */
-            unique_users_count: number;
-            /** Updated At */
-            updated_at: string | null;
-        };
-        /** FeedResponse */
-        FeedResponse: {
-            /** Items */
-            items: components["schemas"]["FeedItem"][];
-            /** Total */
-            total: number;
-        };
-        /** GoldDocOut */
-        GoldDocOut: {
-            /** Gold Id */
-            gold_id: string;
-            /** Content */
-            content: string;
-        };
-        /** GoldDocUpsertRequest */
-        GoldDocUpsertRequest: {
-            /** Content */
-            content: string;
-            /** Expected Concepts */
-            expected_concepts: components["schemas"]["ConceptInput"][];
-            /** Min Concept Count */
-            min_concept_count: number;
-        };
-        /** GoldDocsListResponse */
-        GoldDocsListResponse: {
-            /** Resolved */
-            resolved: {
-                [key: string]: unknown;
-            }[];
-            /** Overrides */
-            overrides: {
-                [key: string]: unknown;
-            }[];
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** LockConflict */
-        LockConflict: {
-            /**
-             * Error
-             * @default lock_held_by_other
-             */
-            error: string;
-            /** By User Id */
-            by_user_id: number;
-            /** By Username */
-            by_username: string | null;
-            /** Acquired At */
-            acquired_at: string;
-            /** Expires At */
-            expires_at: string;
-        };
-        /** LockInfo */
-        LockInfo: {
-            /** Document Id */
-            document_id: string;
-            /** User Id */
-            user_id: number;
-            /** By Username */
-            by_username: string | null;
-            /** Acquired At */
-            acquired_at: string;
-            /** Last Heartbeat */
-            last_heartbeat: string;
-            /** Expires At */
-            expires_at: string;
-        };
-        /** LoginRequest */
-        LoginRequest: {
-            /** Username */
-            username: string;
-            /** Password */
-            password: string;
-        };
-        /** NotificationListResponse */
-        NotificationListResponse: {
-            /** Items */
-            items: components["schemas"]["NotificationOut"][];
-        };
-        /** NotificationOut */
-        NotificationOut: {
-            /** Id */
-            id: number;
-            /** Kind */
-            kind: string;
-            /** Title */
-            title: string;
-            /** Body */
-            body?: string | null;
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            } | null;
-            /** Is Read */
-            is_read: boolean;
-            /** Created At */
-            created_at: string;
-        };
-        /** OkResponse */
-        OkResponse: {
-            /**
-             * Ok
-             * @default true
-             */
-            ok: boolean;
-        };
-        /** ProfileResponse */
-        ProfileResponse: {
-            user: components["schemas"]["UserSection"];
-            xp: components["schemas"]["XpSection"];
-            streak: components["schemas"]["StreakSection"];
-            today: components["schemas"]["TodaySection"];
-            /** Badges */
-            badges: components["schemas"]["BadgeOut"][];
-        };
-        /** QuestionOut */
-        QuestionOut: {
-            /** Id */
-            id: string;
-            /** Text */
-            text: string;
-            /** Choices */
-            choices: string[];
-        };
-        /** QuizListResponse */
-        QuizListResponse: {
-            /** Resolved */
-            resolved: {
-                [key: string]: unknown;
-            }[];
-            /** Overrides */
-            overrides: {
-                [key: string]: unknown;
-            }[];
-        };
-        /** QuizSubmitRequest */
-        QuizSubmitRequest: {
-            /** Attempt Id */
-            attempt_id: number;
-            /** Answers */
-            answers: {
-                [key: string]: number;
-            };
-        };
-        /** QuizSubmitResponse */
-        QuizSubmitResponse: {
-            /** Score */
-            score: number;
-            /** Total */
-            total: number;
-        };
-        /** QuizUpsertRequest */
-        QuizUpsertRequest: {
-            /** Text */
-            text: string;
-            /** Choices */
-            choices: string[];
-            /** Correct Choice Idx */
-            correct_choice_idx: number;
-        };
-        /** ReferenceItem */
-        ReferenceItem: {
-            /** Kanun No */
-            kanun_no?: string | null;
-            /** Kanun Ad */
-            kanun_ad?: string | null;
-            /** Madde */
-            madde?: string | null;
-            /** Fikra */
-            fikra?: string | null;
-            /** Bent */
-            bent?: string | null;
-            /** Source Text */
-            source_text: string;
-        };
-        /** RegisterRequest */
-        RegisterRequest: {
-            /** Username */
-            username: string;
-            /** Password */
-            password: string;
-            /** Invite Code */
-            invite_code: string;
-            /** Email */
-            email?: string | null;
-        };
-        /** RetentionPolicyEntry */
-        RetentionPolicyEntry: {
-            /** Table */
-            table: string;
-            /**
-             * Days
-             * @description Effective retention window. 0 = kill switch.
-             */
-            days: number;
-            /**
-             * Cutoff Iso
-             * @description ISO-8601 timestamp; rows older than this would be purged. Null for kill-switched tables.
-             */
-            cutoff_iso?: string | null;
-        };
-        /** RetentionPreviewResponse */
-        RetentionPreviewResponse: {
-            /**
-             * Rows To Purge
-             * @description Per-table row counts a run_purge would delete now. Excludes kill-switched tables.
-             */
-            rows_to_purge: {
-                [key: string]: number;
-            };
-            /** Total */
-            total: number;
-            /** Policy */
-            policy: components["schemas"]["RetentionPolicyEntry"][];
-        };
-        /** RetentionRunNowResponse */
-        RetentionRunNowResponse: {
-            /**
-             * Ok
-             * @description True if cycle committed successfully
-             */
-            ok: boolean;
-            /**
-             * Purged
-             * @description Per-table row counts deleted in this cycle. Kill-switched tables show 0.
-             */
-            purged: {
-                [key: string]: number;
-            };
-            /**
-             * Total
-             * @description Sum of purged values
-             */
-            total: number;
-            /**
-             * Trace Id
-             * @description 16-char hex correlation token. Set on admin-triggered runs; None on loop-origin runs.
-             */
-            trace_id?: string | null;
-        };
-        /** RotateInviteRequest */
-        RotateInviteRequest: {
-            /** New Code */
-            new_code: string;
-        };
-        /** SaveAnnotationRequest */
-        SaveAnnotationRequest: {
-            /** Document Id */
-            document_id: string;
-            /** References */
-            references: components["schemas"]["ReferenceItem"][];
-        };
-        /** SaveAnnotationResponse */
-        SaveAnnotationResponse: {
-            /** Is New */
-            is_new: boolean;
-            /** Is Diff Zero */
-            is_diff_zero: boolean;
-            /** Current References */
-            current_references: components["schemas"]["ReferenceItem"][];
-        };
-        /** SettingUpdateRequest */
-        SettingUpdateRequest: {
-            /** Value */
-            value: unknown;
-        };
-        /** SettingUpdateResponse */
-        SettingUpdateResponse: {
-            /** Key */
-            key: string;
-            /** Value */
-            value: unknown;
-        };
-        /** StartResponse */
-        StartResponse: {
-            /** Attempt Id */
-            attempt_id: number;
-            /** Attempt Number */
-            attempt_number: number;
-            /** Questions */
-            questions: components["schemas"]["QuestionOut"][];
-            /** Gold Docs */
-            gold_docs: components["schemas"]["GoldDocOut"][];
-        };
-        /** StreakSection */
-        StreakSection: {
-            /** Current */
-            current: number;
-            /** Longest */
-            longest: number;
-            /** Last Active Date */
-            last_active_date: string | null;
-        };
-        /** TodaySection */
-        TodaySection: {
-            /** Save */
-            save: number;
-            /** Complete */
-            complete: number;
-            /** Review */
-            review: number;
-            /** Skip */
-            skip: number;
-            /** Daily Target */
-            daily_target: number;
-        };
-        /** UserOut */
-        UserOut: {
-            /** Id */
-            id: number;
-            /** Username */
-            username: string;
-            /** Email */
-            email: string | null;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "user" | "admin";
-            /** Is Active */
-            is_active: boolean;
-            /** Has Passed Training */
-            has_passed_training: boolean;
-            /** Has Seen Manual */
-            has_seen_manual: boolean;
-            /** Avatar Color */
-            avatar_color: string | null;
-            /** Created At */
-            created_at: string;
-        };
-        /** UserSection */
-        UserSection: {
-            /** Id */
-            id: number;
-            /** Username */
-            username: string;
-            /** Role */
-            role: string;
-            /** Avatar Color */
-            avatar_color: string;
-        };
-        /** UsersListResponse */
-        UsersListResponse: {
-            /** Users */
-            users: components["schemas"]["UserOut"][];
-            /** Total */
-            total: number;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-        /** XpSection */
-        XpSection: {
-            /** Total */
-            total: number;
-        };
-        /** _DraftPutRequest */
-        _DraftPutRequest: {
-            /** References */
-            references: {
-                [key: string]: unknown;
-            }[];
-        };
-    };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+  schemas: {
+    /** AnnotateSubmitRequest */
+    AnnotateSubmitRequest: {
+      /** Attempt Id */
+      attempt_id: number
+      /** Gold Id */
+      gold_id: string
+      /** References */
+      references: {
+        [key: string]: unknown
+      }[]
+    }
+    /** AnnotateSubmitResponse */
+    AnnotateSubmitResponse: {
+      /** Passed */
+      passed: boolean
+      /** Matched Count */
+      matched_count: number
+      /** Expected Count */
+      expected_count: number
+      /** Min Concept Count */
+      min_concept_count: number
+    }
+    /** AnnotationDetail */
+    AnnotationDetail: {
+      /** Document Id */
+      document_id: string
+      /** References */
+      references: components['schemas']['ReferenceItem'][]
+      /** Is Completed */
+      is_completed: boolean
+      /** Last Editor User Id */
+      last_editor_user_id: number | null
+      /** Completed By User Id */
+      completed_by_user_id: number | null
+      /** Edit Count */
+      edit_count: number
+      /** Unique Users Count */
+      unique_users_count: number
+      /** Created At */
+      created_at: string
+      /** Updated At */
+      updated_at: string
+    }
+    /** AnnotationWithChain */
+    AnnotationWithChain: {
+      annotation: components['schemas']['AnnotationDetail'] | null
+      /** Chain */
+      chain: components['schemas']['ChainEntry'][]
+    }
+    /** BackupRunNowResponse */
+    BackupRunNowResponse: {
+      /** Ok */
+      ok: boolean
+      /** Snapshot Path */
+      snapshot_path: string
+      /** Committed Sha */
+      committed_sha: string | null
+      /** Pushed */
+      pushed: boolean
+      /** Rotated Count */
+      rotated_count: number
+      /** Trace Id */
+      trace_id?: string | null
+    }
+    /** BadgeOut */
+    BadgeOut: {
+      /** Id */
+      id: string
+      /** Name */
+      name: string
+      /** Description */
+      description: string
+      /** Earned At */
+      earned_at: string
+    }
+    /** ChainEntry */
+    ChainEntry: {
+      /** Version Id */
+      version_id: number
+      /** User Id */
+      user_id: number | null
+      /** Username */
+      username: string | null
+      /** Action */
+      action: string
+      /** Is Diff Zero */
+      is_diff_zero: boolean
+      /** Ref Count */
+      ref_count: number
+      /** Diff Summary */
+      diff_summary: {
+        [key: string]: unknown
+      }
+      /** Created At */
+      created_at: string
+    }
+    /** CompleteRequest */
+    CompleteRequest: {
+      /** Completed */
+      completed: boolean
+    }
+    /** ConceptInput */
+    ConceptInput: {
+      /** Kanun No */
+      kanun_no: string
+      /** Kanun Ad */
+      kanun_ad?: string | null
+      /** Madde */
+      madde?: string | null
+      /** Fikra */
+      fikra?: string | null
+      /** Bent */
+      bent?: string | null
+    }
+    /** DocumentDetail */
+    DocumentDetail: {
+      /** Document Id */
+      document_id: string
+      /** Sayi */
+      sayi: number | null
+      /** Tarih */
+      tarih: string | null
+      /** Basvuru Tarihi */
+      basvuru_tarihi: string | null
+      /** Vergi Donemi */
+      vergi_donemi: string | null
+      /** Konu */
+      konu: string | null
+      /** Vergi Turu */
+      vergi_turu: string | null
+      /** Mukellefiyet Turu */
+      mukellefiyet_turu: string | null
+      /** Word Count */
+      word_count: number
+      /** Sentence Count */
+      sentence_count: number
+      /** Text Density */
+      text_density: number
+      /** Estimated Difficulty */
+      estimated_difficulty: string
+      /** Topic Category */
+      topic_category: string | null
+      /** Created At */
+      created_at: string
+      /** Pdf Text */
+      pdf_text: string
+      /** Html Text */
+      html_text: string | null
+    }
+    /** DocumentSummary */
+    DocumentSummary: {
+      /** Document Id */
+      document_id: string
+      /** Sayi */
+      sayi: number | null
+      /** Tarih */
+      tarih: string | null
+      /** Basvuru Tarihi */
+      basvuru_tarihi: string | null
+      /** Vergi Donemi */
+      vergi_donemi: string | null
+      /** Konu */
+      konu: string | null
+      /** Vergi Turu */
+      vergi_turu: string | null
+      /** Mukellefiyet Turu */
+      mukellefiyet_turu: string | null
+      /** Word Count */
+      word_count: number
+      /** Sentence Count */
+      sentence_count: number
+      /** Text Density */
+      text_density: number
+      /** Estimated Difficulty */
+      estimated_difficulty: string
+      /** Topic Category */
+      topic_category: string | null
+      /** Created At */
+      created_at: string
+    }
+    /** DocumentsListResponse */
+    DocumentsListResponse: {
+      /** Documents */
+      documents: components['schemas']['DocumentSummary'][]
+      /** Total */
+      total: number
+    }
+    /** FeedItem */
+    FeedItem: {
+      /** Document Id */
+      document_id: string
+      /** Sayi */
+      sayi: number | null
+      /** Tarih */
+      tarih: string | null
+      /** Konu */
+      konu: string | null
+      /** Vergi Turu */
+      vergi_turu: string | null
+      /** Estimated Difficulty */
+      estimated_difficulty: string
+      /** Word Count */
+      word_count: number
+      /** Has Annotation */
+      has_annotation: boolean
+      /** Is Completed */
+      is_completed: boolean
+      /** Last Editor User Id */
+      last_editor_user_id: number | null
+      /** Last Editor Username */
+      last_editor_username: string | null
+      /** Edit Count */
+      edit_count: number
+      /** Unique Users Count */
+      unique_users_count: number
+      /** Updated At */
+      updated_at: string | null
+    }
+    /** FeedResponse */
+    FeedResponse: {
+      /** Items */
+      items: components['schemas']['FeedItem'][]
+      /** Total */
+      total: number
+    }
+    /** GoldDocOut */
+    GoldDocOut: {
+      /** Gold Id */
+      gold_id: string
+      /** Content */
+      content: string
+    }
+    /** GoldDocUpsertRequest */
+    GoldDocUpsertRequest: {
+      /** Content */
+      content: string
+      /** Expected Concepts */
+      expected_concepts: components['schemas']['ConceptInput'][]
+      /** Min Concept Count */
+      min_concept_count: number
+    }
+    /** GoldDocsListResponse */
+    GoldDocsListResponse: {
+      /** Resolved */
+      resolved: {
+        [key: string]: unknown
+      }[]
+      /** Overrides */
+      overrides: {
+        [key: string]: unknown
+      }[]
+    }
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][]
+    }
+    /** LockConflict */
+    LockConflict: {
+      /**
+       * Error
+       * @default lock_held_by_other
+       */
+      error: string
+      /** By User Id */
+      by_user_id: number
+      /** By Username */
+      by_username: string | null
+      /** Acquired At */
+      acquired_at: string
+      /** Expires At */
+      expires_at: string
+    }
+    /** LockInfo */
+    LockInfo: {
+      /** Document Id */
+      document_id: string
+      /** User Id */
+      user_id: number
+      /** By Username */
+      by_username: string | null
+      /** Acquired At */
+      acquired_at: string
+      /** Last Heartbeat */
+      last_heartbeat: string
+      /** Expires At */
+      expires_at: string
+    }
+    /** LoginRequest */
+    LoginRequest: {
+      /** Username */
+      username: string
+      /** Password */
+      password: string
+    }
+    /** NotificationListResponse */
+    NotificationListResponse: {
+      /** Items */
+      items: components['schemas']['NotificationOut'][]
+    }
+    /** NotificationOut */
+    NotificationOut: {
+      /** Id */
+      id: number
+      /** Kind */
+      kind: string
+      /** Title */
+      title: string
+      /** Body */
+      body?: string | null
+      /** Data */
+      data?: {
+        [key: string]: unknown
+      } | null
+      /** Is Read */
+      is_read: boolean
+      /** Created At */
+      created_at: string
+    }
+    /** OkResponse */
+    OkResponse: {
+      /**
+       * Ok
+       * @default true
+       */
+      ok: boolean
+    }
+    /** ProfileResponse */
+    ProfileResponse: {
+      user: components['schemas']['UserSection']
+      xp: components['schemas']['XpSection']
+      streak: components['schemas']['StreakSection']
+      today: components['schemas']['TodaySection']
+      /** Badges */
+      badges: components['schemas']['BadgeOut'][]
+    }
+    /** QuestionOut */
+    QuestionOut: {
+      /** Id */
+      id: string
+      /** Text */
+      text: string
+      /** Choices */
+      choices: string[]
+    }
+    /** QuizListResponse */
+    QuizListResponse: {
+      /** Resolved */
+      resolved: {
+        [key: string]: unknown
+      }[]
+      /** Overrides */
+      overrides: {
+        [key: string]: unknown
+      }[]
+    }
+    /** QuizSubmitRequest */
+    QuizSubmitRequest: {
+      /** Attempt Id */
+      attempt_id: number
+      /** Answers */
+      answers: {
+        [key: string]: number
+      }
+    }
+    /** QuizSubmitResponse */
+    QuizSubmitResponse: {
+      /** Score */
+      score: number
+      /** Total */
+      total: number
+    }
+    /** QuizUpsertRequest */
+    QuizUpsertRequest: {
+      /** Text */
+      text: string
+      /** Choices */
+      choices: string[]
+      /** Correct Choice Idx */
+      correct_choice_idx: number
+    }
+    /** ReferenceItem */
+    ReferenceItem: {
+      /** Kanun No */
+      kanun_no?: string | null
+      /** Kanun Ad */
+      kanun_ad?: string | null
+      /** Madde */
+      madde?: string | null
+      /** Fikra */
+      fikra?: string | null
+      /** Bent */
+      bent?: string | null
+      /** Source Text */
+      source_text: string
+    }
+    /** RegisterRequest */
+    RegisterRequest: {
+      /** Username */
+      username: string
+      /** Password */
+      password: string
+      /** Invite Code */
+      invite_code: string
+      /** Email */
+      email?: string | null
+    }
+    /** RetentionPolicyEntry */
+    RetentionPolicyEntry: {
+      /** Table */
+      table: string
+      /**
+       * Days
+       * @description Effective retention window. 0 = kill switch.
+       */
+      days: number
+      /**
+       * Cutoff Iso
+       * @description ISO-8601 timestamp; rows older than this would be purged. Null for kill-switched tables.
+       */
+      cutoff_iso?: string | null
+    }
+    /** RetentionPreviewResponse */
+    RetentionPreviewResponse: {
+      /**
+       * Rows To Purge
+       * @description Per-table row counts a run_purge would delete now. Excludes kill-switched tables.
+       */
+      rows_to_purge: {
+        [key: string]: number
+      }
+      /** Total */
+      total: number
+      /** Policy */
+      policy: components['schemas']['RetentionPolicyEntry'][]
+    }
+    /** RetentionRunNowResponse */
+    RetentionRunNowResponse: {
+      /**
+       * Ok
+       * @description True if cycle committed successfully
+       */
+      ok: boolean
+      /**
+       * Purged
+       * @description Per-table row counts deleted in this cycle. Kill-switched tables show 0.
+       */
+      purged: {
+        [key: string]: number
+      }
+      /**
+       * Total
+       * @description Sum of purged values
+       */
+      total: number
+      /**
+       * Trace Id
+       * @description 16-char hex correlation token. Set on admin-triggered runs; None on loop-origin runs.
+       */
+      trace_id?: string | null
+    }
+    /** RotateInviteRequest */
+    RotateInviteRequest: {
+      /** New Code */
+      new_code: string
+    }
+    /** SaveAnnotationRequest */
+    SaveAnnotationRequest: {
+      /** Document Id */
+      document_id: string
+      /** References */
+      references: components['schemas']['ReferenceItem'][]
+    }
+    /** SaveAnnotationResponse */
+    SaveAnnotationResponse: {
+      /** Is New */
+      is_new: boolean
+      /** Is Diff Zero */
+      is_diff_zero: boolean
+      /** Current References */
+      current_references: components['schemas']['ReferenceItem'][]
+    }
+    /** SettingUpdateRequest */
+    SettingUpdateRequest: {
+      /** Value */
+      value: unknown
+    }
+    /** SettingUpdateResponse */
+    SettingUpdateResponse: {
+      /** Key */
+      key: string
+      /** Value */
+      value: unknown
+    }
+    /** StartResponse */
+    StartResponse: {
+      /** Attempt Id */
+      attempt_id: number
+      /** Attempt Number */
+      attempt_number: number
+      /** Questions */
+      questions: components['schemas']['QuestionOut'][]
+      /** Gold Docs */
+      gold_docs: components['schemas']['GoldDocOut'][]
+    }
+    /** StreakSection */
+    StreakSection: {
+      /** Current */
+      current: number
+      /** Longest */
+      longest: number
+      /** Last Active Date */
+      last_active_date: string | null
+    }
+    /** TodaySection */
+    TodaySection: {
+      /** Save */
+      save: number
+      /** Complete */
+      complete: number
+      /** Review */
+      review: number
+      /** Skip */
+      skip: number
+      /** Daily Target */
+      daily_target: number
+    }
+    /** UserOut */
+    UserOut: {
+      /** Id */
+      id: number
+      /** Username */
+      username: string
+      /** Email */
+      email: string | null
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'user' | 'admin'
+      /** Is Active */
+      is_active: boolean
+      /** Has Passed Training */
+      has_passed_training: boolean
+      /** Has Seen Manual */
+      has_seen_manual: boolean
+      /** Avatar Color */
+      avatar_color: string | null
+      /** Created At */
+      created_at: string
+    }
+    /** UserSection */
+    UserSection: {
+      /** Id */
+      id: number
+      /** Username */
+      username: string
+      /** Role */
+      role: string
+      /** Avatar Color */
+      avatar_color: string
+    }
+    /** UsersListResponse */
+    UsersListResponse: {
+      /** Users */
+      users: components['schemas']['UserOut'][]
+      /** Total */
+      total: number
+    }
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[]
+      /** Message */
+      msg: string
+      /** Error Type */
+      type: string
+    }
+    /** XpSection */
+    XpSection: {
+      /** Total */
+      total: number
+    }
+    /** _DraftPutRequest */
+    _DraftPutRequest: {
+      /** References */
+      references: {
+        [key: string]: unknown
+      }[]
+    }
+  }
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
 }
-export type $defs = Record<string, never>;
+export type $defs = Record<string, never>
 export interface operations {
-    register_api_auth_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    login_api_auth_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    logout_api_auth_logout_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    me_api_auth_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    seen_manual_api_me_seen_manual_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_my_profile_api_me_profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_users_api_admin_users_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UsersListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_promote_api_admin_users__user_id__promote_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_demote_api_admin_users__user_id__demote_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_disable_api_admin_users__user_id__disable_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_enable_api_admin_users__user_id__enable_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_rotate_invite_api_admin_invite_rotate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RotateInviteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_help_api_help_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_docs_api_documents_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentsListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_doc_api_documents__document_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_api_annotations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveAnnotationRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SaveAnnotationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    skip_api_annotations__document_id__skip_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    complete_api_annotations__document_id__complete_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CompleteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_annotation_with_chain_api_documents__document_id__annotation_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotationWithChain"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_draft_api_drafts__document_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_draft_api_drafts__document_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["_DraftPutRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_draft_api_drafts__document_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    acquire_api_locks__document_id__acquire_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LockInfo"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LockConflict"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    heartbeat_api_locks__document_id__heartbeat_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LockInfo"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_api_locks__document_id__release_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_force_release_api_locks__document_id__admin_force_release_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_notifications_api_me_notifications_get: {
-        parameters: {
-            query?: {
-                unread_only?: boolean;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    mark_read_api_me_notifications__notification_id__read_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                notification_id: number;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_feed_api_feed_get: {
-        parameters: {
-            query: {
-                tab: string;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FeedResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    events_api_events_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_api_training_start_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StartResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    submit_quiz_api_training_quiz_submit_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["QuizSubmitRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QuizSubmitResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    submit_annotation_api_training_annotate_submit_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnnotateSubmitRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotateSubmitResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_reset_user_training_api_admin_training_users__user_id__reset_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_list_gold_docs_api_admin_training_gold_docs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoldDocsListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_upsert_gold_doc_api_admin_training_gold_docs__gold_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gold_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoldDocUpsertRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_delete_gold_doc_api_admin_training_gold_docs__gold_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gold_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_list_quiz_api_admin_training_quiz_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QuizListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_upsert_quiz_api_admin_training_quiz__question_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                question_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["QuizUpsertRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_delete_quiz_api_admin_training_quiz__question_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                question_id: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_settings_api_admin_settings_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_setting_api_admin_settings__key__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                key: string;
-            };
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SettingUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SettingUpdateResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_audit_log_api_admin_audit_log_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-                admin_id?: number | null;
-                action?: string | null;
-                date_from?: string | null;
-                date_to?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_system_events_api_admin_system_events_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-                event_type?: string | null;
-                severity?: string | null;
-                date_from?: string | null;
-                date_to?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_backup_run_now_api_admin_backup_run_now_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BackupRunNowResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_retention_run_now_api_admin_retention_run_now_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RetentionRunNowResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_retention_preview_api_admin_retention_preview_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RetentionPreviewResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    admin_export_dataset_api_admin_export_get: {
-        parameters: {
-            query: {
-                format: "csv" | "jsonl";
-                status?: "completed" | "all";
-                from_date?: string | null;
-                to_date?: string | null;
-                document_id?: string | null;
-                user_id?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                anotasyon_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    health_api_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    health_db_api_health_db_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
+  register_api_auth_register_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegisterRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UserOut']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  login_api_auth_login_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LoginRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  logout_api_auth_logout_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+    }
+  }
+  me_api_auth_me_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UserOut']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  seen_manual_api_me_seen_manual_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_my_profile_api_me_profile_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProfileResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_users_api_admin_users_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UsersListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_promote_api_admin_users__user_id__promote_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: number
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_demote_api_admin_users__user_id__demote_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: number
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_disable_api_admin_users__user_id__disable_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: number
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_enable_api_admin_users__user_id__enable_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: number
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_rotate_invite_api_admin_invite_rotate_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RotateInviteRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_help_api_help_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_docs_api_documents_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DocumentsListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_doc_api_documents__document_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DocumentDetail']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  save_api_annotations_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SaveAnnotationRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SaveAnnotationResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  skip_api_annotations__document_id__skip_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  complete_api_annotations__document_id__complete_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CompleteRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_annotation_with_chain_api_documents__document_id__annotation_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AnnotationWithChain']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_draft_api_drafts__document_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  put_draft_api_drafts__document_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['_DraftPutRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_draft_api_drafts__document_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  acquire_api_locks__document_id__acquire_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LockInfo']
+        }
+      }
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LockConflict']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  heartbeat_api_locks__document_id__heartbeat_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LockInfo']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  release_api_locks__document_id__release_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_force_release_api_locks__document_id__admin_force_release_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        document_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_notifications_api_me_notifications_get: {
+    parameters: {
+      query?: {
+        unread_only?: boolean
+        limit?: number
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['NotificationListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  mark_read_api_me_notifications__notification_id__read_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        notification_id: number
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_feed_api_feed_get: {
+    parameters: {
+      query: {
+        tab: string
+        limit?: number
+        offset?: number
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['FeedResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  events_api_events_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  start_api_training_start_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['StartResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  submit_quiz_api_training_quiz_submit_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['QuizSubmitRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['QuizSubmitResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  submit_annotation_api_training_annotate_submit_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnnotateSubmitRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AnnotateSubmitResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_reset_user_training_api_admin_training_users__user_id__reset_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: number
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_list_gold_docs_api_admin_training_gold_docs_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['GoldDocsListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_upsert_gold_doc_api_admin_training_gold_docs__gold_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        gold_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GoldDocUpsertRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_delete_gold_doc_api_admin_training_gold_docs__gold_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        gold_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_list_quiz_api_admin_training_quiz_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['QuizListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_upsert_quiz_api_admin_training_quiz__question_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        question_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['QuizUpsertRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_delete_quiz_api_admin_training_quiz__question_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        question_id: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_settings_api_admin_settings_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_setting_api_admin_settings__key__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SettingUpdateRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SettingUpdateResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_audit_log_api_admin_audit_log_get: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number
+        admin_id?: number | null
+        action?: string | null
+        date_from?: string | null
+        date_to?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_system_events_api_admin_system_events_get: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number
+        event_type?: string | null
+        severity?: string | null
+        date_from?: string | null
+        date_to?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_backup_run_now_api_admin_backup_run_now_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BackupRunNowResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_retention_run_now_api_admin_retention_run_now_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RetentionRunNowResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_retention_preview_api_admin_retention_preview_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RetentionPreviewResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  admin_export_dataset_api_admin_export_get: {
+    parameters: {
+      query: {
+        format: 'csv' | 'jsonl'
+        status?: 'completed' | 'all'
+        from_date?: string | null
+        to_date?: string | null
+        document_id?: string | null
+        user_id?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        anotasyon_session?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  health_api_health_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+    }
+  }
+  health_db_api_health_db_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+    }
+  }
 }

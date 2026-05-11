@@ -37,9 +37,7 @@ const authInterceptor: Middleware = {
 }
 
 const baseUrl: string =
-  typeof import.meta.env.VITE_API_BASE_URL === 'string'
-    ? import.meta.env.VITE_API_BASE_URL
-    : ''
+  typeof import.meta.env.VITE_API_BASE_URL === 'string' ? import.meta.env.VITE_API_BASE_URL : ''
 
 export const client = createClient<paths>({
   baseUrl,
@@ -79,10 +77,7 @@ interface FetchResult<T> {
   response: Response
 }
 
-function parseErrorDetail(
-  detail: unknown,
-  status: number,
-): { code: string; message: string } {
+function parseErrorDetail(detail: unknown, status: number): { code: string; message: string } {
   if (typeof detail === 'string') {
     return { code: String(status), message: detail }
   }
@@ -90,8 +85,7 @@ function parseErrorDetail(
     const d = detail as Record<string, unknown>
     return {
       code: typeof d.error === 'string' ? d.error : String(status),
-      message:
-        typeof d.message === 'string' ? d.message : JSON.stringify(detail),
+      message: typeof d.message === 'string' ? d.message : JSON.stringify(detail),
     }
   }
   if (Array.isArray(detail) && detail.length > 0) {
@@ -135,9 +129,7 @@ export async function unwrap<T>(result: FetchResult<T>): Promise<T> {
 /** Unwrap a result where no body is expected (204, {ok:true}). */
 // `async` is intentional: see comment on `unwrap` above.
 // eslint-disable-next-line @typescript-eslint/require-await
-export async function unwrapVoid(
-  result: FetchResult<unknown>,
-): Promise<void> {
+export async function unwrapVoid(result: FetchResult<unknown>): Promise<void> {
   if (result.error !== undefined) {
     const detail =
       result.error && typeof result.error === 'object' && 'detail' in result.error

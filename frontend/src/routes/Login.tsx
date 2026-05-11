@@ -4,12 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ApiError } from '@/api/client'
 
 export function Login() {
@@ -21,10 +16,7 @@ export function Login() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    loginMutation.mutate(
-      { username, password },
-      { onSuccess: () => navigate('/') },
-    )
+    loginMutation.mutate({ username, password }, { onSuccess: () => navigate('/') })
   }
 
   const errorMessage =
@@ -66,11 +58,7 @@ export function Login() {
                 {errorMessage}
               </p>
             )}
-            <Button
-              type="submit"
-              disabled={disabled || loginMutation.isPending}
-              className="w-full"
-            >
+            <Button type="submit" disabled={disabled || loginMutation.isPending} className="w-full">
               {loginMutation.isPending ? 'Giriş yapılıyor…' : 'Giriş yap'}
             </Button>
           </form>

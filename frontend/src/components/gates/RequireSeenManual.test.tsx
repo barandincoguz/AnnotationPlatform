@@ -6,8 +6,13 @@ import { useAuthStore } from '@/stores/authStore'
 import { RequireSeenManual } from './RequireSeenManual'
 
 const baseUser = {
-  id: 1, username: 'u', email: null, role: 'user' as const,
-  is_active: true, avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+  id: 1,
+  username: 'u',
+  email: null,
+  role: 'user' as const,
+  is_active: true,
+  avatar_color: null,
+  created_at: '2026-05-01T00:00:00+00:00',
 }
 
 beforeEach(() => useAuthStore.setState({ status: 'loading', user: null, error: null }))
@@ -26,7 +31,9 @@ function Tree() {
 describe('RequireSeenManual', () => {
   it('redirects to /help?first_time=true when has_seen_manual is false', async () => {
     useAuthStore.getState().setUser({
-      ...baseUser, has_seen_manual: false, has_passed_training: true,
+      ...baseUser,
+      has_seen_manual: false,
+      has_passed_training: true,
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
@@ -37,7 +44,9 @@ describe('RequireSeenManual', () => {
 
   it('renders outlet when has_seen_manual is true', () => {
     useAuthStore.getState().setUser({
-      ...baseUser, has_seen_manual: true, has_passed_training: true,
+      ...baseUser,
+      has_seen_manual: true,
+      has_passed_training: true,
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
