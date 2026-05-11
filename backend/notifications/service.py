@@ -88,3 +88,21 @@ def mark_read(
     if row is None or row["user_id"] != user_id:
         raise NotificationNotFound(notification_id)
     db.execute("UPDATE notifications SET is_read=1 WHERE id=?", (notification_id,))
+
+
+def mark_all_read(db: sqlite3.Connection, *, user_id: int) -> int:
+    """Mark every unread notification for this user as read in a single
+    atomic UPDATE. Returns the count of rows actually flipped (0 if the
+    inbox was already clean). Idempotent.
+
+    Frontend uses this instead of batching N individual POST /read calls
+    (Codex BROKEN, Pass 1) — batching is racy and half-success is hard
+    to detect from the client.
+    """
+    cur = db.execute(
+        "UPDATE notifications SET is_read=1 "
+        "WHERE user_id=? AND is_read=0",
+        (user_id,),
+    )
+    db.commit()
+    return cur.rowcount
