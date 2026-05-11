@@ -41,9 +41,10 @@ def test_start_attempt_creates_row_returns_questions_and_docs(db):
     # No correct_choice_idx exposed
     assert all("correct_choice_idx" not in q for q in out["questions"])
     assert len(out["gold_docs"]) == 3
-    # No expected_concepts / min_concept_count exposed
-    assert all("expected_concepts" not in g for g in out["gold_docs"])
-    assert all("min_concept_count" not in g for g in out["gold_docs"])
+    # Per 16c.1: expected_concepts and min_concept_count ARE now exposed
+    # (reveal panel, no penalty design)
+    for g in out["gold_docs"]:
+        assert set(g.keys()) == {"gold_id", "content", "expected_concepts", "min_concept_count"}
 
 
 def test_start_attempt_persists_attempt_row(db):
