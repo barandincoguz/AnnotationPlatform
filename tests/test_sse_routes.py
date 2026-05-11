@@ -22,8 +22,19 @@ The broker→event delivery is also verified end-to-end by the
 dedicated test_sse_publish_*.py suites in later Paket 7 tasks.
 """
 import asyncio
+import sqlite3
 import pytest
 from backend.shared.sse import broker as sse_broker
+
+
+def _make_db() -> sqlite3.Connection:
+    """Return an in-memory SQLite connection (no users table needed for fake user IDs)."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, avatar_color TEXT)"
+    )
+    return conn
 
 
 def _reset_broker_subscribers():
@@ -92,7 +103,7 @@ async def test_stream_for_user_subscribes_and_unsubscribes_on_close():
 
     assert user_id not in sse_broker.online_user_ids()
 
-    gen = _stream_for_user(user_id)
+    gen = _stream_for_user(user_id, _make_db())
     # First yield is the immediate ': ready' comment — pull it.
     first = await gen.__anext__()
     assert first == ": ready\n\n"
@@ -112,7 +123,7 @@ async def test_stream_for_user_yields_published_events():
     from backend.sse.routes import _stream_for_user
     user_id = 4243
 
-    gen = _stream_for_user(user_id)
+    gen = _stream_for_user(user_id, _make_db())
     try:
         # Pull the immediate ': ready' comment so we know we're subscribed.
         await gen.__anext__()
