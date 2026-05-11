@@ -196,3 +196,70 @@ def test_start_response_includes_expected_concepts(passed_user, db_conn):
         assert isinstance(doc["expected_concepts"], list)
         assert "min_concept_count" in doc
         assert isinstance(doc["min_concept_count"], int)
+
+
+def test_skip_training_requires_auth(client):
+    res = client.post("/api/training/skip")
+    assert res.status_code == 401
+
+
+def test_skip_training_sets_flag_and_writes_activity_log(passed_user, db_conn):
+    """Fresh user (has_passed_training=0): POST /skip → 200 + ok=True,
+    has_passed_training becomes 1, activity_events has one
+    'training_skipped' row for this user with extra={"actor":"self"}."""
+    me_id = passed_user["user"]["id"]
+    # Reset to has_passed_training=0 for this test
+    db_conn.execute(
+        "UPDATE users SET has_passed_training=0 WHERE id=?", (me_id,),
+    )
+    db_conn.execute(
+        "DELETE FROM activity_events WHERE user_id=? AND event_type='training_skipped'",
+        (me_id,),
+    )
+    db_conn.commit()
+
+    res = passed_user["client"].post("/api/training/skip")
+    assert res.status_code == 200
+    assert res.json() == {"ok": True}
+
+    row = db_conn.execute(
+        "SELECT has_passed_training FROM users WHERE id=?", (me_id,),
+    ).fetchone()
+    assert row["has_passed_training"] == 1
+
+    activity = db_conn.execute(
+        "SELECT event_type, extra_json FROM activity_events "
+        "WHERE user_id=? AND event_type='training_skipped'",
+        (me_id,),
+    ).fetchall()
+    assert len(activity) == 1
+    import json as _json
+    assert _json.loads(activity[0]["extra_json"]) == {"actor": "self"}
+
+
+def test_skip_training_is_idempotent(passed_user, db_conn):
+    """Re-calling skip on an already-passed user is a no-op
+    (returns 200, does NOT write a second activity_events row)."""
+    me_id = passed_user["user"]["id"]
+    db_conn.execute(
+        "UPDATE users SET has_passed_training=0 WHERE id=?", (me_id,),
+    )
+    db_conn.execute(
+        "DELETE FROM activity_events WHERE user_id=? AND event_type='training_skipped'",
+        (me_id,),
+    )
+    db_conn.commit()
+
+    res1 = passed_user["client"].post("/api/training/skip")
+    assert res1.status_code == 200
+
+    res2 = passed_user["client"].post("/api/training/skip")
+    assert res2.status_code == 200
+    assert res2.json() == {"ok": True}
+
+    count = db_conn.execute(
+        "SELECT COUNT(*) AS c FROM activity_events "
+        "WHERE user_id=? AND event_type='training_skipped'",
+        (me_id,),
+    ).fetchone()["c"]
+    assert count == 1

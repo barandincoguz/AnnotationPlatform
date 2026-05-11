@@ -633,3 +633,36 @@ def soft_delete_quiz_override(
         """,
         (question_id, source, admin_id, now, now),
     )
+
+
+# ---------------------------------------------------------------------------
+# Skip training escape hatch (Paket 16c.1 Task 3)
+# ---------------------------------------------------------------------------
+
+def skip_training(db: sqlite3.Connection, *, user_id: int) -> None:
+    """Bypass the training gate: set has_passed_training=1 and log an
+    activity_events row. Idempotent: if has_passed_training is already
+    1, return without writing.
+
+    Used by the user-facing POST /api/training/skip endpoint. The
+    activity log uses event_type='training_skipped' with extra={'actor':
+    'self'} so admins (Paket 16e) can audit who self-bypassed.
+    """
+    row = db.execute(
+        "SELECT has_passed_training FROM users WHERE id=?", (user_id,),
+    ).fetchone()
+    if row is None:
+        # Caller of /skip is always authenticated, so a missing row is
+        # a server-side bug, not a normal API failure.
+        raise ValueError(f"user {user_id} not found")
+    if row["has_passed_training"]:
+        return
+    db.execute(
+        "UPDATE users SET has_passed_training=1, updated_at=datetime('now') "
+        "WHERE id=?",
+        (user_id,),
+    )
+    audit.log_activity(
+        db, user_id, "training_skipped", extra={"actor": "self"},
+    )
+    db.commit()

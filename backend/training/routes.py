@@ -17,7 +17,7 @@ from backend.training.models import (
 )
 from backend.training.quiz_data import get_active_quiz_questions
 from backend.shared import audit
-from backend.users.deps import get_db, require_seen_manual, require_admin
+from backend.users.deps import get_db, get_current_user, require_seen_manual, require_admin
 
 
 log = logging.getLogger(__name__)
@@ -85,6 +85,19 @@ def submit_annotation(
         raise HTTPException(status_code=404, detail={"error": "gold_doc_not_in_attempt"})
     except service.GoldDocAlreadySubmittedError:
         raise HTTPException(status_code=409, detail={"error": "gold_doc_already_submitted"})
+
+
+@router.post("/skip", response_model=OkResponse)
+def skip_training_route(
+    db: sqlite3.Connection = Depends(get_db),
+    user: sqlite3.Row = Depends(get_current_user),
+):
+    """Bypass the training gate. Auth required; user must already be
+    logged in (pre-training users CAN call this — it's the whole
+    point). Idempotent: re-calling on an already-passed user returns
+    ok without side effects."""
+    service.skip_training(db, user_id=user["id"])
+    return {"ok": True}
 
 
 @admin_router.post("/users/{user_id}/reset", response_model=OkResponse)

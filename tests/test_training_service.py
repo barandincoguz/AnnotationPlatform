@@ -348,3 +348,37 @@ def test_is_locked_out_passed_user_not_locked(db):
             (n, passed, now, now),
         )
     assert training_service.is_locked_out(db, user_id=1) is False
+
+
+# ---- skip_training ----
+
+def test_skip_training_sets_flag(db_conn, seed_extra_user):
+    user_id = seed_extra_user(username="skipuser_t3a")
+    db_conn.execute(
+        "UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,),
+    )
+    db_conn.commit()
+
+    training_service.skip_training(db_conn, user_id=user_id)
+
+    row = db_conn.execute(
+        "SELECT has_passed_training FROM users WHERE id=?", (user_id,),
+    ).fetchone()
+    assert row["has_passed_training"] == 1
+
+
+def test_skip_training_idempotent_no_second_log(db_conn, seed_extra_user):
+    user_id = seed_extra_user(username="skipuser_t3b")
+    db_conn.execute(
+        "UPDATE users SET has_passed_training=1 WHERE id=?", (user_id,),
+    )
+    db_conn.commit()
+
+    training_service.skip_training(db_conn, user_id=user_id)
+
+    count = db_conn.execute(
+        "SELECT COUNT(*) AS c FROM activity_events "
+        "WHERE user_id=? AND event_type='training_skipped'",
+        (user_id,),
+    ).fetchone()["c"]
+    assert count == 0
