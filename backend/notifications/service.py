@@ -105,4 +105,4 @@ def mark_all_read(db: sqlite3.Connection, *, user_id: int) -> int:
         (user_id,),
     )
     db.commit()
-    return cur.rowcount
+    return cur.rowcount or 0
