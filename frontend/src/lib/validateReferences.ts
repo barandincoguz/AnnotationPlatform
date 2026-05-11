@@ -27,3 +27,20 @@ export function isValidReference(r: ReferenceItem): boolean {
 export function areAllReferencesValid(refs: ReferenceItem[]): boolean {
   return refs.every(isValidReference)
 }
+
+/**
+ * 16c.1 training-variant validator: source_text is optional because the
+ * backend matcher ignores it anyway. Still requires at least one of
+ * {kanun_no, kanun_ad} so the reference is meaningful for concept
+ * matching. The strict isValidReference above stays in force for 16b
+ * main annotation save — do NOT swap it.
+ */
+export function isValidTrainingReference(r: ReferenceItem): boolean {
+  const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
+  const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
+  return hasKanunNo || hasKanunAd
+}
+
+export function areAllTrainingReferencesValid(refs: ReferenceItem[]): boolean {
+  return refs.every(isValidTrainingReference)
+}
