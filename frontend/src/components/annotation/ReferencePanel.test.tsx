@@ -18,6 +18,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     expect(screen.getAllByText(/Referans #/)).toHaveLength(2)
@@ -36,6 +37,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     expect(screen.getByText(/henüz referans yok/i)).toBeInTheDocument()
@@ -55,6 +57,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /yeni referans/i }))
@@ -75,6 +78,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /sakla/i }))
@@ -95,6 +99,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /atla/i }))
@@ -114,6 +119,7 @@ describe('ReferencePanel', () => {
         isSaving={true}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     expect(screen.getByRole('button', { name: /sakla|kaydediliyor/i })).toBeDisabled()
@@ -129,6 +135,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     expect(screen.getByRole('button', { name: /sakla/i })).toBeDisabled()
@@ -152,6 +159,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={err}
         draftSaveStatus="idle"
+        isValid={true}
       />,
     )
     expect(screen.getByText(/geçersiz veri/i)).toBeInTheDocument()
@@ -170,6 +178,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="saving"
+        isValid={true}
       />,
     )
     expect(screen.getByText(/taslak kaydediliyor/i)).toBeInTheDocument()
@@ -186,6 +195,7 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="saved"
+        isValid={true}
       />,
     )
     expect(screen.getByText(/taslak kaydedildi/i)).toBeInTheDocument()
@@ -202,8 +212,45 @@ describe('ReferencePanel', () => {
         isSaving={false}
         error={null}
         draftSaveStatus="error"
+        isValid={true}
       />,
     )
     expect(screen.getByText(/taslak hata/i)).toBeInTheDocument()
+  })
+})
+
+describe('ReferencePanel — validation gate (16c bug fix)', () => {
+  const minimalProps = {
+    onAdd: vi.fn(),
+    onUpdate: vi.fn(),
+    onRemove: vi.fn(),
+    onSave: vi.fn(),
+    onSkip: vi.fn(),
+    canEdit: true,
+    isSaving: false,
+    error: null,
+    draftSaveStatus: 'idle' as const,
+  }
+
+  it('Sakla disabled when an invalid ref is present', () => {
+    const refs = [{ kanun_no: null, kanun_ad: null, madde: null, fikra: null, bent: null, source_text: 'metin' }]
+    render(<ReferencePanel {...minimalProps} refs={refs} isValid={false} />)
+    expect(screen.getByRole('button', { name: /sakla/i })).toBeDisabled()
+    expect(screen.getByText((_, el) =>
+      el?.tagName === 'P' &&
+      (el.textContent ?? '').includes('kanun_no') &&
+      (el.textContent ?? '').includes('kanun_ad'),
+    )).toBeInTheDocument()
+  })
+
+  it('Sakla enabled when all refs valid', () => {
+    const refs = [{ kanun_no: '5520', kanun_ad: null, madde: null, fikra: null, bent: null, source_text: 'metin' }]
+    render(<ReferencePanel {...minimalProps} refs={refs} isValid={true} />)
+    expect(screen.getByRole('button', { name: /sakla/i })).not.toBeDisabled()
+  })
+
+  it('Sakla enabled when refs is empty (zero-ref legal)', () => {
+    render(<ReferencePanel {...minimalProps} refs={[]} isValid={true} />)
+    expect(screen.getByRole('button', { name: /sakla/i })).not.toBeDisabled()
   })
 })

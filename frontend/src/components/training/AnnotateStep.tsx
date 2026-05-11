@@ -2,20 +2,13 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { ReferenceCard } from '@/components/annotation/ReferenceCard'
 import { useTrainingStore } from '@/stores/trainingStore'
+import { areAllReferencesValid } from '@/lib/validateReferences'
 import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
 
 function emptyRef(): ReferenceItem {
   return { kanun_no: null, kanun_ad: null, madde: null, fikra: null, bent: null, source_text: '' }
-}
-
-function isTrainingReferenceValid(r: ReferenceItem): boolean {
-  if (!r.source_text || r.source_text.trim().length === 0) return false
-  const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
-  const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
-  if (!hasKanunNo && !hasKanunAd) return false
-  return true
 }
 
 interface AnnotateStepProps {
@@ -42,7 +35,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
     return <p className="text-sm text-muted-foreground">Doküman bulunamadı.</p>
   }
   const refs = docRefs[currentDoc.gold_id] ?? []
-  const allValid = refs.every(isTrainingReferenceValid)
+  const allValid = areAllReferencesValid(refs)
 
   const updateRef = (idx: number, next: ReferenceItem) => {
     const updated = [...refs]

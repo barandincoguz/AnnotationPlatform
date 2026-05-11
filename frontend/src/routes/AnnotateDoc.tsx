@@ -15,6 +15,7 @@ import { useDraft } from '@/hooks/useDraft'
 import { useReferencesState } from '@/hooks/useReferencesState'
 import { useAnnotateStore } from '@/stores/annotateStore'
 import { pickNextInFeedAcrossPages } from '@/lib/nextDocId'
+import { areAllReferencesValid } from '@/lib/validateReferences'
 import { ApiError } from '@/api/client'
 import { feedKeys } from '@/api/queries/feed'
 import type { components } from '@/api/types'
@@ -67,6 +68,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const skipMutation = useSkipAnnotationMutation()
 
   const canEdit = lock.status === 'held'
+  const isValid = areAllReferencesValid(refs.list)
 
   const handleSave = async () => {
     draft.blockSavesUntilFurtherNotice()
@@ -200,6 +202,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
           isSaving={saveMutation.isPending}
           error={errorForPanel}
           draftSaveStatus={draft.saveStatus}
+          isValid={isValid}
         />
       </div>
     </div>

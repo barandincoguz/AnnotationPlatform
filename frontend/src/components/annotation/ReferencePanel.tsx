@@ -19,6 +19,7 @@ interface ReferencePanelProps {
   isSaving: boolean
   error: ApiError | null
   draftSaveStatus: DraftSaveStatus
+  isValid: boolean
 }
 
 function DraftStatusBadge({ status }: { status: DraftSaveStatus }) {
@@ -57,6 +58,7 @@ export function ReferencePanel({
   isSaving,
   error,
   draftSaveStatus,
+  isValid,
 }: ReferencePanelProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -97,11 +99,17 @@ export function ReferencePanel({
             {error.message}
           </p>
         )}
+        {!isValid && refs.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Her referans için <strong>source_text</strong> ve en az bir tane{' '}
+            <strong>kanun_no</strong> veya <strong>kanun_ad</strong> doldurulmalı.
+          </p>
+        )}
         <div className="flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={onSkip} disabled={!canEdit || isSaving}>
             Atla
           </Button>
-          <Button type="button" onClick={onSave} disabled={!canEdit || isSaving}>
+          <Button type="button" onClick={onSave} disabled={!canEdit || isSaving || !isValid}>
             {isSaving ? 'Kaydediliyor…' : 'Sakla'}
           </Button>
         </div>
