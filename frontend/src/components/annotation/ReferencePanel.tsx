@@ -101,8 +101,8 @@ export function ReferencePanel({
         )}
         {!isValid && refs.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            Her referans için <strong>source_text</strong> ve en az bir tane{' '}
-            <strong>kanun_no</strong> veya <strong>kanun_ad</strong> doldurulmalı.
+            Her referans için <strong>Metinden Alıntı</strong> ve en az bir tane{' '}
+            <strong>Kanun No</strong> veya <strong>Kanun Adı</strong> doldurulmalı.
           </p>
         )}
         <div className="flex items-center justify-end gap-2">
