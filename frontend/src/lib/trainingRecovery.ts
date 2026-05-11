@@ -38,10 +38,7 @@ export async function submitWithRecovery<R>(args: SubmitWithRecoveryArgs<R>): Pr
   } catch (err) {
     if (!isApiError(err)) throw err
 
-    const store = useTrainingStore.getState() as {
-      quizResult: { score: number; total: number } | null
-      docResults: Record<string, R>
-    }
+    const store = useTrainingStore.getState()
 
     if (args.key.kind === 'quiz' && is409AlreadySubmittedQuiz(err)) {
       const cached = store.quizResult
@@ -53,7 +50,7 @@ export async function submitWithRecovery<R>(args: SubmitWithRecoveryArgs<R>): Pr
 
     if (args.key.kind === 'doc' && is409AlreadySubmittedDoc(err)) {
       const cached = store.docResults[args.key.goldId]
-      if (cached) return cached
+      if (cached) return cached as unknown as R
       await refreshAuth(args.qc)
       useTrainingStore.setState({ degraded: true, step: 'summary' })
       throw new AbortAdvance()
