@@ -141,6 +141,66 @@ const ANNOTATE_DEFAULTS = [
   http.post(`${API}/api/annotations/:docId/complete`, () => HttpResponse.json({ ok: true })),
 ]
 
+// ----- Training -----
+
+export function makeStartResponse(overrides: Partial<{ attempt_id: number; attempt_number: number }> = {}) {
+  return {
+    attempt_id: overrides.attempt_id ?? 100,
+    attempt_number: overrides.attempt_number ?? 1,
+    questions: [
+      { id: 'q01', text: 'Soru 1', choices: ['a', 'b', 'c', 'd'] },
+      { id: 'q02', text: 'Soru 2', choices: ['a', 'b', 'c', 'd'] },
+      { id: 'q03', text: 'Soru 3', choices: ['a', 'b', 'c', 'd'] },
+      { id: 'q04', text: 'Soru 4', choices: ['a', 'b', 'c', 'd'] },
+      { id: 'q05', text: 'Soru 5', choices: ['a', 'b', 'c', 'd'] },
+    ],
+    gold_docs: [
+      { gold_id: 'gold_a', content: 'Doc A içeriği' },
+      { gold_id: 'gold_b', content: 'Doc B içeriği' },
+      { gold_id: 'gold_c', content: 'Doc C içeriği' },
+    ],
+  }
+}
+
+const TRAINING_DEFAULT_HANDLERS = [
+  http.get(`${API}/api/training/start`, () => HttpResponse.json(makeStartResponse())),
+  http.post(`${API}/api/training/quiz/submit`, () => HttpResponse.json({ score: 4, total: 5 })),
+  http.post(`${API}/api/training/annotate/submit`, () =>
+    HttpResponse.json({ passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 }),
+  ),
+  http.post(`${API}/api/me/seen-manual`, () => HttpResponse.json({ ok: true })),
+]
+
+export function mockTrainingStartLockedOut() {
+  return http.get(`${API}/api/training/start`, () =>
+    HttpResponse.json({ detail: { error: 'max_attempts_reached', message: 'too many' } }, { status: 403 }),
+  )
+}
+
+export function mockTrainingStartAlreadyPassed() {
+  return http.get(`${API}/api/training/start`, () =>
+    HttpResponse.json({ detail: { error: 'already_passed', message: 'already' } }, { status: 409 }),
+  )
+}
+
+export function mockQuizSubmitAlreadySubmitted() {
+  return http.post(`${API}/api/training/quiz/submit`, () =>
+    HttpResponse.json({ detail: { error: 'quiz_already_submitted', message: 'dup' } }, { status: 409 }),
+  )
+}
+
+export function mockAnnotateSubmitAlreadySubmitted() {
+  return http.post(`${API}/api/training/annotate/submit`, () =>
+    HttpResponse.json({ detail: { error: 'gold_doc_already_submitted', message: 'dup' } }, { status: 409 }),
+  )
+}
+
+export function mockAnnotateSubmitFail() {
+  return http.post(`${API}/api/training/annotate/submit`, () =>
+    HttpResponse.json({ passed: false, matched_count: 0, expected_count: 2, min_concept_count: 1 }),
+  )
+}
+
 export const handlers = [
   http.get(`${API}/api/auth/me`, () =>
     HttpResponse.json(
@@ -160,6 +220,7 @@ export const handlers = [
     }),
   ),
   HELP_DEFAULT_HANDLER,
+  ...TRAINING_DEFAULT_HANDLERS,
   ...ANNOTATE_DEFAULTS,
 ]
 
