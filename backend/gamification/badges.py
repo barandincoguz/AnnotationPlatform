@@ -14,30 +14,37 @@ BADGE_DEFS: dict[str, dict[str, str]] = {
     "first_annotation": {
         "name": "İlk Annotation",
         "description": "İlk kayıt başarıyla yapıldı.",
+        "criterion": "İlk anotasyon kaydını yap.",
     },
     "annotations_10": {
         "name": "10 Annotation",
         "description": "10 kayıt biriktirdin.",
+        "criterion": "10 anotasyon kaydı biriktir.",
     },
     "annotations_100": {
         "name": "100 Annotation",
         "description": "100 kayıt — istikrarlı çalışıyorsun.",
+        "criterion": "100 anotasyon kaydı biriktir.",
     },
     "annotations_1000": {
         "name": "1000 Annotation",
         "description": "Bin kayıt: ekibin omurgası oldun.",
+        "criterion": "1000 anotasyon kaydı biriktir.",
     },
     "first_completion": {
         "name": "İlk Tamamlama",
         "description": "İlk dokümanı tamamlandı olarak işaretledin.",
+        "criterion": "İlk dokümanı tamamlandı olarak işaretle.",
     },
     "marathoner": {
         "name": "Maratoncu",
         "description": "7 gün üst üste çalıştın.",
+        "criterion": "7 gün üst üste çalış.",
     },
     "good_reviewer": {
         "name": "Good Reviewer",
         "description": "Yaptığın review'lerin çoğu sonraki kullanıcılar tarafından korundu.",
+        "criterion": "Review'lerinin çoğunluğu korunsun (en az 20 review, 15+ kept).",
     },
 }
 

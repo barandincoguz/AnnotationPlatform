@@ -131,3 +131,19 @@ def test_check_badges_settings_overrides(db):
     _ledger(db, 1, "review_kept", 2)
     out = badges.check_badges(db, user_id=1)
     assert "good_reviewer" in out
+
+
+def test_badge_defs_have_imperative_criterion():
+    """Each badge has an optional `criterion` field for the locked variant
+    UI (imperative — 'X yap'). The earned variant continues to use the past-
+    tense `description`. Catalog endpoint surfaces both."""
+    expected_ids = {
+        "first_annotation", "annotations_10", "annotations_100",
+        "annotations_1000", "first_completion", "marathoner", "good_reviewer",
+    }
+    assert set(badges.BADGE_DEFS.keys()) == expected_ids
+    for badge_id, meta in badges.BADGE_DEFS.items():
+        assert "name" in meta, badge_id
+        assert "description" in meta, badge_id
+        assert "criterion" in meta, badge_id
+        assert isinstance(meta["criterion"], str) and meta["criterion"], badge_id
