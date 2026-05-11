@@ -41,7 +41,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
   }
   const refs = docRefs[currentDoc.gold_id] ?? []
   const allValid = areAllTrainingReferencesValid(refs)
-  const expectedConcepts = (currentDoc as { expected_concepts?: Array<Record<string, string | null | undefined>> }).expected_concepts ?? []
+  const expectedConcepts = (currentDoc as { expected_concepts?: Record<string, string | null | undefined>[] }).expected_concepts ?? []
   const minConceptCount = (currentDoc as { min_concept_count?: number }).min_concept_count ?? 1
 
   const updateRef = (idx: number, next: ReferenceItem) => {
