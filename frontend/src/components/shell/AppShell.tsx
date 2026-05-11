@@ -1,13 +1,11 @@
 import { Outlet } from 'react-router-dom'
+import { TopBar } from '@/components/topbar/TopBar'
 
 export function AppShell() {
-  // Minimal in 16a — TopBar with XP/streak/online users lands in 16d.
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b px-4 py-2 flex items-center justify-between">
-        <span className="font-semibold">Anotasyon Platformu</span>
-      </header>
-      <main className="flex-1">
+      <TopBar />
+      <main className="flex-1 min-h-0">
         <Outlet />
       </main>
     </div>
