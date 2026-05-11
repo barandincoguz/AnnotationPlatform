@@ -40,13 +40,31 @@ describe('AnnotateStep', () => {
     expect(screen.getByLabelText(/^source_text$/i)).toBeInTheDocument()
   })
 
-  it('Submit disabled if a reference is missing kanun_no', async () => {
+  it('Submit disabled if a reference has source_text but neither kanun_no nor kanun_ad', async () => {
     const user = userEvent.setup()
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
     await user.click(screen.getByRole('button', { name: /yeni referans/i }))
     const sourceTextarea = screen.getByLabelText(/^source_text$/i)
     await user.type(sourceTextarea, 'metin')
     expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled()
+  })
+
+  it('Submit enabled when reference has source_text + kanun_ad only (no kanun_no)', async () => {
+    const user = userEvent.setup()
+    render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
+    await user.click(screen.getByRole('button', { name: /yeni referans/i }))
+    await user.type(screen.getByLabelText(/^source_text$/i), 'metin')
+    await user.type(screen.getByLabelText(/^kanun_ad$/i), 'Kurumlar Vergisi Kanunu')
+    expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled()
+  })
+
+  it('Submit enabled when reference has source_text + kanun_no only (no kanun_ad)', async () => {
+    const user = userEvent.setup()
+    render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
+    await user.click(screen.getByRole('button', { name: /yeni referans/i }))
+    await user.type(screen.getByLabelText(/^source_text$/i), 'metin')
+    await user.type(screen.getByLabelText(/^kanun_no$/i), '5520')
+    expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled()
   })
 
   it('Submit enabled with no references (zero-ref legal case)', () => {

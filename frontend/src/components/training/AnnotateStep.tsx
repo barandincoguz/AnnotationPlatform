@@ -12,7 +12,9 @@ function emptyRef(): ReferenceItem {
 
 function isTrainingReferenceValid(r: ReferenceItem): boolean {
   if (!r.source_text || r.source_text.trim().length === 0) return false
-  if (!r.kanun_no || r.kanun_no.trim().length === 0) return false
+  const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
+  const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
+  if (!hasKanunNo && !hasKanunAd) return false
   return true
 }
 
