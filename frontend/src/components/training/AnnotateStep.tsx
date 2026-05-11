@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ReferenceCard } from '@/components/annotation/ReferenceCard'
 import { useTrainingStore } from '@/stores/trainingStore'
-import { areAllReferencesValid } from '@/lib/validateReferences'
+import { areAllTrainingReferencesValid } from '@/lib/validateReferences'
+import { formatConcept } from '@/lib/formatTrainingConcept'
 import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
@@ -31,11 +32,17 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
   }, [resultShown, docIndex])
 
   const currentDoc = goldDocs[docIndex]
+  // 16c.1 reveal panel state — closes when doc index changes
+  const [revealOpen, setRevealOpen] = useState(false)
+  useEffect(() => { setRevealOpen(false) }, [currentDoc?.gold_id])
+
   if (!currentDoc) {
     return <p className="text-sm text-muted-foreground">Doküman bulunamadı.</p>
   }
   const refs = docRefs[currentDoc.gold_id] ?? []
-  const allValid = areAllReferencesValid(refs)
+  const allValid = areAllTrainingReferencesValid(refs)
+  const expectedConcepts = (currentDoc as { expected_concepts?: Array<Record<string, string | null | undefined>> }).expected_concepts ?? []
+  const minConceptCount = (currentDoc as { min_concept_count?: number }).min_concept_count ?? 1
 
   const updateRef = (idx: number, next: ReferenceItem) => {
     const updated = [...refs]
@@ -95,11 +102,38 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
           + Yeni Referans
         </Button>
       </section>
-      <div className="mt-6">
+      <div className="mt-6 flex items-center justify-between">
         <Button onClick={() => onSubmit(currentDoc.gold_id, refs)} disabled={isSubmitting || !allValid}>
           {isSubmitting ? 'Gönderiliyor...' : 'Submit & Sonraki ▸'}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setRevealOpen((o) => !o)}
+          aria-expanded={revealOpen}
+          aria-controls="reveal-panel"
+        >
+          👁 Cevabı göster
+        </Button>
       </div>
+      {revealOpen && (
+        <div
+          id="reveal-panel"
+          role="region"
+          aria-label="Beklenen anotasyonlar"
+          className="mt-3 rounded-md border bg-muted/40 p-4 text-sm"
+        >
+          <p className="font-medium mb-2">
+            Beklenen anotasyonlar — {expectedConcepts.length} concept
+            (min eşleşme: {minConceptCount}):
+          </p>
+          <ol className="list-decimal pl-5 space-y-1">
+            {expectedConcepts.map((c, i) => (
+              <li key={i}>{formatConcept(c)}</li>
+            ))}
+          </ol>
+        </div>
+      )}
     </section>
   )
 }
