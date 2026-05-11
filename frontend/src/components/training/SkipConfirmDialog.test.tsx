@@ -33,7 +33,7 @@ describe('SkipConfirmDialog', () => {
       <SkipConfirmDialog open={true} onClose={vi.fn()} />,
       { wrapper: wrap() },
     )
-    expect(screen.getByText(/Asla önerilmez/)).toBeInTheDocument()
+    expect(screen.getByText(/asla önerilmez/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText('SKIP')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Vazgeç/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Eğitimi Atla/ })).toBeInTheDocument()

@@ -38,11 +38,12 @@ export function SkipConfirmDialog({ open, onClose }: SkipConfirmDialogProps) {
           </ul>
           <p>Devam etmek için aşağıya <strong>SKIP</strong> yazın:</p>
           <Input
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- dialog input must capture focus for typed-gate flow
+            autoFocus
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="SKIP"
             aria-label="SKIP yazınız"
-            autoFocus
           />
         </div>
         <DialogFooter>
