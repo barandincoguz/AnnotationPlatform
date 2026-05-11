@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from backend.shared.sse import broker
-from backend.users.deps import require_passed_training
+from backend.users.deps import require_passed_training, get_db
 
 
 router = APIRouter(prefix="/api", tags=["sse"])
@@ -40,41 +40,82 @@ def format_sse_message(*, event_type: Optional[str], data: dict) -> str:
     return f"event: {event_type}\ndata: {payload}\n\n"
 
 
-async def _stream_for_user(user_id: int) -> AsyncIterator[str]:
-    """Subscribe to broker; yield SSE messages until cancelled."""
+def _build_online_payload(db: sqlite3.Connection, user_id: int) -> dict:
+    """Look up the user's identity slice for the user_online broadcast.
+    Falls back to safe defaults if the row vanished (rare race)."""
+    row = db.execute(
+        "SELECT username, avatar_color FROM users WHERE id=?", (user_id,),
+    ).fetchone()
+    if row is None:
+        return {"id": user_id, "username": f"user{user_id}", "avatar_color": "#666666"}
+    return {
+        "id": user_id,
+        "username": row["username"],
+        "avatar_color": row["avatar_color"],
+    }
+
+
+async def _stream_for_user(
+    user_id: int, db: sqlite3.Connection,
+) -> AsyncIterator[str]:
+    """Subscribe to broker; yield SSE messages until cancelled.
+
+    On subscribe, broadcasts user_online to all OTHER users (no self-echo).
+    On disconnect (finally:), if this was the user's last open queue,
+    broadcasts user_offline to remaining subscribers.
+    """
     queue = broker.subscribe(user_id)
     try:
-        # Emit an immediate comment so response headers flush before the
-        # first real event. Without this, StreamingResponse buffers the
-        # 200 response until the first yield — which can be up to 30s
-        # (the keepalive timeout) for an idle subscriber.
+        # Fire user_online to everyone EXCEPT the subscriber.
+        try:
+            payload = _build_online_payload(db, user_id)
+            await broker.publish_to_others(
+                except_user_id=user_id,
+                event_type="user_online",
+                data=payload,
+            )
+        except Exception:
+            log.exception("user_online emit failed for user_id=%s", user_id)
+
         yield ": ready\n\n"
         while True:
             try:
-                event = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_INTERVAL_SECONDS)
+                event = await asyncio.wait_for(
+                    queue.get(), timeout=KEEPALIVE_INTERVAL_SECONDS,
+                )
                 yield format_sse_message(event_type=event.event_type, data=event.data)
             except asyncio.TimeoutError:
-                # Idle keepalive — comments are ignored by EventSource clients.
                 yield ": ping\n\n"
     except asyncio.CancelledError:
-        # Client disconnected; let the finally block clean up.
         raise
     except Exception:
         log.exception("SSE stream errored for user_id=%s", user_id)
         raise
     finally:
         broker.unsubscribe(user_id, queue)
+        if user_id not in broker._subscribers:
+            try:
+                await broker.publish_to_others(
+                    except_user_id=user_id,
+                    event_type="user_offline",
+                    data={"id": user_id},
+                )
+            except Exception:
+                log.exception(
+                    "user_offline emit failed for user_id=%s", user_id,
+                )
 
 
 @router.get("/events")
 async def events(
+    db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
     return StreamingResponse(
-        _stream_for_user(user["id"]),
+        _stream_for_user(user["id"], db),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",  # disable nginx buffering if behind proxy
+            "X-Accel-Buffering": "no",
         },
     )
