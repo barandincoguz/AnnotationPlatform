@@ -8,6 +8,9 @@ import { http, HttpResponse } from 'msw'
 //   specific response.
 export const handlers = [
   http.get('http://localhost/api/auth/me', () =>
-    HttpResponse.json({ detail: 'unauth' }, { status: 401 }),
+    HttpResponse.json(
+      { detail: { error: 'unauthorized', message: 'Not authenticated' } },
+      { status: 401 },
+    ),
   ),
 ]

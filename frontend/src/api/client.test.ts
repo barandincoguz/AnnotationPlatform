@@ -31,19 +31,10 @@ afterEach(() => {
 describe('unwrap()', () => {
   it('returns data on 2xx with body', async () => {
     server.use(
-      http.get('http://localhost/api/echo', () =>
-        HttpResponse.json({ ok: true, value: 42 }),
-      ),
+      http.get('http://localhost/api/echo', () => HttpResponse.json({ value: 42 })),
     )
-    // Exercise the wired client; result is intentionally unused — the
-    // assertion below verifies the helper shape via a synthetic object.
-    await client.GET('/api/auth/me' as never)
-    // simulate by hand: just verify the helper shape
-    const fake = {
-      data: { value: 42 },
-      response: new Response(null, { status: 200 }),
-    }
-    expect(await unwrap(fake)).toEqual({ value: 42 })
+    const result = await client.GET('/api/echo' as never)
+    expect(await unwrap(result)).toEqual({ value: 42 })
   })
 
   it('throws UnexpectedEmptyResponse when 2xx but no body', async () => {
@@ -132,7 +123,10 @@ describe('401 interceptor', () => {
 
     server.use(
       http.get('http://localhost/api/auth/me', () =>
-        HttpResponse.json({ detail: 'unauth' }, { status: 401 }),
+        HttpResponse.json(
+          { detail: { error: 'unauthorized', message: 'Not authenticated' } },
+          { status: 401 },
+        ),
       ),
     )
     await client.GET('/api/auth/me')
@@ -149,7 +143,10 @@ describe('401 interceptor', () => {
 
     server.use(
       http.get('http://localhost/api/auth/me', () =>
-        HttpResponse.json({ detail: 'unauth' }, { status: 401 }),
+        HttpResponse.json(
+          { detail: { error: 'unauthorized', message: 'Not authenticated' } },
+          { status: 401 },
+        ),
       ),
     )
     await client.GET('/api/auth/me')
@@ -166,7 +163,10 @@ describe('401 interceptor', () => {
 
     server.use(
       http.get('http://localhost/api/something', () =>
-        HttpResponse.json({ detail: 'unauth' }, { status: 401 }),
+        HttpResponse.json(
+          { detail: { error: 'unauthorized', message: 'Not authenticated' } },
+          { status: 401 },
+        ),
       ),
     )
     await client.GET('/api/something' as never)
