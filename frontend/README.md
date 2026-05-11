@@ -74,3 +74,49 @@ deliberately with smoke test, then update the pin.
 `@/` → `src/`. Configured in three places: `tsconfig.json` (paths),
 `vite.config.ts` (resolve.alias), `tsconfig.eslint.json` (lint type-aware).
 Vitest inherits from Vite automatically.
+
+## 16b — Annotate Workflow
+
+### URL structure
+
+- `/` — Empty editor (DocList visible left, "Listeden bir doküman seçin" right)
+- `/docs/:docId` — 3-col editor (DocList | DocViewer | ReferencePanel)
+
+### Tab state
+
+The current tab (`new` | `review` | `verified`) is persisted to `sessionStorage`
+under `annotate.currentTab`. URL stays clean (no `?tab=` query param).
+
+### Lock lifecycle
+
+- Eager: navigating to `/docs/:docId` triggers `POST /api/locks/{id}/acquire`
+- Heartbeat: every 30s while the route is mounted (server TTL is 90s)
+- Release: best-effort `fetch(..., { keepalive: true })` on cleanup, plus
+  explicit release after save. The 90s server TTL is the correctness backstop.
+- 409 on acquire → `LockConflictModal`. Different wording when the conflicting
+  user is the current user (same-user-cross-tab case).
+
+### Draft auto-save
+
+- Debounced 2s after the last reference edit
+- Full body replacement (`PUT /api/drafts/{id}`)
+- Drafts loaded silently on doc open (draft > annotation > empty)
+- Cleared on successful save commit
+
+### Save flow
+
+1. Block all draft writes (`isSavingRef`)
+2. `POST /api/annotations`
+3. `DELETE /api/drafts/{id}` (best-effort)
+4. `POST /api/locks/{id}/release` (best-effort)
+5. Refetch feed
+6. Pick next doc in current tab → `navigate('/docs/:next', { replace: true })`
+7. If no next doc → toast + `navigate('/', { replace: true })`
+
+### SSE events handled in 16b
+
+- `lock_acquired` → invalidate feed; if current doc and different user → kick out
+- `lock_released` → invalidate feed
+
+(Other events — `annotation_saved`, `annotation_completed`, `badge_unlocked`,
+`speed_warning`, `char_limit_warning` — are deferred to 16d.)
