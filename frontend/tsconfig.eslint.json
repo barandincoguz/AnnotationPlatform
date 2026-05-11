@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*.{ts,tsx}",
+    "vite.config.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "types": ["node", "vite/client"]
+  }
+}
