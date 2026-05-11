@@ -123,3 +123,77 @@ def test_is_doc_pass_threshold():
     assert matching.is_doc_pass(summary, min_concept_count=1) is True
     assert matching.is_doc_pass(summary, min_concept_count=2) is False
     assert matching.is_doc_pass({"matched_count": 0, "expected_count": 1}, min_concept_count=1) is False
+
+
+# ------------------------------------------------------------------
+# 16c.1 normalization tests
+# ------------------------------------------------------------------
+
+from backend.training.matching import _normalize_value, match_concept
+
+
+class TestNormalizeValue:
+    def test_none_passes_through(self):
+        assert _normalize_value(None) is None
+
+    def test_empty_string_passes_through_as_empty(self):
+        assert _normalize_value("") == ""
+
+    def test_trim_and_lowercase_ascii(self):
+        assert _normalize_value(" Hello ") == "hello"
+
+    def test_collapse_internal_whitespace(self):
+        assert _normalize_value("Geçici  67") == "geçici 67"
+        assert _normalize_value("Mükerrer\t\t80") == "mükerrer 80"
+
+    def test_turkish_capital_i_loses_combining_dot(self):
+        # "İ".lower() → "i" + combining dot above (U+0307).
+        # _normalize_value must strip the combining mark.
+        assert _normalize_value("İstanbul") == "istanbul"
+
+    def test_leading_zero_strip_on_pure_numeric_token(self):
+        assert _normalize_value("05520") == "5520"
+        assert _normalize_value("0") == "0"  # never empty
+        assert _normalize_value("Geçici 067") == "geçici 67"
+
+    def test_non_numeric_token_keeps_leading_zero(self):
+        # "0a" is not a pure digit token
+        assert _normalize_value("0a") == "0a"
+
+    def test_nfc_composition(self):
+        # "ü" can be expressed as U+00FC or "u" + U+0308 combining diaeresis.
+        decomposed = "ü"
+        composed = "ü"
+        assert _normalize_value(decomposed) == _normalize_value(composed)
+
+
+class TestMatchConceptNormalization:
+    def test_trailing_space_matches(self):
+        concept = {"madde": "5"}
+        refs = [{"madde": "5 ", "source_text": "x"}]
+        assert match_concept(concept, refs) is True
+
+    def test_case_insensitive_match(self):
+        concept = {"bent": "a"}
+        refs = [{"bent": "A", "source_text": "x"}]
+        assert match_concept(concept, refs) is True
+
+    def test_internal_whitespace_collapse_match(self):
+        concept = {"madde": "Geçici 67"}
+        refs = [{"madde": "geçici  67", "source_text": "x"}]
+        assert match_concept(concept, refs) is True
+
+    def test_leading_zero_match(self):
+        concept = {"kanun_no": "5520"}
+        refs = [{"kanun_no": "05520", "source_text": "x"}]
+        assert match_concept(concept, refs) is True
+
+    def test_different_values_still_reject(self):
+        concept = {"madde": "5"}
+        refs = [{"madde": "6", "source_text": "x"}]
+        assert match_concept(concept, refs) is False
+
+    def test_close_but_distinct_numeric_still_reject(self):
+        concept = {"kanun_no": "193"}
+        refs = [{"kanun_no": "194", "source_text": "x"}]
+        assert match_concept(concept, refs) is False
