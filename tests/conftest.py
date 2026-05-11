@@ -1,3 +1,11 @@
+# IMPORTANT: this env-set MUST stay above every backend import in this
+# module (and every test module that imports backend.main). The SPA
+# fallback routes in backend/main.py are registered at module import
+# time, so an autouse fixture cannot suppress them retroactively. The
+# `setdefault` is non-destructive — production / CI overrides win.
+import os
+os.environ.setdefault("DISABLE_SPA_MOUNT", "1")
+
 import json
 from pathlib import Path
 import pytest

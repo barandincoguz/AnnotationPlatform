@@ -7,8 +7,11 @@ On startup:
 
 Domain routers (users, documents, ...) are mounted in their respective packages.
 """
+import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend import config
 from backend.shared.db import connect
@@ -127,3 +130,43 @@ def health_db():
         "migrations_applied": migrations_count,
         "table_count": tables_count,
     }
+
+
+# === SPA fallback (Paket 16a) =================================================
+#
+# Route registration happens at import time. To keep tests deterministic
+# (no SPA routes leaking into TestClient) we gate registration on an env
+# flag in addition to the directory check. The test conftest sets this
+# BEFORE backend.main is imported.
+#
+# MUST stay below every /api/* router include — FastAPI matches routes
+# in registration order, and the catch-all `/{path:path}` would otherwise
+# swallow legitimate API routes.
+_SPA_DISABLED = os.getenv("DISABLE_SPA_MOUNT") == "1"
+
+if config.STATIC_DIR.exists() and not _SPA_DISABLED:
+    app.mount(
+        "/assets",
+        StaticFiles(directory=config.STATIC_DIR / "assets"),
+        name="assets",
+    )
+    INDEX_HTML = config.STATIC_DIR / "index.html"
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa_fallback(path: str):
+        """Serve root-level public files (favicon, robots.txt) if they
+        exist; extensioned-but-missing paths → 404; extensionless paths
+        → SPA index (client-side router takes over)."""
+        last = path.rsplit("/", 1)[-1] if path else ""
+        has_ext = "." in last
+        target = config.STATIC_DIR / path
+        # Path-traversal guard: resolved target must stay inside STATIC_DIR.
+        try:
+            target.resolve().relative_to(config.STATIC_DIR.resolve())
+        except ValueError:
+            raise HTTPException(403)
+        if has_ext:
+            if target.is_file():
+                return FileResponse(target)
+            raise HTTPException(404)
+        return FileResponse(INDEX_HTML)

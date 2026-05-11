@@ -205,6 +205,21 @@ def cmd_import_gold_docs(args) -> int:
     return 0
 
 
+def cmd_openapi_dump(args) -> int:
+    """Export the FastAPI OpenAPI spec to JSON for frontend type generation.
+
+    Imports backend.main lazily so that running `--help` (or any other CLI
+    subcommand) does not trigger app construction / router import side
+    effects. The output path defaults to ./openapi.json.
+    """
+    from backend.main import app as fastapi_app
+
+    output = Path(args.output)
+    output.write_text(json.dumps(fastapi_app.openapi(), indent=2))
+    print(f"OpenAPI written to {output}")
+    return 0
+
+
 def _clone_backup_repo(pat_url: str, dest: Path) -> None:
     """Wrapper for `git clone <pat-url> <dest>`. Extracted as its own
     function so tests can patch it without spawning real git processes.
@@ -338,6 +353,7 @@ COMMANDS = {
     "ingest": cmd_ingest,
     "import-gold-docs": cmd_import_gold_docs,
     "restore-from-github": cmd_restore_from_github,
+    "openapi-dump": cmd_openapi_dump,
 }
 
 
@@ -385,6 +401,15 @@ def main(argv: list[str] | None = None) -> int:
     p_restore.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
     p_restore.add_argument("--force", action="store_true",
         help="Reserved for future WAL-lock detection bypass",
+    )
+
+    p_openapi = sub.add_parser(
+        "openapi-dump",
+        help="Dump FastAPI OpenAPI spec to JSON (frontend type generation)",
+    )
+    p_openapi.add_argument(
+        "--output", default="openapi.json",
+        help="Output path for the JSON file (default: openapi.json)",
     )
 
     args = parser.parse_args(argv)

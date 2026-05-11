@@ -17,3 +17,14 @@ deneme-dev/
 sensitive
 
 annotations.db
+
+# Frontend (Paket 16a)
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Backend frontend build output (owned by Vite; never committed)
+backend/static/
+
+# OpenAPI dump (regenerated on demand; not committed)
+openapi.json

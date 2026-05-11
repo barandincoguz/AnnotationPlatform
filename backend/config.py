@@ -10,6 +10,11 @@ DOCUMENTS_DIR = DATA_DIR / "documents"
 BACKUP_DIR = DATA_DIR / "backup"
 EXPORTS_DIR = DATA_DIR / "exports"
 
+# Frontend build output sink (owned by Vite; never committed).
+# Used by backend/main.py to serve the SPA when the directory exists
+# and DISABLE_SPA_MOUNT is not set.
+STATIC_DIR = PROJECT_ROOT / "backend" / "static"
+
 SESSION_SECRET = os.environ.get("SESSION_SECRET", "dev-secret-DO-NOT-USE-IN-PROD")
 SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "anotasyon_session")
 
