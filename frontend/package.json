@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "gen:openapi": "cd .. && python -m backend.cli openapi-dump --output openapi.json",
     "gen:types": "openapi-typescript http://127.0.0.1:8000/openapi.json -o src/api/types.ts",
