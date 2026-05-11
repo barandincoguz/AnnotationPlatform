@@ -1,0 +1,140 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/msw-server'
+import { useAuthStore } from '@/stores/authStore'
+import { useLock } from './useLock'
+import type { ReactNode } from 'react'
+
+function wrapper({ children }: { children: ReactNode }) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+}
+
+const seedUser = (overrides: Partial<{ id: number; username: string }> = {}) => {
+  useAuthStore.getState().setUser({
+    id: 1, username: 'tester', email: null, role: 'user',
+    is_active: true, has_seen_manual: true, has_passed_training: true,
+    avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+    ...overrides,
+  })
+}
+
+describe('useLock', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    useAuthStore.setState({ status: 'loading', user: null, error: null })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('acquires on mount → status="held"', async () => {
+    seedUser()
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+    expect(result.current.info).not.toBeNull()
+  })
+
+  it('409 → status="conflict" with conflict detail', async () => {
+    seedUser({ id: 1 })
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () =>
+        HttpResponse.json(
+          {
+            detail: {
+              error: 'lock_held_by_other',
+              by_user_id: 99,
+              by_username: 'ahmet',
+              acquired_at: '2026-05-11T10:00:00+00:00',
+              expires_at: '2026-05-11T10:01:30+00:00',
+            },
+          },
+          { status: 409 },
+        ),
+      ),
+    )
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('conflict'))
+    expect(result.current.conflictUsername).toBe('ahmet')
+    expect(result.current.conflictIsSameUser).toBe(false)
+  })
+
+  it('same-user 409 sets conflictIsSameUser=true (F8)', async () => {
+    seedUser({ id: 1 })
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () =>
+        HttpResponse.json(
+          {
+            detail: {
+              error: 'lock_held_by_other',
+              by_user_id: 1,
+              by_username: 'tester',
+              acquired_at: '2026-05-11T10:00:00+00:00',
+              expires_at: '2026-05-11T10:01:30+00:00',
+            },
+          },
+          { status: 409 },
+        ),
+      ),
+    )
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('conflict'))
+    expect(result.current.conflictIsSameUser).toBe(true)
+  })
+
+  it('heartbeat 404 → status="lost" (B6)', async () => {
+    seedUser()
+    let heartbeats = 0
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/heartbeat', () => {
+        heartbeats++
+        return HttpResponse.json(
+          { detail: 'not lock holder' },
+          { status: 404 },
+        )
+      }),
+    )
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(35_000)
+    })
+    await waitFor(() => expect(result.current.status).toBe('lost'))
+    expect(heartbeats).toBeGreaterThan(0)
+  })
+
+  it('explicit release transitions to status="released"', async () => {
+    seedUser()
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+    await act(async () => {
+      await result.current.release()
+    })
+    expect(result.current.status).toBe('released')
+  })
+
+  it('unmount clears heartbeat interval (B2)', async () => {
+    seedUser()
+    let heartbeats = 0
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/heartbeat', () => {
+        heartbeats++
+        return HttpResponse.json({
+          document_id: 'doc-1', user_id: 1, by_username: 'tester',
+          acquired_at: '2026-05-11T10:00:00+00:00',
+          expires_at: '2026-05-11T10:01:30+00:00',
+        })
+      }),
+    )
+    const { result, unmount } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+    unmount()
+    const before = heartbeats
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000)
+    })
+    expect(heartbeats).toBe(before)
+  })
+})
