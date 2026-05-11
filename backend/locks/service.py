@@ -99,27 +99,45 @@ def release_if_held(
 
 
 def acquire(db: sqlite3.Connection, *, document_id: str, user_id: int) -> dict:
-    """Create or refresh a lock. Raises LockHeldByOther if another user holds it."""
+    """Create or refresh a lock. Raises LockHeldByOther if another user holds it.
+
+    B2 fix: the read-then-write is wrapped in BEGIN IMMEDIATE so two
+    concurrent callers serialize at the SQLite RESERVED lock.  The
+    connection is opened with isolation_level=None (autocommit off, manual
+    BEGIN), so BEGIN IMMEDIATE is the correct pattern here.
+    The 5-second busy_timeout set in db.connect() lets the second thread
+    retry instead of failing immediately with OperationalError.
+    """
     if not _document_exists(db, document_id):
         raise DocumentNotFound(document_id)
 
-    existing = get_lock(db, document_id)
-    if existing is not None and existing["user_id"] != user_id:
-        raise LockHeldByOther(existing)
+    cursor = db.cursor()
+    try:
+        cursor.execute("BEGIN IMMEDIATE")
 
-    now = _now()
-    expires = now + timedelta(seconds=_expires_seconds(db))
-    db.execute(
-        """
-        INSERT INTO document_locks(document_id, user_id, acquired_at, last_heartbeat, expires_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(document_id) DO UPDATE SET
-            user_id=excluded.user_id,
-            last_heartbeat=excluded.last_heartbeat,
-            expires_at=excluded.expires_at
-        """,
-        (document_id, user_id, now.isoformat(), now.isoformat(), expires.isoformat()),
-    )
+        existing = get_lock(db, document_id)
+        if existing is not None and existing["user_id"] != user_id:
+            db.rollback()
+            raise LockHeldByOther(existing)
+
+        now = _now()
+        expires = now + timedelta(seconds=_expires_seconds(db))
+        cursor.execute(
+            """
+            INSERT INTO document_locks(document_id, user_id, acquired_at, last_heartbeat, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(document_id) DO UPDATE SET
+                user_id=excluded.user_id,
+                last_heartbeat=excluded.last_heartbeat,
+                expires_at=excluded.expires_at
+            """,
+            (document_id, user_id, now.isoformat(), now.isoformat(), expires.isoformat()),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     row = db.execute(
         "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
     ).fetchone()

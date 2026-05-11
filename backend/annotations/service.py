@@ -44,6 +44,19 @@ class AnnotationNotFound(AnnotationServiceError):
     """set_complete called on a document with no annotation row yet."""
 
 
+class LockOwnedByOther(AnnotationServiceError):
+    """An active lock exists on the document and is held by a different user.
+
+    Raised by save_annotation and set_complete when a caller attempts to
+    write to a document locked by someone else.  The route handler maps
+    this to HTTP 409 lock_owned_by_other.
+    """
+
+    def __init__(self, document_id: str):
+        super().__init__(f"document {document_id!r} is locked by another user")
+        self.document_id = document_id
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -105,6 +118,13 @@ def save_annotation(
     """
     if not _document_exists(db, document_id):
         raise DocumentNotFound(document_id)
+
+    # B1: Reject writes when an active lock is held by a *different* user.
+    # get_lock() already sweeps expired rows and returns None for them, so
+    # this check only fires when the lock is genuinely active and foreign.
+    _active = locks_service.get_lock(db, document_id)
+    if _active is not None and _active["user_id"] != user_id:
+        raise LockOwnedByOther(document_id)
 
     cleaned = normalize_references(references)
 
@@ -271,6 +291,13 @@ def set_complete(
     ).fetchone()
     if cur is None:
         raise AnnotationNotFound(document_id)
+
+    # B1: Same ownership guard as save_annotation — reject if a different
+    # user currently holds the lock.
+    _active = locks_service.get_lock(db, document_id)
+    if _active is not None and _active["user_id"] != user_id:
+        raise LockOwnedByOther(document_id)
+
     if bool(cur["is_completed"]) == completed:
         # no-op (idempotent toggle)
         return {"is_completed": completed}
