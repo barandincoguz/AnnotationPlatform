@@ -41,7 +41,7 @@ export function ReferenceCard({ index, value, onChange, onRemove, disabled }: Re
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label htmlFor={id('kanun_no')}>kanun_no</Label>
+            <Label htmlFor={id('kanun_no')}>Kanun No</Label>
             <Input
               id={id('kanun_no')}
               value={value.kanun_no ?? ''}
@@ -50,7 +50,7 @@ export function ReferenceCard({ index, value, onChange, onRemove, disabled }: Re
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor={id('kanun_ad')}>kanun_ad</Label>
+            <Label htmlFor={id('kanun_ad')}>Kanun Adı</Label>
             <Input
               id={id('kanun_ad')}
               value={value.kanun_ad ?? ''}
@@ -59,7 +59,7 @@ export function ReferenceCard({ index, value, onChange, onRemove, disabled }: Re
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor={id('madde')}>madde</Label>
+            <Label htmlFor={id('madde')}>Madde</Label>
             <Input
               id={id('madde')}
               value={value.madde ?? ''}
@@ -68,7 +68,7 @@ export function ReferenceCard({ index, value, onChange, onRemove, disabled }: Re
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor={id('fikra')}>fıkra</Label>
+            <Label htmlFor={id('fikra')}>Fıkra</Label>
             <Input
               id={id('fikra')}
               value={value.fikra ?? ''}
@@ -77,7 +77,7 @@ export function ReferenceCard({ index, value, onChange, onRemove, disabled }: Re
             />
           </div>
           <div className="space-y-1 col-span-2">
-            <Label htmlFor={id('bent')}>bent</Label>
+            <Label htmlFor={id('bent')}>Bent</Label>
             <Input
               id={id('bent')}
               value={value.bent ?? ''}
@@ -87,7 +87,7 @@ export function ReferenceCard({ index, value, onChange, onRemove, disabled }: Re
           </div>
         </div>
         <div className="space-y-1">
-          <Label htmlFor={id('source')}>source_text</Label>
+          <Label htmlFor={id('source')}>Metinden Alıntı</Label>
           <Textarea
             id={id('source')}
             value={value.source_text}

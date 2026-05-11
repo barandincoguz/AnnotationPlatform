@@ -238,8 +238,8 @@ describe('ReferencePanel — validation gate (16c bug fix)', () => {
     expect(screen.getByRole('button', { name: /sakla/i })).toBeDisabled()
     expect(screen.getByText((_, el) =>
       el?.tagName === 'P' &&
-      (el.textContent ?? '').includes('kanun_no') &&
-      (el.textContent ?? '').includes('kanun_ad'),
+      (el.textContent ?? '').includes('Kanun No') &&
+      (el.textContent ?? '').includes('Kanun Adı'),
     )).toBeInTheDocument()
   })
 

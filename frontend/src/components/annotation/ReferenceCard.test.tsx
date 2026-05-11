@@ -22,9 +22,9 @@ describe('ReferenceCard', () => {
         disabled={false}
       />,
     )
-    expect(screen.getByLabelText(/kanun_no/i)).toHaveValue('213')
-    expect(screen.getByLabelText(/madde/i)).toHaveValue('359')
-    expect(screen.getByLabelText(/source/i)).toHaveValue('quote')
+    expect(screen.getByLabelText(/^kanun no$/i)).toHaveValue('213')
+    expect(screen.getByLabelText(/^madde$/i)).toHaveValue('359')
+    expect(screen.getByLabelText(/^metinden alıntı$/i)).toHaveValue('quote')
   })
 
   it('calls onChange on input edits', async () => {
@@ -39,7 +39,7 @@ describe('ReferenceCard', () => {
         disabled={false}
       />,
     )
-    await user.type(screen.getByLabelText(/madde/i), '5')
+    await user.type(screen.getByLabelText(/^madde$/i), '5')
     expect(onChange).toHaveBeenCalled()
   })
 
@@ -68,7 +68,7 @@ describe('ReferenceCard', () => {
         disabled={true}
       />,
     )
-    expect(screen.getByLabelText(/source/i)).toBeDisabled()
-    expect(screen.getByLabelText(/kanun_no/i)).toBeDisabled()
+    expect(screen.getByLabelText(/^metinden alıntı$/i)).toBeDisabled()
+    expect(screen.getByLabelText(/^kanun no$/i)).toBeDisabled()
   })
 })
