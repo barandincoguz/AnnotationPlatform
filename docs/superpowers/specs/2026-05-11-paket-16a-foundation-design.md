@@ -22,7 +22,7 @@ The annotation platform backend ships 41 endpoints across 13 modules (auth, user
 
 - `frontend/` directory greenfield scaffold (Vite + TS + Tailwind + shadcn/ui)
 - API client + `openapi-typescript` type generation pipeline + `openapi-fetch` typed minimal client
-- Auth flow: Login + Register routes, 4 routing gates (RequireAuth, RequireSeenManual, RequirePassedTraining, RequireAdmin) wired but only RequireAuth/RequireAdmin actively gating in 16a
+- Auth flow: Login + Register routes, 4 routing gates (RequireAuth, RequireSeenManual, RequirePassedTraining, RequireAdmin) all wired into the route tree and active in 16a. The onboarding gates redirect to STUB pages (Help/Training) that 16c populates with real content — the routing structure is complete; only the destination page content is deferred.
 - 4-state `authStore` (Zustand) with blocking hydration sequence via `/api/auth/me`
 - TanStack Query 5 configured (per-query overrides for session-critical, global retry strategy)
 - ErrorBoundary, LoadingScreen (loading + error retry modes), minimal AppShell
@@ -88,6 +88,8 @@ The annotation platform backend ships 41 endpoints across 13 modules (auth, user
 | Auth hydration | **Blocking** app shell → `/api/auth/me` → route or redirect | Codex: HttpOnly cookie not JS-readable; optimistic mount risks flicker + stale state |
 | Auth state persist | NO localStorage persist | Server-driven; stale-on-reload flicker prevented |
 | Login response shape | Backend returns `{ok:true}`; frontend makes second `/api/auth/me` call | Avoid backend change; ~100ms extra is negligible |
+| Register response shape | Backend returns `UserOut` (201) but does NOT establish a session (current `backend/users/routes.py` behavior). Frontend treats register as "create account → redirect to /login with success toast" — no auto-login | Avoids backend behavior change for 16a; auto-login can be added in a follow-up paket if UX research justifies it |
+| SPA mount toggle | Backend `main.py` SPA registration gated on `DISABLE_SPA_MOUNT=1` env flag (in addition to `STATIC_DIR.exists()` check) | Routes register at import time; env-flag-at-conftest-top is the only way to keep tests deterministic regardless of whether a developer has run `npm run build` |
 | API client | `openapi-fetch` + DI setter pattern (`setNavigator`, `setAuthHandlers`, `markHydrated`) | No circular dep; testable; type-safe |
 | Hydration flag | Explicit `hydrated: boolean` (NOT `authHandlersRef === null` sentinel) | Test isolation: each test starts with hydrated=false; tests opt into post-hydration |
 | Error shape | `ApiError` (status, code, message, raw) + `UnexpectedEmptyResponse` | Handles 3 FastAPI detail shapes (string, object, array) |
@@ -228,38 +230,81 @@ Plus root `.gitignore`: `backend/static/` ignored.
 
 ## 5. Auth + Routing + Gates
 
+### Provider tree
+
+**Critical invariant**: `<BrowserRouter>` is owned by **main.tsx** (the only Router instance in the app). `App.tsx` runs INSIDE the Router context and is therefore allowed to call `useNavigate`, `useQueryClient`, etc. at the top level of its function body. App.tsx must NEVER wrap its own `<BrowserRouter>` (would shadow the parent Router; useNavigate in App would still work but every test using MemoryRouter via `renderWithProviders` would conflict).
+
+```tsx
+// src/main.tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from '@/components/ui/sonner'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ApiError } from '@/api/client'
+import App from './App'
+import '@/styles/globals.css'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: (failureCount, err) => {
+        if (err instanceof ApiError && err.status >= 400 && err.status < 500) return false
+        return failureCount < 1
+      },
+    },
+    mutations: { retry: false },
+  },
+})
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+        <Toaster richColors closeButton />
+      </QueryClientProvider>
+    </ErrorBoundary>
+  </StrictMode>,
+)
+```
+
 ### Routing tree (RR6 nested layout routes)
 
 ```tsx
-// App.tsx
-<BrowserRouter>
-  <Routes>
-    <Route path="/login" element={<Login />} />
-    <Route path="/register" element={<Register />} />
+// src/App.tsx — renders <Routes> only; BrowserRouter is in main.tsx
+<Routes>
+  <Route path="/login" element={<Login />} />
+  <Route path="/register" element={<Register />} />
 
-    <Route element={<RequireAuth />}>
-      <Route path="/help" element={<Help />} />
+  <Route element={<RequireAuth />}>
+    <Route path="/help" element={<Help />} />
 
-      <Route element={<RequireSeenManual />}>
-        <Route path="/training" element={<Training />} />
+    <Route element={<RequireSeenManual />}>
+      <Route path="/training" element={<Training />} />
 
-        <Route element={<RequirePassedTraining />}>
-          <Route element={<AppShell />}>
-            <Route path="/" element={<Annotate />} />
-            <Route path="/me" element={<Profile />} />
-          </Route>
+      <Route element={<RequirePassedTraining />}>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Annotate />} />
+          <Route path="/me" element={<Profile />} />
         </Route>
       </Route>
-
-      <Route
-        path="/admin/*"
-        element={<RequireAdmin><AdminLayout /></RequireAdmin>}
-      />
     </Route>
 
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-</BrowserRouter>
+    <Route
+      path="/admin/*"
+      element={<RequireAdmin><AdminLayout /></RequireAdmin>}
+    />
+  </Route>
+
+  <Route path="*" element={<NotFound />} />
+</Routes>
 ```
 
 **Gate semantics:**
@@ -282,7 +327,7 @@ App mount → authStore.status = 'loading' (default)
 LoadingScreen renders while status === 'loading' or 'error'
   - 'loading': spinner + "Yükleniyor…"
   - 'error': AlertCircle + "Sunucuya bağlanılamadı" + [Tekrar dene] [Çıkış yap]
-    - Tekrar dene: authStore.setStatus('loading') → useEffect re-fires
+    - Tekrar dene: App holds a `retryNonce` state; the hydration `useEffect` includes `retryNonce` in its dependency array. The retry button calls `setRetryNonce(n => n + 1)` AND `authStore.setStatus('loading')` (status flip is what re-renders LoadingScreen out of error mode; nonce bump is what re-fires the effect).
 ```
 
 ### `authStore` (Zustand)
@@ -354,12 +399,14 @@ useEffect(() => {
 
 ```json
 {
-  "gen:openapi": "python -m backend.cli openapi-dump --output ../openapi.json",
+  "gen:openapi": "cd .. && python -m backend.cli openapi-dump --output openapi.json",
   "gen:types": "openapi-typescript http://127.0.0.1:8000/openapi.json -o src/api/types.ts",
   "gen:types:from-file": "openapi-typescript ../openapi.json -o src/api/types.ts",
   "gen:types:check": "npm run gen:openapi && npm run gen:types:from-file && git diff --exit-code src/api/types.ts"
 }
 ```
+
+The `cd ..` prefix is necessary because `python -m backend.cli` needs `backend` on `sys.path` — i.e., the repo root as cwd. Running from `frontend/` would not find the `backend` package (no editable install assumed). Output is `openapi.json` at the repo root so `gen:types:from-file` can read `../openapi.json` from `frontend/`. POSIX-only (Windows would need `cross-env-shell` or split scripts) — acceptable for this project (single-dev Mac/Linux).
 
 **Backend addition** (backend/cli.py):
 
@@ -477,8 +524,10 @@ export async function unwrapVoid(result: FetchResult<unknown>): Promise<void> {
 
 ### TanStack Query setup (main.tsx)
 
+Defined inline in `main.tsx` and passed to `<QueryClientProvider>` — see the main.tsx skeleton in Section 5. Settings:
+
 ```ts
-const queryClient = new QueryClient({
+new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
@@ -493,6 +542,8 @@ const queryClient = new QueryClient({
   },
 })
 ```
+
+The instance lives in `main.tsx`'s module scope. Components access it via `useQueryClient()` (NEVER by importing the symbol — that would couple file paths and break test isolation).
 
 ### `api/queries/auth.ts`
 
@@ -514,6 +565,7 @@ export function useMe() {
 }
 
 export function useLoginMutation() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: { username: string; password: string }) => {
       await unwrapVoid(await client.POST('/api/auth/login', { body: input }))
@@ -522,20 +574,26 @@ export function useLoginMutation() {
     },
     onSuccess: (user) => {
       useAuthStore.getState().setUser(user)
-      queryClient.setQueryData(authKeys.me, user)
+      qc.setQueryData(authKeys.me, user)
     },
   })
 }
 
 export function useRegisterMutation() {
+  const navigate = useNavigate()
   return useMutation({
-    mutationFn: async (input: RegisterInput) => {
-      await unwrapVoid(await client.POST('/api/auth/register', { body: input }))
-      return unwrap(await client.GET('/api/auth/me'))
-    },
-    onSuccess: (user) => {
-      useAuthStore.getState().setUser(user)
-      queryClient.setQueryData(authKeys.me, user)
+    mutationFn: async (input: RegisterInput) =>
+      // Backend /api/auth/register returns UserOut (201) but does NOT
+      // establish a session cookie (see backend/users/routes.py — no
+      // session.set_cookie call on the register handler). Returning a
+      // user payload here would be misleading: a follow-up /api/auth/me
+      // would 401. Treat register as "create account, then prompt login".
+      unwrap(await client.POST('/api/auth/register', { body: input })),
+    onSuccess: () => {
+      // Do NOT seed authStore — no session exists yet. Land the user on
+      // /login with a success toast; they sign in to receive the cookie.
+      toast.success('Hesabınız oluşturuldu. Lütfen giriş yapın.')
+      navigate('/login')
     },
   })
 }
@@ -561,6 +619,7 @@ export function useLogoutMutation() {
 function App() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const [retryNonce, setRetryNonce] = useState(0)
 
   useEffect(() => setNavigator(navigate), [navigate])
   useEffect(() => {
@@ -569,6 +628,8 @@ function App() {
     })
   }, [])
 
+  // Hydration effect: runs on mount AND whenever retryNonce bumps.
+  // qc is stable (provider-owned) — its dep is defensive, not load-bearing.
   useEffect(() => {
     const ctrl = new AbortController()
     let cancelled = false
@@ -592,14 +653,24 @@ function App() {
       }
     })()
     return () => { cancelled = true; ctrl.abort() }
-  }, [qc])
+  }, [qc, retryNonce])
 
   const status = useAuthStore((s) => s.status)
+  const handleRetry = () => {
+    useAuthStore.getState().setStatus('loading')   // flip out of 'error'
+    setRetryNonce((n) => n + 1)                     // re-fire hydration effect
+  }
+
   if (status === 'loading') return <LoadingScreen />
-  if (status === 'error') return <LoadingScreen mode="error" />
-  return <Routes>{/* ... */}</Routes>
+  if (status === 'error') return <LoadingScreen mode="error" onRetry={handleRetry} />
+  return <Routes>{/* see Section 5 for full tree */}</Routes>
 }
 ```
+
+**Why two-step retry (status flip + nonce bump):**
+- Status flip alone wouldn't re-fire the effect (status is read by selector, not in deps).
+- Nonce bump alone wouldn't unmount LoadingScreen's error mode (status would stay 'error' until /me succeeds).
+- Both together: instant UI feedback (spinner returns) + the effect actually re-runs.
 
 ---
 
@@ -836,6 +907,10 @@ export const handlers = [
   )),
   http.post('/api/auth/login', () => HttpResponse.json({ ok: true })),
   http.post('/api/auth/logout', () => HttpResponse.json({ ok: true })),
+  // Backend register returns UserOut (201) but DOES NOT set a session
+  // cookie (see backend/users/routes.py). Tests must assert that the
+  // frontend treats this as "account created, redirect to /login" — NOT
+  // an authed flow. See useRegisterMutation in api/queries/auth.ts.
   http.post('/api/auth/register', () => HttpResponse.json(
     makeUser({ has_seen_manual: false, has_passed_training: false }),
     { status: 201 },
@@ -862,7 +937,7 @@ export function mockAnonUser() {
 | API client | `api/client.test.ts` | Pre/post-hydration self-401, non-/me 401, 4 error detail shapes |
 | Auth mutations | `api/queries/auth.test.tsx` | useLogin/Register/Logout success + error paths |
 | Login form | `routes/Login.test.tsx` | Submit success → /, invalid_credentials, validation |
-| Register form | `routes/Register.test.tsx` | Submit success → /help?first_time, error paths |
+| Register form | `routes/Register.test.tsx` | Submit success → /login with success toast (backend register does not set session; user must sign in); error paths (409 username taken, 422 weak password, 403 invalid invite) |
 | Gates | `components/gates/*.test.tsx` | 4 gates × redirect target verification |
 | Hydration | `App.test.tsx` | Loading + anon → /login + authed → root + error retry |
 | ErrorBoundary | `components/ErrorBoundary.test.tsx` | Child throw → fallback, reload mocked |
@@ -890,7 +965,7 @@ export function mockAnonUser() {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "gen:openapi": "python -m backend.cli openapi-dump --output ../openapi.json",
+    "gen:openapi": "cd .. && python -m backend.cli openapi-dump --output openapi.json",
     "gen:types": "openapi-typescript http://127.0.0.1:8000/openapi.json -o src/api/types.ts",
     "gen:types:from-file": "openapi-typescript ../openapi.json -o src/api/types.ts",
     "gen:types:check": "npm run gen:openapi && npm run gen:types:from-file && git diff --exit-code src/api/types.ts",
@@ -1065,6 +1140,14 @@ export default defineConfig({
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/test/**', 'src/**/*.test.{ts,tsx}', 'src/api/types.ts'],
+      // Section 7 declares "Coverage gate: ≥80% statements + branches".
+      // Enforced here so `npm run test:coverage` fails CI when slipping.
+      thresholds: {
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
+      },
     },
   },
 })
@@ -1072,7 +1155,97 @@ export default defineConfig({
 
 ### `eslint.config.js` (flat, 3 blocks)
 
-See Section 6 final draft above — three-block structure (app code, test files, Node-context config files), `prettier` last to disable conflicting rules.
+```js
+import js from '@eslint/js'
+import tseslint from 'typescript-eslint'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
+import vitest from '@vitest/eslint-plugin'
+import prettier from 'eslint-config-prettier'
+import globals from 'globals'
+
+export default tseslint.config(
+  // ----- Block 1: app code (type-aware) -----
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.browser },
+      parserOptions: {
+        project: ['./tsconfig.eslint.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+      'jsx-a11y': jsxA11y,
+    },
+    settings: { react: { version: 'detect' } },
+    rules: {
+      ...react.configs.recommended.rules,
+      ...react.configs['jsx-runtime'].rules,
+      ...reactHooks.configs.recommended.rules,
+      ...jsxA11y.configs.recommended.rules,
+      // Fast Refresh invariant — see Section 10 #8
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
+      // TS noise we accept (verbatim module syntax handles imports)
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      // 0-error policy for unused; tsconfig also enforces
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  // ----- Block 2: test files (loosen + vitest globals) -----
+  {
+    files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
+    plugins: { vitest },
+    languageOptions: { globals: { ...globals.browser, ...vitest.environments.env.globals } },
+    rules: {
+      ...vitest.configs.recommended.rules,
+      // Tests legitimately export non-components (fixtures, helpers)
+      'react-refresh/only-export-components': 'off',
+      // Tests commonly use any in mocks/factories
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
+  // ----- Block 3: Node-context config files (no type-aware lint) -----
+  {
+    files: ['vite.config.ts', 'eslint.config.js', 'tailwind.config.ts', 'postcss.config.js'],
+    languageOptions: {
+      globals: { ...globals.node },
+      // Override: do NOT run type-aware lint here (no parserOptions.project).
+      parserOptions: { project: null },
+    },
+    rules: {
+      // tsconfig.eslint.json includes vite.config.ts for the app block;
+      // here we relax type-aware rules that don't apply to config code.
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  },
+  // Disable rules that conflict with Prettier; MUST be last.
+  prettier,
+)
+```
+
+**3-block structure rationale:**
+- **Block 1 (app)**: full type-aware lint via `tsconfig.eslint.json`. React + hooks + a11y + Fast Refresh invariants enforced.
+- **Block 2 (tests)**: vitest globals; relaxes `only-export-components` (test files legitimately export helpers) and `no-explicit-any` (mock factories need it).
+- **Block 3 (Node config)**: Node globals; type-aware rules disabled because config files aren't React code.
+- `prettier` config disables formatting-conflict rules — must be the LAST entry to win.
+
+**Ignores**: `dist`, `coverage`, `node_modules`, and `src/api/types.ts` (generated) should be ignored — add an `eslint.config.js` `{ ignores: [...] }` block at the top, or via `.eslintignore` (deprecated in flat config; use the config block).
 
 ### `.prettierrc`
 
@@ -1122,8 +1295,8 @@ cp .env.example .env.local  # if override needed
 # Backend açıkken:
 (frontend/)$ npm run gen:types
 
-# Backend kapalıyken:
-(repo root)$ python -m backend.cli openapi-dump
+# Backend kapalıyken (frontend dizininden tek script):
+(frontend/)$ npm run gen:openapi          # cd .. && python -m backend.cli openapi-dump
 (frontend/)$ npm run gen:types:from-file
 
 # Drift kontrolü (lokal CI öncesi sanity):
@@ -1178,7 +1351,7 @@ npm ci                       # 1. install (engine-strict enforces Node 22)
 npm run typecheck            # 2. tsc --noEmit
 npm run lint                 # 3. eslint (error level fails CI)
 npm run format:check         # 4. prettier
-npm run test:run             # 5. vitest with coverage
+npm run test:coverage        # 5. vitest with coverage thresholds (≥80%)
 npm run build                # 6. production bundle smoke
 ```
 
@@ -1215,11 +1388,18 @@ STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 ### `backend/main.py` — extension-aware SPA fallback (after all `/api/*` routers)
 
 ```python
+import os
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-if config.STATIC_DIR.exists():
+# Route registration happens at import time. To keep tests deterministic
+# (no SPA routes leaking into TestClient) we gate registration on an env
+# flag in addition to the directory check. The test conftest sets this
+# BEFORE backend.main is imported — see tests/conftest.py.
+_SPA_DISABLED = os.getenv("DISABLE_SPA_MOUNT") == "1"
+
+if config.STATIC_DIR.exists() and not _SPA_DISABLED:
     # Vite hashed bundles
     app.mount(
         "/assets",
@@ -1249,6 +1429,8 @@ if config.STATIC_DIR.exists():
 
 **Ordering invariant**: this block MUST appear AFTER all `/api/*` router includes in `main.py`. FastAPI/Starlette matches routes in registration order; `/api/*` matches first, SPA fallback catches everything else.
 
+**Import-time gating rationale**: SPA routes are registered when `backend.main` is imported (FastAPI's module-level decorator pattern). An autouse fixture that monkeypatches `config.STATIC_DIR` would run AFTER the import, leaving the routes registered. The env-flag check moves the decision to import time, which `tests/conftest.py` sets before any backend module is imported.
+
 ### `backend/cli.py` — `openapi_dump` Typer command
 
 ```python
@@ -1261,21 +1443,21 @@ def openapi_dump(output: Path = Path("openapi.json")) -> None:
     typer.echo(f"OpenAPI written to {output}")
 ```
 
-### `tests/conftest.py` — autouse `disable_spa_mount` fixture
+### `tests/conftest.py` — disable SPA mount BEFORE backend imports
 
 ```python
-import pytest
+# This MUST run before any test file imports backend.main — pytest
+# evaluates conftest.py top-level code during collection, before
+# any test module is imported. Setting the env var here guarantees
+# the import-time SPA gate in backend/main.py sees DISABLE_SPA_MOUNT=1
+# on first import.
+import os
+os.environ.setdefault("DISABLE_SPA_MOUNT", "1")
 
-@pytest.fixture(autouse=True)
-def disable_spa_mount(monkeypatch, tmp_path):
-    """SPA static mount'un test ortamında her zaman inactive olduğunu garanti et.
-    Developer `npm run build` çalıştırıp backend/static/ doldurduysa bile
-    testler bunu görmemeli; var-olmayan tmp path'e pin'le."""
-    monkeypatch.setattr(
-        "backend.config.STATIC_DIR",
-        tmp_path / "nonexistent-static",
-    )
+import pytest
 ```
+
+**Why not an autouse fixture**: fixtures run at test execution time, but FastAPI registers routes at module import time. By the time an autouse fixture executes, `backend.main` has already been imported (typically by another conftest, a test module, or a TestClient construction earlier in the same module). The env-var-at-conftest-top approach intercepts the gate before any import occurs. The existing root `tests/conftest.py` is the earliest pytest reads — if a `backend/tests/conftest.py` also exists, set the env var there too (defensive duplication is safe because of `setdefault`).
 
 ### Root `.gitignore`
 
@@ -1298,8 +1480,8 @@ backend/static/
 | 6 | `tests/conftest.py` `disable_spa_mount` autouse fixture pinned | manual |
 | 7 | Every `useQuery` in `src/api/queries/*` threads `{ signal }` | manual / future lint |
 | 8 | All non-component exports outside `src/components/` (Fast Refresh invariant) | lint (`react-refresh/only-export-components: error`) |
-| 9 | `npm run typecheck && lint && test:run && build` green | CI |
-| 10 | `python -m pytest -x -q` green (autouse fixture in effect) | CI |
+| 9 | `npm run typecheck && lint && format:check && test:coverage && build` green (coverage gate ≥80% enforced) | CI |
+| 10 | `python -m pytest -x -q` green (DISABLE_SPA_MOUNT=1 set by conftest before backend imports) | CI |
 
 Auto-verifiable (8, 9, 10): CI gate. Manual (1-7): PR checklist.
 
@@ -1317,6 +1499,8 @@ Auto-verifiable (8, 9, 10): CI gate. Manual (1-7): PR checklist.
 | Build artifact in `backend/static/` accidentally wiping backend-owned files | Low | High | Contract: `backend/static/` is frontend-only; root `.gitignore` blocks accidental commit |
 | Node 22 mismatch (dev vs CI) | Low | Medium | `.nvmrc` + `engines.node` + `.npmrc` engine-strict |
 | FastAPI exempt paths (`/docs`, `/redoc`, `/openapi.json`) reach SPA fallback | None | None | Registered before SPA fallback by FastAPI default |
+| Backend register session contract changes upstream (auto-login added) | Low | Medium | Single source of truth: `useRegisterMutation` in `api/queries/auth.ts`. If backend later sets a cookie on register, update mutation to seed authStore + navigate to `/help?first_time=true` (16c handoff). MSW handler + register test must change together. |
+| Cross-tab session: register tab navigates to `/login`, but another tab is already authed | Low | Low | Register form mounts before authStore hydration check is relevant; existing authed session in another tab is not affected. Cross-tab sync deferred to BroadcastChannel paket. |
 
 ---
 
