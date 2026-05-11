@@ -251,3 +251,43 @@ describe('Training route — pending sentinel', () => {
     await waitFor(() => expect(screen.getByText(/önceki başlatma yarıda kaldı/i)).toBeInTheDocument())
   })
 })
+
+describe('Training — 16c.1 skip link', () => {
+  beforeEach(() => {
+    useAuthStore.setState({ status: 'authed', user: FRESH_USER, error: null })
+    useTrainingStore.getState().clear()
+  })
+
+  it('shows the skip link on the Start step (idle)', async () => {
+    server.use(mockAuthedUser({ has_seen_manual: true, has_passed_training: false }))
+    renderWithProviders(<Training />, { initialEntries: ['/training'] })
+    expect(await screen.findByRole('button', { name: /Eğitimi geç \(önerilmez\)/ })).toBeInTheDocument()
+  })
+
+  it('hides the skip link on the Summary step', async () => {
+    server.use(mockAuthedUser({ has_seen_manual: true, has_passed_training: false }))
+    useTrainingStore.setState({ step: 'summary' } as never)
+    renderWithProviders(<Training />, { initialEntries: ['/training'] })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Eğitimi geç/ })).not.toBeInTheDocument()
+    })
+  })
+
+  it('hides the skip link on locked-out step', async () => {
+    server.use(mockAuthedUser({ has_seen_manual: true, has_passed_training: false }))
+    useTrainingStore.setState({ step: 'locked-out' } as never)
+    renderWithProviders(<Training />, { initialEntries: ['/training'] })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Eğitimi geç/ })).not.toBeInTheDocument()
+    })
+  })
+
+  it('clicking the skip link opens the confirm dialog', async () => {
+    server.use(mockAuthedUser({ has_seen_manual: true, has_passed_training: false }))
+    const user = userEvent.setup()
+    renderWithProviders(<Training />, { initialEntries: ['/training'] })
+    const link = await screen.findByRole('button', { name: /Eğitimi geç/ })
+    await user.click(link)
+    expect(await screen.findByText(/asla önerilmez/i)).toBeInTheDocument()
+  })
+})

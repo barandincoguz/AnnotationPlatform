@@ -22,6 +22,7 @@ import { AnnotateStep } from '@/components/training/AnnotateStep'
 import { SummaryStep } from '@/components/training/SummaryStep'
 import { LockedOutScreen } from '@/components/training/LockedOutScreen'
 import { PendingStartBanner } from '@/components/training/PendingStartBanner'
+import { SkipConfirmDialog } from '@/components/training/SkipConfirmDialog'
 import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
@@ -46,6 +47,8 @@ export function Training() {
   const logoutMut = useLogoutMutation()
 
   const [pendingSentinelVisible, setPendingSentinelVisible] = useState(false)
+  const [skipDialogOpen, setSkipDialogOpen] = useState(false)
+  const skipLinkVisible = step === 'idle' || step === 'quiz' || step === 'doc'
 
   useEffect(() => {
     if (user?.has_passed_training && step !== 'summary' && step !== 'locked-out') {
@@ -152,6 +155,21 @@ export function Training() {
 
   return (
     <div className="mx-auto max-w-3xl p-6">
+      {skipLinkVisible && (
+        <div className="flex justify-end mb-2">
+          <button
+            type="button"
+            onClick={() => setSkipDialogOpen(true)}
+            className="text-xs text-red-600 hover:text-red-700 underline"
+          >
+            Eğitimi geç (önerilmez)
+          </button>
+        </div>
+      )}
+      <SkipConfirmDialog
+        open={skipDialogOpen}
+        onClose={() => setSkipDialogOpen(false)}
+      />
       <h1 className="mb-4 text-2xl font-semibold">Eğitim</h1>
       {pendingSentinelVisible && step === 'idle' && (
         <div className="mb-6">
