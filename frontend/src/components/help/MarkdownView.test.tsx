@@ -42,8 +42,8 @@ describe('MarkdownView', () => {
     const dangerous = `<img src="x" onerror="window.__xss__=true">`
     const { container } = render(<MarkdownView>{dangerous}</MarkdownView>)
     const img = container.querySelector('img')
-    if (img) {
-      expect(img.getAttribute('onerror')).toBeNull()
-    }
+    // After sanitize, either <img> is stripped entirely OR onerror attribute is removed.
+    // Both outcomes are acceptable; neither leaks the handler.
+    expect(img?.getAttribute('onerror') ?? null).toBeNull()
   })
 })

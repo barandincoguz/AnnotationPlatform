@@ -14,7 +14,7 @@ describe('submitWithRecovery', () => {
   it('passes through 200 result unchanged', async () => {
     const qc = makeQc()
     const result = await submitWithRecovery({
-      submit: async () => ({ score: 3, total: 5 }),
+      submit: () => Promise.resolve({ score: 3, total: 5 }),
       key: { kind: 'quiz' },
       qc,
     })
@@ -25,9 +25,7 @@ describe('submitWithRecovery', () => {
     const qc = makeQc()
     useTrainingStore.setState({ quizResult: { score: 4, total: 5 } })
     const result = await submitWithRecovery({
-      submit: async () => {
-        throw new ApiError(409, 'quiz_already_submitted', 'dup')
-      },
+      submit: () => Promise.reject(new ApiError(409, 'quiz_already_submitted', 'dup')),
       key: { kind: 'quiz' },
       qc,
     })
@@ -43,13 +41,11 @@ describe('submitWithRecovery', () => {
       avatar_color: '#000',
       has_seen_manual: true,
       has_passed_training: true,
-    } as never)
+    })
 
     await expect(
       submitWithRecovery({
-        submit: async () => {
-          throw new ApiError(409, 'quiz_already_submitted', 'dup')
-        },
+        submit: () => Promise.reject(new ApiError(409, 'quiz_already_submitted', 'dup')),
         key: { kind: 'quiz' },
         qc,
       }),
@@ -70,9 +66,7 @@ describe('submitWithRecovery', () => {
     }
     useTrainingStore.setState({ docResults: { gold_x: docResult } })
     const result = await submitWithRecovery({
-      submit: async () => {
-        throw new ApiError(409, 'gold_doc_already_submitted', 'dup')
-      },
+      submit: () => Promise.reject(new ApiError(409, 'gold_doc_already_submitted', 'dup')),
       key: { kind: 'doc', goldId: 'gold_x' },
       qc,
     })
@@ -83,9 +77,7 @@ describe('submitWithRecovery', () => {
     const qc = makeQc()
     await expect(
       submitWithRecovery({
-        submit: async () => {
-          throw new ApiError(500, 'boom', 'server')
-        },
+        submit: () => Promise.reject(new ApiError(500, 'boom', 'server')),
         key: { kind: 'quiz' },
         qc,
       }),

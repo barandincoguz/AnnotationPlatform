@@ -16,9 +16,9 @@ type UserOut = components['schemas']['UserOut']
 export async function refreshAuth(qc: QueryClient): Promise<UserOut> {
   const fresh = await qc.fetchQuery({
     queryKey: authKeys.me,
-    queryFn: async () => unwrap(await client.GET('/api/auth/me')),
+    queryFn: async (): Promise<UserOut> => unwrap(await client.GET('/api/auth/me')),
     staleTime: 0,
   })
-  useAuthStore.getState().setUser(fresh as UserOut)
-  return fresh as UserOut
+  useAuthStore.getState().setUser(fresh)
+  return fresh
 }

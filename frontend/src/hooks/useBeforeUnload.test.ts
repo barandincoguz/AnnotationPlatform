@@ -17,7 +17,10 @@ describe('useBeforeUnload', () => {
   })
 
   it('detaches listener on unmount', () => {
-    const removeSpy = vi.spyOn(window, 'removeEventListener')
+    const removeEventListenerImpl = (_evt: string, _fn: EventListenerOrEventListenerObject) => {
+      // Mock implementation for removeEventListener
+    }
+    const removeSpy = vi.spyOn(window, 'removeEventListener').mockImplementation(removeEventListenerImpl)
     const { unmount } = renderHook(() => useBeforeUnload(true))
     unmount()
     expect(removeSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function))
@@ -25,14 +28,16 @@ describe('useBeforeUnload', () => {
 
   it('handler calls preventDefault and sets returnValue', () => {
     let captured: ((e: BeforeUnloadEvent) => void) | null = null
-    vi.spyOn(window, 'addEventListener').mockImplementation((evt, fn) => {
+    const addEventListenerImpl = (evt: string, fn: EventListenerOrEventListenerObject) => {
       if (evt === 'beforeunload') captured = fn as (e: BeforeUnloadEvent) => void
-    })
+    }
+    vi.spyOn(window, 'addEventListener').mockImplementation(addEventListenerImpl)
     renderHook(() => useBeforeUnload(true, 'Devam ediyorsun'))
     expect(captured).not.toBeNull()
-    const evt = { preventDefault: vi.fn(), returnValue: '' } as unknown as BeforeUnloadEvent
+    const preventDefaultFn = vi.fn()
+    const evt = { preventDefault: preventDefaultFn, returnValue: '' } as unknown as BeforeUnloadEvent
     captured!(evt)
-    expect(evt.preventDefault).toHaveBeenCalled()
+    expect(preventDefaultFn).toHaveBeenCalled()
     expect(evt.returnValue).toBe('Devam ediyorsun')
   })
 })
