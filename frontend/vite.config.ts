@@ -13,7 +13,10 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false },
-      '/docs': 'http://127.0.0.1:8000',
+      // NOTE: '/docs' (FastAPI Swagger UI) collided with the SPA route
+      // '/docs/:docId'. Vite's proxy is a prefix match, so '/docs/foo'
+      // was being proxied to backend instead of served as SPA. Removed.
+      // Access Swagger UI directly at http://127.0.0.1:8000/docs during dev.
       '/openapi.json': 'http://127.0.0.1:8000',
       '/redoc': 'http://127.0.0.1:8000',
     },
