@@ -1,10 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { feedKeys, type FeedTab } from '@/api/queries/feed'
 
-export type NextDocResult =
-  | { type: 'next'; id: string }
-  | { type: 'done' }
-  | { type: 'empty' }
+export type NextDocResult = { type: 'next'; id: string } | { type: 'done' } | { type: 'empty' }
 
 interface Page {
   items: { document_id: string }[]
@@ -28,9 +25,7 @@ export async function pickNextInFeedAcrossPages(opts: {
   if (items.length === 0) return { type: 'empty' }
   const total = initial.pages[0]?.total ?? items.length
 
-  const idx = opts.currentDocId
-    ? items.findIndex((d) => d.document_id === opts.currentDocId)
-    : -1
+  const idx = opts.currentDocId ? items.findIndex((d) => d.document_id === opts.currentDocId) : -1
 
   if (idx === -1) {
     return { type: 'next', id: items[0]!.document_id }

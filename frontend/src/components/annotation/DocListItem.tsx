@@ -13,20 +13,10 @@ interface DocListItemProps {
 
 function StatusIcon({ item }: { item: FeedItem }) {
   if (item.is_completed) {
-    return (
-      <CheckCircle2
-        aria-label="tamamlandı"
-        className="h-5 w-5 text-green-600"
-      />
-    )
+    return <CheckCircle2 aria-label="tamamlandı" className="h-5 w-5 text-green-600" />
   }
   if (item.has_annotation) {
-    return (
-      <CircleDashed
-        aria-label="devam ediyor"
-        className="h-5 w-5 text-amber-600"
-      />
-    )
+    return <CircleDashed aria-label="devam ediyor" className="h-5 w-5 text-amber-600" />
   }
   return <Circle aria-label="yeni" className="h-5 w-5 text-muted-foreground" />
 }
@@ -45,9 +35,7 @@ export function DocListItem({ item, isSelected, onClick }: DocListItemProps) {
         <div className="text-sm font-medium">
           #{item.sayi ?? '—'}
           {item.tarih && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              {item.tarih}
-            </span>
+            <span className="ml-2 text-xs font-normal text-muted-foreground">{item.tarih}</span>
           )}
         </div>
         <StatusIcon item={item} />
@@ -64,10 +52,7 @@ export function DocListItem({ item, isSelected, onClick }: DocListItemProps) {
       )}
       {item.has_annotation && (
         <div className="text-xs">
-          <AttributionLabel
-            username={item.last_editor_username}
-            date={item.updated_at}
-          />
+          <AttributionLabel username={item.last_editor_username} date={item.updated_at} />
         </div>
       )}
     </button>

@@ -36,26 +36,16 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
     const virtualItems = virtualizer.getVirtualItems()
     const last = virtualItems[virtualItems.length - 1]
     if (!last) return
-    if (
-      last.index >= items.length - 10 &&
-      feed.hasNextPage &&
-      !feed.isFetchingNextPage
-    ) {
+    if (last.index >= items.length - 10 && feed.hasNextPage && !feed.isFetchingNextPage) {
       void feed.fetchNextPage()
     }
   }, [virtualizer, items.length, feed])
 
   if (feed.isPending) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">Yükleniyor…</div>
-    )
+    return <div className="p-4 text-sm text-muted-foreground">Yükleniyor…</div>
   }
   if (items.length === 0) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        Bu sekmede doküman yok.
-      </div>
-    )
+    return <div className="p-4 text-sm text-muted-foreground">Bu sekmede doküman yok.</div>
   }
 
   if (IS_TEST) {

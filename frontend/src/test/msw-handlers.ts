@@ -82,9 +82,7 @@ export function makeReferenceItem(overrides: Partial<ReferenceItem> = {}): Refer
 const API = 'http://localhost'
 
 const ANNOTATE_DEFAULTS = [
-  http.get(`${API}/api/feed`, () =>
-    HttpResponse.json({ items: [makeFeedItem()], total: 1 }),
-  ),
+  http.get(`${API}/api/feed`, () => HttpResponse.json({ items: [makeFeedItem()], total: 1 })),
   http.get(`${API}/api/documents/:docId`, ({ params }) =>
     HttpResponse.json(makeDocumentDetail({ document_id: String(params.docId) })),
   ),

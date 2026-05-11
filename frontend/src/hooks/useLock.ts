@@ -97,10 +97,7 @@ export function useLock(docId: string) {
             } catch {
               heartbeatFailuresRef.current += 1
             }
-            if (
-              heartbeatFailuresRef.current >= HEARTBEAT_RETRY_LIMIT &&
-              !cancelledRef.current
-            ) {
+            if (heartbeatFailuresRef.current >= HEARTBEAT_RETRY_LIMIT && !cancelledRef.current) {
               if (heartbeatTimerRef.current !== null) {
                 window.clearInterval(heartbeatTimerRef.current)
                 heartbeatTimerRef.current = null

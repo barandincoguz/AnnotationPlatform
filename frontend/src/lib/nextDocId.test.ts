@@ -23,9 +23,7 @@ describe('pickNextInFeedAcrossPages', () => {
 
   it('returns "done" when current is last and no more pages', async () => {
     const qc = new QueryClient()
-    seedFeed(qc, 'new', [
-      { items: [{ document_id: 'a' }, { document_id: 'b' }], total: 2 },
-    ])
+    seedFeed(qc, 'new', [{ items: [{ document_id: 'a' }, { document_id: 'b' }], total: 2 }])
     const result = await pickNextInFeedAcrossPages({ qc, currentTab: 'new', currentDocId: 'b' })
     expect(result).toEqual({ type: 'done' })
   })
@@ -39,9 +37,7 @@ describe('pickNextInFeedAcrossPages', () => {
 
   it('returns first item when currentDocId is not in feed', async () => {
     const qc = new QueryClient()
-    seedFeed(qc, 'new', [
-      { items: [{ document_id: 'a' }, { document_id: 'b' }], total: 2 },
-    ])
+    seedFeed(qc, 'new', [{ items: [{ document_id: 'a' }, { document_id: 'b' }], total: 2 }])
     const result = await pickNextInFeedAcrossPages({ qc, currentTab: 'new', currentDocId: 'zzz' })
     expect(result).toEqual({ type: 'next', id: 'a' })
   })

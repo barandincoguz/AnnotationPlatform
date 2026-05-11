@@ -50,8 +50,7 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
   useEffect(() => {
     if (hydratedRef.current) return
     if (opts.draftQueryStatus !== 'success') return
-    const initial =
-      opts.draftData?.references ?? opts.annotationData?.references ?? []
+    const initial = opts.draftData?.references ?? opts.annotationData?.references ?? []
     dispatch({ type: 'init', refs: initial })
     hydratedRef.current = true
   }, [opts.draftQueryStatus, opts.draftData, opts.annotationData])
@@ -64,8 +63,7 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
   return {
     list,
     add: () => dispatch({ type: 'add' }),
-    update: (index: number, ref: ReferenceItem) =>
-      dispatch({ type: 'update', index, ref }),
+    update: (index: number, ref: ReferenceItem) => dispatch({ type: 'update', index, ref }),
     remove: (index: number) => dispatch({ type: 'remove', index }),
     hydrated: hydratedRef.current,
   }

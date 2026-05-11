@@ -8,10 +8,7 @@ describe('ReferencePanel', () => {
   it('renders one card per reference', () => {
     render(
       <ReferencePanel
-        refs={[
-          makeReferenceItem({ madde: '1' }),
-          makeReferenceItem({ madde: '2' }),
-        ]}
+        refs={[makeReferenceItem({ madde: '1' }), makeReferenceItem({ madde: '2' })]}
         onAdd={vi.fn()}
         onUpdate={vi.fn()}
         onRemove={vi.fn()}

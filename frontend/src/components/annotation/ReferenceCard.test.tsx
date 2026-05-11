@@ -10,8 +10,12 @@ describe('ReferenceCard', () => {
       <ReferenceCard
         index={0}
         value={makeReferenceItem({
-          kanun_no: '213', kanun_ad: 'VUK', madde: '359',
-          fikra: 'b', bent: '1', source_text: 'quote',
+          kanun_no: '213',
+          kanun_ad: 'VUK',
+          madde: '359',
+          fikra: 'b',
+          bent: '1',
+          source_text: 'quote',
         })}
         onChange={vi.fn()}
         onRemove={vi.fn()}

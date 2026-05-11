@@ -40,9 +40,15 @@ beforeEach(() => {
   // @ts-expect-error mock global
   globalThis.EventSource = MockEventSource
   useAuthStore.getState().setUser({
-    id: 1, username: 'tester', email: null, role: 'user',
-    is_active: true, has_seen_manual: true, has_passed_training: true,
-    avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+    id: 1,
+    username: 'tester',
+    email: null,
+    role: 'user',
+    is_active: true,
+    has_seen_manual: true,
+    has_passed_training: true,
+    avatar_color: null,
+    created_at: '2026-05-01T00:00:00+00:00',
   })
 })
 afterEach(() => {
@@ -77,12 +83,12 @@ describe('useSSE', () => {
     })
     act(() => {
       MockEventSource.instances[0]!.emit('lock_acquired', {
-        document_id: 'foo', by_user_id: 99, by_username: 'ahmet',
+        document_id: 'foo',
+        by_user_id: 99,
+        by_username: 'ahmet',
       })
     })
-    await waitFor(() =>
-      expect(spy).toHaveBeenCalledWith({ queryKey: ['feed'] }),
-    )
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['feed'] }))
   })
 
   it('lock_released invalidates feed', async () => {
@@ -93,12 +99,11 @@ describe('useSSE', () => {
     })
     act(() => {
       MockEventSource.instances[0]!.emit('lock_released', {
-        document_id: 'foo', by_user_id: 99,
+        document_id: 'foo',
+        by_user_id: 99,
       })
     })
-    await waitFor(() =>
-      expect(spy).toHaveBeenCalledWith({ queryKey: ['feed'] }),
-    )
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['feed'] }))
   })
 
   it('lock_acquired for own user does NOT trigger kick-out toast', () => {
@@ -113,7 +118,9 @@ describe('useSSE', () => {
     expect(() => {
       act(() => {
         MockEventSource.instances[0]!.emit('lock_acquired', {
-          document_id: 'foo', by_user_id: 1, by_username: 'tester',
+          document_id: 'foo',
+          by_user_id: 1,
+          by_username: 'tester',
         })
       })
     }).not.toThrow()
@@ -131,7 +138,9 @@ describe('useSSE', () => {
     expect(() => {
       act(() => {
         MockEventSource.instances[0]!.emit('lock_acquired', {
-          document_id: 'foo', by_user_id: 99, by_username: 'ahmet',
+          document_id: 'foo',
+          by_user_id: 99,
+          by_username: 'ahmet',
         })
       })
     }).not.toThrow()

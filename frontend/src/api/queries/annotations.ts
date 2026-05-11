@@ -30,8 +30,7 @@ interface SaveBody {
 export function useSaveAnnotationMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: SaveBody) =>
-      unwrap(await client.POST('/api/annotations', { body })),
+    mutationFn: async (body: SaveBody) => unwrap(await client.POST('/api/annotations', { body })),
     onSuccess: (_data, body) => {
       void qc.invalidateQueries({ queryKey: annotationKeys.byDoc(body.document_id) })
     },

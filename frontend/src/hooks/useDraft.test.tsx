@@ -25,10 +25,7 @@ describe('useDraft', () => {
   it('loads existing draft via GET, 404 yields null', async () => {
     server.use(
       http.get('http://localhost/api/drafts/doc-1', () =>
-        HttpResponse.json(
-          { detail: { error: 'not_found', message: '' } },
-          { status: 404 },
-        ),
+        HttpResponse.json({ detail: { error: 'not_found', message: '' } }, { status: 404 }),
       ),
     )
     const { result } = renderHook(() => useDraft('doc-1'), { wrapper })
@@ -106,9 +103,7 @@ describe('useDraft', () => {
 
   it('deleteMutation issues DELETE /drafts; 404 is treated OK', async () => {
     server.use(
-      http.delete('http://localhost/api/drafts/doc-1', () =>
-        HttpResponse.json({ ok: true }),
-      ),
+      http.delete('http://localhost/api/drafts/doc-1', () => HttpResponse.json({ ok: true })),
     )
     const { result } = renderHook(() => useDraft('doc-1'), { wrapper })
     await waitFor(() => expect(result.current.draftQuery.isSuccess).toBe(true))

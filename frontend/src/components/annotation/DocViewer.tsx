@@ -16,7 +16,9 @@ export function DocViewer({ docId }: DocViewerProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="border-b border-border p-3 text-sm">
-        <div className="font-semibold">#{d.sayi ?? '—'} · {d.tarih ?? '—'}</div>
+        <div className="font-semibold">
+          #{d.sayi ?? '—'} · {d.tarih ?? '—'}
+        </div>
         <div className="flex items-center gap-2 mt-1 text-muted-foreground text-xs">
           {d.vergi_turu && <span className="rounded bg-muted px-2 py-0.5">{d.vergi_turu}</span>}
           {d.konu && <span className="line-clamp-1">{d.konu}</span>}

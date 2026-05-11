@@ -19,25 +19,17 @@ describe('DocList', () => {
         }),
       ),
     )
-    renderWithProviders(
-      <DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />,
-    )
+    renderWithProviders(<DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />)
     await waitFor(() => expect(screen.getByText(/#1/)).toBeInTheDocument())
     expect(screen.getByText(/#2/)).toBeInTheDocument()
   })
 
   it('shows empty state when feed is empty', async () => {
     server.use(
-      http.get('http://localhost/api/feed', () =>
-        HttpResponse.json({ items: [], total: 0 }),
-      ),
+      http.get('http://localhost/api/feed', () => HttpResponse.json({ items: [], total: 0 })),
     )
-    renderWithProviders(
-      <DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />,
-    )
-    await waitFor(() =>
-      expect(screen.getByText(/bu sekmede doküman yok/i)).toBeInTheDocument(),
-    )
+    renderWithProviders(<DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText(/bu sekmede doküman yok/i)).toBeInTheDocument())
   })
 
   it('shows loading state initially', () => {
@@ -47,9 +39,7 @@ describe('DocList', () => {
         return HttpResponse.json({ items: [], total: 0 })
       }),
     )
-    renderWithProviders(
-      <DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />,
-    )
+    renderWithProviders(<DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />)
     expect(screen.getByText(/yükleniyor/i)).toBeInTheDocument()
   })
 
@@ -63,9 +53,7 @@ describe('DocList', () => {
         }),
       ),
     )
-    renderWithProviders(
-      <DocList tab="new" selectedId={null} onSelectDoc={onSelect} />,
-    )
+    renderWithProviders(<DocList tab="new" selectedId={null} onSelectDoc={onSelect} />)
     await waitFor(() => expect(screen.getByRole('button')).toBeInTheDocument())
     screen.getByRole('button').click()
     expect(onSelect).toHaveBeenCalledWith('doc-A')

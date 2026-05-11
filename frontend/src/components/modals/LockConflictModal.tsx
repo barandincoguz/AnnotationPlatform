@@ -1,5 +1,10 @@
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
@@ -11,7 +16,10 @@ interface LockConflictModalProps {
 }
 
 export function LockConflictModal({
-  open, conflictUsername, isSameUser, onClose,
+  open,
+  conflictUsername,
+  isSameUser,
+  onClose,
 }: LockConflictModalProps) {
   const title = isSameUser
     ? 'Bu doküman başka sekmede açık'

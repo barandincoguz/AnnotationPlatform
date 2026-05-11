@@ -47,8 +47,16 @@ function DraftStatusBadge({ status }: { status: DraftSaveStatus }) {
 }
 
 export function ReferencePanel({
-  refs, onAdd, onUpdate, onRemove, onSave, onSkip,
-  canEdit, isSaving, error, draftSaveStatus,
+  refs,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onSave,
+  onSkip,
+  canEdit,
+  isSaving,
+  error,
+  draftSaveStatus,
 }: ReferencePanelProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -90,19 +98,10 @@ export function ReferencePanel({
           </p>
         )}
         <div className="flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onSkip}
-            disabled={!canEdit || isSaving}
-          >
+          <Button type="button" variant="outline" onClick={onSkip} disabled={!canEdit || isSaving}>
             Atla
           </Button>
-          <Button
-            type="button"
-            onClick={onSave}
-            disabled={!canEdit || isSaving}
-          >
+          <Button type="button" onClick={onSave} disabled={!canEdit || isSaving}>
             {isSaving ? 'Kaydediliyor…' : 'Sakla'}
           </Button>
         </div>

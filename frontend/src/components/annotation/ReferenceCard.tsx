@@ -16,26 +16,18 @@ interface ReferenceCardProps {
   disabled: boolean
 }
 
-function set<K extends keyof ReferenceItem>(
-  prev: ReferenceItem,
-  key: K,
-  v: string,
-): ReferenceItem {
+function set<K extends keyof ReferenceItem>(prev: ReferenceItem, key: K, v: string): ReferenceItem {
   return { ...prev, [key]: v === '' ? (key === 'source_text' ? '' : null) : v }
 }
 
-export function ReferenceCard({
-  index, value, onChange, onRemove, disabled,
-}: ReferenceCardProps) {
+export function ReferenceCard({ index, value, onChange, onRemove, disabled }: ReferenceCardProps) {
   const id = (k: string) => `ref-${index}-${k}`
 
   return (
     <Card>
       <CardContent className="space-y-2 p-3">
         <div className="flex items-start justify-between">
-          <span className="text-xs font-medium text-muted-foreground">
-            Referans #{index + 1}
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">Referans #{index + 1}</span>
           <Button
             type="button"
             variant="ghost"

@@ -14,9 +14,15 @@ function wrapper({ children }: { children: ReactNode }) {
 
 const seedUser = (overrides: Partial<{ id: number; username: string }> = {}) => {
   useAuthStore.getState().setUser({
-    id: 1, username: 'tester', email: null, role: 'user',
-    is_active: true, has_seen_manual: true, has_passed_training: true,
-    avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+    id: 1,
+    username: 'tester',
+    email: null,
+    role: 'user',
+    is_active: true,
+    has_seen_manual: true,
+    has_passed_training: true,
+    avatar_color: null,
+    created_at: '2026-05-01T00:00:00+00:00',
     ...overrides,
   })
 }
@@ -90,10 +96,7 @@ describe('useLock', () => {
     server.use(
       http.post('http://localhost/api/locks/doc-1/heartbeat', () => {
         heartbeats++
-        return HttpResponse.json(
-          { detail: 'not lock holder' },
-          { status: 404 },
-        )
+        return HttpResponse.json({ detail: 'not lock holder' }, { status: 404 })
       }),
     )
     const { result } = renderHook(() => useLock('doc-1'), { wrapper })
@@ -122,7 +125,9 @@ describe('useLock', () => {
       http.post('http://localhost/api/locks/doc-1/heartbeat', () => {
         heartbeats++
         return HttpResponse.json({
-          document_id: 'doc-1', user_id: 1, by_username: 'tester',
+          document_id: 'doc-1',
+          user_id: 1,
+          by_username: 'tester',
           acquired_at: '2026-05-11T10:00:00+00:00',
           expires_at: '2026-05-11T10:01:30+00:00',
         })

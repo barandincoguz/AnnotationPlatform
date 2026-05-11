@@ -19,12 +19,7 @@ describe('LockConflictModal', () => {
 
   it('shows same-user wording when isSameUser=true (F8)', () => {
     render(
-      <LockConflictModal
-        open={true}
-        conflictUsername="me"
-        isSameUser={true}
-        onClose={vi.fn()}
-      />,
+      <LockConflictModal open={true} conflictUsername="me" isSameUser={true} onClose={vi.fn()} />,
     )
     expect(screen.getByText(/başka sekmede/i)).toBeInTheDocument()
   })
