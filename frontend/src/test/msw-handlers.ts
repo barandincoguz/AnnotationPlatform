@@ -267,9 +267,9 @@ export function makeStartResponse(overrides: Partial<{ attempt_id: number; attem
       { id: 'q05', text: 'Soru 5', choices: ['a', 'b', 'c', 'd'] },
     ],
     gold_docs: [
-      { gold_id: 'gold_a', content: 'Doc A içeriği' },
-      { gold_id: 'gold_b', content: 'Doc B içeriği' },
-      { gold_id: 'gold_c', content: 'Doc C içeriği' },
+      { gold_id: 'gold_a', content: 'Doc A içeriği', expected_concepts: [{ kanun_no: '5520', madde: '5' }], min_concept_count: 1 },
+      { gold_id: 'gold_b', content: 'Doc B içeriği', expected_concepts: [{ kanun_no: '3065', madde: '29' }], min_concept_count: 1 },
+      { gold_id: 'gold_c', content: 'Doc C içeriği', expected_concepts: [{ kanun_no: '193', madde: 'Geçici 67' }], min_concept_count: 1 },
     ],
   }
 }
