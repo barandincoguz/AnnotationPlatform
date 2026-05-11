@@ -2,6 +2,7 @@
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel
 
 from backend import config
 from backend.gamification import service as gamification_service
@@ -137,6 +138,39 @@ def get_my_profile(
         },
         **state,
     }
+
+
+class OnlineUserOut(BaseModel):
+    id: int
+    username: str
+    avatar_color: str
+
+
+@router.get("/users/online", response_model=list[OnlineUserOut])
+def list_online_users(
+    db: sqlite3.Connection = Depends(get_db),
+    _user: sqlite3.Row = Depends(get_current_user),
+):
+    """Return users currently subscribed to SSE, ordered by id ascending.
+
+    Source of truth: `broker.online_user_ids()` (in-memory set of user_ids
+    with at least one open SSE queue). Frontend reconciles via 30s polling
+    + SSE merge (user_online/user_offline events from this broker).
+    """
+    from backend.shared.sse import broker
+    ids = sorted(broker.online_user_ids())
+    if not ids:
+        return []
+    placeholders = ",".join("?" for _ in ids)
+    rows = db.execute(
+        f"SELECT id, username, avatar_color FROM users "
+        f"WHERE id IN ({placeholders}) ORDER BY id ASC",
+        tuple(ids),
+    ).fetchall()
+    return [
+        {"id": r["id"], "username": r["username"], "avatar_color": r["avatar_color"]}
+        for r in rows
+    ]
 
 
 from pydantic import BaseModel as _BaseModel
