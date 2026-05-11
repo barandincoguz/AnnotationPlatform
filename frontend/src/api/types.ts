@@ -641,6 +641,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/training/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Skip Training Route
+         * @description Bypass the training gate. Auth required; user must already be
+         *     logged in (pre-training users CAN call this — it's the whole
+         *     point). Idempotent: re-calling on an already-passed user returns
+         *     ok without side effects.
+         */
+        post: operations["skip_training_route_api_training_skip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/training/users/{user_id}/reset": {
         parameters: {
             query?: never;
@@ -1199,6 +1222,12 @@ export interface components {
             gold_id: string;
             /** Content */
             content: string;
+            /** Expected Concepts */
+            expected_concepts: {
+                [key: string]: unknown;
+            }[];
+            /** Min Concept Count */
+            min_concept_count: number;
         };
         /** GoldDocUpsertRequest */
         GoldDocUpsertRequest: {
@@ -2749,6 +2778,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnnotateSubmitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    skip_training_route_api_training_skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */
