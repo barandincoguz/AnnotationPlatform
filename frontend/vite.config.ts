@@ -32,7 +32,26 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/test/**', 'src/**/*.test.{ts,tsx}', 'src/api/types.ts'],
+      exclude: [
+        'src/test/**',
+        'src/**/*.test.{ts,tsx}',
+        'src/api/types.ts',
+        // Bootstrap / type declarations — not unit-testable
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+        // env reader — exercised at module load by main.tsx in dev/prod
+        'src/lib/env.ts',
+        // STUB routes — 16b-e content; 16a only wires routing
+        'src/routes/Annotate.tsx',
+        'src/routes/Profile.tsx',
+        'src/routes/Help.tsx',
+        'src/routes/Training.tsx',
+        'src/routes/NotFound.tsx',
+        'src/routes/admin/AdminLayout.tsx',
+        // shadcn primitives installed for later use — vendor-style code
+        'src/components/ui/form.tsx',
+        'src/components/ui/sonner.tsx',
+      ],
       thresholds: {
         statements: 80,
         branches: 80,
