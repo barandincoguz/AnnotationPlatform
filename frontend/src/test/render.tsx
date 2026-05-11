@@ -8,6 +8,19 @@ interface RenderOpts extends Omit<RenderOptions, 'wrapper'> {
   initialEntries?: string[]
   destinationStubs?: { path: string; testId: string }[]
   extraDestinationStubs?: { path: string; testId: string }[]
+  /**
+   * Opt-in: mount `ui` at `<Route path="*">` instead of the literal
+   * `entryPath`. Use this when `ui` itself owns a `<Routes>` tree (e.g.
+   * App.tsx) — without the wildcard the parent route stops matching as
+   * soon as an inner Navigate changes the URL, and the inner Routes
+   * never gets a chance to render. React Router emits a warning for
+   * this exact misuse: "parent route path has no trailing *".
+   *
+   * When `wildcardEntry` is true, stub destinations are still mounted
+   * BEFORE the wildcard (so they keep working for navigation
+   * observation), and `ui` catches everything else.
+   */
+  wildcardEntry?: boolean
 }
 
 function makeTestQueryClient() {
@@ -57,6 +70,7 @@ export function renderWithProviders(
     initialEntries = ['/'],
     destinationStubs,
     extraDestinationStubs = [],
+    wildcardEntry = false,
     ...rest
   }: RenderOpts = {},
 ) {
@@ -72,19 +86,27 @@ export function renderWithProviders(
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={routerEntries}>
-        <Routes>
-          <Route path={entryPath} element={children} />
-          {stubs
-            .filter((s) => s.path !== entryPath)
-            .map((s) => (
-              <Route
-                key={s.path}
-                path={s.path}
-                element={<div data-testid={s.testId}>{s.path}</div>}
-              />
-            ))}
-          <Route path="*" element={<div data-testid="route-notfound" />} />
-        </Routes>
+        {wildcardEntry ? (
+          // ui owns its own <Routes>. Stub destinations are not mounted
+          // here because they would shadow paths inside ui's Routes;
+          // tests that need to observe navigation should assert against
+          // ui's own rendered output (e.g. the Login form for /login).
+          <>{children}</>
+        ) : (
+          <Routes>
+            <Route path={entryPath} element={children} />
+            {stubs
+              .filter((s) => s.path !== entryPath)
+              .map((s) => (
+                <Route
+                  key={s.path}
+                  path={s.path}
+                  element={<div data-testid={s.testId}>{s.path}</div>}
+                />
+              ))}
+            <Route path="*" element={<div data-testid="route-notfound" />} />
+          </Routes>
+        )}
       </MemoryRouter>
     </QueryClientProvider>
   )
