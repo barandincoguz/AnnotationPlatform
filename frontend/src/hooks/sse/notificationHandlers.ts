@@ -18,7 +18,7 @@ export function registerNotificationHandlers(
   const t = opts.toast ?? defaultToast
 
   es.addEventListener('badge_unlocked', (e) => {
-    const data = parseEventData(e as MessageEvent, badgeUnlockedSchema)
+    const data = parseEventData(e, badgeUnlockedSchema)
     if (!data) return
     // Codex BROKEN-B: celebration toast is INFORMATIONAL ONLY.
     // No action button — clicking it would unmount AnnotateDoc and lose draft.
@@ -31,7 +31,7 @@ export function registerNotificationHandlers(
   })
 
   es.addEventListener('speed_warning', (e) => {
-    const data = parseEventData(e as MessageEvent, speedWarningSchema)
+    const data = parseEventData(e, speedWarningSchema)
     if (!data) return
     t.warning('Bir nefes al', {
       duration: 8_000,
@@ -40,7 +40,7 @@ export function registerNotificationHandlers(
   })
 
   es.addEventListener('char_limit_warning', (e) => {
-    const data = parseEventData(e as MessageEvent, charLimitWarningSchema)
+    const data = parseEventData(e, charLimitWarningSchema)
     if (!data) return
     t.warning('Metin uzunluğu dikkat', {
       duration: 8_000,

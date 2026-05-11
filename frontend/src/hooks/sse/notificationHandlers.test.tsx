@@ -3,7 +3,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { registerNotificationHandlers } from './notificationHandlers'
 
 function makeFakeES() {
-  const listeners: Record<string, Array<(e: MessageEvent) => void>> = {}
+  const listeners: Record<string, ((e: MessageEvent) => void)[]> = {}
   return {
     addEventListener(type: string, fn: (e: MessageEvent) => void) {
       listeners[type] = [...(listeners[type] ?? []), fn]
@@ -42,7 +42,7 @@ describe('registerNotificationHandlers', () => {
       expect.stringContaining('İlk Annotation'),
       expect.objectContaining({ duration: 15_000 }),
     )
-    const optsArg = toastSuccess.mock.calls[0][1] as Record<string, unknown>
+    const optsArg = toastSuccess.mock.calls[0]?.[1] as Record<string, unknown> | undefined
     // Codex BROKEN-B: must NOT have an action property
     expect(optsArg).not.toHaveProperty('action')
     expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['profile'] })
@@ -91,7 +91,7 @@ describe('registerNotificationHandlers', () => {
       qc: qc as unknown as QueryClient,
       toast: { success: toastSuccess, warning: toastWarning } as never,
     })
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     es.dispatch('badge_unlocked', { broken: 'shape' })
     expect(toastSuccess).not.toHaveBeenCalled()
     warn.mockRestore()

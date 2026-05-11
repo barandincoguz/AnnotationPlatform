@@ -44,7 +44,7 @@ export function BadgesGrid() {
           <button
             type="button"
             className="underline"
-            onClick={() => catalog.refetch()}
+            onClick={() => { void catalog.refetch() }}
           >
             Yeniden dene
           </button>

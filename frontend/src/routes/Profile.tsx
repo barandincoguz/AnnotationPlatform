@@ -17,7 +17,7 @@ export function Profile() {
           <button
             type="button"
             className="underline"
-            onClick={() => profile.refetch()}
+            onClick={() => { void profile.refetch() }}
           >
             Yeniden dene
           </button>

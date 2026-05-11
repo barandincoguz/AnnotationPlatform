@@ -3,7 +3,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { registerFeedHandlers } from './feedHandlers'
 
 function makeFakeES() {
-  const listeners: Record<string, Array<(e: MessageEvent) => void>> = {}
+  const listeners: Record<string, ((e: MessageEvent) => void)[]> = {}
   return {
     addEventListener(type: string, fn: (e: MessageEvent) => void) {
       listeners[type] = [...(listeners[type] ?? []), fn]
