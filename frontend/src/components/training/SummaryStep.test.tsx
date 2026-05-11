@@ -1,0 +1,84 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useTrainingStore } from '@/stores/trainingStore'
+import { useAuthStore } from '@/stores/authStore'
+import { SummaryStep } from './SummaryStep'
+import { makeUser } from '@/test/msw-handlers'
+
+const goldDocs = [
+  { gold_id: 'gold_a', content: 'A' },
+  { gold_id: 'gold_b', content: 'B' },
+  { gold_id: 'gold_c', content: 'C' },
+]
+
+describe('SummaryStep', () => {
+  beforeEach(() => {
+    useTrainingStore.getState().clear()
+    useTrainingStore.setState({
+      attemptId: 100,
+      step: 'summary',
+      goldDocs,
+      quizResult: { score: 4, total: 5 },
+      docResults: {
+        gold_a: { passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 },
+        gold_b: { passed: true, matched_count: 1, expected_count: 1, min_concept_count: 1 },
+        gold_c: { passed: false, matched_count: 0, expected_count: 2, min_concept_count: 1 },
+      },
+    })
+  })
+
+  it('PASS variant when has_passed_training=true', () => {
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
+    render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
+    expect(screen.getByText(/tebrikler/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /anotasyona başla/i })).toBeInTheDocument()
+  })
+
+  it('FAIL variant when has_passed_training=false', () => {
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: false }), error: null })
+    render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
+    expect(screen.getByText(/geçemedin/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /tekrar dene/i })).toBeInTheDocument()
+  })
+
+  it('DEGRADED hides breakdown', () => {
+    useTrainingStore.setState({ degraded: true })
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
+    render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
+    expect(screen.getByText(/detaylar yeniden yüklenemedi/i)).toBeInTheDocument()
+    expect(screen.queryByText(/quiz: 4/i)).not.toBeInTheDocument()
+  })
+
+  it('DEGRADED + passed → Anotasyona Başla', () => {
+    useTrainingStore.setState({ degraded: true })
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
+    render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /anotasyona başla/i })).toBeInTheDocument()
+  })
+
+  it('DEGRADED + not passed → Tekrar Dene', () => {
+    useTrainingStore.setState({ degraded: true })
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: false }), error: null })
+    render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /tekrar dene/i })).toBeInTheDocument()
+  })
+
+  it('Anotasyona Başla → onAnnotate', async () => {
+    const user = userEvent.setup()
+    const onAnnotate = vi.fn()
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
+    render(<SummaryStep onAnnotate={onAnnotate} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /anotasyona başla/i }))
+    expect(onAnnotate).toHaveBeenCalledOnce()
+  })
+
+  it('Tekrar Dene → onRetry', async () => {
+    const user = userEvent.setup()
+    const onRetry = vi.fn()
+    useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: false }), error: null })
+    render(<SummaryStep onAnnotate={vi.fn()} onRetry={onRetry} onBackToHelp={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /tekrar dene/i }))
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+})
