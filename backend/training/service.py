@@ -647,6 +647,13 @@ def skip_training(db: sqlite3.Connection, *, user_id: int) -> None:
     Used by the user-facing POST /api/training/skip endpoint. The
     activity log uses event_type='training_skipped' with extra={'actor':
     'self'} so admins (Paket 16e) can audit who self-bypassed.
+
+    Closes any in-flight training_attempts rows (passed=0, _finalized
+    unset) by stamping _finalized=True + _skipped=True in
+    annotation_details_json. Without this, a delayed /quiz/submit or
+    /annotate/submit landing post-skip would call finalize_if_complete
+    and award training_pass XP on top of the bypass (Codex BROKEN #2
+    from the 16c.1 review). The early-out at line 380 reads _finalized.
     """
     row = db.execute(
         "SELECT has_passed_training FROM users WHERE id=?", (user_id,),
@@ -657,12 +664,38 @@ def skip_training(db: sqlite3.Connection, *, user_id: int) -> None:
         raise ValueError(f"user {user_id} not found")
     if row["has_passed_training"]:
         return
-    db.execute(
-        "UPDATE users SET has_passed_training=1, updated_at=datetime('now') "
-        "WHERE id=?",
+
+    open_attempts = db.execute(
+        "SELECT id, annotation_details_json FROM training_attempts "
+        "WHERE user_id=? AND passed=0",
         (user_id,),
-    )
+    ).fetchall()
+    now = _now_utc_iso()
+
+    db.execute("BEGIN")
+    try:
+        for att in open_attempts:
+            raw = att["annotation_details_json"]
+            details = json.loads(raw) if raw else {}
+            if details.get("_finalized"):
+                continue
+            details["_finalized"] = True
+            details["_skipped"] = True
+            db.execute(
+                "UPDATE training_attempts SET annotation_details_json=?, "
+                "finished_at=? WHERE id=?",
+                (json.dumps(details), now, att["id"]),
+            )
+        db.execute(
+            "UPDATE users SET has_passed_training=1, updated_at=datetime('now') "
+            "WHERE id=?",
+            (user_id,),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+
     audit.log_activity(
         db, user_id, "training_skipped", extra={"actor": "self"},
     )
-    db.commit()
