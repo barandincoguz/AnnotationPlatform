@@ -1,6 +1,6 @@
 # Paket 16e — Admin Panel UI Design
 
-**Status:** DRAFT (awaiting Codex adversarial review)
+**Status:** REV-2 (post-Codex review fixes; ready for writing-plans)
 **Author:** Claude Code (Opus 4.7) + Codex consultation
 **Date:** 2026-05-12
 **Predecessors:** 16a (foundation), 16b (annotate), 16c (onboarding+manual+training), 16c.1 (training UX), 16c.1.1 (skip replay fix), 16d (gamification UI). Backend admin endpoints landed in Paket 11.
@@ -70,23 +70,29 @@ Replace the `AdminLayout` stub at `/admin/*` with a usable admin panel oriented 
 
 ## 5. Backend additions in scope
 
-Two backend endpoint extensions land **in this paket** (not separate package):
+Migration `v0004_trace_id.py` already adds `trace_id` columns to both `admin_audit_log` and `system_events` (Codex confirmed). Three backend changes land **in this paket**:
 
-### 5.1 `GET /api/admin/audit-log?trace_id=...`
+### 5.1 `GET /api/admin/audit-log` — add `trace_id` to query + output
 
-Add optional `trace_id` query param. Filter on `admin_audit_log.trace_id` exact match. Combine with existing filters via AND. If `trace_id` matches no rows, return empty list (not 404).
+- Add optional `trace_id` query param to the route signature.
+- Update `backend/admin/service.list_audit_log` to:
+  - Accept `trace_id` kwarg; add `WHERE trace_id = ?` when present.
+  - Include `trace_id` in the SELECT (currently omitted).
+  - Add `admin_username` to the result row via `LEFT JOIN users ON admin_audit_log.admin_user_id = users.id`. Investigators need usernames, not opaque IDs.
+- Response shape stays `{items, total, has_more}` (existing pattern).
 
-### 5.2 `GET /api/admin/system-events?trace_id=...`
+### 5.2 `GET /api/admin/system-events` — add `trace_id` to query + output
 
-Same pattern if `system_events` table has a `trace_id` column. Verify migration history during T1 — if column absent, scope this to audit-log only and flag for follow-up paket.
+Same pattern. `system_events.trace_id` column exists. `event_type` filter already exists; `trace_id` is the new one. No user join needed (events are user-driven, not admin).
 
 ### 5.3 Tests
 
-Per-endpoint pytest:
+Per-endpoint pytest in `tests/test_admin_routes.py`:
 - `trace_id` filter returns matching rows only
-- `trace_id` filter combined with `action_type` filter (AND)
-- `trace_id` not present → empty list, 200
-- Non-admin caller → 403 (existing behavior, regression check)
+- `trace_id` filter combined with `action_type` (audit) / `event_type` (events) — AND composed
+- `trace_id` not present in DB → empty `items`, 200
+- Audit row includes `admin_username` populated (when admin still exists) or NULL (when admin was deleted)
+- Non-admin caller → 403 regression check
 
 ## 6. Per-section design
 
@@ -128,8 +134,12 @@ Per-endpoint pytest:
 - `frontend/src/api/queries/admin.ts` (auditLog, systemEvents queries)
 
 **Schemas (`frontend/src/lib/adminSchemas.ts`):**
-- `auditLogRowSchema`: id, ts, admin_username, action_type, target_kind, target_id, metadata (record), trace_id
-- `auditLogResponseSchema`: rows[], total, limit, offset
+- `auditLogRowSchema`: `{id, ts, admin_user_id, admin_username (nullable — backend LEFT JOIN), action_type, target_kind, target_id, metadata (record), trace_id (nullable)}`
+- `auditLogResponseSchema`: `{items: row[], total: number, has_more: boolean}` — matches the existing `{items,total,has_more}` backend contract (NOT `{rows,limit,offset}`).
+- `systemEventRowSchema`: `{id, ts, user_id, event_type, extra (record), trace_id (nullable)}`
+- `systemEventResponseSchema`: `{items, total, has_more}`
+
+**Pagination logic (since response is `has_more` not `offset`):** UI tracks current `offset` in component state + URL; next button enabled iff `has_more === true`; prev button enabled iff `offset > 0`. Page count "X / Y" computed from `total` and `limit`.
 
 ### 6.2 System Events (`/admin/events`)
 
@@ -171,7 +181,9 @@ Same shape as Audit but split because:
 
 ### 6.4 Users (`/admin/users`)
 
-**Layout:** AdminTable with columns: username, email, role, status, training, last_seen, actions.
+**Layout:** AdminTable with columns: username, email, role, status, training, created_at, actions.
+
+Note: `last_seen` field does not exist on `UserOut`; using `created_at` instead. `training` column shows badge: "Geçti" (`has_passed_training=1`) or "Bekliyor" (`has_passed_training=0`). Backend does not expose intermediate states (in-progress vs. not-started).
 
 **Row actions** (DropdownMenu per row):
 - Promote to Admin (only on role=user)
@@ -182,8 +194,8 @@ Same shape as Audit but split because:
 
 **Top toolbar:**
 - Search input (filters table client-side by username/email substring)
-- Filter chips: Role (all/admin/user), Status (all/active/disabled), Training (all/passed/in-progress/not-started)
-- "Davet Linki Üret" button → `POST /api/users/admin/invite/rotate`, opens Dialog showing new invite code + copy button
+- Filter chips: Role (all/admin/user), Status (all/active/disabled), Training (all/passed/pending)
+- "Davet Linki Üret" button → `POST /api/admin/invite/rotate`, opens Dialog showing new invite code + copy button
 
 **Confirmations:**
 - Promote: simple confirm dialog "X kullanıcısını admin yap?"
@@ -193,9 +205,10 @@ Same shape as Audit but split because:
 - Enable: simple confirm (less risky)
 
 **Backend error handling:**
-- 409 last-admin demote: toast "Son adminin demote edilemez"
+- **400** last-admin demote (backend `LastAdminCannotBeRemoved` → `HTTPException(400, detail=str(e))`): backend returns `{"detail": "cannot demote the last active admin"}`. Frontend matches on `status === 400` + the literal detail string and shows toast "Son adminin demote edilemez".
 - 404 user not found: toast "Kullanıcı bulunamadı" (race condition between table render + action)
-- Other 4xx/5xx: generic toast + console.error for tracing
+- 409 promote-already-admin / demote-already-user: toast "Zaten bu rolde"
+- Other 4xx/5xx: generic toast + `console.error` for tracing
 
 ### 6.5 Settings (`/admin/settings`)
 
@@ -218,13 +231,14 @@ Same shape as Audit but split because:
 ```
 
 **Behavior:**
-- Each setting card has: key, description (from backend metadata if present, else just key), current server value, editable input
-- Input type from `typeof value`: number → number input, boolean → Switch, string → text input, JSON → disabled (greyed out + "Bu ayar tipi UI'dan düzenlenemez")
+- Each setting card has: key (from map key — backend `S.get_all` returns only `{key: parsed_value}`; descriptions in DB but not exposed by the service), current server value, editable input
+- Input type inferred from `typeof value`: number → number input, boolean → Switch, string → text input, anything else → disabled (greyed out + "Bu ayar tipi UI'dan düzenlenemez")
 - Dirty-state per card: edit button → save/revert action pair; revert restores server value
-- Zod schema: `settingValueSchema = z.union([z.number(), z.boolean(), z.string()])`; reject `unknown` at boundary
-- Save mutation invalidates settings query
+- Zod schema for the map: `settingValueSchema = z.union([z.number(), z.boolean(), z.string()])` then `settingsMapSchema = z.record(z.string(), settingValueSchema)` — validates the whole response as a `Record<string, number|boolean|string>`. Unknown types are passed through as `z.unknown()` per-value with a runtime narrowing helper that flags the card as read-only.
+- Save mutation: `PUT /api/admin/settings/{key}` body is `{value: <new_value>}`; invalidates settings query on success
+- Optional descriptions follow-up: a backend addition that exposes the `description` column from `site_settings` is captured in §13 (out of scope). For now: card title is the key only.
 
-**Grouping:** group cards by prefix (`training.*`, `gamification.*`, `retention.*`) under `<h2>` headers.
+**Grouping:** group cards by key prefix (`training.*`, `gamification.*`, `retention.*`, etc.) under `<h2>` headers. Sort prefixes alphabetically.
 
 ### 6.6 Training overrides
 
@@ -255,7 +269,7 @@ Same shape as Audit but split because:
 └─────────────────────────────────────────┘
 ```
 
-**Concept row (structured):** kanun_no, kanun_ad, madde, fikra, bent fields (all optional). No raw JSON.
+**Concept row (structured):** `kanun_no` **required** (matches backend `ConceptInput` model), `kanun_ad / madde / fikra / bent` all optional. Form validation blocks save if any concept row lacks `kanun_no`. No raw JSON.
 
 **Save flow:** "Kaydet" → diff modal shows:
 - Old expected_concepts (server value)
@@ -271,6 +285,8 @@ Same shape as Audit but split because:
 - `frontend/src/components/admin/training/GoldDocEditor.tsx`
 - `frontend/src/components/admin/training/ConceptRowEditor.tsx`
 - `frontend/src/components/admin/DiffPreviewDialog.tsx`
+
+**JSON parse boundary:** `GET /api/admin/training/gold-docs` returns two arrays — `resolved` (already parsed) and `overrides` (raw DB rows where `expected_concepts` is a JSON-stringified column). The override editor reads from `resolved` for current state but the override list rendering needs `JSON.parse(override.expected_concepts)` at the Zod boundary. Schema: `goldDocOverrideSchema` includes `.transform(parseJSONIfString)` for that field.
 
 #### 6.6.2 Quiz (`/admin/training/quiz`)
 
@@ -377,9 +393,9 @@ For diff dialog:
 
 | # | Task | Type | Blocks |
 |---|------|------|--------|
-| 1 | Backend: add `trace_id` filter to `/api/admin/audit-log` + `/api/admin/system-events` (if column present) + tests | BE | 5, 6 |
+| 1 | Backend: add `trace_id` query param + SELECT for `/api/admin/audit-log` AND `/api/admin/system-events`; LEFT JOIN users on audit to expose `admin_username` (nullable); update Pydantic response models; pytest cases | BE | 5, 6 |
 | 2 | Frontend: `AdminLayout` shell — sidebar nav, mobile selector, redirect /admin → /admin/audit, route scaffolding (all routes stub) + tests | FE foundation | all FE |
-| 3 | Frontend: `AdminTable` + `DateRangePicker` + `TypedConfirmDialog` primitives extracted/built + tests | FE foundation | 5–13 |
+| 3 | Frontend: `AdminTable` + `DateRangePicker` + extract `TypedConfirmDialog` from `SkipConfirmDialog` (PRESERVE the `// eslint-disable-next-line jsx-a11y/no-autofocus -- dialog input must capture focus for typed-gate flow` comment + `autoFocus` behavior verbatim) + tests | FE foundation | 5–13 |
 | 4 | Frontend: `api/queries/admin.ts` + `lib/adminSchemas.ts` + MSW handler factories | FE foundation | 5–13 |
 | 5 | Frontend: `AuditPage` — table + filters + pagination + trace_id search + URL sync + tests | FE | — |
 | 6 | Frontend: `EventsPage` — same shape as Audit (split from Audit) + tests | FE | — |
@@ -403,17 +419,24 @@ For diff dialog:
 - Quality workflow (17e roadmap)
 - Pagination on Users table — initial scope assumes <500 users (verify with backend; if more, add server-side filter in T8)
 
-## 14. Open Codex review questions
+## 13.1 Out of scope (resolved from Codex review)
 
-1. Are there sequencing risks in landing backend D5 (trace_id filter) before frontend D5 (UI search)? Should the FE search be feature-flagged on T1 commit, or is T5 wave-safe?
-2. Is the `TypedConfirmDialog` extraction safe given that `SkipConfirmDialog` (`paket-16c.1`) is already in production-equivalent state? Risk of test-snapshot churn?
-3. Should `DiffPreviewDialog` use `react-diff-viewer-continued` (new dep) or hand-roll JSON diff for the override use case? Bundle size vs. clarity.
-4. Last-admin demote: is backend 409 the actual response shape, or does it 422 / 400? Need to verify before writing the toast string.
-5. `system_events.trace_id` column existence — confirm via migration history during T1.
+- Backend addition: exposing `site_settings.description` column from `S.get_all` — would require schema change in `backend/shared/settings.py`. Settings cards in 16e show key only.
 
-## 15. Decision log (this spec)
+## 14. Open Codex review questions (resolved in REV-2)
 
-- 2026-05-12 12:00: Codex tradeoff analysis received and reviewed
-- 2026-05-12 12:00: User locked priority=crisis, trace_id=backend+UI, override=structured-only, locks=manual-only
-- 2026-05-12 12:00: User locked scope=single-paket, audit-filters=full-set
-- 2026-05-12 12:00: Defaults from Codex auto-locked (D1, D2, D3, D4)
+1. ~~trace_id wave sequencing~~ — Resolved: T1 lands backend before any FE consumer; T5–T6 wait on T1 by virtue of MSW fixtures depending on the new response shape.
+2. ~~TypedConfirmDialog extraction safe?~~ — Resolved: T3 acceptance criteria explicitly preserves the `autoFocus` + eslint-disable comment verbatim. SkipConfirmDialog imports the new shared component; behavior byte-identical.
+3. **OPEN: DiffPreviewDialog implementation choice** — Decision: hand-roll JSON-diff for `expected_concepts` (order-stable array of dicts). No new dep. Bundle size matters more than perfect prose diff for this admin-only screen.
+4. ~~Last-admin demote response shape~~ — Resolved: backend `LastAdminCannotBeRemoved` → `HTTPException(400, detail=str(e))`. Spec §6.4 updated.
+5. ~~system_events.trace_id existence~~ — Resolved: `v0004_trace_id.py` adds the column to both tables.
+
+## 15. Decision log
+
+- **2026-05-12 12:00 (REV-1):** Codex IA tradeoff analysis received. User locked priority=crisis, trace_id=backend+UI, override=structured-only, locks=manual-only, scope=single-paket, audit-filters=full-set. Defaults from Codex auto-locked (D1, D2, D3, D4).
+- **2026-05-12 12:30 (REV-2):** Codex adversarial review pass on the draft spec. 4 BROKEN + 7 FRAGILE findings. All BROKEN fixed in this revision:
+  - Endpoint URL `/api/admin/invite/rotate` (was wrong `/api/users/admin/...`)
+  - Last-admin demote returns HTTP 400 with string detail, not 409
+  - Audit/Events response shape is `{items,total,has_more}`, not `{rows,limit,offset}`
+  - Audit row needs LEFT JOIN to expose `admin_username` (added to T1 backend scope)
+  All FRAGILE fixed except settings descriptions (pushed to §13.1 follow-up). Codex verdict: **Plan-ready after BROKEN fixes** — now satisfied.
