@@ -382,3 +382,123 @@ def test_skip_training_idempotent_no_second_log(db_conn, seed_extra_user):
         (user_id,),
     ).fetchone()["c"]
     assert count == 0
+
+
+# ---- 16c.1.1: skip closes open attempts (Codex BROKEN #2 fix) ----
+
+def _insert_open_attempt(db, *, user_id: int, details: dict, quiz_score: int = 5,
+                         anno_pass: int = 2):
+    now = datetime.now(timezone.utc).isoformat()
+    cur = db.execute(
+        "INSERT INTO training_attempts(user_id, attempt_number, quiz_score, "
+        "quiz_total, annotation_pass_count, annotation_total, annotation_details_json, "
+        "passed, started_at, finished_at) "
+        "VALUES (?, 1, ?, 5, ?, 3, ?, 0, ?, ?)",
+        (user_id, quiz_score, anno_pass, json.dumps(details), now, now),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def test_skip_marks_open_attempt_with_finalized_and_skipped(db_conn, seed_extra_user):
+    """Open attempt (passed=0, _finalized not set) must be stamped with
+    _finalized=True + _skipped=True so finalize_if_complete early-outs on
+    a stale follow-up POST."""
+    user_id = seed_extra_user(username="skip_open_t1")
+    db_conn.execute("UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,))
+    db_conn.commit()
+    attempt_id = _insert_open_attempt(
+        db_conn, user_id=user_id,
+        details={
+            "_quiz_submitted": True, "_quiz_score": 4,
+            "gold_a": {"passed": True, "matched_count": 2, "expected_count": 2},
+            "gold_b": {"passed": True, "matched_count": 1, "expected_count": 1},
+        },
+    )
+
+    training_service.skip_training(db_conn, user_id=user_id)
+
+    row = db_conn.execute(
+        "SELECT annotation_details_json FROM training_attempts WHERE id=?",
+        (attempt_id,),
+    ).fetchone()
+    details = json.loads(row["annotation_details_json"])
+    assert details["_finalized"] is True
+    assert details["_skipped"] is True
+    # Pre-existing keys preserved
+    assert details["_quiz_submitted"] is True
+    assert details["gold_a"]["passed"] is True
+
+
+def test_skip_then_stale_finalize_does_not_award_training_pass(db_conn, seed_extra_user):
+    """End-to-end replay protection: skip first, then simulate a stale 3rd-doc
+    POST landing by inserting gold_c into details and re-running
+    finalize_if_complete. Must return None and NOT write a training_pass
+    activity event."""
+    user_id = seed_extra_user(username="skip_open_t2")
+    db_conn.execute("UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,))
+    db_conn.commit()
+    attempt_id = _insert_open_attempt(
+        db_conn, user_id=user_id,
+        details={
+            "_quiz_submitted": True, "_quiz_score": 5,
+            "gold_a": {"passed": True, "matched_count": 2, "expected_count": 2},
+            "gold_b": {"passed": True, "matched_count": 1, "expected_count": 1},
+        },
+    )
+
+    training_service.skip_training(db_conn, user_id=user_id)
+
+    # Stale POST scenario: a delayed /annotate/submit for the 3rd doc would
+    # write its result into details and call finalize_if_complete. Inline
+    # that mutation.
+    row = db_conn.execute(
+        "SELECT annotation_details_json FROM training_attempts WHERE id=?",
+        (attempt_id,),
+    ).fetchone()
+    details = json.loads(row["annotation_details_json"])
+    details["gold_c"] = {"passed": True, "matched_count": 1, "expected_count": 1}
+    db_conn.execute(
+        "UPDATE training_attempts SET annotation_details_json=?, "
+        "annotation_pass_count=3 WHERE id=?",
+        (json.dumps(details), attempt_id),
+    )
+
+    result = training_service.finalize_if_complete(
+        db_conn, attempt_id=attempt_id, user_id=user_id,
+    )
+    assert result is None, "finalize_if_complete must early-out on a skipped attempt"
+
+    pass_events = db_conn.execute(
+        "SELECT COUNT(*) AS c FROM activity_events "
+        "WHERE user_id=? AND event_type='training_pass'",
+        (user_id,),
+    ).fetchone()["c"]
+    assert pass_events == 0
+
+
+def test_skip_does_not_retouch_already_finalized_attempts(db_conn, seed_extra_user):
+    """An attempt already marked _finalized=True (terminal fail) must not be
+    re-stamped with _skipped — preserves the historical record."""
+    user_id = seed_extra_user(username="skip_open_t3")
+    db_conn.execute("UPDATE users SET has_passed_training=0 WHERE id=?", (user_id,))
+    db_conn.commit()
+    attempt_id = _insert_open_attempt(
+        db_conn, user_id=user_id, quiz_score=2, anno_pass=0,
+        details={
+            "_quiz_submitted": True, "_quiz_score": 2, "_finalized": True,
+            "gold_a": {"passed": False, "matched_count": 0, "expected_count": 2},
+            "gold_b": {"passed": False, "matched_count": 0, "expected_count": 2},
+            "gold_c": {"passed": False, "matched_count": 0, "expected_count": 2},
+        },
+    )
+
+    training_service.skip_training(db_conn, user_id=user_id)
+
+    row = db_conn.execute(
+        "SELECT annotation_details_json FROM training_attempts WHERE id=?",
+        (attempt_id,),
+    ).fetchone()
+    details = json.loads(row["annotation_details_json"])
+    assert details["_finalized"] is True
+    assert "_skipped" not in details, "already-finalized attempts must not be re-stamped"
