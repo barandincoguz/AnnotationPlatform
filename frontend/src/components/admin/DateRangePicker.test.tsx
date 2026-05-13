@@ -42,4 +42,23 @@ describe('DateRangePicker', () => {
       }),
     )
   })
+
+  it('trigger label updates after picking a preset (parent-controlled value roundtrip)', async () => {
+    const user = userEvent.setup()
+    let currentValue: { date_from: string; date_to: string } | null = null
+    const onChange = vi.fn((v: { date_from: string; date_to: string } | null) => { currentValue = v })
+
+    const { rerender } = render(<DateRangePicker value={currentValue} onChange={onChange} />)
+    await user.click(screen.getByRole('combobox'))
+    await user.click(screen.getByText(/son 7 gün/i))
+    expect(onChange).toHaveBeenCalled()
+
+    // Re-render with the freshly-emitted value (simulates the parent state update)
+    rerender(<DateRangePicker value={currentValue} onChange={onChange} />)
+
+    // Trigger should still show "Son 7 gün", NOT "Özel (yakında)"
+    const trigger = screen.getByRole('combobox')
+    expect(trigger.textContent).toMatch(/son 7 gün/i)
+    expect(trigger.textContent).not.toMatch(/özel/i)
+  })
 })
