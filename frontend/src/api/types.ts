@@ -3132,6 +3132,7 @@ export interface operations {
                 offset?: number;
                 admin_id?: number | null;
                 action?: string | null;
+                trace_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
             };
@@ -3170,6 +3171,7 @@ export interface operations {
                 offset?: number;
                 event_type?: string | null;
                 severity?: string | null;
+                trace_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
             };
