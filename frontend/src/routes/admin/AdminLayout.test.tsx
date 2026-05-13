@@ -1,7 +1,7 @@
 /* eslint-disable react/display-name */
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './AdminLayout'
 
 const Wrap = ({ initialPath }: { initialPath: string }) => (
@@ -49,5 +49,19 @@ describe('AdminLayout', () => {
     render(<Wrap initialPath="/admin/audit" />)
     const skip = screen.getByRole('link', { name: /içeriğe atla/i })
     expect(skip).toBeInTheDocument()
+  })
+
+  it('redirects /admin index to /admin/audit', () => {
+    render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <Routes>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/audit" replace />} />
+            <Route path="audit" element={<div>AUDIT_AFTER_REDIRECT</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('AUDIT_AFTER_REDIRECT')).toBeInTheDocument()
   })
 })

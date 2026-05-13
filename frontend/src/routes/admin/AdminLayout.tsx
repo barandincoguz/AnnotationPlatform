@@ -1,12 +1,8 @@
-import { Outlet, Navigate, useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminMobileNav } from '@/components/admin/AdminMobileNav'
 
 export function AdminLayout() {
-  const location = useLocation()
-  if (location.pathname === '/admin' || location.pathname === '/admin/') {
-    return <Navigate to="/admin/audit" replace />
-  }
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <a
