@@ -1,4 +1,4 @@
-/* eslint-disable react/display-name */
+ 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -54,7 +54,7 @@ describe('TypedConfirmDialog', () => {
         onClose={onClose}
       />,
     )
-    const input = screen.getByLabelText(/DELETE yazınız/i) as HTMLInputElement
+    const input = screen.getByLabelText(/DELETE yazınız/i)
     await user.type(input, 'DELETE')
     await user.click(screen.getByRole('button', { name: /vazgeç/i }))
     expect(onClose).toHaveBeenCalled()

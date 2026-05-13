@@ -1,9 +1,9 @@
-/* eslint-disable react/display-name */
+ 
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { AdminTable } from './AdminTable'
 
-type Row = { id: number; name: string; role: string }
+interface Row { id: number; name: string; role: string }
 
 const rows: Row[] = [
   { id: 1, name: 'alice', role: 'admin' },

@@ -1,4 +1,4 @@
-/* eslint-disable react/display-name */
+ 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -65,7 +65,7 @@ describe('AuditPage', () => {
   it('initial render hydrates trace_id from URL', async () => {
     render(<Wrap search="?trace_id=hydrated-tr" />)
     await waitFor(() =>
-      expect((screen.getByLabelText(/trace id ara/i) as HTMLInputElement).value).toBe('hydrated-tr'),
+      expect(screen.getByLabelText<HTMLInputElement>(/trace id ara/i).value).toBe('hydrated-tr'),
     )
   })
 

@@ -51,7 +51,7 @@ function SettingCard({ k, serverValue }: CardProps) {
         <Input value={String(draft)} onChange={(e) => setDraft(e.target.value)} />
       )}
       {!['boolean', 'number', 'string'].includes(typeof serverValue) && (
-        <div className="text-xs text-muted-foreground">Bu ayar tipi UI'dan düzenlenemez</div>
+        <div className="text-xs text-muted-foreground">Bu ayar tipi UI&apos;dan düzenlenemez</div>
       )}
       <div className="flex gap-2">
         <Button size="sm" disabled={!dirty || upd.isPending} onClick={onSave}>Kaydet</Button>

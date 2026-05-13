@@ -1,4 +1,4 @@
-/* eslint-disable react/display-name */
+ 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -37,7 +37,7 @@ describe('SettingsPage', () => {
     const user = userEvent.setup()
     render(<Wrap />)
     await waitFor(() => expect(screen.getByText('training.quiz_pass_threshold')).toBeInTheDocument())
-    const input = screen.getByDisplayValue('4') as HTMLInputElement
+    const input = screen.getByDisplayValue('4')
     await user.clear(input)
     await user.type(input, '5')
     expect(screen.getAllByRole('button', { name: /kaydet/i })[0]).not.toBeDisabled()
@@ -60,7 +60,7 @@ describe('SettingsPage', () => {
     const user = userEvent.setup()
     render(<Wrap />)
     await waitFor(() => expect(screen.getByText('training.quiz_pass_threshold')).toBeInTheDocument())
-    const input = screen.getByDisplayValue('4') as HTMLInputElement
+    const input = screen.getByDisplayValue('4')
     await user.clear(input)
     await user.type(input, '5')
     const saveBtn = screen.getAllByRole('button', { name: /kaydet/i })[0]

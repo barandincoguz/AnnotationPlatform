@@ -52,12 +52,12 @@ export function AuditPage() {
       <h1 className="text-2xl font-semibold">Audit Log</h1>
       <div className="flex flex-wrap items-end gap-2 rounded border p-3">
         <div className="flex flex-col">
-          <label className="mb-1 text-xs text-muted-foreground">Tarih</label>
+          <span className="mb-1 text-xs text-muted-foreground">Tarih</span>
           <DateRangePicker value={dateRange} onChange={(v) => { setDateRange(v); setOffset(0) }} />
         </div>
         <div className="flex flex-col">
-          <label className="mb-1 text-xs text-muted-foreground">Action type</label>
-          <Input value={actionInput} onChange={(e) => setActionInput(e.target.value)} placeholder="örn. promote" />
+          <label htmlFor="audit-action" className="mb-1 text-xs text-muted-foreground">Action type</label>
+          <Input id="audit-action" value={actionInput} onChange={(e) => setActionInput(e.target.value)} placeholder="örn. promote" />
         </div>
         <div className="flex flex-col">
           <label htmlFor="trace-input" className="mb-1 text-xs text-muted-foreground">Trace ID</label>
