@@ -96,6 +96,7 @@ def admin_audit_log(
     offset: int = Query(0, ge=0),
     admin_id: Optional[int] = None,
     action: Optional[str] = None,
+    trace_id: Optional[str] = None,
     date_from: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     date_to: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     db: sqlite3.Connection = Depends(get_db),
@@ -104,7 +105,7 @@ def admin_audit_log(
     """Paginated + filtered admin audit log."""
     return admin_service.list_admin_audit(
         db, limit=limit, offset=offset,
-        admin_id=admin_id, action=action,
+        admin_id=admin_id, action=action, trace_id=trace_id,
         date_from=date_from, date_to=date_to,
     )
 
@@ -115,6 +116,7 @@ def admin_system_events(
     offset: int = Query(0, ge=0),
     event_type: Optional[str] = None,
     severity: Optional[str] = None,
+    trace_id: Optional[str] = None,
     date_from: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     date_to: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     db: sqlite3.Connection = Depends(get_db),
@@ -123,6 +125,6 @@ def admin_system_events(
     """Paginated + filtered system events log."""
     return admin_service.list_system_events(
         db, limit=limit, offset=offset,
-        event_type=event_type, severity=severity,
+        event_type=event_type, severity=severity, trace_id=trace_id,
         date_from=date_from, date_to=date_to,
     )
