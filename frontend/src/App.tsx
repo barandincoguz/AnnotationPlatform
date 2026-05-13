@@ -20,6 +20,13 @@ import { Profile } from '@/routes/Profile'
 import { Help } from '@/routes/Help'
 import { Training } from '@/routes/Training'
 import { AdminLayout } from '@/routes/admin/AdminLayout'
+import { AuditPage } from '@/routes/admin/AuditPage'
+import { EventsPage } from '@/routes/admin/EventsPage'
+import { LocksPage } from '@/routes/admin/LocksPage'
+import { UsersPage } from '@/routes/admin/UsersPage'
+import { SettingsPage } from '@/routes/admin/SettingsPage'
+import { GoldDocsPage } from '@/routes/admin/training/GoldDocsPage'
+import { QuizPage } from '@/routes/admin/training/QuizPage'
 
 export default function App() {
   const navigate = useNavigate()
@@ -105,13 +112,22 @@ export default function App() {
         </Route>
 
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <RequireAdmin>
               <AdminLayout />
             </RequireAdmin>
           }
-        />
+        >
+          <Route index element={<div />} />
+          <Route path="audit" element={<AuditPage />} />
+          <Route path="events" element={<EventsPage />} />
+          <Route path="locks" element={<LocksPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="training/gold-docs" element={<GoldDocsPage />} />
+          <Route path="training/quiz" element={<QuizPage />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

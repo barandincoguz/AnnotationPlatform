@@ -1,0 +1,53 @@
+/* eslint-disable react/display-name */
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { AdminLayout } from './AdminLayout'
+
+const Wrap = ({ initialPath }: { initialPath: string }) => (
+  <MemoryRouter initialEntries={[initialPath]}>
+    <Routes>
+      <Route path="/admin/*" element={<AdminLayout />}>
+        <Route path="audit" element={<div>AUDIT_STUB</div>} />
+        <Route path="users" element={<div>USERS_STUB</div>} />
+      </Route>
+    </Routes>
+  </MemoryRouter>
+)
+
+describe('AdminLayout', () => {
+  it('renders sidebar nav landmarks', () => {
+    render(<Wrap initialPath="/admin/audit" />)
+    expect(screen.getByRole('navigation', { name: /admin/i })).toBeInTheDocument()
+  })
+
+  it('renders sidebar group headings', () => {
+    render(<Wrap initialPath="/admin/audit" />)
+    expect(screen.getByText(/operations/i)).toBeInTheDocument()
+    expect(screen.getByText(/people/i)).toBeInTheDocument()
+    expect(screen.getByText(/platform/i)).toBeInTheDocument()
+    expect(screen.getByText(/training content/i)).toBeInTheDocument()
+  })
+
+  it('renders sidebar links', () => {
+    render(<Wrap initialPath="/admin/audit" />)
+    expect(screen.getByRole('link', { name: /^audit/i })).toHaveAttribute('href', '/admin/audit')
+    expect(screen.getByRole('link', { name: /^users/i })).toHaveAttribute('href', '/admin/users')
+    expect(screen.getByRole('link', { name: /^locks/i })).toHaveAttribute('href', '/admin/locks')
+    expect(screen.getByRole('link', { name: /^events/i })).toHaveAttribute('href', '/admin/events')
+    expect(screen.getByRole('link', { name: /^settings/i })).toHaveAttribute('href', '/admin/settings')
+    expect(screen.getByRole('link', { name: /gold docs/i })).toHaveAttribute('href', '/admin/training/gold-docs')
+    expect(screen.getByRole('link', { name: /^quiz/i })).toHaveAttribute('href', '/admin/training/quiz')
+  })
+
+  it('renders Outlet for child route', () => {
+    render(<Wrap initialPath="/admin/users" />)
+    expect(screen.getByText('USERS_STUB')).toBeInTheDocument()
+  })
+
+  it('renders skip link as first focusable element', () => {
+    render(<Wrap initialPath="/admin/audit" />)
+    const skip = screen.getByRole('link', { name: /içeriğe atla/i })
+    expect(skip).toBeInTheDocument()
+  })
+})
