@@ -79,9 +79,12 @@ export const goldDocResolvedSchema = z.object({
   min_concept_count: z.number().int(),
 })
 
+// Parses TEXT-stored JSON columns. Intentionally lets malformed JSON throw —
+// admin panels are diagnostic surfaces, so a corrupted DB blob must surface
+// as a parse error, not silently masquerade as empty data.
 const parseJSONIfString = (v: unknown): unknown => {
   if (typeof v !== 'string') return v
-  try { return JSON.parse(v) } catch { return [] }
+  return JSON.parse(v)
 }
 
 export const goldDocOverrideSchema = z.object({
