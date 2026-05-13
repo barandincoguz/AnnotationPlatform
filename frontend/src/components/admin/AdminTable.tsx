@@ -61,7 +61,7 @@ export function AdminTable<T>({
 
   return (
     <div className="overflow-x-auto rounded border">
-      <table className="w-full text-sm" role="table">
+      <table className="w-full text-sm">
         <thead className="bg-muted/50">
           <tr>
             {columns.map((c) => (
