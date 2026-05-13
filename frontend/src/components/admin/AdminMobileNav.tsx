@@ -8,26 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-const options = [
-  {
-    group: 'Operations',
-    items: [
-      { v: '/admin/audit', l: 'Audit' },
-      { v: '/admin/events', l: 'Events' },
-      { v: '/admin/locks', l: 'Locks' },
-    ],
-  },
-  { group: 'People', items: [{ v: '/admin/users', l: 'Users' }] },
-  { group: 'Platform', items: [{ v: '/admin/settings', l: 'Settings' }] },
-  {
-    group: 'Training Content',
-    items: [
-      { v: '/admin/training/gold-docs', l: 'Gold Docs' },
-      { v: '/admin/training/quiz', l: 'Quiz' },
-    ],
-  },
-]
+import { adminNavGroups } from './adminNav'
 
 export function AdminMobileNav() {
   const navigate = useNavigate()
@@ -39,12 +20,12 @@ export function AdminMobileNav() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map((g) => (
-            <SelectGroup key={g.group}>
-              <SelectLabel>{g.group}</SelectLabel>
+          {adminNavGroups.map((g) => (
+            <SelectGroup key={g.label}>
+              <SelectLabel>{g.label}</SelectLabel>
               {g.items.map((it) => (
-                <SelectItem key={it.v} value={it.v}>
-                  {it.l}
+                <SelectItem key={it.to} value={it.to}>
+                  {it.label}
                 </SelectItem>
               ))}
             </SelectGroup>

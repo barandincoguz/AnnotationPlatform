@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Route, Routes } from 'react-router-dom'
+import { useNavigate, Route, Routes, Navigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { client, setNavigator, setAuthHandlers, markHydrated } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
@@ -119,7 +119,7 @@ export default function App() {
             </RequireAdmin>
           }
         >
-          <Route index element={<div />} />
+          <Route index element={<Navigate to="/admin/audit" replace />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="locks" element={<LocksPage />} />
