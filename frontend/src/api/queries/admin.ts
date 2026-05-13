@@ -76,7 +76,7 @@ export function useUpdateSettingMutation() {
       return unwrap(
         await client.PUT('/api/admin/settings/{key}', {
           params: { path: { key: input.key } },
-          body: { value: input.value as never },
+          body: { value: input.value },
         }),
       )
     },

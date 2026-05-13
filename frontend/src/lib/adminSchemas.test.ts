@@ -85,4 +85,20 @@ describe('goldDocOverrideSchema', () => {
     })
     expect(ok.expected_concepts).toEqual([{ kanun_no: '5520' }])
   })
+
+  it('throws on malformed JSON in expected_concepts (no silent fallback)', () => {
+    expect(() =>
+      goldDocOverrideSchema.parse({
+        gold_id: 'g_a',
+        is_deleted: 0,
+        content: 'doc',
+        expected_concepts: '{this is not valid json',
+        min_concept_count: 1,
+        source: 'override',
+        created_by_admin_id: 1,
+        created_at: '2026-05-12',
+        updated_at: '2026-05-12',
+      }),
+    ).toThrow()
+  })
 })
