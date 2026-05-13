@@ -315,6 +315,52 @@ export function mockAnnotateSubmitFail() {
   )
 }
 
+// ---- 16e admin handlers ----
+
+export const adminAuditLogHandler = http.get(`${API}/api/admin/audit-log`, () => {
+  return HttpResponse.json({ items: [], total: 0, has_more: false })
+})
+
+export const adminSystemEventsHandler = http.get(`${API}/api/admin/system-events`, () => {
+  return HttpResponse.json({ items: [], total: 0, has_more: false })
+})
+
+export const adminSettingsHandler = http.get(`${API}/api/admin/settings`, () => {
+  return HttpResponse.json({
+    'training.quiz_pass_threshold': 4,
+    'training.annotation_pass_threshold': 2,
+    'gamification.xp_doc_save': 5,
+  })
+})
+
+export const adminUsersHandler = http.get(`${API}/api/admin/users`, () => {
+  return HttpResponse.json({
+    users: [{
+      id: 1, username: 'root', email: null, role: 'admin', is_active: true,
+      has_seen_manual: true, has_passed_training: true,
+      avatar_color: null, created_at: '2026-05-01T00:00:00+00:00',
+    }],
+    total: 1,
+  })
+})
+
+export const adminGoldDocsHandler = http.get(`${API}/api/admin/training/gold-docs`, () => {
+  return HttpResponse.json({ resolved: [], overrides: [] })
+})
+
+export const adminQuizHandler = http.get(`${API}/api/admin/training/quiz`, () => {
+  return HttpResponse.json({ resolved: [], overrides: [] })
+})
+
+export const adminHandlers = [
+  adminAuditLogHandler,
+  adminSystemEventsHandler,
+  adminSettingsHandler,
+  adminUsersHandler,
+  adminGoldDocsHandler,
+  adminQuizHandler,
+]
+
 export const handlers = [
   http.get(`${API}/api/auth/me`, () =>
     HttpResponse.json(
@@ -337,6 +383,7 @@ export const handlers = [
   ...TRAINING_DEFAULT_HANDLERS,
   ...ANNOTATE_DEFAULTS,
   ...GAMIFICATION_DEFAULTS,
+  ...adminHandlers,
 ]
 
 export function mockAuthedUser(overrides: Partial<User> = {}) {
