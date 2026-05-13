@@ -57,7 +57,7 @@ export function EventsPage() {
       <h1 className="text-2xl font-semibold">System Events</h1>
       <div className="flex flex-wrap items-end gap-2 rounded border p-3">
         <div className="flex flex-col">
-          <label className="mb-1 text-xs text-muted-foreground">Tarih</label>
+          <span className="mb-1 text-xs text-muted-foreground">Tarih</span>
           <DateRangePicker value={dateRange} onChange={(v) => { setDateRange(v); setOffset(0) }} />
         </div>
         <div className="flex flex-col">
@@ -66,7 +66,7 @@ export function EventsPage() {
             value={eventTypeInput} onChange={(e) => setEventTypeInput(e.target.value)} placeholder="örn. training_pass" />
         </div>
         <div className="flex flex-col">
-          <label className="mb-1 text-xs text-muted-foreground">Severity</label>
+          <span className="mb-1 text-xs text-muted-foreground">Severity</span>
           <Select value={severityInput === '' ? 'all' : severityInput} onValueChange={(v) => setSeverityInput(v === 'all' ? '' : v)}>
             <SelectTrigger aria-label="Severity"><SelectValue placeholder="Tümü" /></SelectTrigger>
             <SelectContent>

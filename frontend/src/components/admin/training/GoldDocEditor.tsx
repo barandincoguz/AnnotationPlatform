@@ -70,9 +70,9 @@ export function GoldDocEditor({ doc }: Props) {
           + Kavram Ekle
         </Button>
       </div>
-      <label className="block">
+      <label htmlFor="gd-mcc" className="block">
         <span className="mb-1 block text-sm">Min Concept Count</span>
-        <Input type="number" value={String(mcc)} onChange={(e) => setMcc(Number(e.target.value))} className="max-w-xs" />
+        <Input id="gd-mcc" type="number" value={String(mcc)} onChange={(e) => setMcc(Number(e.target.value))} className="max-w-xs" />
       </label>
       <div className="flex gap-2">
         <Button variant="destructive" onClick={() => setDeleteOpen(true)}>Sil (Tombstone)</Button>

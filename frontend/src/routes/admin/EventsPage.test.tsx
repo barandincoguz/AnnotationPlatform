@@ -1,4 +1,4 @@
-/* eslint-disable react/display-name */
+ 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
@@ -40,7 +40,7 @@ describe('EventsPage', () => {
   it('event_type filter is URL-synced', async () => {
     render(<Wrap search="?event_type=training_pass" />)
     await waitFor(() =>
-      expect((screen.getByLabelText(/event type/i) as HTMLInputElement).value).toBe('training_pass'),
+      expect(screen.getByLabelText<HTMLInputElement>(/event type/i).value).toBe('training_pass'),
     )
   })
 })

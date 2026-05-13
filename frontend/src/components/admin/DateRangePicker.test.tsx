@@ -1,4 +1,4 @@
-/* eslint-disable react/display-name */
+ 
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -35,10 +35,11 @@ describe('DateRangePicker', () => {
     render(<DateRangePicker onChange={onChange} value={null} />)
     await user.click(screen.getByRole('combobox'))
     await user.click(screen.getByText(/son 7 gün/i))
+    const isoDate: unknown = expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        date_from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-        date_to: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        date_from: isoDate,
+        date_to: isoDate,
       }),
     )
   })

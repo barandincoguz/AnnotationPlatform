@@ -40,7 +40,7 @@ export function LocksPage() {
     <div className="max-w-md space-y-4">
       <h1 className="text-2xl font-semibold">Document Lock Force-Release</h1>
       <div className="rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">
-        ⚠ Bu işlem geri alınamaz. Lock'u tutan kullanıcının kaydedilmemiş değişiklikleri kaybolabilir.
+        ⚠ Bu işlem geri alınamaz. Lock&apos;u tutan kullanıcının kaydedilmemiş değişiklikleri kaybolabilir.
       </div>
       <div className="space-y-2">
         <label htmlFor="lock-doc-id" className="block text-sm font-medium">Document ID</label>
