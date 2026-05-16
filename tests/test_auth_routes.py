@@ -140,3 +140,47 @@ def test_seen_manual_endpoint_sets_flag(seeded_client):
 def test_seen_manual_unauthenticated_returns_401(seeded_client):
     r = seeded_client.post("/api/me/seen-manual")
     assert r.status_code == 401
+
+
+def test_login_sets_secure_cookie_in_production(seeded_client, monkeypatch):
+    """Verify that secure flag is set when ENVIRONMENT=production."""
+    from backend import config
+
+    # Temporarily override ENVIRONMENT to production
+    monkeypatch.setattr(config, "ENVIRONMENT", "production")
+
+    # Register and login
+    seeded_client.post("/api/auth/register", json={
+        "username": "alice", "password": "password123",
+        "invite_code": "BURSIYER-2026",
+    })
+    r = seeded_client.post("/api/auth/login", json={
+        "username": "alice", "password": "password123",
+    })
+    assert r.status_code == 200
+
+    # Check that the cookie header contains "Secure" flag
+    cookie_header = r.headers.get("set-cookie", "")
+    assert "Secure" in cookie_header, f"Expected 'Secure' in cookie header: {cookie_header}"
+
+
+def test_login_cookie_not_secure_in_development(seeded_client, monkeypatch):
+    """Verify that secure flag is NOT set in development mode."""
+    from backend import config
+
+    # Ensure ENVIRONMENT is development
+    monkeypatch.setattr(config, "ENVIRONMENT", "development")
+
+    # Register and login
+    seeded_client.post("/api/auth/register", json={
+        "username": "bob", "password": "password123",
+        "invite_code": "BURSIYER-2026",
+    })
+    r = seeded_client.post("/api/auth/login", json={
+        "username": "bob", "password": "password123",
+    })
+    assert r.status_code == 200
+
+    # Check that the cookie header does NOT contain "Secure" flag in dev
+    cookie_header = r.headers.get("set-cookie", "")
+    assert "Secure" not in cookie_header, f"Expected NO 'Secure' in dev cookie: {cookie_header}"
