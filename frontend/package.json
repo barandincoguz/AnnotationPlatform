@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "gen:openapi": "cd .. && python -m backend.cli openapi-dump --output openapi.json",
+    "gen:openapi": "cd .. && .venv/bin/python -m backend.cli openapi-dump --output openapi.json",
     "gen:types": "openapi-typescript http://127.0.0.1:8000/openapi.json -o src/api/types.ts",
     "gen:types:from-file": "openapi-typescript ../openapi.json -o src/api/types.ts",
     "gen:types:check": "npm run gen:openapi && npm run gen:types:from-file && git diff --exit-code src/api/types.ts",
