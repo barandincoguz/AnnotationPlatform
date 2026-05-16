@@ -1,6 +1,7 @@
-import { Plus, Loader2, Check, AlertCircle } from 'lucide-react'
+import { Plus, Loader2, Check, AlertCircle, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 import { ReferenceCard } from './ReferenceCard'
 import type { components } from '@/api/types'
 import type { ApiError } from '@/api/client'
@@ -15,11 +16,17 @@ interface ReferencePanelProps {
   onRemove: (index: number) => void
   onSave: () => void
   onSkip: () => void
+  onComplete: () => void
   canEdit: boolean
   isSaving: boolean
+  isCompleting: boolean
   error: ApiError | null
   draftSaveStatus: DraftSaveStatus
   isValid: boolean
+  /** True when a shared annotation row exists for this document. */
+  hasAnnotation: boolean
+  /** Singleton completion flag from the annotation row. */
+  isCompleted: boolean
 }
 
 function DraftStatusBadge({ status }: { status: DraftSaveStatus }) {
@@ -54,12 +61,33 @@ export function ReferencePanel({
   onRemove,
   onSave,
   onSkip,
+  onComplete,
   canEdit,
   isSaving,
+  isCompleting,
   error,
   draftSaveStatus,
   isValid,
+  hasAnnotation,
+  isCompleted,
 }: ReferencePanelProps) {
+  const completeDisabled =
+    !canEdit ||
+    isSaving ||
+    isCompleting ||
+    // Refuse to lock in an invalid state when finalizing; allow the reverse
+    // direction (Geri Al) regardless so users can recover from a mistaken
+    // completion even if the editor currently shows invalid refs.
+    (!isCompleted && !isValid)
+
+  const completeLabel = isCompleting
+    ? isCompleted
+      ? 'Geri alınıyor…'
+      : 'Tamamlanıyor…'
+    : isCompleted
+      ? 'Geri Al'
+      : 'Tamamla'
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-1 space-y-3 overflow-auto p-3">
@@ -93,6 +121,11 @@ export function ReferencePanel({
       <footer className="space-y-2 p-3">
         <div className="flex items-center justify-between">
           <DraftStatusBadge status={draftSaveStatus} />
+          {hasAnnotation && isCompleted && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-success">
+              <Check className="h-3 w-3" /> Tamamlandı
+            </span>
+          )}
         </div>
         {error && (
           <p className="text-sm text-destructive" role="alert">
@@ -112,6 +145,25 @@ export function ReferencePanel({
           <Button type="button" onClick={onSave} disabled={!canEdit || isSaving || !isValid}>
             {isSaving ? 'Kaydediliyor…' : 'Sakla'}
           </Button>
+          {hasAnnotation && (
+            <Button
+              type="button"
+              variant={isCompleted ? 'outline' : 'default'}
+              onClick={onComplete}
+              disabled={completeDisabled}
+              className={cn(
+                !isCompleted &&
+                  'bg-success text-success-foreground shadow-sm hover:bg-success/90 focus-visible:ring-success',
+              )}
+            >
+              {isCompleted ? (
+                <Undo2 className="mr-1 h-4 w-4" />
+              ) : (
+                <Check className="mr-1 h-4 w-4" />
+              )}
+              {completeLabel}
+            </Button>
+          )}
         </div>
       </footer>
     </div>
