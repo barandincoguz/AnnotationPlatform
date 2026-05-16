@@ -324,3 +324,77 @@ def rotate_invite_code(
         trace_id=trace_id,
     )
     return new_code
+
+
+def seed_bootstrap_admin(
+    db: sqlite3.Connection,
+    *,
+    username: str,
+    password: str,
+) -> None:
+    """Idempotent first-admin seed for production bootstrap.
+
+    Triggered by lifespan after migrations. Behaviour:
+      - Skip silently if either username or password is empty.
+      - Skip silently if any active admin already exists.
+      - Raise RuntimeError if username collides with an existing non-admin.
+      - Otherwise: insert admin user (training+manual flags pre-set),
+        log to admin_audit_log, print one stderr line.
+    """
+    import sys
+    if not username or not password:
+        return
+
+    active_admin = db.execute(
+        "SELECT 1 FROM users WHERE role='admin' AND is_active=1 LIMIT 1"
+    ).fetchone()
+    if active_admin is not None:
+        return
+
+    existing = db.execute(
+        "SELECT id, role FROM users WHERE username=?", (username,)
+    ).fetchone()
+    if existing is not None and existing["role"] != "admin":
+        raise RuntimeError(
+            f"BOOTSTRAP_ADMIN_USERNAME={username!r} conflicts with "
+            f"existing non-admin user"
+        )
+
+    now = _now()
+    cur = db.execute(
+        """
+        INSERT INTO users(
+            username, email, password_hash, role, is_active,
+            has_seen_manual, has_passed_training,
+            avatar_color, created_at, updated_at
+        )
+        VALUES (?, NULL, ?, 'admin', 1, 1, 1, ?, ?, ?)
+        """,
+        (
+            username,
+            auth.hash_password(password),
+            _avatar_color_for(username),
+            now, now,
+        ),
+    )
+    user_id = cur.lastrowid
+    assert user_id is not None
+
+    db.execute(
+        """
+        INSERT INTO gamification_state(user_id, updated_at)
+        VALUES (?, ?)
+        """,
+        (user_id, now),
+    )
+
+    audit.log_admin_action(
+        db,
+        admin_user_id=user_id,
+        action_type="bootstrap_admin_seed",
+        target_kind="user",
+        target_id=str(user_id),
+        metadata={"source": "lifespan"},
+    )
+
+    print(f"Bootstrap admin {username!r} created (id={user_id})", file=sys.stderr)
