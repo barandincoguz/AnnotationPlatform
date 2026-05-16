@@ -10,9 +10,9 @@ export function DailyProgress({ today, target }: DailyProgressProps) {
   const done = today >= target
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-0.5 shadow-sm">
+    <div className="inline-flex items-center gap-2.5 rounded-full border border-border bg-card px-3 py-1 shadow-sm transition-colors hover:border-accent2/50">
       {done && (
-        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-success">
+        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-success">
           Bugün ✓
         </span>
       )}
@@ -21,15 +21,17 @@ export function DailyProgress({ today, target }: DailyProgressProps) {
         aria-valuenow={today}
         aria-valuemax={target}
         aria-valuemin={0}
-        className="h-1 w-16 rounded-full bg-muted overflow-hidden"
+        className="h-1.5 w-20 rounded-full bg-muted overflow-hidden"
       >
         <div
           data-testid="daily-progress-fill"
-          className={`h-full rounded-full ${done ? 'bg-success' : 'bg-primary'}`}
+          className={`h-full rounded-full transition-[width] duration-500 ${done ? 'bg-success' : 'bg-accent2'}`}
           style={{ width: pct }}
         />
       </div>
-      <span className={`font-mono text-[10px] tabular-nums ${done ? 'text-success' : 'text-muted-foreground'}`}>
+      <span
+        className={`font-mono text-[11px] font-medium tabular-nums ${done ? 'text-success' : 'text-foreground/75'}`}
+      >
         {today}/{target}
       </span>
     </div>
