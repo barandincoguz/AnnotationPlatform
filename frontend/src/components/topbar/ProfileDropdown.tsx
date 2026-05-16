@@ -23,7 +23,7 @@ function unreadLabel(count: number): string {
 function Avatar({ user }: { user: UserSection }) {
   return (
     <span
-      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white ring-2 ring-card shadow-sm transition-shadow hover:shadow-md"
       style={{ backgroundColor: user.avatar_color ?? '#3b82f6' }}
     >
       {user.username[0]?.toUpperCase() ?? '?'}
@@ -43,43 +43,70 @@ export function ProfileDropdown({ user, unreadCount }: ProfileDropdownProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Profil menüsü"
-        className="relative inline-flex outline-none focus-visible:ring-2 ring-primary rounded-full"
+        className="relative inline-flex outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
       >
         <Avatar user={user} />
         {unreadCount > 0 && (
           <span
             data-testid="unread-dot"
-            className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white"
+            className="absolute -top-1 -right-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground shadow-sm"
           >
             {unreadLabel(unreadCount)}
           </span>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuLabel>
-          {user.username} <span className="text-xs text-muted-foreground">• {user.role}</span>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={10}
+        className="w-80 border-border/70 shadow-xl shadow-foreground/5"
+      >
+        <DropdownMenuLabel className="px-3 pb-3 pt-3">
+          <div className="flex items-center gap-3">
+            <Avatar user={user} />
+            <div className="min-w-0">
+              <div className="font-display text-sm font-semibold tracking-tight truncate">
+                {user.username}
+              </div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                {user.role === 'admin' ? 'Yönetici' : 'Bursiyer'}
+              </div>
+            </div>
+          </div>
         </DropdownMenuLabel>
+
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-xs uppercase">
-          🔔 Bildirimler {unreadCount > 0 && <span>({unreadCount} okunmamış)</span>}
+        <DropdownMenuLabel className="flex items-center justify-between px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <span>Bildirimler</span>
+          {unreadCount > 0 && (
+            <span className="text-accent normal-case font-sans tracking-normal">
+              {unreadCount} okunmamış
+            </span>
+          )}
         </DropdownMenuLabel>
         {top10.length === 0 ? (
-          <div className="px-2 py-3 text-sm text-muted-foreground">Yeni bildirim yok.</div>
+          <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+            <span aria-hidden className="block text-2xl opacity-30">·</span>
+            Yeni bildirim yok.
+          </div>
         ) : (
           <ul className="max-h-64 overflow-auto">
             {top10.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
-                  className="flex w-full items-start gap-2 px-2 py-2 text-left text-sm hover:bg-muted"
+                  className="flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                   onClick={() => markRead.mutate(item.id)}
                   aria-label={`${item.title} bildirimini okundu işaretle`}
                 >
-                  <span className="text-base">{iconForKind(item.kind)}</span>
+                  <span className="text-base leading-none mt-0.5" aria-hidden>
+                    {iconForKind(item.kind)}
+                  </span>
                   <div className="flex-1 min-w-0">
-                    <div className="truncate" title={item.title}>{item.title}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="truncate font-medium" title={item.title}>
+                      {item.title}
+                    </div>
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/80 mt-0.5">
                       {formatRelativeTr(item.created_at)}
                     </div>
                   </div>
@@ -93,26 +120,39 @@ export function ProfileDropdown({ user, unreadCount }: ProfileDropdownProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={(e) => { e.preventDefault(); markAllRead.mutate() }}
+              className="text-sm"
             >
               Tümünü okundu yap
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/me#notifications">Tümünü Gör</Link>
+            <DropdownMenuItem asChild className="text-sm">
+              <Link to="/me#notifications">
+                Tümünü Gör
+                <span aria-hidden className="ml-auto text-accent">→</span>
+              </Link>
             </DropdownMenuItem>
           </>
         )}
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/me">Profilim</Link>
+        <DropdownMenuItem asChild className="text-sm">
+          <Link to="/me">
+            Profilim
+            <span aria-hidden className="ml-auto text-muted-foreground/50">↗</span>
+          </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/help">Yardım</Link>
+        <DropdownMenuItem asChild className="text-sm">
+          <Link to="/help">
+            Yardım
+            <span aria-hidden className="ml-auto text-muted-foreground/50">?</span>
+          </Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={(e) => { e.preventDefault(); logout.mutate() }}
+          className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
         >
           Çıkış
+          <span aria-hidden className="ml-auto opacity-60">⎋</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
