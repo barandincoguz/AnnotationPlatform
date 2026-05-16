@@ -4,39 +4,44 @@
 
 @layer base {
   :root {
-    /* Editorial Counsel palette — warm cream base, deep ink, amber accent */
-    --background: 40 30% 97%;
-    --foreground: 220 30% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 14%;
-    --primary: 222 45% 24%;
-    --primary-foreground: 40 30% 97%;
-    --secondary: 40 18% 93%;
-    --secondary-foreground: 220 30% 20%;
-    --muted: 40 18% 92%;
-    --muted-foreground: 220 12% 42%;
-    --accent: 32 70% 48%;
+    /* Reading Room palette — warm cream base, deep ink, amber spine,
+       patina teal as a third character. Built on top of the Editorial
+       Counsel tokens; 4a expansion adds --accent-2 and slightly warmer
+       layer surfaces so per-section gradient washes look intentional. */
+    --background: 40 32% 96%;
+    --foreground: 220 30% 13%;
+    --card: 40 28% 99%;
+    --card-foreground: 220 30% 13%;
+    --popover: 40 28% 99%;
+    --popover-foreground: 220 30% 13%;
+    --primary: 222 45% 22%;
+    --primary-foreground: 40 32% 97%;
+    --secondary: 40 22% 92%;
+    --secondary-foreground: 220 30% 18%;
+    --muted: 40 22% 91%;
+    --muted-foreground: 220 14% 38%;
+    --accent: 32 72% 47%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 65% 48%;
+    /* 4a: patina teal — third brand character. Sits between info-navy and
+       a fresh sage so it pairs with the amber accent without competing. */
+    --accent-2: 175 48% 36%;
+    --accent-2-foreground: 0 0% 100%;
+    --destructive: 0 65% 47%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Semantic state tokens (3a expansion) */
-    --success: 145 55% 38%;
+    --success: 145 50% 34%;
     --success-foreground: 0 0% 100%;
-    --warning: 32 75% 48%;
+    --warning: 32 78% 47%;
     --warning-foreground: 0 0% 100%;
-    --info: 222 45% 35%;
+    --info: 200 65% 38%;
     --info-foreground: 0 0% 100%;
 
-    /* Default avatar background when user.avatar_color is null/missing */
     --avatar-fallback: 222 45% 24%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 86%;
-    --ring: 222 45% 24%;
-    --radius: 0.5rem;
+    --border: 220 14% 86%;
+    --input: 220 14% 84%;
+    --ring: 32 72% 47%;
+    --radius: 0.625rem;
   }
 
   * {
@@ -51,20 +56,45 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    /* 4a: bump body up to a confident 15.5px and default to weight 500
+       so the whole interface reads denser without being austere. */
+    font-size: 15.5px;
+    font-weight: 500;
+    line-height: 1.55;
     font-feature-settings: 'ss01', 'cv11';
+    /* Three-radial gradient mesh — warm cream baseline with a navy haze
+       in the upper-left and a patina-teal wash in the lower-right.
+       Atmospheric, never busy: blend modes intentionally soft so text
+       contrast holds. */
+    background-color: hsl(var(--background));
     background-image:
-      radial-gradient(at 12% 0%, hsl(40 35% 95%) 0px, transparent 55%),
-      radial-gradient(at 88% 100%, hsl(220 25% 96%) 0px, transparent 55%);
+      radial-gradient(at 8% -4%, hsl(40 45% 94% / 0.95) 0px, transparent 55%),
+      radial-gradient(at 100% 0%, hsl(222 40% 95% / 0.7) 0px, transparent 50%),
+      radial-gradient(at 92% 100%, hsl(175 38% 92% / 0.75) 0px, transparent 55%),
+      radial-gradient(at 0% 100%, hsl(32 60% 94% / 0.55) 0px, transparent 50%);
     background-attachment: fixed;
+  }
+
+  ::selection {
+    background-color: hsl(var(--accent) / 0.25);
+    color: hsl(var(--foreground));
   }
 
   h1,
   h2,
   h3,
+  h4,
   .display {
     @apply font-display;
     font-feature-settings: 'ss01', 'liga', 'kern';
-    letter-spacing: -0.015em;
+    letter-spacing: -0.018em;
+    font-weight: 700;
+  }
+
+  /* Slightly heavier mono so kicker labels feel cut, not whispered. */
+  .font-mono {
+    font-feature-settings: 'tnum', 'ss01';
+    font-weight: 500;
   }
 }
 
@@ -83,6 +113,33 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     opacity: 0.7;
     mix-blend-mode: multiply;
+  }
+
+  /* Section gradient wash utilities — pick the tint that matches the
+     section's role. Layered on top of the body mesh, never replacing it. */
+  .wash-amber {
+    background-image: radial-gradient(at 0% 0%, hsl(var(--accent) / 0.06) 0px, transparent 60%);
+  }
+  .wash-teal {
+    background-image: radial-gradient(at 100% 0%, hsl(var(--accent-2) / 0.08) 0px, transparent 60%);
+  }
+  .wash-navy {
+    background-image: radial-gradient(at 0% 100%, hsl(var(--primary) / 0.05) 0px, transparent 60%);
+  }
+  .wash-success {
+    background-image: radial-gradient(at 100% 100%, hsl(var(--success) / 0.07) 0px, transparent 60%);
+  }
+
+  /* Lift-on-hover — subtle warmth for interactive cards and chips. */
+  .lift {
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lift:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 24px -16px hsl(var(--primary) / 0.18),
+      0 2px 6px -2px hsl(var(--primary) / 0.08);
   }
 
   /* Editorial entrance — staggered fade + rise */
