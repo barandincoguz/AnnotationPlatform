@@ -57,12 +57,15 @@ export function DocListItem({ item, isSelected, onClick }: DocListItemProps) {
         />
       )}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-foreground/80">
-            № {item.sayi ?? '—'}
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span
+            title={item.document_id}
+            className="font-mono text-[12px] font-semibold tracking-[0.04em] text-foreground/85 truncate"
+          >
+            {item.document_id}
           </span>
           {item.tarih && (
-            <span className="font-mono text-[11px] text-muted-foreground/80 tabular-nums">
+            <span className="font-mono text-[10px] text-muted-foreground/80 tabular-nums">
               {item.tarih}
             </span>
           )}

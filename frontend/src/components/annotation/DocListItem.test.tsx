@@ -4,11 +4,14 @@ import { DocListItem } from './DocListItem'
 import { makeFeedItem } from '@/test/msw-handlers'
 
 describe('DocListItem', () => {
-  it('renders sayi + tarih + konu + vergi_turu', () => {
+  it('renders document_id + tarih + konu + vergi_turu', () => {
+    // The list row now leads with document_id (evrakOid) — the project
+    // dropped the per-year "sayi" because it isn't unique across years
+    // and was misleading users.
     render(
       <DocListItem
         item={makeFeedItem({
-          sayi: 1234,
+          document_id: '17h2sm8cdz11kq',
           tarih: '2025-05-22',
           konu: 'Vergi Usul Kanunu uyarınca düzenlenen rapor',
           vergi_turu: 'KDV',
@@ -17,7 +20,7 @@ describe('DocListItem', () => {
         onClick={vi.fn()}
       />,
     )
-    expect(screen.getByText(/1234/)).toBeInTheDocument()
+    expect(screen.getByText('17h2sm8cdz11kq')).toBeInTheDocument()
     expect(screen.getByText(/Vergi Usul Kanunu/i)).toBeInTheDocument()
     expect(screen.getByText('KDV')).toBeInTheDocument()
   })
