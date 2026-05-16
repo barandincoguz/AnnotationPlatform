@@ -26,20 +26,20 @@ export function TopBar() {
   return (
     <header
       role="banner"
-      className="sticky top-0 z-30 h-14 border-b border-border/70 bg-background/85 backdrop-blur-md px-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4"
+      className="sticky top-0 z-30 h-16 border-b border-border/70 bg-background/85 backdrop-blur-md px-6 grid grid-cols-[1fr_auto_1fr] items-center gap-5"
     >
       <BrandMark subtitle="Bursiyer kütüphanesi" />
 
       <div className="flex items-center gap-5">
         <XPBadge total={xpTotal} />
-        <span aria-hidden className="h-4 w-px bg-border" />
+        <span aria-hidden className="h-5 w-px bg-border" />
         <StreakCounter current={streakCurrent} longest={streakLongest} />
-        <span aria-hidden className="h-4 w-px bg-border" />
+        <span aria-hidden className="h-5 w-px bg-border" />
         <DailyProgress today={todaySave} target={dailyTarget} />
       </div>
 
       <div className="ml-auto flex items-center gap-4">
-        <div className="hidden md:block max-w-[200px] overflow-hidden">
+        <div className="hidden md:block max-w-[220px] overflow-hidden">
           <OnlineUsers users={onlineUsers} maxVisible={5} />
         </div>
         {user && (
@@ -49,7 +49,7 @@ export function TopBar() {
                 id: user.id,
                 username: user.username,
                 role: user.role,
-                avatar_color: user.avatar_color ?? '#3b82f6',
+                avatar_color: user.avatar_color,
               }}
               unreadCount={unreadCount}
             />
