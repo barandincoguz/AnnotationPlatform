@@ -23,7 +23,7 @@ export function ProfileHeader({ user, createdAt }: ProfileHeaderProps) {
     <header className="flex items-center gap-4 mb-6">
       <span
         className="inline-flex h-16 w-16 items-center justify-center rounded-full text-2xl font-semibold text-white"
-        style={{ backgroundColor: user.avatar_color }}
+        style={{ backgroundColor: user.avatar_color ?? '#3b82f6' }}
       >
         {user.username[0]?.toUpperCase() ?? '?'}
       </span>

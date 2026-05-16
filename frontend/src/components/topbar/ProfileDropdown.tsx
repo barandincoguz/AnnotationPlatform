@@ -24,7 +24,7 @@ function Avatar({ user }: { user: UserSection }) {
   return (
     <span
       className="inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white"
-      style={{ backgroundColor: user.avatar_color }}
+      style={{ backgroundColor: user.avatar_color ?? '#3b82f6' }}
     >
       {user.username[0]?.toUpperCase() ?? '?'}
     </span>

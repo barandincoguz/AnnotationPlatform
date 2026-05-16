@@ -12,8 +12,7 @@ export function LocksPage() {
 
   const onOpen = () => {
     const trimmed = docIdText.trim()
-    const n = Number(trimmed)
-    if (!trimmed || !Number.isFinite(n) || n <= 0) return
+    if (!trimmed) return
     setDialogOpen(true)
   }
 
@@ -44,7 +43,7 @@ export function LocksPage() {
       </div>
       <div className="space-y-2">
         <label htmlFor="lock-doc-id" className="block text-sm font-medium">Document ID</label>
-        <Input id="lock-doc-id" inputMode="numeric" pattern="\d+"
+        <Input id="lock-doc-id"
           value={docIdText} onChange={(e) => setDocIdText(e.target.value)} />
       </div>
       <Button variant="destructive" onClick={onOpen}>Kilidi Aç</Button>
