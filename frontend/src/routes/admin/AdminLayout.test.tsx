@@ -23,10 +23,10 @@ describe('AdminLayout', () => {
 
   it('renders sidebar group headings', () => {
     render(<Wrap initialPath="/admin/audit" />)
-    expect(screen.getByText(/operations/i)).toBeInTheDocument()
-    expect(screen.getByText(/people/i)).toBeInTheDocument()
-    expect(screen.getByText(/platform/i)).toBeInTheDocument()
-    expect(screen.getByText(/training content/i)).toBeInTheDocument()
+    expect(screen.getByText(/^operations$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^people$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^platform$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^training content$/i)).toBeInTheDocument()
   })
 
   it('renders sidebar links', () => {
