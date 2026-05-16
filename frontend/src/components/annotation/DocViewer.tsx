@@ -144,16 +144,27 @@ function Header({ d }: { d: DocumentDetail }) {
   return (
     <header className="space-y-3 border-b border-border/60 bg-card/60 px-5 py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div className="space-y-1.5 min-w-0">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Doküman Kimliği
-          </div>
-          <div
+        <div className="flex items-baseline gap-3 min-w-0">
+          {/* The "ID" cap is the editorial moment — Fraunces display
+              weight makes it read as a label-title. The id value itself
+              is the operational artifact: monospace so distinct chars
+              line up, smaller so the long string doesn't fight the
+              cap for attention. */}
+          <span className="font-display text-[2.5rem] font-bold leading-[0.9] tracking-tight text-foreground">
+            ID
+          </span>
+          <span
+            aria-hidden
+            className="font-display text-[2.5rem] font-bold leading-[0.9] text-muted-foreground/60"
+          >
+            :
+          </span>
+          <span
             title="Doküman kimliği (evrakOid)"
-            className="font-display text-[2.25rem] font-bold leading-[0.95] tracking-tight text-foreground select-all break-all"
+            className="font-mono text-[18px] font-bold tracking-tight text-foreground select-all break-all"
           >
             {d.document_id}
-          </div>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {d.estimated_difficulty && (
