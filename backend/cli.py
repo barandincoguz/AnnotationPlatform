@@ -378,6 +378,113 @@ def cmd_restore_from_github(args) -> int:
         shutil.rmtree(clone_parent, ignore_errors=True)
 
 
+def cmd_seed_e2e(args) -> int:
+    """Reset the DB at $DB_PATH and seed minimal fixtures for Playwright
+    e2e runs: one invite code, three pre-trained users, three sample
+    documents. Always run against an ISOLATED test DB (DB_PATH env var)
+    — refuses to touch the default production path without --force.
+    """
+    db_path = config.DB_PATH
+    if str(db_path).endswith("annotations.db") and "anotasyon-e2e" not in str(db_path) and not args.force:
+        print(
+            f"refusing to seed default DB at {db_path}; set DB_PATH to an "
+            "e2e-only path (e.g. /tmp/anotasyon-e2e.db), or pass --force",
+            file=sys.stderr,
+        )
+        return 2
+
+    config.ensure_dirs()
+    if args.reset and db_path.exists():
+        db_path.unlink()
+        for suffix in ("-wal", "-shm"):
+            sidecar = db_path.with_name(db_path.name + suffix)
+            if sidecar.exists():
+                sidecar.unlink()
+
+    from backend.shared import auth
+    from backend.documents import service as doc_svc
+
+    conn = connect(db_path)
+    try:
+        apply_migrations(conn, discover_migrations())
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,?)",
+            ("E2E-CODE", now),
+        )
+        # Password hashed via the prod auth module so a real
+        # POST /api/auth/login round-trip succeeds.
+        pw_hash = auth.hash_password("e2e-pass-123!")
+        for username, role in (("alice", "user"), ("bob", "user"), ("admin", "admin")):
+            conn.execute(
+                """INSERT INTO users(
+                    username, password_hash, role, is_active,
+                    has_passed_training, has_seen_manual,
+                    avatar_color, created_at, updated_at
+                ) VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?)""",
+                (username, pw_hash, role, "#3b82f6", now, now),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    docs = [
+        {
+            "evrakOid": "e2e-doc-alpha",
+            "sayi": 101,
+            "tarih": "20260115",
+            "konu": "E2E test belgesi alpha — kira gelirinin vergilendirilmesi",
+            "vergiTuru": "0001",
+            "pdfText": (
+                "T.C.\nGELIR IDARESI BASKANLIGI\n\n"
+                "Kira gelirinin vergilendirilmesi hakkinda ozelge talebi.\n\n"
+                "Konuyla ilgili aciklamalar asagida yer almaktadir."
+            ),
+            "kanunBilgileri": [
+                {"kanunMaddesi": "37", "kanunKodu": "193 - GELIR VERGISI KANUNU",
+                 "kanunMaddesiTuru": "ASIL"},
+            ],
+            "bkkTebligSirkuBilgileri": [],
+        },
+        {
+            "evrakOid": "e2e-doc-bravo",
+            "sayi": 102,
+            "tarih": "20260116",
+            "konu": "E2E test belgesi bravo — KDV iadesi",
+            "vergiTuru": "0015",
+            "pdfText": "KDV iadesi hakkinda ozelge govdesi.",
+            "kanunBilgileri": [],
+            "bkkTebligSirkuBilgileri": [],
+        },
+        {
+            "evrakOid": "e2e-doc-charlie",
+            "sayi": 103,
+            "tarih": "20260117",
+            "konu": "E2E test belgesi charlie — kurumlar vergisi",
+            "vergiTuru": "0002",
+            "pdfText": "Kurumlar vergisi hakkinda ozelge govdesi.",
+            "kanunBilgileri": [],
+            "bkkTebligSirkuBilgileri": [],
+        },
+    ]
+    tmp_dir = Path(tempfile.mkdtemp(prefix="e2e-seed-"))
+    tmp_path = tmp_dir / "docs.json"
+    tmp_path.write_text(json.dumps(docs), encoding="utf-8")
+    conn = connect(db_path)
+    try:
+        doc_svc.ingest_file(conn, tmp_path)
+        conn.commit()
+    finally:
+        conn.close()
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    print(f"E2E DB seeded at {db_path}")
+    print("  invite code: E2E-CODE")
+    print("  users: alice, bob, admin  (password: e2e-pass-123!)")
+    print(f"  documents: {len(docs)}")
+    return 0
+
+
 COMMANDS = {
     "migrate": cmd_migrate,
     "promote-admin": cmd_promote_admin,
@@ -389,6 +496,7 @@ COMMANDS = {
     "import-gold-docs": cmd_import_gold_docs,
     "restore-from-github": cmd_restore_from_github,
     "openapi-dump": cmd_openapi_dump,
+    "seed-e2e": cmd_seed_e2e,
 }
 
 
@@ -453,6 +561,21 @@ def main(argv: list[str] | None = None) -> int:
         "--output", default="openapi.json",
         help="Output path for the JSON file (default: openapi.json)",
     )
+
+    p_seed = sub.add_parser(
+        "seed-e2e",
+        help="Reset + seed an isolated DB for Playwright e2e tests",
+        description=(
+            "Wipes the DB at $DB_PATH (sidecars too) and re-seeds with a "
+            "single invite code, three users (alice/bob/admin, password "
+            "'e2e-pass-123!'), and three sample documents. Refuses to "
+            "run against the default production path unless --force."
+        ),
+    )
+    p_seed.add_argument("--reset", action="store_true",
+                        help="Drop the existing DB file before seeding")
+    p_seed.add_argument("--force", action="store_true",
+                        help="Allow seeding the default DB path (NOT recommended)")
 
     args = parser.parse_args(argv)
     handler = COMMANDS.get(args.command)

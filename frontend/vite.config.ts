@@ -12,13 +12,19 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false },
+      // VITE_PROXY_TARGET lets the e2e harness point the dev server at
+      // an isolated backend (e.g. http://127.0.0.1:8001) without touching
+      // production data. Default keeps the standard dev mapping.
+      '/api': {
+        target: process.env.VITE_PROXY_TARGET ?? 'http://127.0.0.1:8000',
+        changeOrigin: false,
+      },
       // NOTE: '/docs' (FastAPI Swagger UI) collided with the SPA route
       // '/docs/:docId'. Vite's proxy is a prefix match, so '/docs/foo'
       // was being proxied to backend instead of served as SPA. Removed.
       // Access Swagger UI directly at http://127.0.0.1:8000/docs during dev.
-      '/openapi.json': 'http://127.0.0.1:8000',
-      '/redoc': 'http://127.0.0.1:8000',
+      '/openapi.json': process.env.VITE_PROXY_TARGET ?? 'http://127.0.0.1:8000',
+      '/redoc': process.env.VITE_PROXY_TARGET ?? 'http://127.0.0.1:8000',
     },
   },
   build: {
@@ -31,6 +37,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Vitest's default include matches *.spec.ts — but our e2e specs
+    // live in ./e2e and are Playwright tests, not Vitest. Without this
+    // exclusion `npm test` tries to load them and crashes on the
+    // @playwright/test imports.
+    exclude: ['e2e/**', 'node_modules/**', 'dist/**', 'playwright-report/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
