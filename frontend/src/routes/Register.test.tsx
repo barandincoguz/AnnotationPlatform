@@ -48,4 +48,13 @@ describe('Register route', () => {
     await user.click(screen.getByRole('button', { name: /kayıt ol/i }))
     await waitFor(() => expect(screen.getByText(/invalid invite/i)).toBeInTheDocument())
   })
+
+  it('shows link to login page that navigates on click', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Register />, { initialEntries: ['/register'] })
+    const link = screen.getByRole('link', { name: /giriş yap/i })
+    expect(link).toHaveAttribute('href', '/login')
+    await user.click(link)
+    await waitFor(() => expect(screen.getByTestId('route-login')).toBeInTheDocument())
+  })
 })

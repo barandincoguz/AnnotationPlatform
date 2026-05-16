@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,6 +74,12 @@ export function Register() {
               {registerMutation.isPending ? 'Gönderiliyor…' : 'Kayıt ol'}
             </Button>
           </form>
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Zaten hesabın var mı?{' '}
+            <Link to="/login" className="font-medium text-primary hover:underline">
+              Giriş yap
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>
