@@ -8,52 +8,92 @@ interface StatCardsProps {
   profile: ProfileResponse
 }
 
+// 4f: each card gets its own semantic color identity so the four
+// metrics read as distinct facets of the user's account rather than
+// four cells of the same chrome.
+const CARD_THEMES = {
+  xp: 'border-accent/25 bg-accent/[0.04]',
+  streak: 'border-warning/25 bg-warning/[0.04]',
+  today: 'border-accent2/25 bg-accent2/[0.04]',
+  badges: 'border-success/25 bg-success/[0.04]',
+} as const
+
+const ICON_THEMES = {
+  xp: 'text-accent bg-accent/12',
+  streak: 'text-warning bg-warning/12',
+  today: 'text-accent2 bg-accent2/12',
+  badges: 'text-success bg-success/12',
+} as const
+
+function IconOrb({
+  Icon,
+  tone,
+}: {
+  Icon: typeof Zap
+  tone: keyof typeof ICON_THEMES
+}) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${ICON_THEMES[tone]}`}
+    >
+      <Icon className="h-5 w-5" />
+    </span>
+  )
+}
+
 export function StatCards({ profile }: StatCardsProps) {
   const { xp, streak, today, badges } = profile
   const targetEnabled = today.daily_target > 0
   const ratio = targetEnabled ? Math.min(today.save / today.daily_target, 1) : 0
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       {/* XP */}
-      <Card className="hover:shadow-sm transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Zap aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">Toplam XP</span>
+      <Card className={`lift ${CARD_THEMES.xp}`}>
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-center gap-3">
+            <IconOrb Icon={Zap} tone="xp" />
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Toplam XP
+            </span>
           </div>
-          <div className="font-display text-4xl font-medium tracking-tight tabular-nums">
+          <div className="font-display text-[2.75rem] font-bold tracking-tight tabular-nums text-foreground">
             {TR_FORMATTER.format(xp.total)}
           </div>
         </CardContent>
       </Card>
 
       {/* Streak */}
-      <Card className="hover:shadow-sm transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Flame aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">Streak</span>
+      <Card className={`lift ${CARD_THEMES.streak}`}>
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-center gap-3">
+            <IconOrb Icon={Flame} tone="streak" />
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Streak
+            </span>
           </div>
-          <div className="font-display text-4xl font-medium tracking-tight tabular-nums">
+          <div className="font-display text-[2.75rem] font-bold tracking-tight tabular-nums text-foreground">
             {streak.current}
           </div>
-          <div className="text-xs text-muted-foreground mt-1">
+          <div className="text-[13px] font-medium text-muted-foreground">
             En uzun: {streak.longest} gün
           </div>
         </CardContent>
       </Card>
 
       {/* Bugün */}
-      <Card className="hover:shadow-sm transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Target aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">Bugün</span>
+      <Card className={`lift ${CARD_THEMES.today}`}>
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-center gap-3">
+            <IconOrb Icon={Target} tone="today" />
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Bugün
+            </span>
           </div>
           {targetEnabled ? (
             <>
-              <div className="font-display text-4xl font-medium tracking-tight tabular-nums">
+              <div className="font-display text-[2.75rem] font-bold tracking-tight tabular-nums text-foreground">
                 {today.save}/{today.daily_target}
               </div>
               <div
@@ -61,35 +101,37 @@ export function StatCards({ profile }: StatCardsProps) {
                 aria-valuenow={today.save}
                 aria-valuemax={today.daily_target}
                 aria-valuemin={0}
-                className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden"
+                className="h-2 rounded-full bg-muted overflow-hidden"
               >
                 <div
-                  className={ratio === 1 ? 'h-full rounded-full bg-success' : 'h-full rounded-full bg-primary'}
+                  className={`h-full rounded-full transition-[width] duration-500 ${ratio === 1 ? 'bg-success' : 'bg-accent2'}`}
                   style={{ width: `${Math.round(ratio * 100)}%` }}
                 />
               </div>
             </>
           ) : (
             <>
-              <div className="font-display text-4xl font-medium tracking-tight tabular-nums">
+              <div className="font-display text-[2.75rem] font-bold tracking-tight tabular-nums text-foreground">
                 {today.save}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">Günlük hedef kapalı</div>
+              <div className="text-[13px] text-muted-foreground">Günlük hedef kapalı</div>
             </>
           )}
         </CardContent>
       </Card>
 
       {/* Rozetler */}
-      <Card className="hover:shadow-sm transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-1.5 mb-1">
-            <Award aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
+      <Card className={`lift ${CARD_THEMES.badges}`}>
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-center gap-3">
+            <IconOrb Icon={Award} tone="badges" />
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Toplam Rozet
+            </span>
           </div>
-          <div className="font-display text-4xl font-medium tracking-tight tabular-nums">
+          <div className="font-display text-[2.75rem] font-bold tracking-tight tabular-nums text-foreground">
             {badges.length}
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground mt-1">Toplam Rozet</div>
         </CardContent>
       </Card>
     </div>
