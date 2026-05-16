@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface PendingStartBannerProps {
@@ -7,8 +8,11 @@ interface PendingStartBannerProps {
 
 export function PendingStartBanner({ onDismiss, onStartNew }: PendingStartBannerProps) {
   return (
-    <div role="alert" className="mx-auto max-w-2xl space-y-3 rounded-md border border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
-      <p className="font-medium">⚠ Önceki başlatma yarıda kaldı</p>
+    <div role="alert" className="mx-auto max-w-2xl space-y-3 rounded-md border border-warning/40 bg-warning/5 p-4">
+      <p className="flex items-center gap-1.5 font-medium">
+        <AlertTriangle className="h-4 w-4 text-warning" aria-hidden />
+        Önceki başlatma yarıda kaldı
+      </p>
       <p className="text-sm">Bir deneme harcanmış olabilir.</p>
       <div className="flex gap-2">
         <Button onClick={onStartNew} size="sm">Yeni denemeyi başlat</Button>

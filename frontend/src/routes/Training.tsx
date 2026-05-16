@@ -154,13 +154,14 @@ export function Training() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-3xl px-6 py-10 lg:py-14">
       {skipLinkVisible && (
         <div className="flex justify-end mb-2">
           <button
             type="button"
             onClick={() => setSkipDialogOpen(true)}
-            className="text-xs text-red-600 hover:text-red-700 underline"
+            className="text-xs text-destructive hover:text-destructive/80 underline"
           >
             Eğitimi geç (önerilmez)
           </button>
@@ -170,7 +171,10 @@ export function Training() {
         open={skipDialogOpen}
         onClose={() => setSkipDialogOpen(false)}
       />
-      <h1 className="mb-4 text-2xl font-semibold">Eğitim</h1>
+      <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        Eğitim · Training
+      </p>
+      <h1 className="mb-6 font-display text-4xl font-medium tracking-tight">Eğitim</h1>
       {pendingSentinelVisible && step === 'idle' && (
         <div className="mb-6">
           <PendingStartBanner onDismiss={handleDismissPending} onStartNew={() => void handleStart()} />
@@ -202,6 +206,7 @@ export function Training() {
       {step === 'locked-out' && (
         <LockedOutScreen onLogout={handleLogout} onGoToHelp={handleGoHelp} />
       )}
+      </div>
     </div>
   )
 }
