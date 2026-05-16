@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfile } from '@/api/queries/profile'
 import { useOnlineUsers } from '@/api/queries/users'
@@ -20,7 +21,13 @@ export function TopBar() {
   const streakLongest = profile.data?.streak.longest ?? 0
   const todaySave = profile.data?.today.save ?? 0
   const dailyTarget = profile.data?.today.daily_target ?? 0
-  const onlineUsers = online.isError ? [] : (online.data ?? [])
+  // Backend returns ALL subscribed users including the requester. The
+  // current user's avatar is already rendered by ProfileDropdown to the
+  // right, so filter self out of the online list to avoid duplication.
+  const onlineUsers = useMemo(() => {
+    if (online.isError || !online.data) return []
+    return user ? online.data.filter((u) => u.id !== user.id) : online.data
+  }, [online.isError, online.data, user])
   const unreadCount = unread.isError ? 0 : (unread.data?.items.length ?? 0)
 
   return (
