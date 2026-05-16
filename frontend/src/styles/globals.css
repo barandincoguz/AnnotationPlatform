@@ -21,6 +21,18 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Semantic state tokens (3a expansion) */
+    --success: 145 55% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 75% 48%;
+    --warning-foreground: 0 0% 100%;
+    --info: 222 45% 35%;
+    --info-foreground: 0 0% 100%;
+
+    /* Default avatar background when user.avatar_color is null/missing */
+    --avatar-fallback: 222 45% 24%;
+
     --border: 220 13% 88%;
     --input: 220 13% 86%;
     --ring: 222 45% 24%;
