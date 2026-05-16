@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface StartScreenProps {
   onStart: () => void
@@ -35,13 +36,11 @@ export function StartScreen({ onStart, onBackToHelp, isPending }: StartScreenPro
           deneme kaybolur ve hak harcanmış sayılır. Maksimum 3 denemen var.
         </p>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        {/* TODO(phase-3e): replace with shadcn Checkbox once added to ui/ */}
-        <input
-          type="checkbox"
+      <label htmlFor="start-confirm" className="flex items-center gap-2 text-sm cursor-pointer">
+        <Checkbox
+          id="start-confirm"
           checked={confirmed}
-          onChange={(e) => setConfirmed(e.target.checked)}
-          className="h-4 w-4 accent-primary"
+          onCheckedChange={(v) => setConfirmed(v === true)}
         />
         Anladım, başlamaya hazırım
       </label>

@@ -3,6 +3,7 @@ import {
   useNotificationsHistory, useMarkReadMutation, useMarkAllReadMutation,
 } from '@/api/queries/notifications'
 import { NotificationItem } from './NotificationItem'
+import { EmptyState } from '@/components/shell/EmptyState'
 
 export function NotificationsList() {
   const history = useNotificationsHistory()
@@ -15,7 +16,7 @@ export function NotificationsList() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Bildirimler</h2>
         </div>
-        <p className="text-sm text-amber-600">
+        <p className="text-sm text-warning">
           Bildirimler yüklenirken hata oluştu.{' '}
           <button
             type="button"
@@ -61,7 +62,7 @@ export function NotificationsList() {
         )}
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Henüz bildirim yok.</p>
+        <EmptyState kicker="Boş" title="Henüz bildirim yok" />
       ) : (
         <ul>
           {items.map((item) => (

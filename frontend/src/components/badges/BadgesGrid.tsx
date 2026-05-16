@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BadgeCard } from './BadgeCard'
+import { EmptyState } from '@/components/shell/EmptyState'
 import { useProfile } from '@/api/queries/profile'
 import { useBadgesCatalog } from '@/api/queries/badges'
 
@@ -39,7 +40,7 @@ export function BadgesGrid() {
             </p>
           )}
         </div>
-        <p className="mt-3 text-sm text-amber-600">
+        <p className="mt-3 text-sm text-warning">
           Tüm rozet kataloğu yüklenemedi.{' '}
           <button
             type="button"
@@ -68,9 +69,12 @@ export function BadgesGrid() {
 
         <TabsContent value="kazanilmis">
           {earned.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Henüz rozet yok. Hepsi sekmesinde mevcut rozetleri gör.
-            </p>
+            <EmptyState
+              ornament="☆"
+              kicker="Boş"
+              title="Henüz rozet yok"
+              description="Hepsi sekmesinde mevcut rozetleri gör."
+            />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {earned.map((b) => (

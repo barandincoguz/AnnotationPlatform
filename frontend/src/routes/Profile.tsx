@@ -12,7 +12,7 @@ export function Profile() {
   if (profile.isError) {
     return (
       <div className="mx-auto max-w-4xl p-6">
-        <p className="text-sm text-amber-600">
+        <p className="text-sm text-warning">
           Profil yüklenemedi.{' '}
           <button
             type="button"

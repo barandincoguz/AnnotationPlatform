@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ConceptRowEditor } from './ConceptRowEditor'
 import { DiffPreviewDialog } from '@/components/admin/DiffPreviewDialog'
 import { TypedConfirmDialog } from '@/components/admin/TypedConfirmDialog'
@@ -47,15 +48,15 @@ export function GoldDocEditor({ doc }: Props) {
   return (
     <div className="space-y-4">
       <div className="font-mono text-sm">{doc.gold_id}</div>
-      <label className="block">
-        <span className="mb-1 block text-sm">İçerik</span>
-        <textarea
-          aria-label="i̇çerik"
+      <div className="block">
+        <label htmlFor="gd-content" className="mb-1 block text-sm">i̇çerik</label>
+        <Textarea
+          id="gd-content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="min-h-32 w-full rounded border p-2 text-sm"
+          className="min-h-32"
         />
-      </label>
+      </div>
       <div className="space-y-2">
         <span className="block text-sm font-medium">Beklenen Kavramlar</span>
         {concepts.map((c, i) => (

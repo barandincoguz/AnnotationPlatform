@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { DiffPreviewDialog } from '@/components/admin/DiffPreviewDialog'
 import { TypedConfirmDialog } from '@/components/admin/TypedConfirmDialog'
 import { useUpsertQuizMutation, useDeleteQuizMutation } from '@/api/queries/admin'
@@ -46,21 +48,26 @@ export function QuizEditor({ q }: Props) {
   return (
     <div className="space-y-4">
       <div className="font-mono text-sm">{q.id}</div>
-      <label className="block">
-        <span className="mb-1 block text-sm">Soru metni</span>
-        <textarea aria-label="Soru metni" value={text} onChange={(e) => setText(e.target.value)}
-          className="min-h-24 w-full rounded border p-2 text-sm" />
-      </label>
+      <div className="block">
+        <label htmlFor="qe-text" className="mb-1 block text-sm">Soru metni</label>
+        <Textarea id="qe-text" value={text} onChange={(e) => setText(e.target.value)}
+          className="min-h-24" />
+      </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Şıklar (4)</legend>
-        {(['A', 'B', 'C', 'D'] as const).map((label, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input type="radio" id={`correct-${i}`} name="correct" checked={correct === i}
-              onChange={() => setCorrect(i)} aria-label={`Doğru cevap ${label}`} />
-            <Input aria-label={`Şık ${label}`} value={choices[i] ?? ''}
-              onChange={(e) => setChoices(choices.map((c, j) => j === i ? e.target.value : c))} />
-          </div>
-        ))}
+        <RadioGroup
+          value={String(correct)}
+          onValueChange={(v) => setCorrect(Number(v))}
+          className="space-y-2 gap-0"
+        >
+          {(['A', 'B', 'C', 'D'] as const).map((label, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <RadioGroupItem id={`correct-${i}`} value={String(i)} aria-label={`Doğru cevap ${label}`} />
+              <Input aria-label={`Şık ${label}`} value={choices[i] ?? ''}
+                onChange={(e) => setChoices(choices.map((c, j) => j === i ? e.target.value : c))} />
+            </div>
+          ))}
+        </RadioGroup>
       </fieldset>
       <div className="flex gap-2">
         <Button variant="destructive" onClick={() => setDeleteOpen(true)}>Sil (Tombstone)</Button>

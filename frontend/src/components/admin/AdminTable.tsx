@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { EmptyState } from '@/components/shell/EmptyState'
 
 export interface AdminTableColumn<T> {
   key: string
@@ -52,13 +53,7 @@ export function AdminTable<T>({
   }
 
   if (rows.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-        <span aria-hidden className="font-display text-5xl font-medium text-muted-foreground/20 leading-none">№</span>
-        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Boş</p>
-        <p className="text-sm text-muted-foreground">{emptyMessage ?? 'Kayıt bulunamadı.'}</p>
-      </div>
-    )
+    return <EmptyState kicker="Boş" title={emptyMessage ?? 'Kayıt bulunamadı.'} />
   }
 
   return (

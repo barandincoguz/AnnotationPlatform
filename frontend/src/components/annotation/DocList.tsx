@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useFeed, type FeedTab } from '@/hooks/useFeed'
 import { DocListItem } from './DocListItem'
+import { EmptyState } from '@/components/shell/EmptyState'
 
 const ROW_HEIGHT_ESTIMATE = 110
 
@@ -45,7 +46,13 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
     return <div className="p-4 text-sm text-muted-foreground">Yükleniyor…</div>
   }
   if (items.length === 0) {
-    return <div className="p-4 text-sm text-muted-foreground">Bu sekmede doküman yok.</div>
+    return (
+      <EmptyState
+        kicker="Boş"
+        title="Bu sekmede doküman yok"
+        description="Bu sekmeye atanmış doküman bulunmuyor."
+      />
+    )
   }
 
   if (IS_TEST) {
