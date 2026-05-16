@@ -7,6 +7,7 @@ import {
   Tag,
   Users,
   AlignLeft,
+  AlertTriangle,
 } from 'lucide-react'
 import { useDoc } from '@/hooks/useDoc'
 import { formatYmd } from '@/lib/formatters'
@@ -223,6 +224,26 @@ export function DocViewer({ docId }: DocViewerProps) {
       <div className="flex-1 overflow-auto">
         {hasRefs && (
           <section className="space-y-4 border-b border-border/40 bg-secondary/30 px-5 py-4">
+            {/* The whole point of this annotation platform is that the
+                kanun/bkk references shipped with the source data are
+                known to be INCOMPLETE and UNRELIABLE — the project
+                exists to produce a corrected, human-verified set. We
+                surface the upstream values here only as a starting
+                point; this banner makes sure no annotator mistakes
+                them for ground truth. */}
+            <div
+              role="note"
+              data-testid="refs-source-warning"
+              className="flex items-start gap-2.5 rounded-md border border-destructive/40 bg-destructive/[0.07] px-3 py-2.5 text-[13px] font-medium leading-snug text-destructive"
+            >
+              <AlertTriangle aria-hidden="true" className="h-4 w-4 shrink-0 translate-y-[1px]" />
+              <span>
+                <span className="font-semibold">Kaynak veriden geliyor.</span>{' '}
+                Bu referanslar eksik ve güvenilir değildir — doğrulamanız
+                gerekir. Anotasyon platformunun varlık sebebi tam olarak
+                bu listeyi insan eliyle düzeltmektir.
+              </span>
+            </div>
             <RefList
               refs={d.kanun_refs}
               icon={BookMarked}

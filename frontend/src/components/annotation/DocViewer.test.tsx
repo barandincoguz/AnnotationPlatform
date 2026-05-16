@@ -108,7 +108,30 @@ describe('DocViewer', () => {
     expect(screen.getByText(/Madde 325/)).toBeInTheDocument()
   })
 
-  it('hides the reference section when there are no refs', async () => {
+  it('warns annotators that source-data refs are unreliable (paket-6g)', async () => {
+    // Whole project exists because the upstream kanun/bkk lists are
+    // known-bad; the panel must carry a destructive banner so no one
+    // treats them as ground truth.
+    server.use(
+      http.get('http://localhost/api/documents/doc-warn', () =>
+        HttpResponse.json(
+          makeDocumentDetail({
+            document_id: 'doc-warn',
+            kanun_refs: [
+              { seq: 0, kanun_kodu: '193', kanun_maddesi: '37', kanun_maddesi_turu: 'ASIL' },
+            ],
+          }),
+        ),
+      ),
+    )
+    renderWithProviders(<DocViewer docId="doc-warn" />)
+    const warning = await screen.findByTestId('refs-source-warning')
+    expect(warning).toBeInTheDocument()
+    expect(warning.textContent).toMatch(/güvenilir değil/i)
+    expect(warning.className).toMatch(/destructive/)
+  })
+
+  it('hides the reference section AND the warning when there are no refs', async () => {
     server.use(
       http.get('http://localhost/api/documents/doc-empty', () =>
         HttpResponse.json(makeDocumentDetail({ document_id: 'doc-empty' })),
@@ -118,6 +141,7 @@ describe('DocViewer', () => {
     await waitFor(() => expect(screen.getByText(/doc-empty/i)).toBeInTheDocument())
     expect(screen.queryByText(/kanun bilgileri/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/bkk \/ tebliğ/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('refs-source-warning')).not.toBeInTheDocument()
   })
 
   it('normalizes pdf_text double-spaces and trailing whitespace (paket-6c)', async () => {
