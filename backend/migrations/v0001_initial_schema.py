@@ -371,5 +371,21 @@ def _seed_default_settings(conn: sqlite3.Connection) -> None:
 
 
 def up(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA_SQL)
+    import re as _re
+    _SQL_KW = _re.compile(
+        r"(CREATE|INSERT|DROP|ALTER|UPDATE|DELETE)\b",
+        _re.IGNORECASE,
+    )
+    for raw in SCHEMA_SQL.split(";"):
+        # A split on ";" may produce fragments whose first characters are a
+        # dangling tail from a comment that contained a ";".  Strip comments
+        # first to find where actual SQL begins, then slice `raw` there.
+        no_comments = _re.sub(r"--[^\n]*", "", raw)
+        m = _SQL_KW.search(no_comments)
+        if not m:
+            continue
+        # Find the same keyword position in the original text (comments intact
+        # so SQLite can handle any inline comments after the keyword).
+        stmt = _SQL_KW.search(raw).start()
+        conn.execute(raw[stmt:].strip())
     _seed_default_settings(conn)

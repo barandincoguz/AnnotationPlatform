@@ -33,4 +33,12 @@ INSERT OR IGNORE INTO site_settings (key, value, updated_at) VALUES
 
 
 def up(conn: sqlite3.Connection) -> None:
-    conn.executescript(SETTINGS_SQL)
+    import re as _re
+    _SQL_KW = _re.compile(r"(CREATE|INSERT|DROP|ALTER|UPDATE|DELETE)\b", _re.IGNORECASE)
+    for raw in SETTINGS_SQL.split(";"):
+        no_comments = _re.sub(r"--[^\n]*", "", raw)
+        m = _SQL_KW.search(no_comments)
+        if not m:
+            continue
+        stmt = _SQL_KW.search(raw).start()
+        conn.execute(raw[stmt:].strip())

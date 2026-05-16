@@ -126,6 +126,45 @@ def cmd_rotate_invite(args) -> int:
     return cmd_create_invite(args)  # same logic
 
 
+def cmd_reset_password(args) -> int:
+    config.ensure_dirs()
+    if len(args.new_password) < 8:
+        print("ERROR: password must be at least 8 characters", file=sys.stderr)
+        return 5
+    conn = connect(config.DB_PATH)
+    try:
+        apply_migrations(conn, discover_migrations())
+        row = conn.execute("SELECT id FROM users WHERE username=?", (args.username,)).fetchone()
+        if row is None:
+            print(f"ERROR: user '{args.username}' not found", file=sys.stderr)
+            return 2
+        user_id = row["id"]
+
+        from backend.shared import auth as auth_mod
+        conn.execute(
+            "UPDATE users SET password_hash=?, updated_at=? WHERE id=?",
+            (auth_mod.hash_password(args.new_password),
+             datetime.now(timezone.utc).isoformat(),
+             user_id),
+        )
+        cur = conn.execute("DELETE FROM user_sessions WHERE user_id=?", (user_id,))
+        invalidated = cur.rowcount or 0
+
+        audit.log_admin_action(
+            conn,
+            admin_user_id=None,
+            action_type="reset_password_cli",
+            target_kind="user",
+            target_id=str(user_id),
+            metadata={"source": "cli"},
+        )
+    finally:
+        conn.close()
+    print(f"Password reset for user {args.username!r} (id={user_id}); "
+          f"{invalidated} session(s) invalidated.")
+    return 0
+
+
 def cmd_ingest(args) -> int:
     from pathlib import Path
     from backend.documents import service
@@ -345,6 +384,7 @@ COMMANDS = {
     "demote-admin": cmd_demote_admin,
     "create-invite": cmd_create_invite,
     "rotate-invite": cmd_rotate_invite,
+    "reset-password": cmd_reset_password,
     "ingest": cmd_ingest,
     "import-gold-docs": cmd_import_gold_docs,
     "restore-from-github": cmd_restore_from_github,
@@ -368,6 +408,13 @@ def main(argv: list[str] | None = None) -> int:
 
     p_rotate = sub.add_parser("rotate-invite", help="Rotate active invite code")
     p_rotate.add_argument("code")
+
+    p_reset = sub.add_parser(
+        "reset-password",
+        help="Reset a user's password and invalidate their active sessions",
+    )
+    p_reset.add_argument("username")
+    p_reset.add_argument("new_password")
 
     p_ingest = sub.add_parser("ingest", help="Ingest JSON file or directory")
     p_ingest.add_argument("path", help="JSON file or directory containing *.json files")
