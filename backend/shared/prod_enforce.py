@@ -9,7 +9,7 @@ import sys
 from backend import config
 
 
-_DEV_SESSION_SECRETS = {
+DEV_SESSION_SECRETS = {
     "dev-secret-DO-NOT-USE-IN-PROD",  # backend/config.py default
     "dev-secret-change-me",            # docker-compose.yml default
 }
@@ -32,7 +32,7 @@ def enforce_production_secrets() -> None:
 
     errors: list[str] = []
 
-    if config.SESSION_SECRET in _DEV_SESSION_SECRETS:
+    if config.SESSION_SECRET in DEV_SESSION_SECRETS:
         errors.append(
             "SESSION_SECRET must not be the default placeholder "
             "(set via env var; generate with `openssl rand -hex 32`)"

@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from backend import config
 from backend.shared.db import connect
 from backend.shared import audit
-from backend.shared.prod_enforce import enforce_production_secrets
+from backend.shared.prod_enforce import DEV_SESSION_SECRETS, enforce_production_secrets
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
 from backend.users.service import seed_bootstrap_admin
@@ -40,11 +40,6 @@ from backend.retention import loop as retention_loop
 
 VERSION = "0.1.0"
 
-DEV_SESSION_SECRETS = {
-    "dev-secret-DO-NOT-USE-IN-PROD",  # backend/config.py default
-    "dev-secret-change-me",            # docker-compose.yml default
-}
-
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -64,7 +59,7 @@ async def lifespan(_app: FastAPI):
             message=f"app v{VERSION} started; migrations applied: {applied}",
             extra={"version": VERSION, "migrations_applied": applied},
         )
-        if config.SESSION_SECRET in DEV_SESSION_SECRETS:
+        if not config.is_production() and config.SESSION_SECRET in DEV_SESSION_SECRETS:
             audit.log_system_event(
                 conn, "session_secret_dev_default", "warn",
                 message="SESSION_SECRET is set to a dev default; set a real "
