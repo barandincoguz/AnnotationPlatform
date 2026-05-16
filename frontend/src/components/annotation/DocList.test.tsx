@@ -20,8 +20,8 @@ describe('DocList', () => {
       ),
     )
     renderWithProviders(<DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />)
-    await waitFor(() => expect(screen.getByText(/#1/)).toBeInTheDocument())
-    expect(screen.getByText(/#2/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText(/№\s*1/)).toBeInTheDocument())
+    expect(screen.getByText(/№\s*2/)).toBeInTheDocument()
   })
 
   it('shows empty state when feed is empty', async () => {
