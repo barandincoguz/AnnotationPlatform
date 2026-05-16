@@ -26,12 +26,12 @@ export function DiffPreviewDialog({
           <p>Bu değişiklik tüm gelecek bursiyerlerin training pass/fail sonuçlarını etkileyecek.</p>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <div className="font-semibold">Eski</div>
-              <pre className="overflow-x-auto rounded bg-red-50 p-2">{oldJson}</pre>
+              <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground mb-1">Eski</div>
+              <pre className="overflow-x-auto rounded border border-destructive/30 bg-destructive/5 p-2">{oldJson}</pre>
             </div>
             <div>
-              <div className="font-semibold">Yeni</div>
-              <pre className="overflow-x-auto rounded bg-green-50 p-2">{newJson}</pre>
+              <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground mb-1">Yeni</div>
+              <pre className="overflow-x-auto rounded border border-success/30 bg-success/5 p-2">{newJson}</pre>
             </div>
           </div>
         </div>

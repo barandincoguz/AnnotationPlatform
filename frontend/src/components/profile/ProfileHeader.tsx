@@ -1,3 +1,4 @@
+import { Avatar } from '@/components/shell/Avatar'
 import type { UserSection } from '@/lib/profileSchemas'
 
 interface ProfileHeaderProps {
@@ -20,18 +21,16 @@ function roleLabel(role: string): string {
 
 export function ProfileHeader({ user, createdAt }: ProfileHeaderProps) {
   return (
-    <header className="flex items-center gap-4 mb-6">
-      <span
-        className="inline-flex h-16 w-16 items-center justify-center rounded-full text-2xl font-semibold text-white"
-        style={{ backgroundColor: user.avatar_color ?? '#3b82f6' }}
-      >
-        {user.username[0]?.toUpperCase() ?? '?'}
-      </span>
-      <div>
-        <h1 className="text-2xl font-semibold">@{user.username}</h1>
-        <p className="text-sm text-muted-foreground">
-          {roleLabel(user.role)} • Hesap oluşturuldu: {trDate(createdAt)}
+    <header className="flex items-center gap-5 mb-8">
+      <Avatar username={user.username} color={user.avatar_color} size="lg" />
+      <div className="space-y-0.5">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Profil · Hesap oluşturuldu: {trDate(createdAt)}
         </p>
+        <h1 className="font-display text-4xl tracking-tight">@{user.username}</h1>
+        <span className="inline-block mt-1 rounded-full border border-border bg-secondary px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-secondary-foreground">
+          {roleLabel(user.role)}
+        </span>
       </div>
     </header>
   )

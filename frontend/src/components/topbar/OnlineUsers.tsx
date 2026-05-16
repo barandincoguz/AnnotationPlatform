@@ -2,23 +2,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { Avatar } from '@/components/shell/Avatar'
 import type { OnlineUser } from '@/lib/profileSchemas'
 
 interface OnlineUsersProps {
   users: OnlineUser[]
   maxVisible: number
-}
-
-function Avatar({ user, size = 'sm' }: { user: OnlineUser; size?: 'sm' | 'md' }) {
-  const cls = size === 'sm' ? 'h-6 w-6 text-xs' : 'h-8 w-8 text-sm'
-  return (
-    <span
-      className={`inline-flex items-center justify-center rounded-full font-medium text-white ${cls}`}
-      style={{ backgroundColor: user.avatar_color ?? '#3b82f6' }}
-    >
-      {user.username[0]?.toUpperCase() ?? '?'}
-    </span>
-  )
 }
 
 export function OnlineUsers({ users, maxVisible }: OnlineUsersProps) {
@@ -37,7 +26,7 @@ export function OnlineUsers({ users, maxVisible }: OnlineUsersProps) {
           <Tooltip key={u.id}>
             <TooltipTrigger asChild>
               <span>
-                <Avatar user={u} />
+                <Avatar username={u.username} color={u.avatar_color} size="sm" />
               </span>
             </TooltipTrigger>
             <TooltipContent>{u.username}</TooltipContent>
@@ -60,7 +49,7 @@ export function OnlineUsers({ users, maxVisible }: OnlineUsersProps) {
               <ul className="space-y-2">
                 {users.map((u) => (
                   <li key={u.id} className="flex items-center gap-2">
-                    <Avatar user={u} />
+                    <Avatar username={u.username} color={u.avatar_color} size="sm" />
                     <span className="text-sm">{u.username}</span>
                   </li>
                 ))}

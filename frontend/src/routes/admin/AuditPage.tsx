@@ -88,7 +88,7 @@ export function AuditPage() {
           {
             key: 'trace', header: 'Trace',
             render: (r) => r.trace_id
-              ? <button className="text-xs text-blue-600 hover:underline" onClick={() => void copyTrace(r.trace_id!)}>{r.trace_id}</button>
+              ? <button className="text-xs text-primary hover:underline" onClick={() => void copyTrace(r.trace_id!)}>{r.trace_id}</button>
               : <span className="text-muted-foreground">—</span>,
           },
         ]}

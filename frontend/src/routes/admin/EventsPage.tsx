@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSystemEvents, type SystemEventsParams } from '@/api/queries/admin'
+import { SeverityBadge } from '@/components/admin/SeverityBadge'
 import type { SystemEventRow } from '@/lib/adminSchemas'
 
 const PAGE_LIMIT = 50
@@ -102,18 +103,13 @@ export function EventsPage() {
           { key: 'ts', header: 'Zaman', render: (r) => r.created_at },
           { key: 'event_type', header: 'Event type', render: (r) => r.event_type },
           {
-            key: 'severity', header: 'Severity', render: (r) => {
-              const cls = r.severity === 'error' ? 'bg-red-100 text-red-700'
-                : r.severity === 'warn' ? 'bg-amber-100 text-amber-700'
-                : 'bg-gray-100 text-gray-700'
-              return <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{r.severity}</span>
-            },
+            key: 'severity', header: 'Severity', render: (r) => <SeverityBadge severity={r.severity} />,
           },
           { key: 'message', header: 'Message', render: (r) => r.message ?? <span className="text-muted-foreground">—</span> },
           {
             key: 'trace', header: 'Trace',
             render: (r) => r.trace_id
-              ? <button className="text-xs text-blue-600 hover:underline" onClick={() => void copyTrace(r.trace_id!)}>{r.trace_id}</button>
+              ? <button className="text-xs text-primary hover:underline" onClick={() => void copyTrace(r.trace_id!)}>{r.trace_id}</button>
               : <span className="text-muted-foreground">—</span>,
           },
         ]}
