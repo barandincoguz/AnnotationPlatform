@@ -45,4 +45,13 @@ describe('Login route', () => {
     renderWithProviders(<Login />, { initialEntries: ['/login'] })
     expect(screen.getByRole('button', { name: /giriş yap/i })).toBeDisabled()
   })
+
+  it('shows link to register page that navigates on click', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Login />, { initialEntries: ['/login'] })
+    const link = screen.getByRole('link', { name: /kayıt ol/i })
+    expect(link).toHaveAttribute('href', '/register')
+    await user.click(link)
+    await waitFor(() => expect(screen.getByTestId('route-register')).toBeInTheDocument())
+  })
 })
