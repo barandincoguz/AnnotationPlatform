@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { cn } from '@/lib/utils'
 import type { TrainingStep } from '@/stores/trainingStore'
 
@@ -16,28 +17,38 @@ export function TrainingProgress({ step, docIndex }: TrainingProgressProps) {
     : -1
 
   return (
-    <ol className="mb-6 flex items-center justify-between gap-2">
+    <ol className="mb-6 flex items-center justify-between">
       {LABELS.map((label, i) => {
         const done = i < activeIndex
         const active = i === activeIndex
+        const isLast = i === LABELS.length - 1
         return (
-          <li
-            key={label}
-            aria-current={active ? 'step' : undefined}
-            className="flex flex-1 flex-col items-center gap-1"
-          >
-            <span
-              className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-full border text-xs',
-                done && 'border-primary bg-primary text-primary-foreground',
-                active && 'border-primary bg-background font-semibold text-primary',
-                !done && !active && 'border-muted-foreground text-muted-foreground',
-              )}
+          <Fragment key={label}>
+            <li
+              aria-current={active ? 'step' : undefined}
+              className="flex flex-col items-center gap-1.5"
             >
-              {done ? '●' : active ? '◉' : '○'}
-            </span>
-            <span className={cn('text-xs', active && 'font-medium')}>{label}</span>
-          </li>
+              <span
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-mono font-medium border-2 transition-colors',
+                  done && 'bg-success text-success-foreground border-success',
+                  active && 'bg-primary text-primary-foreground border-primary',
+                  !done && !active && 'border-border text-muted-foreground bg-card',
+                )}
+              >
+                {i + 1}
+              </span>
+              <span className={cn(
+                'font-mono text-[10px] uppercase tracking-wider',
+                active ? 'text-foreground font-medium' : 'text-muted-foreground',
+              )}>
+                {label}
+              </span>
+            </li>
+            {!isLast && (
+              <li aria-hidden className="h-px flex-1 bg-border mx-1 mb-5" />
+            )}
+          </Fragment>
         )
       })}
     </ol>

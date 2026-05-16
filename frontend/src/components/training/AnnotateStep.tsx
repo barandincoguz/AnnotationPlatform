@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { Eye } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ReferenceCard } from '@/components/annotation/ReferenceCard'
 import { useTrainingStore } from '@/stores/trainingStore'
@@ -61,9 +63,20 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
         <h2 ref={headingRef} tabIndex={-1} id="doc-result-heading" className="text-xl font-semibold focus:outline-none">
           Doküman {docIndex + 1} tamamlandı
         </h2>
-        <div role="status" aria-live="polite" className="mt-4 rounded-md border bg-card p-4 text-sm">
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'mt-4 rounded-md border p-4 text-sm',
+            result.passed
+              ? 'bg-success/5 border-success/30'
+              : 'bg-destructive/5 border-destructive/30',
+          )}
+        >
           <p>Eşleşme: <strong>{result.matched_count} / {result.expected_count}</strong></p>
-          <p className="mt-1">Durum: <strong>{result.passed ? 'Geçti' : 'Geçemedi'}</strong></p>
+          <p className={cn('mt-1', result.passed ? 'text-success' : 'text-destructive')}>
+            Durum: <strong>{result.passed ? 'Geçti' : 'Geçemedi'}</strong>
+          </p>
         </div>
         <div className="mt-6">
           <Button onClick={onAdvance}>
@@ -113,7 +126,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
           aria-expanded={revealOpen}
           aria-controls="reveal-panel"
         >
-          👁 Cevabı göster
+          <Eye className="h-4 w-4" aria-hidden /> Cevabı göster
         </Button>
       </div>
       {revealOpen && (
@@ -123,6 +136,9 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
           aria-label="Beklenen anotasyonlar"
           className="mt-3 rounded-md border bg-muted/40 p-4 text-sm"
         >
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Cevap Anahtarı
+          </p>
           <p className="font-medium mb-2">
             Beklenen anotasyonlar — {expectedConcepts.length} concept
             (min eşleşme: {minConceptCount}):
