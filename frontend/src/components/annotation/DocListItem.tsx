@@ -60,7 +60,7 @@ export function DocListItem({ item, isSelected, onClick }: DocListItemProps) {
         <div className="flex flex-col gap-0.5 min-w-0">
           <span
             title={item.document_id}
-            className="font-mono text-[12px] font-semibold tracking-[0.04em] text-foreground/85 truncate"
+            className="font-mono text-[13px] font-bold tracking-[0.04em] text-foreground/90 truncate"
           >
             {item.document_id}
           </span>
