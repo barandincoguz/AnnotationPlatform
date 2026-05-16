@@ -217,7 +217,7 @@ The container runs `python -m backend.cli migrate` on every start
 | `RuntimeError: ENVIRONMENT must be one of: [...]` | Typo (e.g. `prod`, `PROD`) | Use exactly `production` (lowercase) |
 | `WARNING: no backup configured` in logs | `BACKUP_REPO_URL` empty | Either set it or accept no backup (acknowledged) |
 | `Bootstrap admin '<x>' created` never appears | Either env vars missing, or an active admin already exists | Check `users` table; reset env if intentional first seed |
-| Login returns 401 with correct password | Username taken by older non-admin user | Choose a different `BOOTSTRAP_ADMIN_USERNAME`, redeploy |
+| Container restart-loops with `RuntimeError: BOOTSTRAP_ADMIN_USERNAME=... conflicts with existing non-admin user` | A user with that username already exists (not as admin) | Either pick a different `BOOTSTRAP_ADMIN_USERNAME` and redeploy, or run `docker compose run --rm app python -m backend.cli promote-admin <existing-username>` to promote the existing user instead of seeding a new one |
 | SSE updates stuck / not pushing | Reverse proxy is buffering | Set `proxy_buffering off` (nginx) or `flush_interval -1` (Caddy) for `/api/events` |
 | Restore says `git clone timed out` | Network / PAT scope issue | Verify `GITHUB_PAT` has `contents:write` on the backup repo |
 
