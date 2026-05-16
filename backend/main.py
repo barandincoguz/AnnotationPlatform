@@ -19,6 +19,7 @@ from backend.shared import audit
 from backend.shared.prod_enforce import enforce_production_secrets
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
+from backend.users.service import seed_bootstrap_admin
 from backend.admin.routes import router as admin_router
 from backend.users.routes import router as users_router
 from backend.docs_help.routes import router as help_router
@@ -53,6 +54,11 @@ async def lifespan(_app: FastAPI):
     conn = connect(config.DB_PATH)
     try:
         applied = apply_migrations(conn, discover_migrations())
+        seed_bootstrap_admin(
+            conn,
+            username=config.BOOTSTRAP_ADMIN_USERNAME,
+            password=config.BOOTSTRAP_ADMIN_PASSWORD,
+        )
         audit.log_system_event(
             conn, "startup", "info",
             message=f"app v{VERSION} started; migrations applied: {applied}",
