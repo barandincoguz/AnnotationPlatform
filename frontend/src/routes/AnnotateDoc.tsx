@@ -10,6 +10,7 @@ import {
   useAnnotation,
   useSaveAnnotationMutation,
   useSkipAnnotationMutation,
+  useCompleteAnnotationMutation,
 } from '@/hooks/useAnnotation'
 import { useDraft } from '@/hooks/useDraft'
 import { useReferencesState } from '@/hooks/useReferencesState'
@@ -66,9 +67,12 @@ function AnnotateDocInner({ docId }: { docId: string }) {
 
   const saveMutation = useSaveAnnotationMutation()
   const skipMutation = useSkipAnnotationMutation()
+  const completeMutation = useCompleteAnnotationMutation()
 
   const canEdit = lock.status === 'held'
   const isValid = areAllReferencesValid(refs.list)
+  const hasAnnotation = !!annotation.data?.annotation
+  const isCompleted = annotation.data?.annotation?.is_completed ?? false
 
   const handleSave = async () => {
     draft.blockSavesUntilFurtherNotice()
@@ -115,6 +119,54 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       navigate(`/docs/${next.id}`, { replace: true })
     } else if (next.type === 'done') {
       toast.success('Bu sekmedeki tüm dokümanlar bitti.')
+      navigate('/', { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
+  }
+
+  const handleComplete = async () => {
+    if (!hasAnnotation) return
+    const targetCompleted = !isCompleted
+    draft.blockSavesUntilFurtherNotice()
+    try {
+      await completeMutation.mutateAsync({
+        document_id: docId,
+        completed: targetCompleted,
+      })
+    } catch {
+      draft.unblockSaves()
+      return
+    }
+
+    let lockReleaseFailed = false
+    try {
+      await lock.release()
+    } catch {
+      lockReleaseFailed = true
+    }
+
+    await qc.invalidateQueries({ queryKey: feedKeys.all })
+    await qc.refetchQueries({ queryKey: feedKeys.tab(currentTab) })
+
+    const next = await pickNextInFeedAcrossPages({
+      qc,
+      currentTab,
+      currentDocId: docId,
+    })
+
+    if (lockReleaseFailed) {
+      toast.warning('Kilit serbest bırakılamadı; 90 saniye içinde otomatik temizlenir.')
+    }
+    toast.success(
+      targetCompleted
+        ? 'Doküman tamamlandı olarak işaretlendi.'
+        : 'Tamamlanma işareti geri alındı.',
+    )
+
+    if (next.type === 'next') {
+      navigate(`/docs/${next.id}`, { replace: true })
+    } else if (next.type === 'done') {
       navigate('/', { replace: true })
     } else {
       navigate('/', { replace: true })
@@ -198,11 +250,17 @@ function AnnotateDocInner({ docId }: { docId: string }) {
           onSkip={() => {
             void handleSkip()
           }}
+          onComplete={() => {
+            void handleComplete()
+          }}
           canEdit={canEdit}
           isSaving={saveMutation.isPending}
+          isCompleting={completeMutation.isPending}
           error={errorForPanel}
           draftSaveStatus={draft.saveStatus}
           isValid={isValid}
+          hasAnnotation={hasAnnotation}
+          isCompleted={isCompleted}
         />
       </div>
     </div>
