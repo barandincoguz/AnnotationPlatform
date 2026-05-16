@@ -120,3 +120,96 @@ def test_seed_admin_can_login(client, monkeypatch):
     r2 = client.get("/api/auth/me")
     assert r2.status_code == 200
     assert r2.json()["role"] == "admin"
+
+
+# ---------------------------------------------------------------------------
+# Tests 9–11: atomicity, TOCTOU idempotency, trace_id presence
+# ---------------------------------------------------------------------------
+
+def test_seed_rollback_on_audit_failure(db, monkeypatch):
+    """If audit.log_admin_action raises, the transaction rolls back completely.
+
+    No users row and no gamification_state row should survive.
+    """
+    import sqlite3 as _sqlite3
+
+    def _raising_log(*args, **kwargs):
+        raise _sqlite3.OperationalError("boom")
+
+    monkeypatch.setattr("backend.users.service.audit.log_admin_action", _raising_log)
+
+    with pytest.raises(_sqlite3.OperationalError, match="boom"):
+        service.seed_bootstrap_admin(db, username="rootadmin", password="strongpass1234")
+
+    assert db.execute(
+        "SELECT 1 FROM users WHERE username=?", ("rootadmin",)
+    ).fetchone() is None, "users row should have been rolled back"
+
+    assert db.execute(
+        "SELECT 1 FROM gamification_state WHERE user_id IN "
+        "(SELECT id FROM users WHERE username=?)",
+        ("rootadmin",),
+    ).fetchone() is None, "gamification_state row should have been rolled back"
+
+
+def test_seed_idempotent_on_integrity_error(tmp_path, capsys):
+    """When the user INSERT raises IntegrityError (race-lost), the function
+    returns without re-raising and logs a 'race lost' line to stderr.
+
+    sqlite3.Connection.execute is a C-level slot and cannot be monkeypatched,
+    so we subclass Connection to intercept the specific INSERT.
+    """
+    import sqlite3 as _sqlite3
+    from backend.migrations import discover_migrations
+    from backend.migrations.runner import apply_migrations
+
+    class _RacingConnection(_sqlite3.Connection):
+        """Raises IntegrityError on the first INSERT INTO users attempt."""
+        _armed = True
+
+        def execute(self, sql, parameters=()):  # type: ignore[override]
+            if self._armed and sql.strip().startswith("INSERT INTO users("):
+                self._armed = False  # disarm so ROLLBACK proceeds normally
+                raise _sqlite3.IntegrityError(
+                    "UNIQUE constraint failed: users.username"
+                )
+            return super().execute(sql, parameters)
+
+    db_path = tmp_path / "race.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = _sqlite3.connect(
+        str(db_path),
+        isolation_level=None,
+        check_same_thread=False,
+        factory=_RacingConnection,
+    )
+    conn.row_factory = _sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=5000")
+    apply_migrations(conn, discover_migrations())
+
+    # Must NOT raise — IntegrityError is treated as an idempotent race-loss.
+    service.seed_bootstrap_admin(conn, username="rootadmin", password="strongpass1234")
+    conn.close()
+
+    captured = capsys.readouterr()
+    assert "race lost" in captured.err, (
+        f"Expected 'race lost' in stderr; got: {captured.err!r}"
+    )
+
+
+def test_seed_includes_trace_id(db):
+    """The admin_audit_log row written by the seed must carry a non-null trace_id."""
+    service.seed_bootstrap_admin(db, username="rootadmin", password="strongpass1234")
+
+    row = db.execute(
+        "SELECT trace_id FROM admin_audit_log WHERE action_type=?",
+        ("bootstrap_admin_seed",),
+    ).fetchone()
+
+    assert row is not None, "audit row not found"
+    assert row["trace_id"] is not None, "trace_id must not be NULL"
+    assert isinstance(row["trace_id"], str) and len(row["trace_id"]) > 0, (
+        f"trace_id must be a non-empty string; got {row['trace_id']!r}"
+    )

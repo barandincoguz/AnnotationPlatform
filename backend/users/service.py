@@ -340,15 +340,25 @@ def seed_bootstrap_admin(
       - Raise RuntimeError if username collides with an existing non-admin.
       - Otherwise: insert admin user (training+manual flags pre-set),
         log to admin_audit_log, print one stderr line.
+
+    Atomicity: all three INSERTs (users + gamification_state +
+    admin_audit_log) run inside BEGIN IMMEDIATE / COMMIT so a
+    mid-sequence failure cannot orphan an admin row without a
+    gamification state or audit entry.
+
+    TOCTOU safety: the no-admin check is re-run inside the write lock
+    so two containers booting against the same volume cannot both pass
+    the pre-check and then race to INSERT.  The loser catches
+    sqlite3.IntegrityError and returns without re-raising.
     """
     import sys
     if not username or not password:
         return
 
-    active_admin = db.execute(
+    # Pre-check outside transaction (cheap early-exit; avoids BEGIN if no work).
+    if db.execute(
         "SELECT 1 FROM users WHERE role='admin' AND is_active=1 LIMIT 1"
-    ).fetchone()
-    if active_admin is not None:
+    ).fetchone() is not None:
         return
 
     existing = db.execute(
@@ -360,41 +370,69 @@ def seed_bootstrap_admin(
             f"existing non-admin user"
         )
 
+    trace_id = audit.gen_trace_id()
     now = _now()
-    cur = db.execute(
-        """
-        INSERT INTO users(
-            username, email, password_hash, role, is_active,
-            has_seen_manual, has_passed_training,
-            avatar_color, created_at, updated_at
+
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        # Re-check under write lock — defeats TOCTOU race between containers.
+        if db.execute(
+            "SELECT 1 FROM users WHERE role='admin' AND is_active=1 LIMIT 1"
+        ).fetchone() is not None:
+            db.execute("ROLLBACK")
+            return
+
+        cur = db.execute(
+            """
+            INSERT INTO users(
+                username, email, password_hash, role, is_active,
+                has_seen_manual, has_passed_training,
+                avatar_color, created_at, updated_at
+            )
+            VALUES (?, NULL, ?, 'admin', 1, 1, 1, ?, ?, ?)
+            """,
+            (
+                username,
+                auth.hash_password(password),
+                _avatar_color_for(username),
+                now, now,
+            ),
         )
-        VALUES (?, NULL, ?, 'admin', 1, 1, 1, ?, ?, ?)
-        """,
-        (
-            username,
-            auth.hash_password(password),
-            _avatar_color_for(username),
-            now, now,
-        ),
-    )
-    user_id = cur.lastrowid
-    assert user_id is not None
+        user_id = cur.lastrowid
+        assert user_id is not None
 
-    db.execute(
-        """
-        INSERT INTO gamification_state(user_id, updated_at)
-        VALUES (?, ?)
-        """,
-        (user_id, now),
-    )
+        db.execute(
+            """
+            INSERT INTO gamification_state(user_id, updated_at)
+            VALUES (?, ?)
+            """,
+            (user_id, now),
+        )
 
-    audit.log_admin_action(
-        db,
-        admin_user_id=user_id,
-        action_type="bootstrap_admin_seed",
-        target_kind="user",
-        target_id=str(user_id),
-        metadata={"source": "lifespan"},
-    )
+        audit.log_admin_action(
+            db,
+            admin_user_id=user_id,
+            action_type="bootstrap_admin_seed",
+            target_kind="user",
+            target_id=str(user_id),
+            metadata={"source": "lifespan"},
+            trace_id=trace_id,
+        )
 
-    print(f"Bootstrap admin {username!r} created (id={user_id})", file=sys.stderr)
+        db.execute("COMMIT")
+    except sqlite3.IntegrityError:
+        db.execute("ROLLBACK")
+        print(
+            f"Bootstrap admin {username!r} race lost — "
+            f"another instance created it; continuing",
+            file=sys.stderr,
+        )
+        return
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+
+    print(
+        f"Bootstrap admin {username!r} created (id={user_id}, trace_id={trace_id})",
+        file=sys.stderr,
+    )
