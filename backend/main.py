@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from backend import config
 from backend.shared.db import connect
 from backend.shared import audit
+from backend.shared.prod_enforce import enforce_production_secrets
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
 from backend.admin.routes import router as admin_router
@@ -46,6 +47,8 @@ DEV_SESSION_SECRETS = {
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    config.validate_environment()
+    enforce_production_secrets()
     config.ensure_dirs()
     conn = connect(config.DB_PATH)
     try:
