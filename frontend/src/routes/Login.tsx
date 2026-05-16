@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { BrandLogo } from '@/components/shell/BrandLogo'
 import { ApiError } from '@/api/client'
 
 export function Login() {
@@ -27,47 +29,77 @@ export function Login() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr] bg-background">
-      {/* Editorial aside */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden border-r border-border/60 bg-card/40 grain px-12 py-14 xl:px-16">
-        <div className="relative z-10 flex items-baseline justify-between text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
-          <span>Anotasyon Platformu</span>
-          <span>№ 001</span>
+      {/* Editorial aside — warm reading-room cover with layered atmosphere */}
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden border-r border-border/60 grain px-12 py-14 xl:px-16">
+        {/* Layered gradient wash — three soft pools of color make the aside
+            feel inhabited rather than printed. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10"
+          style={{
+            background:
+              'radial-gradient(at 12% 12%, hsl(32 60% 92% / 0.85) 0px, transparent 55%),' +
+              'radial-gradient(at 88% 18%, hsl(175 45% 90% / 0.7) 0px, transparent 50%),' +
+              'radial-gradient(at 50% 100%, hsl(222 35% 94% / 0.8) 0px, transparent 60%),' +
+              'hsl(var(--card) / 0.6)',
+          }}
+        />
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="inline-flex items-center gap-3">
+            <BrandLogo className="h-9 w-[2.85rem] text-foreground" />
+            <span className="font-display text-[18px] font-bold tracking-tight text-foreground">
+              Anotasyon Platformu
+            </span>
+          </div>
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            № 001
+          </span>
         </div>
 
-        <div className="relative z-10 max-w-xl space-y-7">
-          <p className="rise-in rise-1 text-xs font-mono uppercase tracking-[0.22em] text-accent">
+        <div className="relative z-10 max-w-xl space-y-8">
+          <p className="rise-in rise-1 font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-accent">
             ↳ Bursiyer girişi
           </p>
-          <h1 className="rise-in rise-2 font-display text-5xl xl:text-[3.75rem] font-medium leading-[0.98] tracking-tight text-foreground">
+          <h1 className="rise-in rise-2 font-display text-[3.5rem] xl:text-[4.25rem] font-bold leading-[0.95] tracking-tight text-foreground">
             Türk vergi hukukuna
             <br />
-            <em className="font-normal italic text-foreground/70">titiz bir bakış.</em>
+            <em className="font-medium italic text-accent">titiz bir bakış.</em>
           </h1>
-          <p className="rise-in rise-3 max-w-md text-base leading-relaxed text-muted-foreground">
+          <p className="rise-in rise-3 max-w-md text-[17px] leading-relaxed text-foreground/75">
             Özelgelerden kanun atıfı çıkarımı — bursiyer ekibinin titizlikle hazırladığı,
             vergi pratisyenleri için bir referans kütüphanesi.
           </p>
-          <div className="rise-in rise-4 flex items-center gap-4 pt-2 text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground/80">
-            <span>17.923 özelge</span>
+          <div className="rise-in rise-4 flex items-center gap-4 pt-2 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-foreground/75">
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
+              17.923 özelge
+            </span>
             <span className="h-px w-6 bg-border" aria-hidden />
-            <span>kanun atıfı çıkarımı</span>
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent2" />
+              kanun atıfı çıkarımı
+            </span>
           </div>
         </div>
 
-        <div className="relative z-10 flex items-baseline justify-between text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground/70">
+        <div className="relative z-10 flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground/70">
           <span>v0.1.0</span>
           <span>2026 — Murat Karakaya Akademi</span>
         </div>
       </aside>
 
       {/* Form panel */}
-      <main className="flex items-center justify-center px-6 py-10 sm:px-10 lg:px-14">
+      <main className="relative flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10 lg:px-14">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 wash-amber"
+        />
         <div className="w-full max-w-sm space-y-10">
           <header className="rise-in rise-1 space-y-3">
-            <p className="text-xs font-mono uppercase tracking-[0.22em] text-muted-foreground">
+            <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Giriş · Login
             </p>
-            <h2 className="font-display text-4xl font-medium leading-tight tracking-tight">
+            <h2 className="font-display text-5xl font-bold leading-[1.05] tracking-tight">
               Tekrar
               <br />
               hoş geldin.
@@ -76,41 +108,31 @@ export function Login() {
 
           <form onSubmit={handleSubmit} className="rise-in rise-2 space-y-5" noValidate>
             <div className="space-y-2">
-              <Label
-                htmlFor="username"
-                className="text-xs font-mono uppercase tracking-[0.16em] text-muted-foreground"
-              >
-                Kullanıcı adı
-              </Label>
+              <Label htmlFor="username">Kullanıcı adı</Label>
               <Input
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
-                className="h-11 bg-card border-input focus-visible:ring-1 focus-visible:ring-accent focus-visible:border-accent"
+                className="h-12 bg-card text-base"
               />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                className="text-xs font-mono uppercase tracking-[0.16em] text-muted-foreground"
-              >
-                Şifre
-              </Label>
+              <Label htmlFor="password">Şifre</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="h-11 bg-card border-input focus-visible:ring-1 focus-visible:ring-accent focus-visible:border-accent"
+                className="h-12 bg-card text-base"
               />
             </div>
 
             {errorMessage && (
               <p
-                className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-[15px] font-medium text-destructive"
                 role="alert"
               >
                 {errorMessage}
@@ -120,20 +142,19 @@ export function Login() {
             <Button
               type="submit"
               disabled={disabled || loginMutation.isPending}
-              className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all font-medium tracking-wide"
+              size="lg"
+              className="w-full text-base tracking-wide"
             >
               {loginMutation.isPending ? 'Giriş yapılıyor…' : 'Giriş yap'}
-              <span className="ml-2 text-primary-foreground/60" aria-hidden>
-                →
-              </span>
+              <ArrowRight aria-hidden="true" className="ml-1 opacity-80" />
             </Button>
           </form>
 
-          <p className="rise-in rise-3 text-sm text-muted-foreground">
+          <p className="rise-in rise-3 text-[15px] text-muted-foreground">
             Hesabın yok mu?{' '}
             <Link
               to="/register"
-              className="font-medium text-foreground underline decoration-accent decoration-2 underline-offset-[6px] hover:text-accent transition-colors"
+              className="font-semibold text-foreground underline decoration-accent decoration-2 underline-offset-[6px] hover:text-accent transition-colors"
             >
               Kayıt ol
             </Link>
