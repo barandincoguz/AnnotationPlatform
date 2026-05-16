@@ -22,7 +22,7 @@ export const charLimitWarningSchema = z.object({
 export const userOnlinePayloadSchema = z.object({
   id: z.number().int(),
   username: z.string(),
-  avatar_color: z.string(),
+  avatar_color: z.string().nullable(),
 })
 
 export const userOfflinePayloadSchema = z.object({

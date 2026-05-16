@@ -14,7 +14,7 @@ function Avatar({ user, size = 'sm' }: { user: OnlineUser; size?: 'sm' | 'md' })
   return (
     <span
       className={`inline-flex items-center justify-center rounded-full font-medium text-white ${cls}`}
-      style={{ backgroundColor: user.avatar_color }}
+      style={{ backgroundColor: user.avatar_color ?? '#3b82f6' }}
     >
       {user.username[0]?.toUpperCase() ?? '?'}
     </span>

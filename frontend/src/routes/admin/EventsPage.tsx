@@ -124,7 +124,7 @@ export function EventsPage() {
           Önceki
         </Button>
         <span>
-          {q.data ? `${offset + 1} - ${offset + (q.data.items.length ?? 0)} / ${q.data.total}` : ''}
+          {q.data ? (q.data.total === 0 ? '0 / 0' : `${offset + 1} - ${offset + q.data.items.length} / ${q.data.total}`) : ''}
         </span>
         <Button variant="outline" onClick={() => setOffset(offset + PAGE_LIMIT)} disabled={!q.data?.has_more}>
           Sonraki

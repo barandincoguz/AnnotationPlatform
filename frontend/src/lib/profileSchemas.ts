@@ -4,7 +4,7 @@ export const userSectionSchema = z.object({
   id: z.number().int(),
   username: z.string(),
   role: z.string(),
-  avatar_color: z.string(),
+  avatar_color: z.string().nullable(),
 })
 
 export const xpSectionSchema = z.object({ total: z.number().int() })
@@ -70,7 +70,7 @@ export const badgesCatalogSchema = z.array(badgesCatalogItemSchema)
 export const onlineUserSchema = z.object({
   id: z.number().int(),
   username: z.string(),
-  avatar_color: z.string(),
+  avatar_color: z.string().nullable(),
 })
 
 export const onlineUsersSchema = z.array(onlineUserSchema)
