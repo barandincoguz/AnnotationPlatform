@@ -19,9 +19,29 @@ class DocumentSummary(BaseModel):
     created_at: str
 
 
+class KanunRef(BaseModel):
+    """A single kanun (law) reference attached to a document during
+    ingestion. Sourced from `kanunBilgileri[]` in the external JSON."""
+    seq: int
+    kanun_kodu: str
+    kanun_maddesi: Optional[str]
+    kanun_maddesi_turu: Optional[str]
+
+
+class BkkRef(BaseModel):
+    """A single BKK / tebliğ / sirküler reference attached to a document
+    during ingestion. Sourced from `bkkTebligSirkuBilgileri[]`."""
+    seq: int
+    turu: Optional[str]
+    kanun_kodu: Optional[str]
+    madde_no: Optional[str]
+
+
 class DocumentDetail(DocumentSummary):
     pdf_text: str
     html_text: Optional[str]
+    kanun_refs: list[KanunRef]
+    bkk_refs: list[BkkRef]
 
 
 class DocumentsListResponse(BaseModel):

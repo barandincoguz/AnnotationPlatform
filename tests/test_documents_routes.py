@@ -83,6 +83,68 @@ def test_get_document_returns_full_detail(client):
     body = r.json()
     assert body["document_id"] == "doc_a"
     assert body["pdf_text"].startswith("Bu bir test")
+    # paket-6a: refs always returned as arrays (empty when none ingested)
+    assert body["kanun_refs"] == []
+    assert body["bkk_refs"] == []
+
+
+def _ingest_doc_with_refs(document_id="doc_refs"):
+    """Ingest a doc that carries kanun + bkk references so the API
+    response can be checked end-to-end."""
+    from backend.shared.db import connect
+    from backend import config
+    from backend.documents import service
+    sample = {
+        "evrakOid": document_id,
+        "sayi": 1,
+        "tarih": "20260101",
+        "konu": "Refs test",
+        "pdfText": "Body.",
+        "kanunBilgileri": [
+            {"kanunMaddesi": "37", "kanunKodu": "193 - GELİR VERGİSİ KANUNU",
+             "kanunMaddesiTuru": "ASIL"},
+            {"kanunMaddesi": "70", "kanunKodu": "193 - GELİR VERGİSİ KANUNU",
+             "kanunMaddesiTuru": "ASIL"},
+        ],
+        "bkkTebligSirkuBilgileri": [
+            {"turu": "TEBLİĞ", "kanunKodu": "193 - GELİR VERGİSİ KANUNU",
+             "maddeNo": "325"},
+        ],
+    }
+    tmp = Path("/tmp/_test_doc_refs.json")
+    tmp.write_text(json.dumps(sample))
+    conn = connect(config.DB_PATH)
+    try:
+        service.ingest_file(conn, tmp)
+    finally:
+        conn.close()
+
+
+def test_get_document_returns_kanun_refs_in_seq_order(client):
+    _seed_invite_and_login(client)
+    _ingest_doc_with_refs("doc_refs")
+    r = client.get("/api/documents/doc_refs")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["kanun_refs"]) == 2
+    seqs = [ref["seq"] for ref in body["kanun_refs"]]
+    assert seqs == [0, 1]
+    maddeler = [ref["kanun_maddesi"] for ref in body["kanun_refs"]]
+    assert maddeler == ["37", "70"]
+    assert body["kanun_refs"][0]["kanun_kodu"].startswith("193")
+    assert body["kanun_refs"][0]["kanun_maddesi_turu"] == "ASIL"
+
+
+def test_get_document_returns_bkk_refs(client):
+    _seed_invite_and_login(client)
+    _ingest_doc_with_refs("doc_refs")
+    r = client.get("/api/documents/doc_refs")
+    body = r.json()
+    assert len(body["bkk_refs"]) == 1
+    bkk = body["bkk_refs"][0]
+    assert bkk["seq"] == 0
+    assert bkk["turu"] == "TEBLİĞ"
+    assert bkk["madde_no"] == "325"
 
 
 def test_get_document_unknown_returns_404(client):

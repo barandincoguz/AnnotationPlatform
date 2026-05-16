@@ -560,7 +560,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Feed */
+        /**
+         * Get Feed
+         * @description Return paginated feed for a tab.
+         *
+         *     sort defaults to the tab's natural sort (DEFAULT_SORT_FOR in
+         *     shuffle/service.py). Pass sort=shuffle for the per-user daily
+         *     deterministic shuffle (legacy default).
+         */
         get: operations["get_feed_api_feed_get"];
         put?: never;
         post?: never;
@@ -1066,6 +1073,21 @@ export interface components {
             /** Earned At */
             earned_at: string;
         };
+        /**
+         * BkkRef
+         * @description A single BKK / tebliğ / sirküler reference attached to a document
+         *     during ingestion. Sourced from `bkkTebligSirkuBilgileri[]`.
+         */
+        BkkRef: {
+            /** Seq */
+            seq: number;
+            /** Turu */
+            turu: string | null;
+            /** Kanun Kodu */
+            kanun_kodu: string | null;
+            /** Madde No */
+            madde_no: string | null;
+        };
         /** ChainEntry */
         ChainEntry: {
             /** Version Id */
@@ -1139,6 +1161,10 @@ export interface components {
             pdf_text: string;
             /** Html Text */
             html_text: string | null;
+            /** Kanun Refs */
+            kanun_refs: components["schemas"]["KanunRef"][];
+            /** Bkk Refs */
+            bkk_refs: components["schemas"]["BkkRef"][];
         };
         /** DocumentSummary */
         DocumentSummary: {
@@ -1254,6 +1280,21 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * KanunRef
+         * @description A single kanun (law) reference attached to a document during
+         *     ingestion. Sourced from `kanunBilgileri[]` in the external JSON.
+         */
+        KanunRef: {
+            /** Seq */
+            seq: number;
+            /** Kanun Kodu */
+            kanun_kodu: string;
+            /** Kanun Maddesi */
+            kanun_maddesi: string | null;
+            /** Kanun Maddesi Turu */
+            kanun_maddesi_turu: string | null;
+        };
         /** LockConflict */
         LockConflict: {
             /**
@@ -1336,7 +1377,7 @@ export interface components {
             /** Username */
             username: string;
             /** Avatar Color */
-            avatar_color: string;
+            avatar_color?: string | null;
         };
         /** ProfileResponse */
         ProfileResponse: {
@@ -2630,6 +2671,8 @@ export interface operations {
                 tab: string;
                 limit?: number;
                 offset?: number;
+                sort?: string | null;
+                order?: string | null;
             };
             header?: never;
             path?: never;
