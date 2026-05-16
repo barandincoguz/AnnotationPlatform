@@ -15,11 +15,12 @@ export function NotificationItem({ item, onMarkRead }: NotificationItemProps) {
   return (
     <div
       className={cn(
-        'flex items-start gap-3 border-b py-3',
-        unread && 'border-l-4 border-l-primary pl-3 font-medium',
+        'flex items-start gap-3 border-b py-3 border-l-2',
+        unread && 'bg-accent/5 border-l-accent pl-3 font-medium',
+        !unread && 'border-l-transparent',
       )}
     >
-      <span className="text-xl" aria-hidden="true">{iconForKind(item.kind)}</span>
+      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-muted/40" aria-hidden="true">{iconForKind(item.kind)}</span>
       <div className="flex-1 min-w-0">
         <h4 className="truncate" title={item.title}>{item.title}</h4>
         {item.body && (

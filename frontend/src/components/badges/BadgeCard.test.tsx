@@ -31,7 +31,7 @@ describe('BadgeCard earned variant', () => {
     expect(screen.getByText('Yapıldı.')).toBeInTheDocument()
   })
 
-  it('does NOT render grayscale class', () => {
+  it('shows KAZANILMIŞ kicker and no opacity', () => {
     const { container } = render(
       <BadgeCard
         badge={{
@@ -40,12 +40,12 @@ describe('BadgeCard earned variant', () => {
         variant="earned"
       />,
     )
-    expect(container.firstChild).not.toHaveClass('grayscale')
+    expect(container.firstChild).not.toHaveClass('opacity-70')
   })
 })
 
 describe('BadgeCard locked variant', () => {
-  it('renders grayscale + 🔒 + criterion text', () => {
+  it('renders KİLİTLİ kicker + 🔒 + criterion text + dashed border', () => {
     const { container } = render(
       <BadgeCard
         badge={{
@@ -56,9 +56,10 @@ describe('BadgeCard locked variant', () => {
         variant="locked"
       />,
     )
-    expect(container.firstChild).toHaveClass('grayscale')
+    expect(container.firstChild).toHaveClass('opacity-70')
     expect(screen.getByLabelText('Kilitli')).toBeInTheDocument()
     expect(screen.getByText('İlk anotasyon kaydını yap.')).toBeInTheDocument()
+    expect(screen.getByText('KİLİTLİ')).toBeInTheDocument()
     expect(screen.queryByText('past tense')).not.toBeInTheDocument()
   })
 
