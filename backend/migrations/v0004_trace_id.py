@@ -25,4 +25,6 @@ CREATE INDEX idx_sys_trace
 
 
 def up(conn: sqlite3.Connection) -> None:
-    conn.executescript(SQL)
+    for stmt in (s.strip() for s in SQL.split(";")):
+        if stmt:
+            conn.execute(stmt)

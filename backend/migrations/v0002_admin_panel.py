@@ -27,4 +27,6 @@ CREATE INDEX idx_quiz_overrides_active
 
 
 def up(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA_SQL)
+    for stmt in (s.strip() for s in SCHEMA_SQL.split(";")):
+        if stmt:
+            conn.execute(stmt)
