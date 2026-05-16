@@ -86,7 +86,7 @@ def login(
         httponly=True,
         samesite="lax",
         max_age=30 * 24 * 60 * 60,  # 30 days
-        secure=False,  # set true behind HTTPS in prod via env
+        secure=config.is_production(),
         path="/",
     )
     return {"ok": True}
