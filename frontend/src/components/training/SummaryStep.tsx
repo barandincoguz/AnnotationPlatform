@@ -19,8 +19,8 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
   if (degraded) {
     return (
       <section aria-labelledby="summary-degraded-heading" className="space-y-4">
-        <h2 id="summary-degraded-heading" className="text-xl font-semibold">Sonuç</h2>
-        <p className="text-sm">Bu attempt için detaylar yeniden yüklenemedi.</p>
+        <h2 id="summary-degraded-heading" className="font-display text-3xl tracking-tight">Sonuç</h2>
+        <p className="text-sm text-muted-foreground">Bu attempt için detaylar yeniden yüklenemedi.</p>
         <p className="text-sm">Genel durum: <strong>{passed ? 'Geçti' : 'Geçemedi'}</strong></p>
         <div className="flex gap-2">
           {passed
@@ -35,38 +35,128 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
 
   if (passed) {
     return (
-      <section aria-labelledby="summary-pass-heading" className="space-y-4">
-        <h2 id="summary-pass-heading" className="text-xl font-semibold">🎉 Tebrikler! Eğitimi geçtin</h2>
-        <div className="space-y-1 rounded-md border bg-card p-4 text-sm">
+      <section aria-labelledby="summary-pass-heading" className="space-y-6">
+        {/* Pass hero */}
+        <div className="rounded-lg border border-success/30 bg-success/10 px-6 py-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-success/70 mb-2">
+            Eğitim Tamamlandı · {String(passedDocs).padStart(2, '0')} / {String(goldDocs.length).padStart(2, '0')}
+          </p>
+          <h2 id="summary-pass-heading" className="font-display text-3xl tracking-tight text-success">
+            Tebrikler!
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">Eğitimi başarıyla tamamladın.</p>
+        </div>
+
+        {/* Score breakdown */}
+        <div className="rounded-md border bg-card divide-y divide-border text-sm">
           {quizResult && (
-            <p>Quiz: <strong>{quizResult.score}/{quizResult.total}</strong> {quizResult.score >= 4 ? '✓ Geçti' : '✗ Geçemedi'}</p>
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Quiz</span>
+              <span>
+                <strong className="font-display text-base">
+                  № {quizResult.score}/{quizResult.total}
+                </strong>
+                {' '}
+                <span className={quizResult.score >= 4 ? 'text-success' : 'text-destructive'}>
+                  {quizResult.score >= 4 ? '✓ Geçti' : '✗ Geçemedi'}
+                </span>
+              </span>
+            </div>
           )}
           {goldDocs.map((g, i) => {
             const r = docResults[g.gold_id]
-            return <p key={g.gold_id}>Doc {i + 1}: <strong>{r ? `${r.matched_count}/${r.expected_count}` : '—'}</strong> {r?.passed ? '✓ Geçti' : '✗ Geçemedi'}</p>
+            return (
+              <div key={g.gold_id} className="flex items-center justify-between px-4 py-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Döküman {i + 1}
+                </span>
+                <span>
+                  <strong className="font-display text-base">
+                    № {r ? `${r.matched_count}/${r.expected_count}` : '—'}
+                  </strong>
+                  {' '}
+                  <span className={r?.passed ? 'text-success' : 'text-destructive'}>
+                    {r?.passed ? '✓ Geçti' : '✗ Geçemedi'}
+                  </span>
+                </span>
+              </div>
+            )
           })}
-          <p>Anot. geçen: {passedDocs} / 3 (gerekli: 2)</p>
-          <p className="mt-2 font-semibold">Overall: GEÇTI</p>
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Anot. geçen</span>
+            <span className="text-sm">{passedDocs} / 3 (gerekli: 2)</span>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3 bg-success/5">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Overall</span>
+            <span className="font-semibold text-success">GEÇTI</span>
+          </div>
         </div>
+
         <Button onClick={onAnnotate} size="lg">Anotasyona Başla ▸</Button>
       </section>
     )
   }
 
   return (
-    <section aria-labelledby="summary-fail-heading" className="space-y-4">
-      <h2 id="summary-fail-heading" className="text-xl font-semibold">Eğitimi geçemedin</h2>
-      <div className="space-y-1 rounded-md border bg-card p-4 text-sm">
+    <section aria-labelledby="summary-fail-heading" className="space-y-6">
+      {/* Fail hero */}
+      <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-6 py-5">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-destructive/70 mb-2">
+          Eğitim · Tamamlanamadı
+        </p>
+        <h2 id="summary-fail-heading" className="font-display text-3xl tracking-tight text-destructive">
+          Eğitimi geçemedin
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Eşik değerlerini karşılamak için tekrar deneyebilirsin.
+        </p>
+      </div>
+
+      {/* Score breakdown */}
+      <div className="rounded-md border bg-card divide-y divide-border text-sm">
         {quizResult && (
-          <p>Quiz: <strong>{quizResult.score}/{quizResult.total}</strong> {quizResult.score >= 4 ? '✓ Geçti' : '✗ Geçemedi (eşik 4)'}</p>
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Quiz</span>
+            <span>
+              <strong className="font-display text-base">
+                № {quizResult.score}/{quizResult.total}
+              </strong>
+              {' '}
+              <span className={quizResult.score >= 4 ? 'text-success' : 'text-destructive'}>
+                {quizResult.score >= 4 ? '✓ Geçti' : '✗ Geçemedi (eşik 4)'}
+              </span>
+            </span>
+          </div>
         )}
         {goldDocs.map((g, i) => {
           const r = docResults[g.gold_id]
-          return <p key={g.gold_id}>Doc {i + 1}: <strong>{r ? `${r.matched_count}/${r.expected_count}` : '—'}</strong> {r?.passed ? '✓ Geçti' : '✗ Geçemedi'}</p>
+          return (
+            <div key={g.gold_id} className="flex items-center justify-between px-4 py-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                Döküman {i + 1}
+              </span>
+              <span>
+                <strong className="font-display text-base">
+                  № {r ? `${r.matched_count}/${r.expected_count}` : '—'}
+                </strong>
+                {' '}
+                <span className={r?.passed ? 'text-success' : 'text-destructive'}>
+                  {r?.passed ? '✓ Geçti' : '✗ Geçemedi'}
+                </span>
+              </span>
+            </div>
+          )
         })}
-        <p>Anot. geçen: {passedDocs} / 3 (gerekli: 2)</p>
-        <p className="mt-2 font-semibold">Overall: GEÇEMEDİ</p>
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Anot. geçen</span>
+          <span className="text-sm">{passedDocs} / 3 (gerekli: 2)</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3 bg-destructive/5">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Overall</span>
+          <span className="font-semibold text-destructive">GEÇEMEDİ</span>
+        </div>
       </div>
+
       <div className="flex gap-2">
         <Button onClick={onRetry}>Tekrar Dene</Button>
         <Button onClick={onBackToHelp} variant="ghost">← Kılavuza dön</Button>

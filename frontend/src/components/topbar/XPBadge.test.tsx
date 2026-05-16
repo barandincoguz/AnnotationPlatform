@@ -18,8 +18,8 @@ describe('XPBadge', () => {
     expect(screen.getByLabelText('Toplam XP')).toHaveTextContent('1.234.567')
   })
 
-  it('renders the sparkle icon', () => {
+  it('renders the XP mono label', () => {
     render(<XPBadge total={5} />)
-    expect(screen.getByText('✨')).toBeInTheDocument()
+    expect(screen.getByText('XP')).toBeInTheDocument()
   })
 })

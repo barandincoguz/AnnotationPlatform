@@ -14,16 +14,16 @@ describe('StreakCounter', () => {
     expect(screen.getByLabelText(/streak/i)).toHaveTextContent('3')
   })
 
-  it('applies orange tier color for 4-6', () => {
+  it('applies warning tier color for 4-6', () => {
     render(<StreakCounter current={5} longest={5} />)
     const el = screen.getByLabelText(/streak/i)
-    expect(el.className).toMatch(/orange/i)
+    expect(el.className).toMatch(/warning/i)
   })
 
-  it('applies red tier color for 7+', () => {
+  it('applies destructive tier color for 7+', () => {
     render(<StreakCounter current={7} longest={7} />)
     const el = screen.getByLabelText(/streak/i)
-    expect(el.className).toMatch(/red/i)
+    expect(el.className).toMatch(/destructive/i)
   })
 
   it('shows longest in tooltip ONLY when longest > current', async () => {
