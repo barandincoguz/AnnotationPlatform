@@ -5,6 +5,7 @@
 # `setdefault` is non-destructive — production / CI overrides win.
 import os
 os.environ.setdefault("DISABLE_SPA_MOUNT", "1")
+os.environ.setdefault("ENVIRONMENT", "test")
 
 import json
 from pathlib import Path
