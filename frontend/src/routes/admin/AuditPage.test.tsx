@@ -43,6 +43,7 @@ describe('AuditPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/eşleşen kayıt yok/i)).toBeInTheDocument(),
     )
+    expect(screen.getByText('0 / 0')).toBeInTheDocument()
   })
 
   it('renders a row from the API', async () => {
