@@ -24,6 +24,25 @@ BOOTSTRAP_ADMIN_USERNAME = os.environ.get("BOOTSTRAP_ADMIN_USERNAME", "")
 
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
 
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
+BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "")
+
+_VALID_ENVIRONMENTS = {"development", "test", "production"}
+
+
+def is_production() -> bool:
+    """True iff ENVIRONMENT env var is exactly 'production' (case-insensitive)."""
+    return ENVIRONMENT == "production"
+
+
+def validate_environment() -> None:
+    """Raise RuntimeError if ENVIRONMENT is not one of the accepted values."""
+    if ENVIRONMENT not in _VALID_ENVIRONMENTS:
+        raise RuntimeError(
+            f"ENVIRONMENT must be one of: {sorted(_VALID_ENVIRONMENTS)} "
+            f"(got: {ENVIRONMENT!r})"
+        )
+
 
 def ensure_dirs() -> None:
     """Create all required data directories. Called from main.py lifespan."""
