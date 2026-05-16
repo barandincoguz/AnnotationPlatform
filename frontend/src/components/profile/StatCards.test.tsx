@@ -34,8 +34,11 @@ describe('StatCards', () => {
 
   it('shows badge count', () => {
     render(<StatCards profile={makeProfile()} />)
-    // Default makeProfile has 1 badge; emoji + count are separate text nodes
+    // 4f: cards now render the IconOrb + label in one row and the count in a
+    // sibling row, so the prior `previousElementSibling` walk no longer maps
+    // to the count node. Verify by scoping to the card that owns the label.
     const rozetLabel = screen.getByText('Toplam Rozet')
-    expect(rozetLabel.previousElementSibling?.textContent).toMatch(/1/)
+    const card = rozetLabel.closest('div[class*="rounded"]')
+    expect(card?.textContent).toMatch(/1/)
   })
 })
