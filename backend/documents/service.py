@@ -66,17 +66,32 @@ def _replace_bkk_refs(db: sqlite3.Connection, document_id: str, refs: list[dict]
 
 
 def ingest_file(db: sqlite3.Connection, path: Path) -> int:
-    """Ingest a JSON file (single doc or array of docs). Returns # docs ingested."""
+    """Ingest a JSON file (single doc or array of docs). Returns # docs ingested.
+
+    Per-item ParseErrors are logged and skipped so a single bad record cannot
+    abort a bulk import. Progress is reported every 1000 docs for large files.
+    """
     raw = json.loads(path.read_text(encoding="utf-8"))
     items = raw if isinstance(raw, list) else [raw]
+    total = len(items)
     count = 0
-    for item in items:
-        parsed = parse_document(item, file_path=str(path))
+    skipped = 0
+    for idx, item in enumerate(items):
+        try:
+            parsed = parse_document(item, file_path=str(path))
+        except ParseError as e:
+            skipped += 1
+            print(f"WARN: skipping item[{idx}]: {e}")
+            continue
         meta = parsed["meta"]
         _upsert_meta(db, meta)
         _replace_kanun_refs(db, meta["document_id"], parsed["kanun_refs"])
         _replace_bkk_refs(db, meta["document_id"], parsed["bkk_refs"])
         count += 1
+        if total > 1000 and (count % 1000 == 0):
+            print(f"  ingested {count}/{total} ({skipped} skipped)")
+    if skipped:
+        print(f"  total skipped: {skipped}")
     return count
 
 

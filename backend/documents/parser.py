@@ -23,6 +23,9 @@ Source JSON shape (from external pipeline):
 Output dict has 3 keys: meta (documents_meta row), kanun_refs (list of rows),
 bkk_refs (list of rows). Service layer inserts these.
 """
+import html
+import re
+
 from backend.documents.metrics import (
     word_count, sentence_count, text_density, classify_difficulty
 )
@@ -38,6 +41,21 @@ def _require(doc: dict, key: str, file_path: str) -> object:
     return doc[key]
 
 
+_BLOCK_TAG_RE = re.compile(r"</?(p|div|br|li|tr|h[1-6])\b[^>]*>", re.IGNORECASE)
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RUN_RE = re.compile(r"[ \t]+")
+_NL_RUN_RE = re.compile(r"\n\s*\n+")
+
+
+def html_to_text(s: str) -> str:
+    s = _BLOCK_TAG_RE.sub("\n", s)
+    s = _TAG_RE.sub("", s)
+    s = html.unescape(s)
+    s = _WS_RUN_RE.sub(" ", s)
+    s = _NL_RUN_RE.sub("\n\n", s)
+    return s.strip()
+
+
 def parse_document(
     doc: dict,
     *,
@@ -46,7 +64,16 @@ def parse_document(
     orta_max: int = 2000,
 ) -> dict:
     document_id = _require(doc, "evrakOid", file_path)
-    pdf_text = _require(doc, "pdfText", file_path)
+    raw_pdf = doc.get("pdfText") or ""
+    raw_html = doc.get("htmlText") or ""
+    if raw_pdf.strip():
+        pdf_text = raw_pdf
+    elif raw_html.strip():
+        pdf_text = html_to_text(raw_html)
+        if not pdf_text:
+            raise ParseError(f"empty text after htmlText fallback for evrakOid={document_id} in {file_path}")
+    else:
+        raise ParseError(f"missing both pdfText and htmlText for evrakOid={document_id} in {file_path}")
 
     wc = word_count(pdf_text)
     sc = sentence_count(pdf_text)
