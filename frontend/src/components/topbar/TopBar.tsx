@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfile } from '@/api/queries/profile'
 import { useOnlineUsers } from '@/api/queries/users'
@@ -25,20 +26,38 @@ export function TopBar() {
   return (
     <header
       role="banner"
-      className="h-12 border-b bg-background px-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4"
+      className="sticky top-0 z-30 h-14 border-b border-border/70 bg-background/85 backdrop-blur-md px-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4"
     >
-      <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="text-lg">📚</span>
-        <span className="font-semibold">Anotasyon Platformu</span>
-      </div>
+      <Link
+        to="/"
+        aria-label="Ana sayfaya dön"
+        className="group inline-flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md w-fit transition-opacity"
+      >
+        <span
+          aria-hidden
+          className="grid h-8 w-8 place-items-center rounded-md border border-border bg-card font-display text-base font-semibold text-foreground transition-colors group-hover:border-accent group-hover:text-accent"
+        >
+          A
+        </span>
+        <span className="flex flex-col leading-tight">
+          <span className="font-display text-[15px] font-semibold tracking-tight text-foreground">
+            Anotasyon Platformu
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            Bursiyer kütüphanesi
+          </span>
+        </span>
+      </Link>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-5">
         <XPBadge total={xpTotal} />
+        <span aria-hidden className="h-4 w-px bg-border" />
         <StreakCounter current={streakCurrent} longest={streakLongest} />
+        <span aria-hidden className="h-4 w-px bg-border" />
         <DailyProgress today={todaySave} target={dailyTarget} />
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-4">
         <div className="hidden md:block max-w-[200px] overflow-hidden">
           <OnlineUsers users={onlineUsers} maxVisible={5} />
         </div>
