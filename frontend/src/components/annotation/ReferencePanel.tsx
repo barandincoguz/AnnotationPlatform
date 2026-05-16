@@ -1,7 +1,6 @@
 import { Plus, Loader2, Check, AlertCircle, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { cn } from '@/lib/utils'
 import { ReferenceCard } from './ReferenceCard'
 import type { components } from '@/api/types'
 import type { ApiError } from '@/api/client'
@@ -148,19 +147,11 @@ export function ReferencePanel({
           {hasAnnotation && (
             <Button
               type="button"
-              variant={isCompleted ? 'outline' : 'default'}
+              variant={isCompleted ? 'outline' : 'success'}
               onClick={onComplete}
               disabled={completeDisabled}
-              className={cn(
-                !isCompleted &&
-                  'bg-success text-success-foreground shadow-sm hover:bg-success/90 focus-visible:ring-success',
-              )}
             >
-              {isCompleted ? (
-                <Undo2 className="mr-1 h-4 w-4" />
-              ) : (
-                <Check className="mr-1 h-4 w-4" />
-              )}
+              {isCompleted ? <Undo2 /> : <Check />}
               {completeLabel}
             </Button>
           )}
