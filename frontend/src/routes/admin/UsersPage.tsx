@@ -20,6 +20,20 @@ import type { AdminUser } from '@/lib/adminSchemas'
 
 type ActionType = 'promote' | 'demote' | 'enable' | 'disable' | 'reset'
 
+function StatusChip({ label, variant }: { label: string; variant: 'success' | 'warning' | 'muted' }) {
+  const cls =
+    variant === 'success'
+      ? 'bg-success/15 text-success border border-success/30'
+      : variant === 'warning'
+      ? 'bg-warning/15 text-warning border border-warning/30'
+      : 'bg-muted text-muted-foreground border border-transparent'
+  return (
+    <span className={`inline-block rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] ${cls}`}>
+      {label}
+    </span>
+  )
+}
+
 const ACTION_META: Record<ActionType, { title: string; word: string; confirmLabel: string; variant: 'destructive' | 'default' }> = {
   promote: { title: 'Admin Yap', word: 'PROMOTE', confirmLabel: 'Yetki Ver', variant: 'default' },
   demote:  { title: 'Admin yetkisini kaldır', word: 'DEMOTE', confirmLabel: 'Kaldır', variant: 'destructive' },
@@ -104,11 +118,21 @@ export function UsersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Users</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="mb-6 space-y-1">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            People · Users
+          </p>
+          <h1 className="font-display text-3xl font-medium tracking-tight">
+            User Management
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-prose">
+            Manage roles, status, and training progress for every registered user.
+          </p>
+        </div>
         <Button onClick={onRotate} disabled={rotateInvite.isPending}>Davet Linki Üret</Button>
       </div>
-      <div className="flex flex-wrap items-end gap-2 rounded border p-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border/70 bg-card/40 p-4">
         <Input placeholder="Ara..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
       </div>
 
@@ -120,8 +144,18 @@ export function UsersPage() {
           { key: 'username', header: 'Kullanıcı', render: (u) => u.username },
           { key: 'email', header: 'E-posta', render: (u) => u.email ?? '—' },
           { key: 'role', header: 'Rol', render: (u) => u.role },
-          { key: 'status', header: 'Durum', render: (u) => u.is_active ? 'Aktif' : 'Devre dışı' },
-          { key: 'training', header: 'Eğitim', render: (u) => u.has_passed_training ? 'Geçti' : 'Bekliyor' },
+          {
+            key: 'status', header: 'Durum',
+            render: (u) => u.is_active
+              ? <StatusChip label="Aktif" variant="success" />
+              : <StatusChip label="Devre dışı" variant="muted" />,
+          },
+          {
+            key: 'training', header: 'Eğitim',
+            render: (u) => u.has_passed_training
+              ? <StatusChip label="Geçti" variant="success" />
+              : <StatusChip label="Bekliyor" variant="warning" />,
+          },
           { key: 'created', header: 'Kayıt', render: (u) => u.created_at.slice(0, 10) },
           {
             key: 'actions', header: '', render: (u) => (

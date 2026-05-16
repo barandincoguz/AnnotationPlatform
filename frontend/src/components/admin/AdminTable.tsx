@@ -40,7 +40,7 @@ export function AdminTable<T>({
               <tr key={i} data-testid="admin-table-skeleton-row" className="border-t">
                 {columns.map((c) => (
                   <td key={c.key} className="p-2">
-                    <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                    <div className="h-4 w-3/4 animate-pulse rounded bg-muted/60" />
                   </td>
                 ))}
               </tr>
@@ -53,8 +53,10 @@ export function AdminTable<T>({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded border p-8 text-center text-sm text-muted-foreground">
-        {emptyMessage}
+      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <span aria-hidden className="font-display text-5xl font-medium text-muted-foreground/20 leading-none">№</span>
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Boş</p>
+        <p className="text-sm text-muted-foreground">{emptyMessage ?? 'Kayıt bulunamadı.'}</p>
       </div>
     )
   }
