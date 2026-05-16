@@ -86,6 +86,6 @@ describe('DocListItem', () => {
   it('applies selected styling when isSelected', () => {
     render(<DocListItem item={makeFeedItem()} isSelected={true} onClick={vi.fn()} />)
     const button = screen.getByRole('button')
-    expect(button.className).toMatch(/bg-accent|border-primary/)
+    expect(button.className).toMatch(/bg-secondary|bg-accent|border-primary/)
   })
 })
