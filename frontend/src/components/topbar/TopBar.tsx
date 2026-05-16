@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfile } from '@/api/queries/profile'
 import { useOnlineUsers } from '@/api/queries/users'
 import { useUnreadNotifications } from '@/api/queries/notifications'
+import { BrandMark } from '@/components/shell/BrandMark'
 import { XPBadge } from './XPBadge'
 import { StreakCounter } from './StreakCounter'
 import { DailyProgress } from './DailyProgress'
@@ -28,26 +28,7 @@ export function TopBar() {
       role="banner"
       className="sticky top-0 z-30 h-14 border-b border-border/70 bg-background/85 backdrop-blur-md px-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4"
     >
-      <Link
-        to="/"
-        aria-label="Ana sayfaya dön"
-        className="group inline-flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md w-fit transition-opacity"
-      >
-        <span
-          aria-hidden
-          className="grid h-8 w-8 place-items-center rounded-md border border-border bg-card font-display text-base font-semibold text-foreground transition-colors group-hover:border-accent group-hover:text-accent"
-        >
-          A
-        </span>
-        <span className="flex flex-col leading-tight">
-          <span className="font-display text-[15px] font-semibold tracking-tight text-foreground">
-            Anotasyon Platformu
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            Bursiyer kütüphanesi
-          </span>
-        </span>
-      </Link>
+      <BrandMark subtitle="Bursiyer kütüphanesi" />
 
       <div className="flex items-center gap-5">
         <XPBadge total={xpTotal} />

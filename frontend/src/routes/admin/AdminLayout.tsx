@@ -1,6 +1,7 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminMobileNav } from '@/components/admin/AdminMobileNav'
+import { BrandMark } from '@/components/shell/BrandMark'
 
 export function AdminLayout() {
   return (
@@ -12,31 +13,11 @@ export function AdminLayout() {
         içeriğe atla
       </a>
 
-      {/* Brand header — provides return-to-home from admin */}
       <header
         role="banner"
         className="sticky top-0 z-30 h-14 border-b border-border/70 bg-background/85 backdrop-blur-md px-5 flex items-center justify-between"
       >
-        <Link
-          to="/"
-          aria-label="Anotasyon ana sayfasına dön"
-          className="group inline-flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md transition-opacity"
-        >
-          <span
-            aria-hidden
-            className="grid h-8 w-8 place-items-center rounded-md border border-border bg-card font-display text-base font-semibold text-foreground transition-colors group-hover:border-accent group-hover:text-accent"
-          >
-            A
-          </span>
-          <span className="flex flex-col leading-tight">
-            <span className="font-display text-[15px] font-semibold tracking-tight text-foreground">
-              Anotasyon Platformu
-            </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              Yönetici Paneli · Admin
-            </span>
-          </span>
-        </Link>
+        <BrandMark subtitle="Yönetici Paneli · Admin" />
         <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80 hidden sm:block">
           v0.1.0
         </div>
