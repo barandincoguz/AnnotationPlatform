@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useTrainingStore } from '@/stores/trainingStore'
 
 interface QuizStepProps {
@@ -70,23 +71,23 @@ export function QuizStep({ onSubmit, isSubmitting }: QuizStepProps) {
               </span>
               <span className="ml-2 text-sm font-medium text-foreground">{q.text}</span>
             </legend>
-            <div className="space-y-1">
+            <RadioGroup
+              value={quizAnswers[q.id] !== undefined ? String(quizAnswers[q.id]) : ''}
+              onValueChange={(v) => setQuizAnswer(q.id, Number(v))}
+              disabled={isSubmitting}
+              className="space-y-1 gap-0"
+            >
               {q.choices.map((choice, ci) => (
-                <label key={ci} className="flex items-center gap-2 text-sm hover:bg-muted/40 rounded px-2 py-1 cursor-pointer">
-                  {/* TODO(phase-3e): replace with shadcn RadioGroup once added to ui/ */}
-                  <input
-                    type="radio"
-                    name={q.id}
-                    value={ci}
-                    checked={quizAnswers[q.id] === ci}
-                    onChange={() => setQuizAnswer(q.id, ci)}
-                    disabled={isSubmitting}
-                    className="h-4 w-4 accent-primary"
-                  />
+                <label
+                  key={ci}
+                  htmlFor={`${q.id}-${ci}`}
+                  className="flex items-center gap-2 text-sm hover:bg-muted/40 rounded px-2 py-1 cursor-pointer"
+                >
+                  <RadioGroupItem id={`${q.id}-${ci}`} value={String(ci)} />
                   {choice}
                 </label>
               ))}
-            </div>
+            </RadioGroup>
           </fieldset>
         ))}
       </div>

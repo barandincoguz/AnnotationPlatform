@@ -185,7 +185,7 @@ describe('Training route — resume from sessionStorage', () => {
 
     await waitFor(() => expect(screen.getAllByRole('group')).toHaveLength(5))
     const radios = screen.getAllByRole('radio')
-    expect((radios[1] as HTMLInputElement).checked).toBe(true)
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true')
   })
 })
 
