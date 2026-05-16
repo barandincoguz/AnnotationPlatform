@@ -105,7 +105,7 @@ docker compose exec app sqlite3 /data/db/annotations.db \
    WHERE event_type LIKE 'backup_%' ORDER BY id DESC LIMIT 5"
 ```
 
-You should see `backup_pushed` (info severity) within a few minutes.
+You should see `backup_success` (info severity) within a few minutes.
 
 ## 6. Restore drill
 
@@ -134,6 +134,20 @@ docker compose --env-file .env.production up -d
 
 The pre-restore DB is renamed `corrupt-<timestamp>.db.bak` in `/data/db/`
 and kept until you delete it manually.
+
+### Recovery: if you can't login after restore
+
+The restored DB carries whatever password hash existed at snapshot time.
+If that hash predates a since-rotated password, you'll be locked out
+with an apparently correct password. Recovery:
+
+```bash
+docker compose run --rm app python -m backend.cli reset-password <username> <new-password>
+```
+
+This rehashes the password, deletes all of that user's active session
+rows (forcing fresh login), and writes a `reset_password_cli` audit
+entry.
 
 ## 7. Reverse proxy
 

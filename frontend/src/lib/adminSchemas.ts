@@ -98,7 +98,6 @@ export const goldDocOverrideSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 })
-export type GoldDocOverride = z.infer<typeof goldDocOverrideSchema>
 export type GoldDocResolved = z.infer<typeof goldDocResolvedSchema>
 
 export const goldDocsListResponseSchema = z.object({
@@ -129,4 +128,3 @@ export const quizListResponseSchema = z.object({
   overrides: z.array(quizOverrideSchema),
 })
 export type QuizQuestion = z.infer<typeof quizQuestionResolvedSchema>
-export type QuizOverride = z.infer<typeof quizOverrideSchema>
