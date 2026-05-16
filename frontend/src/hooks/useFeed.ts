@@ -1,1 +1,6 @@
-export { useFeedInfinite as useFeed, feedKeys, type FeedTab } from '@/api/queries/feed'
+export {
+  useFeedInfinite as useFeed,
+  feedKeys,
+  type FeedTab,
+  type FeedSort,
+} from '@/api/queries/feed'

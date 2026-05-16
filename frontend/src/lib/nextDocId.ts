@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { feedKeys, type FeedTab } from '@/api/queries/feed'
+import { feedKeys, type FeedSort, type FeedTab } from '@/api/queries/feed'
 
 export type NextDocResult = { type: 'next'; id: string } | { type: 'done' } | { type: 'empty' }
 
@@ -12,12 +12,25 @@ interface InfiniteData {
   pageParams: unknown[]
 }
 
-export async function pickNextInFeedAcrossPages(opts: {
+interface PickNextOpts {
   qc: QueryClient
   currentTab: FeedTab
   currentDocId: string | null
-}): Promise<NextDocResult> {
-  const initial = opts.qc.getQueryData<InfiniteData>(feedKeys.tab(opts.currentTab))
+  /**
+   * Optional active sort. When provided, looks up the cache under the
+   * sorted query key so callers see exactly the ordering they were
+   * navigating. When omitted, falls back to the legacy prefix-only
+   * lookup (preserves existing tests that seed via `feedKeys.tab`).
+   */
+  sort?: FeedSort
+}
+
+export async function pickNextInFeedAcrossPages(opts: PickNextOpts): Promise<NextDocResult> {
+  const queryKey = opts.sort
+    ? feedKeys.tabSorted(opts.currentTab, opts.sort)
+    : feedKeys.tab(opts.currentTab)
+
+  const initial = opts.qc.getQueryData<InfiniteData>(queryKey)
   if (!initial) return { type: 'empty' }
 
   const itemsOf = (data: InfiniteData) => data.pages.flatMap((p) => p.items)
@@ -35,15 +48,17 @@ export async function pickNextInFeedAcrossPages(opts: {
 
   // At end of loaded pages — refetch and recurse once.
   if (items.length < total) {
-    await opts.qc.refetchQueries({ queryKey: feedKeys.tab(opts.currentTab) })
-    const after = opts.qc.getQueryData<InfiniteData>(feedKeys.tab(opts.currentTab))
+    await opts.qc.refetchQueries({ queryKey })
+    const after = opts.qc.getQueryData<InfiniteData>(queryKey)
     const grown = after ? itemsOf(after) : []
     if (grown.length > items.length) {
-      return pickNextInFeedAcrossPages({
+      const recurseOpts: PickNextOpts = {
         qc: opts.qc,
         currentTab: opts.currentTab,
         currentDocId: opts.currentDocId,
-      })
+      }
+      if (opts.sort) recurseOpts.sort = opts.sort
+      return pickNextInFeedAcrossPages(recurseOpts)
     }
   }
 
