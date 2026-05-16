@@ -54,8 +54,9 @@ describe('NotificationItem', () => {
     expect(screen.getByText('🔔')).toBeInTheDocument()
   })
 
-  it('unread items have visual emphasis (border + bold)', () => {
+  it('unread items have visual emphasis (accent background + bold)', () => {
     const { container } = render(<NotificationItem item={baseItem} onMarkRead={vi.fn()} />)
     expect(container.firstChild).toHaveClass('font-medium')
+    expect(container.firstChild).toHaveClass('bg-accent/5')
   })
 })

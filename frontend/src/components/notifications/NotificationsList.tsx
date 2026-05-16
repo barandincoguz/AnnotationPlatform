@@ -48,30 +48,34 @@ export function NotificationsList() {
 
   return (
     <section id="notifications">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Bildirimler</h2>
-        {hasUnread && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markAllRead.mutate()}
-            disabled={markAllRead.isPending}
-          >
-            Tümünü okundu yap
-          </Button>
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Bildirimler
+          </p>
+          {hasUnread && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+            >
+              Tümünü okundu yap
+            </Button>
+          )}
+        </div>
+        {items.length === 0 ? (
+          <EmptyState kicker="Boş" title="Henüz bildirim yok" />
+        ) : (
+          <ul>
+            {items.map((item) => (
+              <li key={item.id}>
+                <NotificationItem item={item} onMarkRead={(id) => markRead.mutate(id)} />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-      {items.length === 0 ? (
-        <EmptyState kicker="Boş" title="Henüz bildirim yok" />
-      ) : (
-        <ul>
-          {items.map((item) => (
-            <li key={item.id}>
-              <NotificationItem item={item} onMarkRead={(id) => markRead.mutate(id)} />
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   )
 }

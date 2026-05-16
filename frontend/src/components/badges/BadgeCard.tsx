@@ -37,15 +37,28 @@ export function BadgeCard({ badge, variant }: BadgeCardProps) {
 
   return (
     <Card
-      className={cn(isLocked && 'grayscale opacity-60')}
+      className={cn(
+        isLocked && 'bg-card border-dashed border-muted-foreground/30 opacity-70',
+        !isLocked && 'hover:shadow-md transition-shadow',
+      )}
       aria-disabled={isLocked || undefined}
     >
       <CardContent className="p-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl" aria-hidden="true">{badgeIcon(badge.id)}</span>
-          <h3 className="font-medium leading-tight">{badge.name}</h3>
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          {isLocked ? 'KİLİTLİ' : 'KAZANILMIŞ'}
+        </p>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-muted/40" aria-hidden="true">{badgeIcon(badge.id)}</span>
+          <div className="flex-1">
+            <h3 className={cn(
+              'font-display font-medium leading-tight',
+              isLocked && 'text-muted-foreground',
+            )}>
+              {badge.name}
+            </h3>
+          </div>
           {isLocked && (
-            <Lock className="ml-auto h-4 w-4 text-muted-foreground" aria-label="Kilitli" />
+            <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-label="Kilitli" />
           )}
         </div>
 
@@ -53,7 +66,10 @@ export function BadgeCard({ badge, variant }: BadgeCardProps) {
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="line-clamp-2 text-sm text-muted-foreground">
+                <p className={cn(
+                  'line-clamp-2 text-sm',
+                  isLocked ? 'text-muted-foreground/70' : 'text-muted-foreground',
+                )}>
                   {body}
                 </p>
               </TooltipTrigger>
