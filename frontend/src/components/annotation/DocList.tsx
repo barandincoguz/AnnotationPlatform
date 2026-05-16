@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useFeed, type FeedTab } from '@/hooks/useFeed'
+import { useAnnotateStore } from '@/stores/annotateStore'
 import { DocListItem } from './DocListItem'
 import { EmptyState } from '@/components/shell/EmptyState'
 
@@ -24,7 +25,8 @@ interface DocListProps {
 }
 
 export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
-  const feed = useFeed(tab)
+  const sort = useAnnotateStore((s) => s.sort[tab])
+  const feed = useFeed(tab, sort)
   const items = feed.data?.pages.flatMap((p) => p.items) ?? []
   const parentRef = useRef<HTMLDivElement>(null)
 

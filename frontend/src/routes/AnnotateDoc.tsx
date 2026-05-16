@@ -38,6 +38,10 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const currentTab = useAnnotateStore((s) => s.currentTab)
+  // Cached feed pages live under the full (tab, sort, order) query
+  // key now, so we have to pass the active sort to pickNextInFeed for
+  // the lookup to hit the same data DocList is showing.
+  const currentSort = useAnnotateStore((s) => s.sort[s.currentTab])
   const [modalOpen, setModalOpen] = useState(true)
 
   const lock = useLock(docId)
@@ -106,6 +110,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       qc,
       currentTab,
       currentDocId: docId,
+      sort: currentSort,
     })
 
     if (lockReleaseFailed) {
@@ -153,6 +158,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       qc,
       currentTab,
       currentDocId: docId,
+      sort: currentSort,
     })
 
     if (lockReleaseFailed) {
@@ -189,6 +195,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       qc,
       currentTab,
       currentDocId: docId,
+      sort: currentSort,
     })
     if (next.type === 'next') {
       navigate(`/docs/${next.id}`, { replace: true })
