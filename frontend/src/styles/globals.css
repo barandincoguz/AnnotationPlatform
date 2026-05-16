@@ -4,32 +4,99 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Editorial Counsel palette — warm cream base, deep ink, amber accent */
+    --background: 40 30% 97%;
+    --foreground: 220 30% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 30% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --popover-foreground: 220 30% 14%;
+    --primary: 222 45% 24%;
+    --primary-foreground: 40 30% 97%;
+    --secondary: 40 18% 93%;
+    --secondary-foreground: 220 30% 20%;
+    --muted: 40 18% 92%;
+    --muted-foreground: 220 12% 42%;
+    --accent: 32 70% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 88%;
+    --input: 220 13% 86%;
+    --ring: 222 45% 24%;
     --radius: 0.5rem;
   }
 
   * {
     @apply border-border;
   }
+
+  html {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'ss01', 'cv11';
+    background-image:
+      radial-gradient(at 12% 0%, hsl(40 35% 95%) 0px, transparent 55%),
+      radial-gradient(at 88% 100%, hsl(220 25% 96%) 0px, transparent 55%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  .display {
+    @apply font-display;
+    font-feature-settings: 'ss01', 'liga', 'kern';
+    letter-spacing: -0.015em;
+  }
+}
+
+@layer utilities {
+  /* Subtle film-grain overlay for atmospheric surfaces */
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.7;
+    mix-blend-mode: multiply;
+  }
+
+  /* Editorial entrance — staggered fade + rise */
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .rise-in {
+    animation: rise-in 600ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .rise-1 {
+    animation-delay: 60ms;
+  }
+  .rise-2 {
+    animation-delay: 140ms;
+  }
+  .rise-3 {
+    animation-delay: 240ms;
+  }
+  .rise-4 {
+    animation-delay: 360ms;
   }
 }
