@@ -1,5 +1,6 @@
 """Auth + user routes."""
 import sqlite3
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -143,7 +144,7 @@ def get_my_profile(
 class OnlineUserOut(BaseModel):
     id: int
     username: str
-    avatar_color: str
+    avatar_color: Optional[str] = None
 
 
 @router.get("/users/online", response_model=list[OnlineUserOut])
