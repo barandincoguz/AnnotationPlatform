@@ -32,7 +32,9 @@ describe('ReferencePanel', () => {
         refs={[makeReferenceItem({ madde: '1' }), makeReferenceItem({ madde: '2' })]}
       />,
     )
-    expect(screen.getAllByText(/Referans #/)).toHaveLength(2)
+    // 4d: card title shifted from "Referans #N" to a numbered badge + mono
+    // "Referans" kicker. Match the kicker which is rendered once per card.
+    expect(screen.getAllByText('Referans')).toHaveLength(2)
   })
 
   it('shows empty state with hint when no refs', () => {
