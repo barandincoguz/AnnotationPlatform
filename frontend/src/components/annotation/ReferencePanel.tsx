@@ -1,4 +1,4 @@
-import { Plus, Loader2, Check, AlertCircle, Undo2 } from 'lucide-react'
+import { Plus, Loader2, Check, AlertCircle, Undo2, BookMarked } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ReferenceCard } from './ReferenceCard'
@@ -31,22 +31,22 @@ interface ReferencePanelProps {
 function DraftStatusBadge({ status }: { status: DraftSaveStatus }) {
   if (status === 'saving') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" /> Taslak kaydediliyor…
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Taslak kaydediliyor…
       </span>
     )
   }
   if (status === 'saved') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <Check className="h-3 w-3" /> Taslak kaydedildi
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-success">
+        <Check className="h-3.5 w-3.5" /> Taslak kaydedildi
       </span>
     )
   }
   if (status === 'error') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-destructive">
-        <AlertCircle className="h-3 w-3" /> Taslak hatası
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-destructive">
+        <AlertCircle className="h-3.5 w-3.5" /> Taslak hatası
       </span>
     )
   }
@@ -89,11 +89,37 @@ export function ReferencePanel({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-1 space-y-3 overflow-auto p-3">
+      {/* Editorial panel header — gives the right column a real frame
+          instead of starting cold on the first reference card. */}
+      <header className="flex items-center justify-between gap-2 border-b border-border/60 bg-card/60 px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <BookMarked aria-hidden="true" className="h-4 w-4 text-accent" />
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Referanslar
+          </span>
+          <span className="font-mono text-[13px] font-bold tabular-nums text-foreground">
+            {refs.length}
+          </span>
+        </div>
+        {hasAnnotation && isCompleted && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-success">
+            <Check className="h-3.5 w-3.5" /> Tamamlandı
+          </span>
+        )}
+      </header>
+      <div className="flex-1 space-y-4 overflow-auto p-5">
         {refs.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">
-            Henüz referans yok. &ldquo;+ Yeni Referans&rdquo; ile başlayın.
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/70 bg-card/40 px-6 py-10 text-center">
+            <span aria-hidden className="font-display text-5xl leading-none text-accent/30">
+              §
+            </span>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Henüz referans yok
+            </p>
+            <p className="text-[15px] leading-relaxed text-muted-foreground/90">
+              &ldquo;+ Yeni Referans&rdquo; ile başlayın; eklediğiniz her atıf bir kart olarak görünür.
+            </p>
+          </div>
         ) : (
           refs.map((r, i) => (
             <ReferenceCard
@@ -111,28 +137,26 @@ export function ReferencePanel({
           variant="outline"
           onClick={onAdd}
           disabled={!canEdit}
-          className="w-full"
+          className="w-full border-dashed border-accent2/40 text-accent2 hover:bg-accent2/5 hover:text-accent2 hover:border-accent2"
         >
-          <Plus className="mr-1 h-4 w-4" /> Yeni Referans
+          <Plus /> Yeni Referans
         </Button>
       </div>
       <Separator />
-      <footer className="space-y-2 p-3">
+      <footer className="space-y-3 bg-card/60 p-5">
         <div className="flex items-center justify-between">
           <DraftStatusBadge status={draftSaveStatus} />
-          {hasAnnotation && isCompleted && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-success">
-              <Check className="h-3 w-3" /> Tamamlandı
-            </span>
-          )}
         </div>
         {error && (
-          <p className="text-sm text-destructive" role="alert">
+          <p
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-[14px] font-medium text-destructive"
+            role="alert"
+          >
             {error.message}
           </p>
         )}
         {!isValid && refs.length > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="rounded-md bg-warning/10 px-3 py-2 text-[13px] leading-relaxed text-foreground/80 border border-warning/25">
             Her referans için <strong>Metinden Alıntı</strong> ve en az bir tane{' '}
             <strong>Kanun No</strong> veya <strong>Kanun Adı</strong> doldurulmalı.
           </p>
