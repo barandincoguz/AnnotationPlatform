@@ -18,6 +18,7 @@ from pathlib import Path
 
 from backend import config
 from backend.shared.db import connect
+from backend.shared import audit
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
 
@@ -49,16 +50,13 @@ def cmd_promote_admin(args) -> int:
             "UPDATE users SET role='admin', updated_at=? WHERE id=?",
             (datetime.now(timezone.utc).isoformat(), row["id"]),
         )
-        conn.execute(
-            """
-            INSERT INTO admin_audit_log(admin_user_id, action_type, target_kind, target_id, metadata_json, created_at)
-            VALUES (?, 'promote_admin_cli', 'user', ?, ?, ?)
-            """,
-            (
-                row["id"], str(row["id"]),
-                '{"source":"cli"}',
-                datetime.now(timezone.utc).isoformat(),
-            ),
+        audit.log_admin_action(
+            conn,
+            admin_user_id=None,
+            action_type="promote_admin_cli",
+            target_kind="user",
+            target_id=str(row["id"]),
+            metadata={"source": "cli"},
         )
     finally:
         conn.close()
@@ -90,16 +88,13 @@ def cmd_demote_admin(args) -> int:
             "UPDATE users SET role='user', updated_at=? WHERE id=?",
             (datetime.now(timezone.utc).isoformat(), row["id"]),
         )
-        conn.execute(
-            """
-            INSERT INTO admin_audit_log(admin_user_id, action_type, target_kind, target_id, metadata_json, created_at)
-            VALUES (?, 'demote_admin_cli', 'user', ?, ?, ?)
-            """,
-            (
-                row["id"], str(row["id"]),
-                '{"source":"cli"}',
-                datetime.now(timezone.utc).isoformat(),
-            ),
+        audit.log_admin_action(
+            conn,
+            admin_user_id=None,
+            action_type="demote_admin_cli",
+            target_kind="user",
+            target_id=str(row["id"]),
+            metadata={"source": "cli"},
         )
     finally:
         conn.close()
