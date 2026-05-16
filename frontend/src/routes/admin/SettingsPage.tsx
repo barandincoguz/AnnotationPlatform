@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -63,14 +64,34 @@ function SettingCard({ k, serverValue }: CardProps) {
 
 export function SettingsPage() {
   const q = useSettings()
-  if (q.isLoading) return <div>Yükleniyor...</div>
-  if (q.isError || !q.data) return <div>Ayarlar alınamadı</div>
+  if (q.isLoading) return (
+    <div className="flex items-center gap-3 rounded-md border border-border/60 bg-card/40 px-4 py-6 text-sm text-muted-foreground">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+      Yükleniyor…
+    </div>
+  )
+  if (q.isError || !q.data) return (
+    <div className="flex items-center gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+      <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+      Ayarlar alınamadı
+    </div>
+  )
   const grouped = groupByPrefix(q.data)
   const prefixes = Object.keys(grouped)
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Runtime Settings</h1>
+      <div className="mb-6 space-y-1">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Platform · Settings
+        </p>
+        <h1 className="font-display text-3xl font-medium tracking-tight">
+          Runtime Settings
+        </h1>
+        <p className="text-sm text-muted-foreground max-w-prose">
+          View and update live configuration values for the platform.
+        </p>
+      </div>
       {prefixes.map((p) => (
         <section key={p} className="space-y-2">
           <h2 className="text-lg font-medium">{p}</h2>

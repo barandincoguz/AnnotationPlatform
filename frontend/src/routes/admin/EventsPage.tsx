@@ -55,8 +55,18 @@ export function EventsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">System Events</h1>
-      <div className="flex flex-wrap items-end gap-2 rounded border p-3">
+      <div className="mb-6 space-y-1">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Operations · Events
+        </p>
+        <h1 className="font-display text-3xl font-medium tracking-tight">
+          System Events
+        </h1>
+        <p className="text-sm text-muted-foreground max-w-prose">
+          Structured event stream for training, scoring, and system lifecycle activity.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border/70 bg-card/40 p-4">
         <div className="flex flex-col">
           <span className="mb-1 text-xs text-muted-foreground">Tarih</span>
           <DateRangePicker value={dateRange} onChange={(v) => { setDateRange(v); setOffset(0) }} />

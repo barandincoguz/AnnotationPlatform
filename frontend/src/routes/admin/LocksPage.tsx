@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TypedConfirmDialog } from '@/components/admin/TypedConfirmDialog'
@@ -37,7 +38,17 @@ export function LocksPage() {
 
   return (
     <div className="max-w-md space-y-4">
-      <h1 className="text-2xl font-semibold">Document Lock Force-Release</h1>
+      <div className="mb-6 space-y-1">
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Operations · Locks
+        </p>
+        <h1 className="font-display text-3xl font-medium tracking-tight">
+          Force-release Lock
+        </h1>
+        <p className="text-sm text-muted-foreground max-w-prose">
+          Forcibly remove an active document lock held by any user.
+        </p>
+      </div>
       <div className="rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">
         ⚠ Bu işlem geri alınamaz. Lock&apos;u tutan kullanıcının kaydedilmemiş değişiklikleri kaybolabilir.
       </div>
@@ -47,6 +58,14 @@ export function LocksPage() {
           value={docIdText} onChange={(e) => setDocIdText(e.target.value)} />
       </div>
       <Button variant="destructive" onClick={onOpen}>Kilidi Aç</Button>
+      {release.isError && (
+        <div className="flex items-center gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+          {(release.error as { status?: number })?.status === 404
+            ? 'Kayıt bulunamadı — lock mevcut değil.'
+            : 'İşlem başarısız oldu, lütfen tekrar deneyin.'}
+        </div>
+      )}
       <TypedConfirmDialog
         open={dialogOpen}
         title="Lock'u zorla aç"
