@@ -63,6 +63,8 @@ export function makeDocumentDetail(overrides: Partial<DocumentDetail> = {}): Doc
     created_at: '2026-05-01T00:00:00+00:00',
     pdf_text: 'Sahte fatura düzenlediği iddia edilen yükümlü hakkında...',
     html_text: null,
+    kanun_refs: [],
+    bkk_refs: [],
     ...overrides,
   } satisfies DocumentDetail
 }

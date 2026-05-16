@@ -113,9 +113,28 @@ def list_documents(db: sqlite3.Connection) -> list[dict]:
 
 
 def get_document(db: sqlite3.Connection, document_id: str) -> Optional[dict]:
+    """Return a document's full meta row plus its kanun + bkk reference
+    lists (joined and ordered by ingest seq)."""
     row = db.execute(
         "SELECT * FROM documents_meta WHERE document_id=?", (document_id,)
     ).fetchone()
     if row is None:
         return None
-    return dict(row)
+    out = dict(row)
+    out["kanun_refs"] = [
+        dict(r)
+        for r in db.execute(
+            "SELECT seq, kanun_kodu, kanun_maddesi, kanun_maddesi_turu "
+            "FROM document_kanun_refs WHERE document_id=? ORDER BY seq ASC",
+            (document_id,),
+        ).fetchall()
+    ]
+    out["bkk_refs"] = [
+        dict(r)
+        for r in db.execute(
+            "SELECT seq, turu, kanun_kodu, madde_no "
+            "FROM document_bkk_refs WHERE document_id=? ORDER BY seq ASC",
+            (document_id,),
+        ).fetchall()
+    ]
+    return out
