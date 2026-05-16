@@ -81,7 +81,7 @@ def log_behavioral(
 
 def log_admin_action(
     conn: sqlite3.Connection,
-    admin_user_id: int,
+    admin_user_id: Optional[int],
     action_type: str,
     *,
     target_kind: Optional[str] = None,
