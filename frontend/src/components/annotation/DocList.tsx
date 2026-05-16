@@ -4,7 +4,10 @@ import { useFeed, type FeedTab } from '@/hooks/useFeed'
 import { DocListItem } from './DocListItem'
 import { EmptyState } from '@/components/shell/EmptyState'
 
-const ROW_HEIGHT_ESTIMATE = 110
+// 4c: rows grew by ~16px after padding/text bumps; updated estimate so
+// the virtualizer's first render allocates close to the true height
+// (the measureElement ref re-corrects per-row regardless).
+const ROW_HEIGHT_ESTIMATE = 128
 
 // jsdom has no layout engine, so @tanstack/react-virtual reports an
 // empty getVirtualItems() and rows never mount. The plan explicitly
