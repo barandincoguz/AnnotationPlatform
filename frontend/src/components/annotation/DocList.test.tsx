@@ -20,8 +20,10 @@ describe('DocList', () => {
       ),
     )
     renderWithProviders(<DocList tab="new" selectedId={null} onSelectDoc={vi.fn()} />)
-    await waitFor(() => expect(screen.getByText(/№\s*1/)).toBeInTheDocument())
-    expect(screen.getByText(/№\s*2/)).toBeInTheDocument()
+    // List rows now lead with document_id (evrakOid) instead of the
+    // dropped per-year sayi.
+    await waitFor(() => expect(screen.getByText('doc-a')).toBeInTheDocument())
+    expect(screen.getByText('doc-b')).toBeInTheDocument()
   })
 
   it('shows empty state when feed is empty', async () => {

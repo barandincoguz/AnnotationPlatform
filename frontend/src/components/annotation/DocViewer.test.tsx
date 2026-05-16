@@ -13,7 +13,6 @@ describe('DocViewer', () => {
         HttpResponse.json(
           makeDocumentDetail({
             document_id: 'doc-1',
-            sayi: 9999,
             tarih: '2025-05-22',
             vergi_turu: 'ÖTV',
             pdf_text: 'BELGE GÖVDESİ İÇERİĞİ',
@@ -22,7 +21,8 @@ describe('DocViewer', () => {
       ),
     )
     renderWithProviders(<DocViewer docId="doc-1" />)
-    await waitFor(() => expect(screen.getByText(/9999/)).toBeInTheDocument())
+    // Header now leads with document_id; sayi is no longer rendered.
+    await waitFor(() => expect(screen.getByText('doc-1')).toBeInTheDocument())
     expect(screen.getByText(/ÖTV/i)).toBeInTheDocument()
     expect(screen.getByText(/BELGE GÖVDESİ/i)).toBeInTheDocument()
   })

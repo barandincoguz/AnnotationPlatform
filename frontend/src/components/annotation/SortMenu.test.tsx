@@ -15,7 +15,7 @@ describe('SortMenu', () => {
     )
     await user.click(screen.getByRole('button', { name: /sıralama/i }))
     expect(await screen.findByText('Tarih')).toBeInTheDocument()
-    expect(screen.getByText('Sayı (№)')).toBeInTheDocument()
+    expect(screen.getByText('Konu')).toBeInTheDocument()
     expect(screen.getByText('Konu')).toBeInTheDocument()
     expect(screen.getByText(/karıştır/i)).toBeInTheDocument()
   })
@@ -31,8 +31,8 @@ describe('SortMenu', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /sıralama/i }))
-    await user.click(await screen.findByText('Sayı (№)'))
-    expect(onChange).toHaveBeenCalledWith({ by: 'sayi', order: 'desc' })
+    await user.click(await screen.findByText('Konu'))
+    expect(onChange).toHaveBeenCalledWith({ by: 'konu', order: 'desc' })
   })
 
   it('clicking the active key toggles direction', async () => {

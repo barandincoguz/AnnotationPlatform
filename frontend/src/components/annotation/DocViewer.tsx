@@ -144,18 +144,15 @@ function Header({ d }: { d: DocumentDetail }) {
   return (
     <header className="space-y-3 border-b border-border/60 bg-card/60 px-5 py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div className="space-y-0.5">
-          <div className="font-display text-2xl font-bold leading-none tracking-tight text-foreground">
-            № {d.sayi ?? '—'}
+        <div className="space-y-1">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Doküman Kimliği
           </div>
-          <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            ID:{' '}
-            <span
-              className="font-semibold text-foreground/80 select-all"
-              title="Doküman kimliği (evrakOid)"
-            >
-              {d.document_id}
-            </span>
+          <div
+            title="Doküman kimliği (evrakOid)"
+            className="font-mono text-xl font-bold leading-none tracking-tight text-foreground select-all"
+          >
+            {d.document_id}
           </div>
         </div>
         <div className="flex items-center gap-2">

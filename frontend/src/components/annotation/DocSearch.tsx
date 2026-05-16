@@ -44,7 +44,7 @@ export function DocSearch({ className }: DocSearchProps) {
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Doc № veya ID ara…"
+          placeholder="Doküman ID ara…"
           aria-label="Doküman ID"
           className="h-10 pl-9 font-mono text-[14px]"
           spellCheck={false}
