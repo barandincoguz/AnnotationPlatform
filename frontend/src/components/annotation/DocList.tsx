@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useFeed, type FeedTab } from '@/hooks/useFeed'
 import { useAnnotateStore } from '@/stores/annotateStore'
@@ -37,15 +37,29 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
     overscan: 4,
   })
 
+  // Pull just the methods/flags this effect actually reads. Depending
+  // on the whole `feed` object caused the effect to fire on every
+  // render (TanStack returns a fresh wrapper each tick), defeating the
+  // intent of the dependency array. `fetchNextPage` is referentially
+  // stable on TanStack v5.
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed
   useEffect(() => {
     if (IS_TEST) return
     const virtualItems = virtualizer.getVirtualItems()
     const last = virtualItems[virtualItems.length - 1]
     if (!last) return
-    if (last.index >= items.length - 10 && feed.hasNextPage && !feed.isFetchingNextPage) {
-      void feed.fetchNextPage()
+    if (last.index >= items.length - 10 && hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage()
     }
-  }, [virtualizer, items.length, feed])
+  }, [virtualizer, items.length, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // Stable handler so memoized DocListItem children don't bust their
+  // memo on every parent re-render. Reading docId off the event target
+  // keeps the closure dependency empty.
+  const handleSelect = useCallback(
+    (docId: string) => onSelectDoc(docId),
+    [onSelectDoc],
+  )
 
   if (feed.isPending) {
     return <div className="p-4 text-sm text-muted-foreground">Yükleniyor…</div>
@@ -68,7 +82,7 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
             key={item.document_id}
             item={item}
             isSelected={selectedId === item.document_id}
-            onClick={() => onSelectDoc(item.document_id)}
+            onClick={handleSelect}
           />
         ))}
       </div>
@@ -102,7 +116,7 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
               <DocListItem
                 item={item}
                 isSelected={selectedId === item.document_id}
-                onClick={() => onSelectDoc(item.document_id)}
+                onClick={handleSelect}
               />
             </div>
           )

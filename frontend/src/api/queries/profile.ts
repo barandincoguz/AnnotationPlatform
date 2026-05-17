@@ -14,8 +14,14 @@ export function useProfile() {
       const raw = await unwrap(await client.GET('/api/me/profile'))
       return profileResponseSchema.parse(raw)
     },
-    staleTime: 5_000,
-    refetchOnWindowFocus: true,
+    // Profile data (XP, streak, daily target, badges) doesn't change
+    // every few seconds; SSE invalidates on real mutations
+    // (`activity_seen`, `badge_unlocked`). Drop refetchOnWindowFocus
+    // here — the prior config triggered a 3-fetch thunder on every
+    // tab-return (profile + online_users + notifications). Reconnect
+    // refetch is kept; it's the actual "we may have missed an event"
+    // signal.
+    staleTime: 30_000,
     refetchOnReconnect: true,
   })
 }

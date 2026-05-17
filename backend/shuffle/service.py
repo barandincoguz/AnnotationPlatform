@@ -38,6 +38,7 @@ via GET /api/documents/{id}.
 """
 import random
 import sqlite3
+from typing import Optional
 from datetime import datetime, timezone
 
 
@@ -251,8 +252,20 @@ def list_feed(
 
     order_by = _build_order_by(tab=tab, sort=resolved_sort, order=resolved_order)
     page_sql = f"SELECT {columns} {from_where} {order_by} LIMIT ? OFFSET ?"
-    count_sql = f"SELECT COUNT(*) {from_where}"
     rows = db.execute(page_sql, (limit, offset)).fetchall()
-    total = db.execute(count_sql).fetchone()[0]
     items = [row_mapper(r) for r in rows]
+    # COUNT(*) over the new-tab anti-join (~17.9k rows, no covering
+    # index on `a.document_id IS NULL`) is the single most expensive
+    # scan in this service. The frontend's `useInfiniteQuery` only uses
+    # `total` from page 0 to drive `getNextPageParam`; subsequent pages
+    # don't need it. Returning `None` for offset > 0 collapses N COUNT
+    # executions to 1 across a full scroll (worst-case 360 → 1 for the
+    # 17.9k-doc new tab). The frontend treats `None` as "use last known
+    # total" — see frontend/src/api/queries/feed.ts.
+    if offset == 0:
+        total: Optional[int] = db.execute(
+            f"SELECT COUNT(*) {from_where}"
+        ).fetchone()[0]
+    else:
+        total = None
     return {"items": items, "total": total}

@@ -22,8 +22,14 @@ export function useUnreadNotifications() {
       return notificationsListSchema.parse(raw)
     },
     staleTime: 5_000,
-    // Codex BROKEN-E: SSE drops leave indefinite stale state without polling.
-    refetchInterval: 30_000,
+    // SSE drops would leave indefinite stale state without polling, but the
+    // 30s cadence + windowFocus refetch + same-key refetch on every
+    // notification mutation produced a ~3 req/min idle baseline AND a
+    // 3-fetch thunder on every tab-return (paired with useProfile +
+    // useOnlineUsers). Doubled to 60s — humans don't notice the extra
+    // 30s of staleness on a chat-style notification surface, and the
+    // SSE channel still invalidates immediately on real events.
+    refetchInterval: 60_000,
   })
 }
 

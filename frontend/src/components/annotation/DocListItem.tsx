@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { CheckCircle2, CircleDashed, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AttributionLabel } from './AttributionLabel'
@@ -8,7 +9,13 @@ type FeedItem = components['schemas']['FeedItem']
 interface DocListItemProps {
   item: FeedItem
   isSelected: boolean
-  onClick: () => void
+  // Parent passes a stable `(docId: string) => void`; the row passes
+  // its own document_id back, so the closure on the button stays
+  // referentially stable across re-renders. This pairs with the
+  // `React.memo` wrapper below to keep the virtualized window from
+  // re-rendering every visible row on any parent state tick (SSE
+  // invalidations are the hottest source).
+  onClick: (docId: string) => void
 }
 
 function StatusIcon({ item }: { item: FeedItem }) {
@@ -39,11 +46,11 @@ function StatusIcon({ item }: { item: FeedItem }) {
   )
 }
 
-export function DocListItem({ item, isSelected, onClick }: DocListItemProps) {
+function DocListItemImpl({ item, isSelected, onClick }: DocListItemProps) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onClick(item.document_id)}
       className={cn(
         'group relative flex w-full flex-col gap-2 border-b border-border/60 px-5 py-4 text-left transition-colors',
         'hover:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/80',
@@ -91,3 +98,11 @@ export function DocListItem({ item, isSelected, onClick }: DocListItemProps) {
     </button>
   )
 }
+
+// React.memo on the row keeps the virtualized window from re-rendering
+// every visible row when the parent rerenders without changing per-row
+// props (e.g. SSE invalidates the feed, the items array gets a new
+// reference but the underlying rows are equal). With the stable
+// onClick contract above, default props equality is sufficient — no
+// custom areEqual needed.
+export const DocListItem = memo(DocListItemImpl)

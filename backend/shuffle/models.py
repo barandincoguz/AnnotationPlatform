@@ -23,4 +23,9 @@ class FeedItem(BaseModel):
 
 class FeedResponse(BaseModel):
     items: list[FeedItem]
-    total: int
+    # Total is returned ONLY on page 0 (offset=0). Page 1+ omits it
+    # because COUNT(*) over the new-tab anti-join is the most expensive
+    # scan in this service and the frontend's `useInfiniteQuery` only
+    # consults page 0's total via getNextPageParam. Optional[int] keeps
+    # the OpenAPI contract honest about the new shape.
+    total: Optional[int] = None
