@@ -359,7 +359,21 @@ def set_complete(
       * Legacy path (references=None) requires an existing annotation
         row; AnnotationNotFound otherwise.
       * Atomic path tolerates a missing annotation row — the embedded
-        save creates it before the flag flip.
+        save creates the annotation in this call (chain invariant
+        preserved by writing both 'create' and 'complete_mark' version
+        rows).
+
+    Returns a dict carrying enough information for the route layer to
+    decide which side effects to fire (annotation_saved SSE + behavioral
+    + run_after_save; annotation_completed SSE + run_after_complete):
+        {
+            "is_completed": bool,              # final state
+            "changed": bool,                   # flag transitioned this call
+            "did_save": bool,                  # atomic path ran a save
+            "save_action": Optional[str],      # 'create' | 'edit' for SSE
+            "save_is_diff_zero": Optional[bool],
+            "save_ref_count": Optional[int],
+        }
 
     Raises AnnotationNotFound, DocumentNotFound, LockOwnedByOther.
     """
@@ -370,22 +384,12 @@ def set_complete(
     if not _document_exists(db, document_id):
         raise DocumentNotFound(document_id)
 
-    # Pre-txn idempotence shortcut: pure flag toggle to the same state
-    # with no refs to save → no-op without entering BEGIN IMMEDIATE.
-    # Mirrors the legacy fast path so concurrent same-state pokes don't
-    # pile up empty transactions on the write lock.
-    cur_pre = db.execute(
-        "SELECT is_completed FROM annotations WHERE document_id=?",
-        (document_id,),
-    ).fetchone()
-    if references is None and cur_pre is None:
-        raise AnnotationNotFound(document_id)
-    if references is None and bool(cur_pre["is_completed"]) == completed:
-        return {"is_completed": completed}
-
-    # B1: Same ownership guard as save_annotation — reject if a different
-    # user currently holds the lock. (Pre-txn check; final safety comes
-    # from BEGIN IMMEDIATE serializing writers.)
+    # Pre-txn lock check (early reject; real safety comes from BEGIN
+    # IMMEDIATE serializing writers). The idempotence + AnnotationNotFound
+    # checks now live INSIDE BEGIN IMMEDIATE — without that, a concurrent
+    # writer could change `is_completed` between a pre-txn read and the
+    # BEGIN, letting this caller write a duplicate `complete_mark` /
+    # `uncomplete` version for an already-applied state.
     _active = locks_service.get_lock(db, document_id)
     if _active is not None and _active["user_id"] != user_id:
         raise LockOwnedByOther(document_id)
@@ -393,40 +397,28 @@ def set_complete(
     now = _now()
     db.execute("BEGIN IMMEDIATE")
     try:
-        if references is not None:
-            # Atomic save+complete. `_apply_save_inside_txn` upserts the
-            # annotations row (creating it if absent) and writes a
-            # single version row tagged 'complete_mark' carrying the
-            # final refs + the diff vs. the prior committed state.
-            save_result = _apply_save_inside_txn(
-                db,
-                document_id=document_id,
-                user_id=user_id,
-                references=references,
-                now=now,
-                action_override="complete_mark",
-            )
-            db.execute(
-                "UPDATE annotations SET is_completed=1, completed_by_user_id=?, "
-                "updated_at=? WHERE document_id=?",
-                (user_id, now, document_id),
-            )
-            audit_action = "complete_mark"
-            audit_extra: Optional[dict] = {
-                "atomic": True,
-                "is_diff_zero": save_result["is_diff_zero"],
-                "ref_count": len(save_result["cleaned"]),
-                "added_count": len(save_result["diff"]["added"]),
-                "removed_count": len(save_result["diff"]["removed"]),
-            }
-        else:
-            # Legacy flag-flip-only path. cur_pre is non-None here (the
-            # AnnotationNotFound branch above would have raised), and
-            # the state actually differs (idempotent branch returned).
-            cur = db.execute(
-                "SELECT references_json FROM annotations WHERE document_id=?",
-                (document_id,),
-            ).fetchone()
+        cur = db.execute(
+            "SELECT references_json, is_completed FROM annotations WHERE document_id=?",
+            (document_id,),
+        ).fetchone()
+
+        if references is None:
+            # Legacy flag-flip-only path.
+            if cur is None:
+                raise AnnotationNotFound(document_id)
+            was_completed = bool(cur["is_completed"])
+            if was_completed == completed:
+                # Idempotent same-state poke — COMMIT empty so the
+                # outer try/except still releases via the normal path.
+                db.execute("COMMIT")
+                return {
+                    "is_completed": completed,
+                    "changed": False,
+                    "did_save": False,
+                    "save_action": None,
+                    "save_is_diff_zero": None,
+                    "save_ref_count": None,
+                }
             audit_action = "complete_mark" if completed else "uncomplete"
             db.execute(
                 """
@@ -453,7 +445,90 @@ def set_complete(
                     "updated_at=? WHERE document_id=?",
                     (now, document_id),
                 )
-            audit_extra = None
+            changed = True
+            did_save = False
+            save_action_ret: Optional[str] = None
+            save_diff_zero: Optional[bool] = None
+            save_ref_count: Optional[int] = None
+            audit_extra: Optional[dict] = None
+        else:
+            # Atomic save+complete path. `_apply_save_inside_txn` upserts
+            # the annotations row (creating it if absent) and writes one
+            # version row whose action depends on what we're really doing:
+            #   is_new          → 'create'        (then ALSO write 'complete_mark')
+            #   becoming-done   → 'complete_mark' (single row carries refs + diff)
+            #   already-done    → 'edit'          (refs edit on a completed doc;
+            #                                      flag stays True, no transition)
+            is_new = cur is None
+            was_completed = bool(cur["is_completed"]) if cur is not None else False
+            if is_new:
+                save_action_label = "create"
+            elif was_completed:
+                save_action_label = "edit"
+            else:
+                save_action_label = "complete_mark"
+
+            save_result = _apply_save_inside_txn(
+                db,
+                document_id=document_id,
+                user_id=user_id,
+                references=references,
+                now=now,
+                action_override=save_action_label,
+            )
+
+            if is_new:
+                # Chain invariant: every completed annotation must have
+                # at least one 'complete_mark' version. With the
+                # 'create' row above carrying the refs, we add a
+                # zero-diff 'complete_mark' to mark the transition.
+                db.execute(
+                    """
+                    INSERT INTO annotation_versions(
+                        document_id, user_id, references_json, diff_from_previous,
+                        is_diff_zero, action, created_at
+                    ) VALUES (?, ?, ?, ?, 1, ?, ?)
+                    """,
+                    (
+                        document_id, user_id, json.dumps(save_result["cleaned"]),
+                        json.dumps({"added": [], "removed": []}),
+                        "complete_mark", now,
+                    ),
+                )
+
+            # Update flag — idempotent UPDATE when already_completed.
+            if not was_completed:
+                db.execute(
+                    "UPDATE annotations SET is_completed=1, completed_by_user_id=?, "
+                    "updated_at=? WHERE document_id=?",
+                    (user_id, now, document_id),
+                )
+
+            changed = not was_completed
+            did_save = True
+            # `save_action` is what the route uses to broadcast the
+            # save SSE — frontend treats 'create' and 'edit' equally
+            # for save attribution. is_new → 'create'; otherwise 'edit'
+            # (this is the action consumers expect to see, even when
+            # the version row itself was tagged 'complete_mark').
+            save_action_ret = "create" if is_new else "edit"
+            save_diff_zero = save_result["is_diff_zero"]
+            save_ref_count = len(save_result["cleaned"])
+            # Audit log distinguishes a real transition from an edit
+            # on an already-completed doc — different operational
+            # meaning (compliance/throughput stats).
+            if changed:
+                audit_action = "complete_mark"
+            else:
+                audit_action = "annotation_save"
+            audit_extra = {
+                "atomic": True,
+                "is_diff_zero": save_diff_zero,
+                "ref_count": save_ref_count,
+                "added_count": len(save_result["diff"]["added"]),
+                "removed_count": len(save_result["diff"]["removed"]),
+                "first_time": is_new,
+            }
 
         locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
@@ -465,4 +540,11 @@ def set_complete(
     except Exception:
         db.execute("ROLLBACK")
         raise
-    return {"is_completed": completed}
+    return {
+        "is_completed": completed,
+        "changed": changed,
+        "did_save": did_save,
+        "save_action": save_action_ret,
+        "save_is_diff_zero": save_diff_zero,
+        "save_ref_count": save_ref_count,
+    }

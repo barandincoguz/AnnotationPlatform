@@ -140,16 +140,24 @@ async def complete(
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
-    """Toggle is_completed on the annotation. Broadcasts annotation_completed
-    and runs the gamification orchestrator (XP + first_completion badge on
-    completed=True; uncomplete is a clamp — no decrement) only when the
-    state actually changes (idempotent same-state toggle is silent). 404 if
-    no annotation row. Publish and orchestrator errors are logged and
-    swallowed."""
-    # Read prior state so we know whether this is a real toggle or a no-op
-    prior = service.get_annotation(db, document_id)
-    will_change = prior is not None and prior["is_completed"] != payload.completed
+    """Toggle is_completed on the annotation, optionally saving refs atomically.
 
+    Side effects driven from the service's transaction-committed result:
+      * `did_save` (atomic path persisted refs) → broadcast annotation_saved,
+        run behavioral detectors + gamification.run_after_save (XP, streak,
+        badges) — same surface as the dedicated /annotations save route.
+      * `changed` (flag transitioned this call) → broadcast annotation_completed,
+        run gamification.run_after_complete (XP + first_completion on True;
+        uncomplete is a clamp — no decrement).
+
+    Pre-Phase-2 the route read `service.get_annotation` BEFORE calling
+    `set_complete` to derive a `will_change` flag. That left first-time
+    atomic completes (annotation didn't exist yet) firing zero side
+    effects because `prior is None`. The service now returns committed
+    facts and the route stops second-guessing them. 404 if no annotation
+    row AND no refs to create one. Publish, detector, and orchestrator
+    errors are logged and swallowed.
+    """
     # Pass refs through when the caller is doing an atomic save+complete
     # (Phase 2). Convert Pydantic ReferenceItem → dicts to match the
     # service's plain-dict contract. `None` preserves the legacy
@@ -161,7 +169,7 @@ async def complete(
     )
 
     try:
-        service.set_complete(
+        result = service.set_complete(
             db, document_id=document_id, user_id=user["id"],
             completed=payload.completed,
             references=refs_payload,
@@ -176,8 +184,53 @@ async def complete(
         )
     except service.AnnotationNotFound:
         raise HTTPException(status_code=404, detail=f"no annotation for {document_id}")
+    except service.DocumentNotFound:
+        raise HTTPException(status_code=404, detail=f"document {document_id} not found")
 
-    if will_change:
+    # Save-side effects: fire whenever refs were committed in this call.
+    if result["did_save"]:
+        try:
+            await sse_broker.publish_broadcast(
+                "annotation_saved",
+                {
+                    "document_id": document_id,
+                    "user_id": user["id"],
+                    "username": user["username"],
+                    "action": result["save_action"],
+                    "is_diff_zero": result["save_is_diff_zero"],
+                    "ref_count": result["save_ref_count"],
+                },
+            )
+        except Exception:
+            log.exception("publish annotation_saved failed for %s", document_id)
+        try:
+            # behavioral.run_after_save reads the final refs out of the
+            # DB; pass refs_payload so it doesn't have to re-query.
+            # `refs_payload` is non-None here because did_save implies
+            # references were passed in.
+            await behavioral_service.run_after_save(
+                db,
+                user_id=user["id"],
+                username=user["username"],
+                references=refs_payload or [],
+            )
+        except Exception:
+            log.exception("behavioral.run_after_save failed for %s", document_id)
+        try:
+            await gamification_service.run_after_save(
+                db,
+                user_id=user["id"],
+                username=user["username"],
+                action=result["save_action"] or "edit",
+                is_diff_zero=bool(result["save_is_diff_zero"]),
+                document_id=document_id,
+            )
+        except Exception:
+            log.exception("gamification.run_after_save failed for %s", document_id)
+
+    # Complete-side effects: fire only on real flag transitions
+    # (committed-state truth from the service).
+    if result["changed"]:
         try:
             await sse_broker.publish_broadcast(
                 "annotation_completed",
