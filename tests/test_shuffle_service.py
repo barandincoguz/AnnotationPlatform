@@ -153,7 +153,10 @@ def test_pagination_limits_results(db):
 
 
 def test_pagination_offset_skips(db):
-    """offset advances the page; total still reflects the full count."""
+    """offset advances the page; total is returned ONLY on page 0
+    (polish-phase P3 — COUNT(*) is too expensive to run per-page on
+    the new-tab anti-join). Page 1+ returns total=None; the frontend
+    locks onto allPages[0].total via getNextPageParam."""
     page1 = shuffle_service.list_feed(db, user_id=1, tab="new", limit=2, offset=0)
     page2 = shuffle_service.list_feed(db, user_id=1, tab="new", limit=2, offset=2)
     page1_ids = {i["document_id"] for i in page1["items"]}
@@ -161,13 +164,15 @@ def test_pagination_offset_skips(db):
     assert page1_ids.isdisjoint(page2_ids)
     assert len(page1["items"]) == 2
     assert len(page2["items"]) == 2
-    assert page1["total"] == page2["total"] == 5
+    assert page1["total"] == 5
+    assert page2["total"] is None
 
 
 def test_pagination_offset_past_end_returns_empty(db):
     result = shuffle_service.list_feed(db, user_id=1, tab="new", limit=10, offset=99)
     assert result["items"] == []
-    assert result["total"] == 5
+    # offset > 0 → total elided (see polish-phase P3 comment above).
+    assert result["total"] is None
 
 
 def test_pagination_caps_limit_to_max(db):

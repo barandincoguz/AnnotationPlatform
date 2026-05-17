@@ -15,7 +15,11 @@ export function useOnlineUsers() {
       return onlineUsersSchema.parse(raw)
     },
     staleTime: 30_000,
-    // Codex BROKEN-D: SSE drops can leave indefinite stale state.
-    refetchInterval: 30_000,
+    // SSE invalidates this query on `user_online`/`user_offline`
+    // events, so polling is belt-and-suspenders against SSE drops.
+    // Bumped 30s → 60s to halve the idle baseline; the existing
+    // SSE reconnect path still refetches immediately when the
+    // channel comes back, so a real drop is bounded by that round-trip.
+    refetchInterval: 60_000,
   })
 }

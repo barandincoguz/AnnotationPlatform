@@ -60,7 +60,12 @@ def test_feed_pagination(passed_user, ingest_doc):
 
     all_ids = {i["document_id"] for page in (page1, page2, page3) for i in page["items"]}
     assert all_ids == {f"doc_p{i}" for i in range(1, 6)}
-    assert page1["total"] == page2["total"] == page3["total"] == 5
+    # Total is returned only on page 0 (polish-phase P3 — COUNT(*) is
+    # the hottest scan in shuffle/service.py; pages 1+ elide it and
+    # the frontend locks onto allPages[0].total).
+    assert page1["total"] == 5
+    assert page2["total"] is None
+    assert page3["total"] is None
     assert len(page1["items"]) == 2
     assert len(page2["items"]) == 2
     assert len(page3["items"]) == 1

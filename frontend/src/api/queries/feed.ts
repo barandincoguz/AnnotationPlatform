@@ -46,9 +46,16 @@ export function useFeedInfinite(tab: FeedTab, sort: FeedSort) {
         }),
       ),
     initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (_lastPage, allPages) => {
+      // The backend now only computes `total` on page 0 (it's the most
+      // expensive scan in shuffle/service.py, see polish-phase fix P3),
+      // so we lock onto allPages[0].total as the authoritative count
+      // and consult it on every page transition. Tolerates either
+      // `null` (post-fix server) or a number (legacy / first-page).
       const loaded = allPages.flatMap((p) => p.items).length
-      return loaded < lastPage.total ? loaded : undefined
+      const total = allPages[0]?.total
+      if (typeof total !== 'number') return undefined
+      return loaded < total ? loaded : undefined
     },
     staleTime: 30_000,
   })
