@@ -290,3 +290,265 @@ def test_complete_releases_callers_lock(db):
 
     row = db.execute("SELECT * FROM document_locks WHERE document_id=?", ("doc_1",)).fetchone()
     assert row is None
+
+
+# === Phase 2: atomic save+complete + skip-draft-cleanup ===
+#
+# set_complete now accepts an optional `references` list. When supplied
+# alongside completed=True, the service runs the full save pipeline
+# AND flips the flag inside a single BEGIN IMMEDIATE — collapsing the
+# frontend's pre-Phase-2 chain (save → complete → delete_draft) into
+# one round-trip. Legacy callers (references=None) keep the prior
+# flag-flip-only semantics.
+#
+# Constraints exercised:
+#   - completed=False + references is not None → ValueError
+#   - atomic path: refs persist, version row tagged 'complete_mark',
+#     flag flips, caller's draft is deleted, version chain coherent
+#   - lock conflict rolls back the WHOLE thing (refs and flag stay
+#     untouched)
+#   - skip_annotation deletes the caller's draft
+
+
+def _seed_draft(db, *, document_id: str, user_id: int, references: list[dict]) -> None:
+    """Insert a draft row directly via SQL — bypasses the drafts service
+    so a test can set up "user has unsaved work" without exercising the
+    save path under test."""
+    now = "2026-01-01T00:00:00+00:00"
+    db.execute(
+        "INSERT OR REPLACE INTO drafts(document_id, user_id, references_json, updated_at) "
+        "VALUES (?, ?, ?, ?)",
+        (document_id, user_id, json.dumps(references), now),
+    )
+
+
+def test_complete_with_refs_persists_and_completes_atomically(db):
+    """Atomic path: refs supplied alongside completed=True must commit
+    BOTH the refs AND the flag flip in a single transaction. The
+    annotation row holds the new refs and is_completed=1 after one call."""
+    refs = [_ref(kanun_no="193", madde="37", source_text="atif final")]
+    result = ann_service.set_complete(
+        db, document_id="doc_1", user_id=1,
+        completed=True, references=refs,
+    )
+    assert result == {"is_completed": True}
+
+    row = db.execute(
+        "SELECT * FROM annotations WHERE document_id=?", ("doc_1",)
+    ).fetchone()
+    assert row["is_completed"] == 1
+    assert row["completed_by_user_id"] == 1
+    parsed = json.loads(row["references_json"])
+    assert len(parsed) == 1
+    assert parsed[0]["source_text"] == "atif final"
+
+
+def test_complete_with_refs_writes_single_complete_mark_version(db):
+    """The atomic path must NOT produce two version rows (one 'edit',
+    one 'complete_mark'). A single 'complete_mark' carries the new refs
+    and the diff vs. prior state."""
+    # Prior state: a prior save establishes a baseline so the diff is
+    # meaningful (not just "create").
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="initial")],
+    )
+    initial_count = db.execute(
+        "SELECT COUNT(*) AS c FROM annotation_versions WHERE document_id=?",
+        ("doc_1",),
+    ).fetchone()["c"]
+
+    ann_service.set_complete(
+        db, document_id="doc_1", user_id=1,
+        completed=True,
+        references=[_ref(source_text="final")],
+    )
+
+    after_count = db.execute(
+        "SELECT COUNT(*) AS c FROM annotation_versions WHERE document_id=?",
+        ("doc_1",),
+    ).fetchone()["c"]
+    # Exactly one new version row.
+    assert after_count - initial_count == 1
+
+    last = db.execute(
+        "SELECT * FROM annotation_versions WHERE document_id=? "
+        "ORDER BY id DESC LIMIT 1",
+        ("doc_1",),
+    ).fetchone()
+    assert last["action"] == "complete_mark"
+    # And the diff captures the ref change (NOT zero).
+    assert last["is_diff_zero"] == 0
+
+
+def test_complete_with_refs_clears_caller_draft(db):
+    """Atomic path must remove the caller's draft as part of the same
+    transaction — fixes the Phase-1-era bug where a stale draft survived
+    completion and shadowed the shared annotation."""
+    _seed_draft(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="stale")],
+    )
+    ann_service.set_complete(
+        db, document_id="doc_1", user_id=1,
+        completed=True,
+        references=[_ref(source_text="final")],
+    )
+    draft = db.execute(
+        "SELECT * FROM drafts WHERE document_id=? AND user_id=?",
+        ("doc_1", 1),
+    ).fetchone()
+    assert draft is None
+
+
+def test_complete_with_refs_creates_annotation_when_absent(db):
+    """First-time atomic complete with refs — no prior annotation row —
+    must still succeed: the embedded save creates the row, then the
+    flag flips. Verifies the frontend's "skip the save step entirely"
+    flow Phase 3 will adopt."""
+    refs = [_ref(source_text="first commit")]
+    result = ann_service.set_complete(
+        db, document_id="doc_1", user_id=1,
+        completed=True, references=refs,
+    )
+    assert result == {"is_completed": True}
+
+    row = db.execute(
+        "SELECT * FROM annotations WHERE document_id=?", ("doc_1",)
+    ).fetchone()
+    assert row is not None
+    assert row["is_completed"] == 1
+    assert row["edit_count"] == 1  # is_new path bumped from 1
+    parsed = json.loads(row["references_json"])
+    assert parsed[0]["source_text"] == "first commit"
+
+
+def test_complete_with_refs_rolls_back_on_lock_conflict(db):
+    """Lock held by another user → LockOwnedByOther + NO partial state
+    written. Neither refs nor flag must have been committed."""
+    from datetime import datetime, timezone, timedelta
+
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="baseline")],
+    )
+    # bob holds an active lock; alice tries to atomic-complete.
+    now = datetime.now(timezone.utc).isoformat()
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+    db.execute(
+        "INSERT INTO document_locks(document_id, user_id, acquired_at, last_heartbeat, expires_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("doc_1", 2, now, now, expires),
+    )
+
+    with pytest.raises(ann_service.LockOwnedByOther):
+        ann_service.set_complete(
+            db, document_id="doc_1", user_id=1,
+            completed=True,
+            references=[_ref(source_text="alice's overwrite")],
+        )
+
+    # Refs untouched: still bob-less baseline content.
+    row = db.execute(
+        "SELECT * FROM annotations WHERE document_id=?", ("doc_1",)
+    ).fetchone()
+    assert row["is_completed"] == 0
+    parsed = json.loads(row["references_json"])
+    assert parsed[0]["source_text"] == "baseline"
+
+
+def test_complete_uncomplete_with_refs_raises(db):
+    """Defense in depth: the model_validator catches this at the HTTP
+    layer, but the service is callable directly. Reject the contradictory
+    combination so internal callers can't silently misbehave."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="x")],
+    )
+    ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+    with pytest.raises(ValueError):
+        ann_service.set_complete(
+            db, document_id="doc_1", user_id=1,
+            completed=False,
+            references=[_ref(source_text="y")],
+        )
+
+
+def test_complete_legacy_path_unchanged_when_refs_none(db):
+    """references=None must reproduce the pre-Phase-2 behavior exactly:
+    flag flip + 'complete_mark' version with is_diff_zero=1 and refs
+    copied from the existing annotation row (NOT changed)."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="committed")],
+    )
+    ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+
+    last = db.execute(
+        "SELECT * FROM annotation_versions WHERE document_id=? "
+        "ORDER BY id DESC LIMIT 1",
+        ("doc_1",),
+    ).fetchone()
+    assert last["action"] == "complete_mark"
+    assert last["is_diff_zero"] == 1  # legacy contract: no diff
+    parsed = json.loads(last["references_json"])
+    assert parsed[0]["source_text"] == "committed"
+
+
+def test_skip_deletes_caller_draft(db):
+    """skip_annotation now clears the caller's draft in the same
+    transaction as the lock release. Without this, a skipped doc with
+    a non-empty draft kept surfacing in the caller's Devam Eden tab
+    (any non-empty draft puts the doc there post-Phase 1)."""
+    _seed_draft(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="abandoned wip")],
+    )
+    ann_service.skip_annotation(db, document_id="doc_1", user_id=1)
+    draft = db.execute(
+        "SELECT * FROM drafts WHERE document_id=? AND user_id=?",
+        ("doc_1", 1),
+    ).fetchone()
+    assert draft is None
+
+
+def test_skip_does_not_touch_other_users_drafts(db):
+    """skip_annotation is per-caller. Bob's draft on the same doc
+    survives alice's skip."""
+    _seed_draft(
+        db, document_id="doc_1", user_id=2,
+        references=[_ref(source_text="bob's wip")],
+    )
+    ann_service.skip_annotation(db, document_id="doc_1", user_id=1)
+    bob_draft = db.execute(
+        "SELECT * FROM drafts WHERE document_id=? AND user_id=?",
+        ("doc_1", 2),
+    ).fetchone()
+    assert bob_draft is not None
+
+
+def test_complete_idempotent_with_refs_none_unchanged(db):
+    """The pre-existing idempotent shortcut still applies when
+    references=None: same-state toggle is a no-op (no new version row)."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="x")],
+    )
+    ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+
+    versions_before = db.execute(
+        "SELECT COUNT(*) AS c FROM annotation_versions WHERE document_id=? AND action=?",
+        ("doc_1", "complete_mark"),
+    ).fetchone()["c"]
+
+    # Same-state poke, refs=None → no-op.
+    result = ann_service.set_complete(
+        db, document_id="doc_1", user_id=1, completed=True
+    )
+    assert result == {"is_completed": True}
+
+    versions_after = db.execute(
+        "SELECT COUNT(*) AS c FROM annotation_versions WHERE document_id=? AND action=?",
+        ("doc_1", "complete_mark"),
+    ).fetchone()["c"]
+    assert versions_before == versions_after

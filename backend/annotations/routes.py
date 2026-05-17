@@ -1,6 +1,7 @@
 """Annotation HTTP endpoints. Auth: require_passed_training on all."""
 import logging
 import sqlite3
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -149,10 +150,21 @@ async def complete(
     prior = service.get_annotation(db, document_id)
     will_change = prior is not None and prior["is_completed"] != payload.completed
 
+    # Pass refs through when the caller is doing an atomic save+complete
+    # (Phase 2). Convert Pydantic ReferenceItem → dicts to match the
+    # service's plain-dict contract. `None` preserves the legacy
+    # flag-flip-only path.
+    refs_payload: Optional[list[dict]] = (
+        [r.model_dump() for r in payload.references]
+        if payload.references is not None
+        else None
+    )
+
     try:
         service.set_complete(
             db, document_id=document_id, user_id=user["id"],
             completed=payload.completed,
+            references=refs_payload,
         )
     except service.LockOwnedByOther:
         raise HTTPException(

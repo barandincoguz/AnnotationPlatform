@@ -1,6 +1,6 @@
 """Pydantic request/response models for annotation routes."""
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ReferenceItem(BaseModel):
@@ -60,6 +60,25 @@ class AnnotationWithChain(BaseModel):
 
 class CompleteRequest(BaseModel):
     completed: bool
+    # Optional atomic save: when `completed=True` and `references` is
+    # provided, the service persists the refs AND flips the flag inside
+    # a single BEGIN IMMEDIATE. Phase 3 frontend will populate this so
+    # `handleComplete` collapses from a 3-call chain (save → complete →
+    # delete_draft) into one round-trip. Omitting it preserves the
+    # legacy flag-flip-only behavior. Cap matches SaveAnnotationRequest
+    # so payload bounds stay consistent (~800 KB worst-case).
+    references: Optional[list[ReferenceItem]] = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _refs_only_when_completing(self) -> "CompleteRequest":
+        # `completed=False` + refs is meaningless: uncomplete reverses a
+        # prior commit, it does not freeze a new ref set. Reject at the
+        # contract boundary so the service never has to reason about
+        # this combination. The service layer still re-checks for direct
+        # callers (tests, internal code paths).
+        if self.completed is False and self.references is not None:
+            raise ValueError("references only allowed when completed=true")
+        return self
 
 
 class OkResponse(BaseModel):

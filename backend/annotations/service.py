@@ -5,7 +5,7 @@ Public API:
   get_annotation(db, document_id) -> Optional[dict]
   get_chain(db, document_id) -> list[dict]
   skip_annotation(db, document_id, user_id) -> None
-  set_complete(db, document_id, user_id, completed) -> dict
+  set_complete(db, document_id, user_id, completed, references=None) -> dict
 
 Each save is atomic:
   1. Validate references (normalize + dedupe)
@@ -17,8 +17,11 @@ Each save is atomic:
   7. Release the caller's lock if any (no-op if not held)
   8. Log activity_event 'annotation_save'
 
-skip writes only an activity_event + lock release. complete toggle creates a
-'complete_mark'/'uncomplete' version and updates the CURRENT row.
+skip writes only an activity_event + lock release + caller-draft delete.
+complete toggle creates a 'complete_mark'/'uncomplete' version and updates
+the CURRENT row. When `references` is supplied alongside `completed=True`,
+set_complete runs the full save pipeline AND flips the flag inside a single
+BEGIN IMMEDIATE — collapses the frontend's save→complete→delete_draft chain.
 """
 import json
 import sqlite3
@@ -104,6 +107,90 @@ def _count_unique_users(db: sqlite3.Connection, document_id: str) -> int:
     return row["c"]
 
 
+def _apply_save_inside_txn(
+    db: sqlite3.Connection,
+    *,
+    document_id: str,
+    user_id: int,
+    references: list[dict],
+    now: str,
+    action_override: Optional[str] = None,
+) -> dict:
+    """Persist references + write a version row + rebuild denorm + clear
+    caller's draft. Caller MUST have already executed BEGIN IMMEDIATE on
+    `db`. This helper performs NO transaction control of its own.
+
+    `action_override` lets set_complete tag the version as 'complete_mark'
+    instead of 'create'/'edit' when refs are saved as part of completing.
+    Otherwise the action is derived from the upsert path.
+
+    Returns a dict the caller uses to build audit extras:
+        {is_new, is_diff_zero, cleaned, diff, action}
+    """
+    cleaned = normalize_references(references)
+
+    cur_row = db.execute(
+        "SELECT references_json FROM annotations WHERE document_id=?",
+        (document_id,),
+    ).fetchone()
+    is_new = cur_row is None
+    prev = [] if is_new else json.loads(cur_row["references_json"])
+
+    diff = references_diff(prev, cleaned)
+    diff_zero = is_diff_zero(diff)
+    action = action_override or ("create" if is_new else "edit")
+
+    db.execute(
+        """
+        INSERT INTO annotation_versions(
+            document_id, user_id, references_json, diff_from_previous,
+            is_diff_zero, action, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            document_id, user_id, json.dumps(cleaned),
+            json.dumps(diff), 1 if diff_zero else 0, action, now,
+        ),
+    )
+
+    unique_users = _count_unique_users(db, document_id)
+    if is_new:
+        db.execute(
+            """
+            INSERT INTO annotations(
+                document_id, references_json, is_completed,
+                last_editor_user_id, edit_count, unique_users_count,
+                created_at, updated_at
+            ) VALUES (?, ?, 0, ?, 1, ?, ?, ?)
+            """,
+            (document_id, json.dumps(cleaned), user_id, unique_users, now, now),
+        )
+    else:
+        db.execute(
+            """
+            UPDATE annotations SET
+                references_json=?,
+                last_editor_user_id=?,
+                edit_count=edit_count+1,
+                unique_users_count=?,
+                updated_at=?
+            WHERE document_id=?
+            """,
+            (json.dumps(cleaned), user_id, unique_users, now, document_id),
+        )
+
+    _rebuild_denormalized(db, document_id, cleaned)
+    _delete_caller_draft(db, document_id, user_id)
+
+    return {
+        "is_new": is_new,
+        "is_diff_zero": diff_zero,
+        "cleaned": cleaned,
+        "diff": diff,
+        "action": action,
+    }
+
+
 def save_annotation(
     db: sqlite3.Connection,
     *,
@@ -126,7 +213,6 @@ def save_annotation(
     if _active is not None and _active["user_id"] != user_id:
         raise LockOwnedByOther(document_id)
 
-    cleaned = normalize_references(references)
     now = _now()
 
     # Read the prior state INSIDE the same write transaction as the
@@ -139,68 +225,23 @@ def save_annotation(
     # so the read sees the latest committed value.
     db.execute("BEGIN IMMEDIATE")
     try:
-        cur_row = db.execute(
-            "SELECT references_json FROM annotations WHERE document_id=?",
-            (document_id,),
-        ).fetchone()
-        is_new = cur_row is None
-        prev = [] if is_new else json.loads(cur_row["references_json"])
-
-        diff = references_diff(prev, cleaned)
-        diff_zero = is_diff_zero(diff)
-        action = "create" if is_new else "edit"
-        db.execute(
-            """
-            INSERT INTO annotation_versions(
-                document_id, user_id, references_json, diff_from_previous,
-                is_diff_zero, action, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                document_id, user_id, json.dumps(cleaned),
-                json.dumps(diff), 1 if diff_zero else 0, action, now,
-            ),
+        result = _apply_save_inside_txn(
+            db,
+            document_id=document_id,
+            user_id=user_id,
+            references=references,
+            now=now,
         )
-
-        unique_users = _count_unique_users(db, document_id)
-        if is_new:
-            db.execute(
-                """
-                INSERT INTO annotations(
-                    document_id, references_json, is_completed,
-                    last_editor_user_id, edit_count, unique_users_count,
-                    created_at, updated_at
-                ) VALUES (?, ?, 0, ?, 1, ?, ?, ?)
-                """,
-                (document_id, json.dumps(cleaned), user_id, unique_users, now, now),
-            )
-        else:
-            db.execute(
-                """
-                UPDATE annotations SET
-                    references_json=?,
-                    last_editor_user_id=?,
-                    edit_count=edit_count+1,
-                    unique_users_count=?,
-                    updated_at=?
-                WHERE document_id=?
-                """,
-                (json.dumps(cleaned), user_id, unique_users, now, document_id),
-            )
-
-        _rebuild_denormalized(db, document_id, cleaned)
-        _delete_caller_draft(db, document_id, user_id)
         locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
-
         audit.log_activity(
             db, user_id, "annotation_save",
             document_id=document_id,
             extra={
-                "action": action,
-                "is_diff_zero": diff_zero,
-                "ref_count": len(cleaned),
-                "added_count": len(diff["added"]),
-                "removed_count": len(diff["removed"]),
+                "action": result["action"],
+                "is_diff_zero": result["is_diff_zero"],
+                "ref_count": len(result["cleaned"]),
+                "added_count": len(result["diff"]["added"]),
+                "removed_count": len(result["diff"]["removed"]),
             },
         )
         db.execute("COMMIT")
@@ -209,9 +250,9 @@ def save_annotation(
         raise
 
     return {
-        "is_new": is_new,
-        "is_diff_zero": diff_zero,
-        "current_references": cleaned,
+        "is_new": result["is_new"],
+        "is_diff_zero": result["is_diff_zero"],
+        "current_references": result["cleaned"],
     }
 
 
@@ -271,11 +312,19 @@ def get_chain(db: sqlite3.Connection, document_id: str) -> list[dict]:
 def skip_annotation(
     db: sqlite3.Connection, *, document_id: str, user_id: int
 ) -> None:
-    """Skip = no DB row in annotations; log activity + release lock."""
+    """Skip = no DB row in annotations; clear the caller's draft, release
+    their lock, and log the skip event — all atomic.
+
+    Pre-Phase-2 the draft was left behind, which let a skipped doc still
+    surface in the caller's Devam Eden tab (any non-empty draft puts the
+    doc there). Skipping is a "drop this work" signal: matching the
+    intent requires removing the draft alongside lock release.
+    """
     if not _document_exists(db, document_id):
         raise DocumentNotFound(document_id)
     db.execute("BEGIN")
     try:
+        _delete_caller_draft(db, document_id, user_id)
         locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
             db, user_id, "annotation_skip", document_id=document_id,
@@ -287,59 +336,130 @@ def skip_annotation(
 
 
 def set_complete(
-    db: sqlite3.Connection, *, document_id: str, user_id: int, completed: bool
+    db: sqlite3.Connection,
+    *,
+    document_id: str,
+    user_id: int,
+    completed: bool,
+    references: Optional[list[dict]] = None,
 ) -> dict:
     """Toggle is_completed. Writes a 'complete_mark'/'uncomplete' version.
 
-    Raises AnnotationNotFound if no annotation row exists for the document.
+    When `references` is supplied with `completed=True`, runs the full
+    save pipeline (refs persist + version row + denorm rebuild + draft
+    cleanup) AND flips the flag inside a single BEGIN IMMEDIATE. Callers
+    get atomicity for the user action "commit my current refs as
+    complete" — frontend's pre-Phase-2 chain (save → complete →
+    delete_draft) becomes one round-trip.
+
+    Contract guards (defense in depth — CompleteRequest's model_validator
+    catches these at the HTTP boundary, but the service is callable
+    directly from tests + internal code):
+      * completed=False with references is rejected (ValueError).
+      * Legacy path (references=None) requires an existing annotation
+        row; AnnotationNotFound otherwise.
+      * Atomic path tolerates a missing annotation row — the embedded
+        save creates it before the flag flip.
+
+    Raises AnnotationNotFound, DocumentNotFound, LockOwnedByOther.
     """
-    cur = db.execute(
-        "SELECT references_json, is_completed FROM annotations WHERE document_id=?",
+    # Defense in depth (model_validator should have caught this).
+    if not completed and references is not None:
+        raise ValueError("references only allowed when completed=true")
+
+    if not _document_exists(db, document_id):
+        raise DocumentNotFound(document_id)
+
+    # Pre-txn idempotence shortcut: pure flag toggle to the same state
+    # with no refs to save → no-op without entering BEGIN IMMEDIATE.
+    # Mirrors the legacy fast path so concurrent same-state pokes don't
+    # pile up empty transactions on the write lock.
+    cur_pre = db.execute(
+        "SELECT is_completed FROM annotations WHERE document_id=?",
         (document_id,),
     ).fetchone()
-    if cur is None:
+    if references is None and cur_pre is None:
         raise AnnotationNotFound(document_id)
+    if references is None and bool(cur_pre["is_completed"]) == completed:
+        return {"is_completed": completed}
 
     # B1: Same ownership guard as save_annotation — reject if a different
-    # user currently holds the lock.
+    # user currently holds the lock. (Pre-txn check; final safety comes
+    # from BEGIN IMMEDIATE serializing writers.)
     _active = locks_service.get_lock(db, document_id)
     if _active is not None and _active["user_id"] != user_id:
         raise LockOwnedByOther(document_id)
 
-    if bool(cur["is_completed"]) == completed:
-        # no-op (idempotent toggle)
-        return {"is_completed": completed}
-
     now = _now()
-    action = "complete_mark" if completed else "uncomplete"
-    db.execute("BEGIN")
+    db.execute("BEGIN IMMEDIATE")
     try:
-        db.execute(
-            """
-            INSERT INTO annotation_versions(
-                document_id, user_id, references_json, diff_from_previous,
-                is_diff_zero, action, created_at
-            ) VALUES (?, ?, ?, ?, 1, ?, ?)
-            """,
-            (
-                document_id, user_id, cur["references_json"],
-                json.dumps({"added": [], "removed": []}),
-                action, now,
-            ),
-        )
-        if completed:
+        if references is not None:
+            # Atomic save+complete. `_apply_save_inside_txn` upserts the
+            # annotations row (creating it if absent) and writes a
+            # single version row tagged 'complete_mark' carrying the
+            # final refs + the diff vs. the prior committed state.
+            save_result = _apply_save_inside_txn(
+                db,
+                document_id=document_id,
+                user_id=user_id,
+                references=references,
+                now=now,
+                action_override="complete_mark",
+            )
             db.execute(
-                "UPDATE annotations SET is_completed=1, completed_by_user_id=?, updated_at=? WHERE document_id=?",
+                "UPDATE annotations SET is_completed=1, completed_by_user_id=?, "
+                "updated_at=? WHERE document_id=?",
                 (user_id, now, document_id),
             )
+            audit_action = "complete_mark"
+            audit_extra: Optional[dict] = {
+                "atomic": True,
+                "is_diff_zero": save_result["is_diff_zero"],
+                "ref_count": len(save_result["cleaned"]),
+                "added_count": len(save_result["diff"]["added"]),
+                "removed_count": len(save_result["diff"]["removed"]),
+            }
         else:
+            # Legacy flag-flip-only path. cur_pre is non-None here (the
+            # AnnotationNotFound branch above would have raised), and
+            # the state actually differs (idempotent branch returned).
+            cur = db.execute(
+                "SELECT references_json FROM annotations WHERE document_id=?",
+                (document_id,),
+            ).fetchone()
+            audit_action = "complete_mark" if completed else "uncomplete"
             db.execute(
-                "UPDATE annotations SET is_completed=0, completed_by_user_id=NULL, updated_at=? WHERE document_id=?",
-                (now, document_id),
+                """
+                INSERT INTO annotation_versions(
+                    document_id, user_id, references_json, diff_from_previous,
+                    is_diff_zero, action, created_at
+                ) VALUES (?, ?, ?, ?, 1, ?, ?)
+                """,
+                (
+                    document_id, user_id, cur["references_json"],
+                    json.dumps({"added": [], "removed": []}),
+                    audit_action, now,
+                ),
             )
+            if completed:
+                db.execute(
+                    "UPDATE annotations SET is_completed=1, completed_by_user_id=?, "
+                    "updated_at=? WHERE document_id=?",
+                    (user_id, now, document_id),
+                )
+            else:
+                db.execute(
+                    "UPDATE annotations SET is_completed=0, completed_by_user_id=NULL, "
+                    "updated_at=? WHERE document_id=?",
+                    (now, document_id),
+                )
+            audit_extra = None
+
         locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
-            db, user_id, action, document_id=document_id,
+            db, user_id, audit_action,
+            document_id=document_id,
+            extra=audit_extra,
         )
         db.execute("COMMIT")
     except Exception:

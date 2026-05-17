@@ -82,6 +82,70 @@ def test_complete_without_annotation_404(passed_user, ingest_doc):
     assert r.status_code == 404
 
 
+# === Phase 2: atomic complete-with-refs at the HTTP layer ===
+
+def test_complete_with_refs_atomic_endpoint(passed_user, ingest_doc):
+    """POST /complete with references + completed=True must persist refs
+    AND flip the flag in a single call — no prior save needed."""
+    c = passed_user["client"]
+    ingest_doc("doc_test")
+
+    r = c.post(
+        "/api/annotations/doc_test/complete",
+        json={
+            "completed": True,
+            "references": [_ref_payload(kanun_no="193", source_text="atomic")],
+        },
+    )
+    assert r.status_code == 200
+
+    g = c.get("/api/documents/doc_test/annotation")
+    body = g.json()["annotation"]
+    assert body["is_completed"] is True
+    assert len(body["references"]) == 1
+    assert body["references"][0]["source_text"] == "atomic"
+
+
+def test_complete_uncomplete_with_refs_returns_422(passed_user, ingest_doc):
+    """CompleteRequest.model_validator must reject the contradictory
+    combination at the HTTP boundary — caller gets a 422 instead of a
+    silent service error."""
+    c = passed_user["client"]
+    ingest_doc("doc_test")
+    c.post("/api/annotations", json={"document_id": "doc_test", "references": []})
+    c.post("/api/annotations/doc_test/complete", json={"completed": True})
+
+    r = c.post(
+        "/api/annotations/doc_test/complete",
+        json={
+            "completed": False,
+            "references": [_ref_payload(source_text="bad")],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_complete_endpoint_legacy_no_refs_still_works(passed_user, ingest_doc):
+    """Phase 2 must preserve the legacy flag-flip-only call signature."""
+    c = passed_user["client"]
+    ingest_doc("doc_test")
+    c.post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(source_text="prior")],
+        },
+    )
+
+    # No `references` key — pure flag flip, same as pre-Phase-2.
+    r = c.post("/api/annotations/doc_test/complete", json={"completed": True})
+    assert r.status_code == 200
+
+    g = c.get("/api/documents/doc_test/annotation")
+    assert g.json()["annotation"]["is_completed"] is True
+    assert g.json()["annotation"]["references"][0]["source_text"] == "prior"
+
+
 def test_get_chain_includes_attribution(second_passed_user, ingest_doc):
     ctx = second_passed_user
     c = ctx["client"]
