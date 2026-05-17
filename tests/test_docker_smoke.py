@@ -18,10 +18,35 @@ import urllib.request
 
 import pytest
 
-DOCKER = shutil.which("docker")
+DOCKER: str = shutil.which("docker") or ""
+
+
+def _docker_daemon_reachable() -> bool:
+    # The CLI being on PATH is not enough: on dev machines the daemon
+    # is often stopped (Docker Desktop quit) and the build subprocess
+    # then fails with `Cannot connect to the Docker daemon`. Probe
+    # once at module load with a short timeout so the suite skips
+    # cleanly instead of erroring on `docker build`.
+    if not DOCKER:
+        return False
+    try:
+        return subprocess.run(
+            [DOCKER, "info"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
+DOCKER_AVAILABLE = _docker_daemon_reachable()
 pytestmark = [
     pytest.mark.docker,
-    pytest.mark.skipif(DOCKER is None, reason="docker CLI not on PATH"),
+    pytest.mark.skipif(
+        not DOCKER_AVAILABLE,
+        reason="docker CLI missing or daemon unreachable",
+    ),
 ]
 
 
