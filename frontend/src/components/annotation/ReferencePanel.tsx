@@ -168,17 +168,22 @@ export function ReferencePanel({
           <Button type="button" onClick={onSave} disabled={!canEdit || isSaving || !isValid}>
             {isSaving ? 'Kaydediliyor…' : 'Sakla'}
           </Button>
-          {hasAnnotation && (
-            <Button
-              type="button"
-              variant={isCompleted ? 'outline' : 'success'}
-              onClick={onComplete}
-              disabled={completeDisabled}
-            >
-              {isCompleted ? <Undo2 /> : <Check />}
-              {completeLabel}
-            </Button>
-          )}
+          {/* The Phase 2 backend now supports first-time atomic
+              complete (no prior annotation row required), so the
+              button visibility no longer gates on hasAnnotation —
+              completeDisabled (canEdit + isValid + !isSaving) is
+              the real safety net. The Undo / "Geri Al" path also
+              shows here, but is reachable only when isCompleted=true
+              (which implies hasAnnotation=true anyway). */}
+          <Button
+            type="button"
+            variant={isCompleted ? 'outline' : 'success'}
+            onClick={onComplete}
+            disabled={completeDisabled}
+          >
+            {isCompleted ? <Undo2 /> : <Check />}
+            {completeLabel}
+          </Button>
         </div>
       </footer>
     </div>

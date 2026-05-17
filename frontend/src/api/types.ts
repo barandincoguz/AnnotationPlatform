@@ -263,7 +263,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Docs */
+        /**
+         * List Docs
+         * @description Paginated. Defaults to 50 rows; max 200. Without these caps the
+         *     endpoint returned every row in `documents_meta` (~17.9k rows in
+         *     production) on every request — a multi-MB JSON response that would
+         *     OOM at larger scale.
+         */
         get: operations["list_docs_api_documents_get"];
         put?: never;
         post?: never;
@@ -1113,6 +1119,8 @@ export interface components {
         CompleteRequest: {
             /** Completed */
             completed: boolean;
+            /** References */
+            references?: components["schemas"]["ReferenceItem"][] | null;
         };
         /** ConceptInput */
         ConceptInput: {
@@ -1220,6 +1228,13 @@ export interface components {
             estimated_difficulty: string;
             /** Word Count */
             word_count: number;
+            /**
+             * Workflow State
+             * @enum {string}
+             */
+            workflow_state: "new" | "draft" | "review" | "verified";
+            /** Has Draft */
+            has_draft: boolean;
             /** Has Annotation */
             has_annotation: boolean;
             /** Is Completed */
@@ -1240,7 +1255,7 @@ export interface components {
             /** Items */
             items: components["schemas"]["FeedItem"][];
             /** Total */
-            total: number;
+            total?: number | null;
         };
         /** GoldDocOut */
         GoldDocOut: {
@@ -2092,7 +2107,10 @@ export interface operations {
     };
     list_docs_api_documents_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: {

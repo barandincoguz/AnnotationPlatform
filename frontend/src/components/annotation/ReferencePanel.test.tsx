@@ -121,9 +121,34 @@ describe('ReferencePanel — validation gate (16c bug fix)', () => {
 })
 
 describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
-  it('hides the Tamamla button when there is no annotation row yet', () => {
-    render(<ReferencePanel {...baseProps} refs={[]} hasAnnotation={false} />)
-    expect(screen.queryByRole('button', { name: /tamamla|geri al/i })).toBeNull()
+  it('shows Tamamla button (disabled) on a draft-only doc with no refs yet', () => {
+    // Phase 2 atomic complete supports first-time complete from a
+    // draft-only state. The button now renders even when no annotation
+    // row exists; completeDisabled gates it off when refs aren't valid.
+    render(
+      <ReferencePanel
+        {...baseProps}
+        refs={[]}
+        hasAnnotation={false}
+        isValid={false}
+      />,
+    )
+    const btn = screen.getByRole('button', { name: /^tamamla$/i })
+    expect(btn).toBeInTheDocument()
+    expect(btn).toBeDisabled()
+  })
+
+  it('enables Tamamla button on a draft-only doc with valid refs (atomic complete)', () => {
+    render(
+      <ReferencePanel
+        {...baseProps}
+        refs={[makeReferenceItem()]}
+        hasAnnotation={false}
+        isValid={true}
+      />,
+    )
+    const btn = screen.getByRole('button', { name: /^tamamla$/i })
+    expect(btn).toBeEnabled()
   })
 
   it('shows "Tamamla" when annotation exists and is not completed', () => {
