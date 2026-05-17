@@ -74,8 +74,16 @@ def require_passed_training(user: sqlite3.Row = Depends(require_seen_manual)) ->
 
 
 def get_request_ip(request: Request) -> Optional[str]:
-    """Extract client IP from request, honoring X-Forwarded-For if behind proxy."""
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """Extract client IP from request.
+
+    X-Forwarded-For is only honored when `TRUST_FORWARDED_FOR=1` is set
+    (operator opts in when running behind a trusted reverse proxy). In
+    a direct-to-uvicorn deployment the header is attacker-controlled,
+    and trusting it lets clients forge the IP recorded in
+    `user_sessions.ip_hash` and any future IP-based controls.
+    """
+    if config.TRUST_FORWARDED_FOR:
+        fwd = request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[0].strip()
     return request.client.host if request.client else None

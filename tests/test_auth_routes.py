@@ -148,15 +148,20 @@ def test_login_sets_secure_cookie_in_production(seeded_client, monkeypatch):
 
     # Temporarily override ENVIRONMENT to production
     monkeypatch.setattr(config, "ENVIRONMENT", "production")
+    # The OriginCheckMiddleware now enforces in production (see
+    # backend/shared/csrf.py); whitelist the TestClient origin and send
+    # the matching Origin header on the state-changing POSTs.
+    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"http://testserver"})
+    origin = {"Origin": "http://testserver"}
 
     # Register and login
     seeded_client.post("/api/auth/register", json={
         "username": "alice", "password": "password123",
         "invite_code": "BURSIYER-2026",
-    })
+    }, headers=origin)
     r = seeded_client.post("/api/auth/login", json={
         "username": "alice", "password": "password123",
-    })
+    }, headers=origin)
     assert r.status_code == 200
 
     # Check that the cookie header contains "Secure" flag

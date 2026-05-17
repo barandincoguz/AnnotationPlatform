@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from backend import config
 from backend.shared.db import connect
 from backend.shared import audit
+from backend.shared.csrf import OriginCheckMiddleware
 from backend.shared.prod_enforce import DEV_SESSION_SECRETS, enforce_production_secrets
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
@@ -99,6 +100,17 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Anotasyon Platform", version=VERSION, lifespan=lifespan)
+
+# CSRF defense — must sit BEFORE the routers so every state-changing
+# request hits the Origin allowlist first. Active in production only; see
+# backend/shared/csrf.py for the rationale and operator setup.
+#
+# NOTE: any future `CORSMiddleware` install MUST NOT use
+# `allow_origins=["*"]` together with `allow_credentials=True`. The
+# Origin allowlist below is the *only* CSRF defense beyond SameSite=Lax;
+# a permissive CORS config silently re-opens the surface.
+app.add_middleware(OriginCheckMiddleware)
+
 app.include_router(users_router)
 app.include_router(help_router)
 app.include_router(documents_router)
