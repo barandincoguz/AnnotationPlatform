@@ -134,6 +134,105 @@ def test_complete_idempotent_noop_does_not_publish(passed_user, ingest_doc):
         sse_broker.unsubscribe(user_id, queue)
 
 
+def test_atomic_first_time_complete_publishes_both_saved_and_completed(passed_user, ingest_doc):
+    """First-time atomic complete (no prior annotation row) must fire
+    BOTH annotation_saved AND annotation_completed. Pre-Codex-review
+    the route's pre-call `prior = get_annotation(...)` returned None,
+    `will_change` evaluated False, and neither event published — XP
+    and badges were silently skipped."""
+    _reset_broker()
+    user_id = passed_user["user"]["id"]
+    c = passed_user["client"]
+    ingest_doc("doc_atomic_first")
+
+    queue = sse_broker.subscribe(user_id=user_id)
+    try:
+        r = c.post(
+            "/api/annotations/doc_atomic_first/complete",
+            json={
+                "completed": True,
+                "references": [_ref(source_text="atomic-first")],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        async def _drain_until_quiet():
+            # The atomic path fires save + complete; gamification can
+            # add follow-ups (badge_unlocked, etc). Drain until the
+            # broker goes quiet, then assert the two key types appear.
+            events = []
+            try:
+                while True:
+                    events.append(await asyncio.wait_for(queue.get(), timeout=1.0))
+            except asyncio.TimeoutError:
+                pass
+            return events
+
+        events = asyncio.run(_drain_until_quiet())
+        types = {e.event_type for e in events}
+        # Both core events MUST appear; extras (badge_unlocked, etc.) OK.
+        assert "annotation_saved" in types
+        assert "annotation_completed" in types
+
+        saved = next(e for e in events if e.event_type == "annotation_saved")
+        assert saved.data["action"] == "create"
+        assert saved.data["ref_count"] == 1
+
+        completed = next(e for e in events if e.event_type == "annotation_completed")
+        assert completed.data["completed"] is True
+    finally:
+        sse_broker.unsubscribe(user_id, queue)
+
+
+def test_atomic_complete_with_refs_on_existing_doc_publishes_both(passed_user, ingest_doc):
+    """Existing uncompleted annotation + atomic complete-with-refs:
+    both events fire (save event for the refs persist, complete event
+    for the flag flip)."""
+    _reset_broker()
+    user_id = passed_user["user"]["id"]
+    c = passed_user["client"]
+    ingest_doc("doc_atomic_existing")
+    # Pre-existing annotation — uncompleted, baseline refs.
+    c.post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_atomic_existing",
+            "references": [_ref(source_text="baseline")],
+        },
+    )
+
+    queue = sse_broker.subscribe(user_id=user_id)
+    try:
+        r = c.post(
+            "/api/annotations/doc_atomic_existing/complete",
+            json={
+                "completed": True,
+                "references": [_ref(source_text="final")],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        async def _drain_until_quiet():
+            events = []
+            try:
+                while True:
+                    events.append(await asyncio.wait_for(queue.get(), timeout=1.0))
+            except asyncio.TimeoutError:
+                pass
+            return events
+
+        events = asyncio.run(_drain_until_quiet())
+        types = {e.event_type for e in events}
+        assert "annotation_saved" in types
+        assert "annotation_completed" in types
+
+        saved = next(e for e in events if e.event_type == "annotation_saved")
+        # Existing row → save event reports 'edit' (not 'create').
+        assert saved.data["action"] == "edit"
+    finally:
+        sse_broker.unsubscribe(user_id, queue)
+
+
 def test_skip_does_not_publish(passed_user, ingest_doc):
     """Skip is private — no event broadcast."""
     _reset_broker()

@@ -263,7 +263,8 @@ def test_complete_toggle_idempotent_no_op(db):
     ann_service.save_annotation(db, document_id="doc_1", user_id=1, references=[])
     ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
     result = ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
-    assert result == {"is_completed": True}
+    assert result["is_completed"] is True
+    assert result["changed"] is False
 
     # Only ONE 'complete_mark' version row across the two calls
     versions = db.execute(
@@ -331,7 +332,14 @@ def test_complete_with_refs_persists_and_completes_atomically(db):
         db, document_id="doc_1", user_id=1,
         completed=True, references=refs,
     )
-    assert result == {"is_completed": True}
+    # Phase-2-fix: service returns rich dict so the route can emit
+    # save + complete side effects. Existing callers that only read
+    # `is_completed` keep working.
+    assert result["is_completed"] is True
+    assert result["did_save"] is True
+    assert result["changed"] is True  # first-time complete, state transitioned
+    assert result["save_action"] == "create"
+    assert result["save_ref_count"] == 1
 
     row = db.execute(
         "SELECT * FROM annotations WHERE document_id=?", ("doc_1",)
@@ -343,10 +351,12 @@ def test_complete_with_refs_persists_and_completes_atomically(db):
     assert parsed[0]["source_text"] == "atif final"
 
 
-def test_complete_with_refs_writes_single_complete_mark_version(db):
-    """The atomic path must NOT produce two version rows (one 'edit',
-    one 'complete_mark'). A single 'complete_mark' carries the new refs
-    and the diff vs. prior state."""
+def test_complete_with_refs_after_save_writes_single_complete_mark_version(db):
+    """Atomic complete-with-refs on an EXISTING (uncompleted) annotation
+    must produce exactly ONE new version row, tagged 'complete_mark',
+    carrying the new refs and the real diff vs. prior state. (The
+    first-time-create case writes two rows — covered separately below
+    to preserve the chain invariant.)"""
     # Prior state: a prior save establishes a baseline so the diff is
     # meaningful (not just "create").
     ann_service.save_annotation(
@@ -368,7 +378,7 @@ def test_complete_with_refs_writes_single_complete_mark_version(db):
         "SELECT COUNT(*) AS c FROM annotation_versions WHERE document_id=?",
         ("doc_1",),
     ).fetchone()["c"]
-    # Exactly one new version row.
+    # Exactly one new version row on the not-new branch.
     assert after_count - initial_count == 1
 
     last = db.execute(
@@ -405,22 +415,45 @@ def test_complete_with_refs_creates_annotation_when_absent(db):
     """First-time atomic complete with refs — no prior annotation row —
     must still succeed: the embedded save creates the row, then the
     flag flips. Verifies the frontend's "skip the save step entirely"
-    flow Phase 3 will adopt."""
+    flow Phase 3 adopts."""
     refs = [_ref(source_text="first commit")]
     result = ann_service.set_complete(
         db, document_id="doc_1", user_id=1,
         completed=True, references=refs,
     )
-    assert result == {"is_completed": True}
+    assert result["is_completed"] is True
+    assert result["did_save"] is True
+    assert result["changed"] is True
+    assert result["save_action"] == "create"
 
     row = db.execute(
         "SELECT * FROM annotations WHERE document_id=?", ("doc_1",)
     ).fetchone()
     assert row is not None
     assert row["is_completed"] == 1
-    assert row["edit_count"] == 1  # is_new path bumped from 1
+    assert row["edit_count"] == 1
     parsed = json.loads(row["references_json"])
     assert parsed[0]["source_text"] == "first commit"
+
+
+def test_first_time_atomic_complete_writes_both_create_and_complete_mark(db):
+    """Chain invariant (Codex review): a completed annotation must have
+    at least one 'create' version followed by a 'complete_mark'.
+    Without this, audit consumers counting creations would miss
+    documents born already-completed via the atomic path."""
+    refs = [_ref(source_text="hello")]
+    ann_service.set_complete(
+        db, document_id="doc_1", user_id=1,
+        completed=True, references=refs,
+    )
+
+    rows = db.execute(
+        "SELECT action FROM annotation_versions WHERE document_id=? ORDER BY id",
+        ("doc_1",),
+    ).fetchall()
+    actions = [r["action"] for r in rows]
+    # Exactly two rows in order: create (carries refs), complete_mark (zero-diff marker).
+    assert actions == ["create", "complete_mark"]
 
 
 def test_complete_with_refs_rolls_back_on_lock_conflict(db):
@@ -528,8 +561,10 @@ def test_skip_does_not_touch_other_users_drafts(db):
 
 
 def test_complete_idempotent_with_refs_none_unchanged(db):
-    """The pre-existing idempotent shortcut still applies when
-    references=None: same-state toggle is a no-op (no new version row)."""
+    """The idempotent shortcut still applies when references=None:
+    same-state toggle is a no-op (no new version row, changed=False).
+    Now lives INSIDE BEGIN IMMEDIATE so a concurrent writer cannot
+    race between the read and the txn (Codex review fix)."""
     ann_service.save_annotation(
         db, document_id="doc_1", user_id=1,
         references=[_ref(source_text="x")],
@@ -545,7 +580,9 @@ def test_complete_idempotent_with_refs_none_unchanged(db):
     result = ann_service.set_complete(
         db, document_id="doc_1", user_id=1, completed=True
     )
-    assert result == {"is_completed": True}
+    assert result["is_completed"] is True
+    assert result["changed"] is False  # no transition
+    assert result["did_save"] is False
 
     versions_after = db.execute(
         "SELECT COUNT(*) AS c FROM annotation_versions WHERE document_id=? AND action=?",
