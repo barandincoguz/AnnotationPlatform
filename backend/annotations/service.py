@@ -127,20 +127,28 @@ def save_annotation(
         raise LockOwnedByOther(document_id)
 
     cleaned = normalize_references(references)
-
-    cur_row = db.execute(
-        "SELECT references_json FROM annotations WHERE document_id=?", (document_id,)
-    ).fetchone()
-    is_new = cur_row is None
-    prev = [] if is_new else json.loads(cur_row["references_json"])
-
-    diff = references_diff(prev, cleaned)
-    diff_zero = is_diff_zero(diff)
-    action = "create" if is_new else "edit"
     now = _now()
 
-    db.execute("BEGIN")
+    # Read the prior state INSIDE the same write transaction as the
+    # INSERT/UPDATE below. Otherwise two concurrent saves both read
+    # references_json=<old>, both compute their diff against the same
+    # baseline, and the second UPDATE silently overwrites the first
+    # (lost-update race; the version chain ends up with a wrong
+    # diff_from_previous on the loser). BEGIN IMMEDIATE serializes the
+    # writers; SQLite's default journal_mode keeps the lock until COMMIT
+    # so the read sees the latest committed value.
+    db.execute("BEGIN IMMEDIATE")
     try:
+        cur_row = db.execute(
+            "SELECT references_json FROM annotations WHERE document_id=?",
+            (document_id,),
+        ).fetchone()
+        is_new = cur_row is None
+        prev = [] if is_new else json.loads(cur_row["references_json"])
+
+        diff = references_diff(prev, cleaned)
+        diff_zero = is_diff_zero(diff)
+        action = "create" if is_new else "edit"
         db.execute(
             """
             INSERT INTO annotation_versions(

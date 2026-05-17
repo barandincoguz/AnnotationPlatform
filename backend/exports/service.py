@@ -108,6 +108,31 @@ def build_query(filters: ExportFilters) -> tuple[str, tuple]:
     return "\n".join(sql_parts), tuple(params)
 
 
+# Excel / Sheets auto-execute cells whose first character is one of
+# these. Annotator-supplied fields (source_text, kanun_ad, …) flow
+# through this exporter and would otherwise let an attacker craft a
+# `=HYPERLINK(...)` payload that runs when an admin opens the CSV.
+# OWASP recommends prepending a single quote to neutralize the cell;
+# Excel strips the quote on display and treats the rest as a string.
+_CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _escape_csv_cell(value):
+    """Defang potential formula-injection payloads. Pass through any
+    non-string scalar unchanged (numbers, booleans, None handled by
+    callers). Also normalizes lone `\\r` to `\\n` so Excel on macOS
+    doesn't treat a bare CR as a row break inside a quoted field."""
+    if not isinstance(value, str):
+        return value
+    if value and value[0] in _CSV_INJECTION_PREFIXES:
+        value = "'" + value
+    # Bare \r → \n. Quoted fields with a lone \r are interpreted as a
+    # row break by Excel for macOS; \r\n and \n both render correctly.
+    if "\r" in value:
+        value = value.replace("\r\n", "\n").replace("\r", "\n")
+    return value
+
+
 def stream_csv_rows(cursor) -> Iterator[str]:
     """Yield CSV-encoded chunks from a SQLite cursor (or any iterable of
     tuples in _BASE_SELECT column order). Header is the first chunk,
@@ -115,19 +140,27 @@ def stream_csv_rows(cursor) -> Iterator[str]:
 
     Uses a per-row io.StringIO buffer + seek/truncate so memory stays
     bounded regardless of result size.
+
+    Cell escaping: `_escape_csv_cell` neutralizes formula-injection
+    payloads (cells starting with `= + - @ \\t \\r`) by prefixing a
+    single quote, and replaces bare `\\r` with `\\n`.
     """
     buf = io.StringIO()
     writer = csv.writer(buf)
 
-    # Header
+    # Header (constant strings; no user input)
     writer.writerow(CSV_COLUMNS)
     yield buf.getvalue()
     buf.seek(0)
     buf.truncate()
 
     for row in cursor:
-        # NULL → empty string (csv writer renders None as 'None' otherwise)
-        clean = tuple("" if v is None else v for v in row)
+        # NULL → empty string (csv writer renders None as 'None' otherwise).
+        # _escape_csv_cell defends user-supplied cells.
+        clean = tuple(
+            "" if v is None else _escape_csv_cell(v)
+            for v in row
+        )
         writer.writerow(clean)
         yield buf.getvalue()
         buf.seek(0)

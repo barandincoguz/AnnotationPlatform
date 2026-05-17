@@ -3,7 +3,7 @@ import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.annotations import drafts as drafts_service
 from backend.annotations import service
@@ -215,7 +215,11 @@ def get_annotation_with_chain(
 
 
 class _DraftPutRequest(BaseModel):
-    references: list[dict]  # raw — frontend may send incomplete rows
+    # Raw — frontend may send incomplete rows. Cap matches the committed
+    # SaveAnnotationRequest list cap (200) so a draft cannot exceed the
+    # ceiling of a finalized annotation. Without a cap, an authenticated
+    # user could PUT multi-MB blobs into their draft and bloat the DB.
+    references: list[dict] = Field(max_length=200)
 
 
 @router.put("/drafts/{document_id}", response_model=OkResponse)
