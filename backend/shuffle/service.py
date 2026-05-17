@@ -6,10 +6,14 @@ Public API:
 Returns:
   {"items": list[FeedItem], "total": int}
 
-Tab semantics:
-  new      -> no annotation row exists for the document
+Tab semantics (mirror of FeedItem.workflow_state):
+  new      -> no annotation row AND no (non-empty) draft by caller
+              -> workflow_state in {'new'}
   review   -> annotation row exists AND is_completed=0
+              OR no annotation row AND caller has draft with ≥1 ref
+              -> workflow_state in {'review', 'draft'}
   verified -> annotation row exists AND is_completed=1
+              -> workflow_state in {'verified'}
 
 Sort:
   - sort="shuffle": deterministic per-(user_id, tab, UTC date) shuffle so
@@ -63,7 +67,11 @@ SORT_COLUMNS: dict[str, tuple[str, frozenset[str]]] = {
     "konu": ("d.konu", frozenset({"new", "review", "verified"})),
     "difficulty": ("d.estimated_difficulty", frozenset({"new", "review", "verified"})),
     "word_count": ("d.word_count", frozenset({"new", "review", "verified"})),
-    "updated_at": ("a.updated_at", frozenset({"review", "verified"})),
+    # COALESCE so the review tab can rank draft-only rows (a.updated_at
+    # NULL) alongside annotation-backed rows by latest activity. The
+    # SQL expression is interpolated literally into ORDER BY — bound
+    # parameters never reach here, so injection risk stays zero.
+    "updated_at": ("COALESCE(a.updated_at, dr.updated_at)", frozenset({"review", "verified"})),
     "editors_count": ("a.unique_users_count", frozenset({"review", "verified"})),
 }
 
@@ -116,7 +124,11 @@ def _build_order_by(*, tab: str, sort: str, order: str) -> str:
 # tail used by both the page query AND the COUNT(*) query.
 _NEW_COLUMNS = (
     "d.document_id, d.sayi, d.tarih, d.konu, d.vergi_turu, "
-    "d.estimated_difficulty, d.word_count"
+    "d.estimated_difficulty, d.word_count, "
+    # `dr.references_json IS NOT NULL` distinguishes "no draft row" from
+    # "empty draft row" (the click-then-back-out case). Carried through
+    # so _row_to_item_new can produce has_draft.
+    "dr.references_json AS draft_refs_json"
 )
 # "Yeni" = no annotation row AND no draft-with-refs by the calling user.
 # The drafts filter keeps tabs mutually exclusive once the Devam Eden
@@ -136,7 +148,12 @@ _CHAIN_COLUMNS = (
     "d.document_id, d.sayi, d.tarih, d.konu, d.vergi_turu, "
     "d.estimated_difficulty, d.word_count, "
     "a.is_completed, a.last_editor_user_id, u.username AS last_editor_username, "
-    "a.edit_count, a.unique_users_count, a.updated_at"
+    "a.edit_count, a.unique_users_count, "
+    # Widened so draft-only review-tab rows (annotation NULL) still get
+    # a populated updated_at for sort + UI recency. Falls through to
+    # the draft's own updated_at when the annotation row is absent.
+    "COALESCE(a.updated_at, dr.updated_at) AS updated_at, "
+    "dr.references_json AS draft_refs_json"
 )
 # Review = "Devam Eden". Two populations live here:
 #   1. Shared annotations that exist but are not yet completed
@@ -165,6 +182,11 @@ _VERIFIED_FROM_WHERE = (
     "FROM documents_meta d "
     "INNER JOIN annotations a ON a.document_id = d.document_id "
     "LEFT JOIN users u ON u.id = a.last_editor_user_id "
+    # LEFT JOIN drafts here so _CHAIN_COLUMNS' `dr.references_json` and
+    # `COALESCE(a.updated_at, dr.updated_at)` resolve uniformly across
+    # all three tabs. Drafts should normally be cleared by complete,
+    # but the JOIN tolerates stragglers without breaking the SELECT.
+    "LEFT JOIN drafts dr ON dr.document_id = d.document_id AND dr.user_id = ? "
     "WHERE a.is_completed = 1"
 )
 
@@ -174,7 +196,10 @@ _VERIFIED_FROM_WHERE = (
 # if the shuffle ever gets disabled.
 _SHUFFLE_FALLBACK_ORDER_BY = {
     "new": "ORDER BY d.created_at DESC, d.document_id ASC",
-    "review": "ORDER BY a.updated_at DESC, d.document_id ASC",
+    # COALESCE for the same reason it's in SORT_COLUMNS: draft-only
+    # rows have a.updated_at=NULL and would otherwise sink under the
+    # shuffle base ordering.
+    "review": "ORDER BY COALESCE(a.updated_at, dr.updated_at) DESC, d.document_id ASC",
     "verified": "ORDER BY a.updated_at DESC, d.document_id ASC",
 }
 
@@ -185,40 +210,55 @@ _TAB_PARTS = {
 }
 
 
-def _empty_chain_fields() -> dict:
+def _row_to_item_new(row: sqlite3.Row) -> dict:
+    # New-tab WHERE excludes annotation-bearing rows AND non-empty
+    # caller drafts. What can still reach this mapper:
+    #   - no draft row at all              (draft_refs_json IS NULL)
+    #   - empty draft row from click-back  (draft_refs_json = '[]')
+    # Both classify as 'new'. has_draft distinguishes them for the UI.
+    has_draft = row["draft_refs_json"] is not None
     return {
+        "document_id": row["document_id"],
+        "sayi": row["sayi"],
+        "tarih": row["tarih"],
+        "konu": row["konu"],
+        "vergi_turu": row["vergi_turu"],
+        "estimated_difficulty": row["estimated_difficulty"],
+        "word_count": row["word_count"],
+        "workflow_state": "new",
+        "has_draft": has_draft,
         "has_annotation": False,
         "is_completed": False,
         "last_editor_user_id": None,
         "last_editor_username": None,
         "edit_count": 0,
         "unique_users_count": 0,
+        # New tab carries no meaningful "last activity" time. Even when
+        # an empty draft exists, the UI treats this as "untouched" — a
+        # touched-then-cleared signal lives in has_draft alone.
         "updated_at": None,
     }
 
 
-def _row_to_item_new(row: sqlite3.Row) -> dict:
-    return {
-        "document_id": row["document_id"],
-        "sayi": row["sayi"],
-        "tarih": row["tarih"],
-        "konu": row["konu"],
-        "vergi_turu": row["vergi_turu"],
-        "estimated_difficulty": row["estimated_difficulty"],
-        "word_count": row["word_count"],
-        **_empty_chain_fields(),
-    }
-
-
 def _row_to_item_chain(row: sqlite3.Row) -> dict:
-    # The row may come from one of two populations on the review tab:
-    #   (a) a real annotation row (LEFT JOIN, annotation columns populated)
-    #   (b) a draft-only row (annotation columns NULL because no annotation
-    #       row exists yet). We surface `has_annotation=False` for (b) so
-    #       the frontend can still render the doc card with the
-    #       appropriate "draft-only" treatment, and we default the
-    #       numeric counters to 0 instead of None.
+    # Review tab admits two populations (annotation-backed OR
+    # draft-only-by-caller); verified tab is annotation-only. Branch
+    # on the annotation-row-NULL signal:
+    #   annotation NULL              -> 'draft'   (review tab only,
+    #                                              guaranteed by WHERE)
+    #   annotation present + flag=0  -> 'review'
+    #   annotation present + flag=1  -> 'verified'
     has_annotation = row["is_completed"] is not None
+    is_completed = bool(row["is_completed"]) if has_annotation else False
+    has_draft = row["draft_refs_json"] is not None
+
+    if not has_annotation:
+        workflow_state = "draft"
+    elif is_completed:
+        workflow_state = "verified"
+    else:
+        workflow_state = "review"
+
     return {
         "document_id": row["document_id"],
         "sayi": row["sayi"],
@@ -227,8 +267,10 @@ def _row_to_item_chain(row: sqlite3.Row) -> dict:
         "vergi_turu": row["vergi_turu"],
         "estimated_difficulty": row["estimated_difficulty"],
         "word_count": row["word_count"],
+        "workflow_state": workflow_state,
+        "has_draft": has_draft,
         "has_annotation": has_annotation,
-        "is_completed": bool(row["is_completed"]) if has_annotation else False,
+        "is_completed": is_completed,
         "last_editor_user_id": row["last_editor_user_id"],
         "last_editor_username": row["last_editor_username"],
         "edit_count": row["edit_count"] if has_annotation else 0,
@@ -274,11 +316,11 @@ def list_feed(
     columns, from_where = _TAB_PARTS[tab]
     row_mapper = _row_to_item_new if tab == "new" else _row_to_item_chain
 
-    # Both the new and review tabs' FROM clauses bind the caller's
-    # user_id (to scope the drafts LEFT JOIN). The verified tab has no
-    # bound parameters from the FROM/WHERE. Build a tuple prefix that
-    # the page / count / shuffle queries can each splice in.
-    from_where_params: tuple = (user_id,) if tab in ("new", "review") else ()
+    # All three tabs' FROM clauses now bind the caller's user_id to
+    # scope the drafts LEFT JOIN. Verified joined drafts post-Phase-1
+    # for uniform `dr.references_json` + `COALESCE(...)` resolution in
+    # _CHAIN_COLUMNS. One parameter, spliced into every query below.
+    from_where_params: tuple = (user_id,)
 
     if resolved_sort == "shuffle":
         sql = f"SELECT {columns} {from_where} {_SHUFFLE_FALLBACK_ORDER_BY[tab]}"
@@ -302,8 +344,9 @@ def list_feed(
     # 17.9k-doc new tab). The frontend treats `None` as "use last known
     # total" — see frontend/src/api/queries/feed.ts.
     if offset == 0:
-        # COUNT shares from_where so it must also carry user_id for the
-        # review tab. Other tabs pass an empty tuple.
+        # COUNT shares from_where so it carries user_id for ALL tabs
+        # post-Phase-1 (drafts LEFT JOIN added to verified for uniform
+        # column resolution).
         total: Optional[int] = db.execute(
             f"SELECT COUNT(*) {from_where}",
             from_where_params,

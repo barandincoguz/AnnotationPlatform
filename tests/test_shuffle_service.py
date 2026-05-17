@@ -286,11 +286,15 @@ def test_item_shape_for_new_tab(db):
     item = items[0]
     expected_keys = {
         "document_id", "sayi", "tarih", "konu", "vergi_turu",
-        "estimated_difficulty", "word_count", "has_annotation",
+        "estimated_difficulty", "word_count",
+        "workflow_state", "has_draft",
+        "has_annotation",
         "is_completed", "last_editor_user_id", "last_editor_username",
         "edit_count", "unique_users_count", "updated_at",
     }
     assert set(item.keys()) == expected_keys
+    assert item["workflow_state"] == "new"
+    assert item["has_draft"] is False
     assert item["has_annotation"] is False
     assert item["is_completed"] is False
     assert item["last_editor_user_id"] is None
@@ -298,3 +302,164 @@ def test_item_shape_for_new_tab(db):
     assert item["edit_count"] == 0
     assert item["unique_users_count"] == 0
     assert item["updated_at"] is None
+
+
+# === Phase 1: canonical workflow_state + has_draft ===
+#
+# workflow_state is the single source of truth for UI status branding
+# from Phase 3 onward. Four mutually exclusive values, computed from
+# (annotation-row presence, is_completed, caller-draft presence):
+#   'new'      no annotation AND no (non-empty) draft by caller
+#   'draft'    no annotation AND caller has draft with ≥1 reference
+#   'review'   annotation exists, is_completed=False
+#   'verified' annotation exists, is_completed=True
+# has_draft is independent of workflow_state — it reflects whether the
+# caller owns ANY draft row on the doc (incl. an empty `[]`).
+
+def test_workflow_state_new(db):
+    """No annotation + no draft -> 'new', has_draft=False."""
+    item = shuffle_service.list_feed(
+        db, user_id=1, tab="new", limit=50, offset=0
+    )["items"][0]
+    assert item["workflow_state"] == "new"
+    assert item["has_draft"] is False
+
+
+def test_workflow_state_new_with_empty_draft_has_draft_true(db):
+    """Empty `[]` draft (click-back-out) keeps the doc in 'new' but
+    surfaces has_draft=True so the UI can show "you've opened this"."""
+    _set_draft(db, document_id="doc_1", user_id=1, references=[])
+    items = shuffle_service.list_feed(
+        db, user_id=1, tab="new", limit=50, offset=0
+    )["items"]
+    item = next(i for i in items if i["document_id"] == "doc_1")
+    assert item["workflow_state"] == "new"
+    assert item["has_draft"] is True
+
+
+def test_workflow_state_draft(db):
+    """No annotation + draft with refs -> 'draft', has_draft=True.
+    Lives on the review tab per Plan B semantics."""
+    _set_draft(
+        db, document_id="doc_1", user_id=1, references=[_ref(source_text="wip")]
+    )
+    items = shuffle_service.list_feed(
+        db, user_id=1, tab="review", limit=50, offset=0
+    )["items"]
+    item = next(i for i in items if i["document_id"] == "doc_1")
+    assert item["workflow_state"] == "draft"
+    assert item["has_draft"] is True
+    assert item["has_annotation"] is False
+    assert item["is_completed"] is False
+
+
+def test_workflow_state_review(db):
+    """Annotation exists, is_completed=False -> 'review'."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[_ref()]
+    )
+    items = shuffle_service.list_feed(
+        db, user_id=1, tab="review", limit=50, offset=0
+    )["items"]
+    item = next(i for i in items if i["document_id"] == "doc_1")
+    assert item["workflow_state"] == "review"
+    assert item["has_annotation"] is True
+    assert item["is_completed"] is False
+    # Caller has no draft on this doc — has_draft must be False even
+    # though the annotation exists.
+    assert item["has_draft"] is False
+
+
+def test_workflow_state_verified(db):
+    """Annotation exists, is_completed=True -> 'verified'."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[]
+    )
+    ann_service.set_complete(
+        db, document_id="doc_1", user_id=1, completed=True
+    )
+    item = shuffle_service.list_feed(
+        db, user_id=1, tab="verified", limit=50, offset=0
+    )["items"][0]
+    assert item["workflow_state"] == "verified"
+    assert item["has_annotation"] is True
+    assert item["is_completed"] is True
+
+
+def test_has_draft_independent_of_annotation(db):
+    """has_draft reports the caller's draft regardless of annotation
+    state — annotation route + caller has a parallel draft -> True."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[_ref()]
+    )
+    _set_draft(
+        db, document_id="doc_1", user_id=1, references=[_ref(source_text="local")]
+    )
+    items = shuffle_service.list_feed(
+        db, user_id=1, tab="review", limit=50, offset=0
+    )["items"]
+    item = next(i for i in items if i["document_id"] == "doc_1")
+    assert item["workflow_state"] == "review"  # annotation branch wins
+    assert item["has_draft"] is True
+
+
+def test_has_draft_is_per_caller(db):
+    """Bob's draft must NOT raise has_draft for alice."""
+    _set_draft(
+        db, document_id="doc_1", user_id=2, references=[_ref(source_text="bob")]
+    )
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[_ref()]
+    )
+    items = shuffle_service.list_feed(
+        db, user_id=1, tab="review", limit=50, offset=0
+    )["items"]
+    item = next(i for i in items if i["document_id"] == "doc_1")
+    # alice has no draft on doc_1 — bob's draft must not leak.
+    assert item["has_draft"] is False
+
+
+def test_review_tab_sort_recent_mixes_annotation_and_draft(db):
+    """sort=updated_at DESC must rank a draft-only row by dr.updated_at
+    so newer draft activity sorts above an older annotation. Regresses
+    the COALESCE(a.updated_at, dr.updated_at) widening in SORT_COLUMNS."""
+    # doc_1: annotation-only, forced old timestamp.
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[_ref()]
+    )
+    db.execute(
+        "UPDATE annotations SET updated_at = ? WHERE document_id = ?",
+        ("2020-01-01T00:00:00+00:00", "doc_1"),
+    )
+    # doc_2: draft-only with refs, default 2026 timestamp from _set_draft.
+    _set_draft(
+        db, document_id="doc_2", user_id=1, references=[_ref(source_text="wip")]
+    )
+
+    items = shuffle_service.list_feed(
+        db,
+        user_id=1,
+        tab="review",
+        limit=50,
+        offset=0,
+        sort="updated_at",
+        order="desc",
+    )["items"]
+
+    ids = [i["document_id"] for i in items]
+    assert ids.index("doc_2") < ids.index("doc_1"), (
+        f"draft-only doc_2 (2026) must sort before annotation-only doc_1 (2020); got {ids}"
+    )
+
+
+def test_review_tab_updated_at_falls_through_to_draft(db):
+    """For draft-only review rows, the FeedItem.updated_at exposed to
+    the frontend must be the draft's updated_at — not None."""
+    _set_draft(
+        db, document_id="doc_1", user_id=1, references=[_ref(source_text="wip")]
+    )
+    items = shuffle_service.list_feed(
+        db, user_id=1, tab="review", limit=50, offset=0
+    )["items"]
+    item = next(i for i in items if i["document_id"] == "doc_1")
+    assert item["updated_at"] == "2026-01-01T00:00:00+00:00"
