@@ -153,4 +153,42 @@ describe('useReferencesState', () => {
     rerender({ s: 'success', d: { references: [ref2] }, a: null })
     expect(result.current.list).toEqual([ref1])
   })
+
+  it('clears and re-hydrates when the source document key changes', () => {
+    const ref1 = makeReferenceItem({ madde: 'DOC_1_ONLY' })
+    const ref2 = makeReferenceItem({ madde: 'DOC_2_ONLY' })
+    const onChange = vi.fn()
+
+    const { result, rerender } = renderHook(
+      (props: {
+        sourceKey: string
+        d: { references: ReturnType<typeof makeReferenceItem>[] } | null
+        a: { references: ReturnType<typeof makeReferenceItem>[] } | null
+      }) =>
+        useReferencesState({
+          sourceKey: props.sourceKey,
+          draftQueryStatus: 'success',
+          draftData: props.d,
+          annotationData: props.a,
+          onChange,
+        }),
+      {
+        initialProps: {
+          sourceKey: 'doc-1',
+          d: null,
+          a: { references: [ref1] },
+        },
+      },
+    )
+    expect(result.current.list).toEqual([ref1])
+
+    rerender({
+      sourceKey: 'doc-2',
+      d: null,
+      a: { references: [ref2] },
+    })
+
+    expect(result.current.list).toEqual([ref2])
+    expect(onChange).not.toHaveBeenCalled()
+  })
 })
