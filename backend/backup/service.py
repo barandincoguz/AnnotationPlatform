@@ -16,9 +16,16 @@ from backend.shared import audit
 log = logging.getLogger(__name__)
 
 
-# Tables NOT dumped — schema_migrations is re-derived from migrations
-# on the restored DB, so persisting it would create version-skew risk.
-EXCLUDED_TABLES = {"schema_migrations"}
+# Tables NOT dumped.
+#   - schema_migrations is re-derived from migrations on the restored DB,
+#     so persisting it would create version-skew risk.
+#   - user_sessions stores `session_token` plaintext (the same opaque value
+#     that lives in the `anotasyon_session` cookie and is the only auth
+#     credential). Snapshots are pushed to GitHub when `BACKUP_REPO_URL`
+#     is set; whoever can read the backup repo would immediately own every
+#     active session. Excluding the table is correct: sessions are
+#     ephemeral and re-login on restore is a feature, not a bug.
+EXCLUDED_TABLES = {"schema_migrations", "user_sessions"}
 
 # Snapshot format version. Stored under "__format_version" (double-underscore
 # prefix marks payload-level metadata, distinct from table names). Bump when

@@ -87,6 +87,17 @@ def restore_from_snapshot(db: sqlite3.Connection, snapshot_path: Path) -> dict:
                 )
             result_tables[table] = len(rows)
             total += len(rows)
+
+        # Force re-login after restore. Snapshots intentionally exclude the
+        # `user_sessions` table (sessions are ephemeral; persisting tokens
+        # is a credential leak — see backend/backup/service.py EXCLUDED_TABLES),
+        # so this DELETE only nukes whatever live sessions existed in the
+        # restored-onto DB. Without it, an admin who restored a snapshot
+        # would still be authenticated as themselves under sessions tied to
+        # post-snapshot user rows, which is confusing at best; explicit
+        # expiry is the safer contract.
+        if "user_sessions" in existing_tables:
+            db.execute("DELETE FROM user_sessions")
         db.execute("COMMIT")
     except Exception:
         db.execute("ROLLBACK")

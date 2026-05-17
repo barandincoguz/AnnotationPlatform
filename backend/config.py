@@ -27,6 +27,27 @@ SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
 BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "")
 
+# X-Forwarded-For trust. Off by default — the header is attacker-controlled
+# in any direct-to-uvicorn deployment, and the IP is used for audit
+# (user_sessions.ip_hash). Operators behind a trusted reverse proxy
+# (Caddy, nginx, Cloudflare) flip this to "1" so XFF can be honored.
+TRUST_FORWARDED_FOR = os.environ.get("TRUST_FORWARDED_FOR", "0") == "1"
+
+
+def _parse_allowed_origins(raw: str) -> set[str]:
+    """Comma-separated → cleaned set. Empty entries dropped, no normalization
+    beyond strip — operators are responsible for matching scheme+host+port
+    exactly as browsers will send."""
+    return {o.strip() for o in raw.split(",") if o.strip()}
+
+
+# CSRF defense via Origin/Referer allowlist (see backend/shared/csrf.py).
+# Production requires this; dev/test bypass the middleware so the local
+# TestClient + Vite dev server work without per-test header plumbing.
+ALLOWED_ORIGINS: set[str] = _parse_allowed_origins(
+    os.environ.get("ALLOWED_ORIGINS", "")
+)
+
 _VALID_ENVIRONMENTS = {"development", "test", "production"}
 
 
