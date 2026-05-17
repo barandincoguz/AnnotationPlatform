@@ -114,7 +114,17 @@ def admin_reset_user_training(
         db, user_id=user_id, admin_id=admin["id"], trace_id=trace_id,
     )
     if not ok:
-        raise HTTPException(status_code=404, detail=f"user {user_id} not found")
+        # Match the project-wide error-shape convention used by other
+        # admin endpoints (backend/users/routes.py emits
+        # `{"error": "...", "message": "..."}`). Bare-string `detail`
+        # forced consumers to special-case this one route.
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "user_not_found",
+                "message": f"User {user_id} not found",
+            },
+        )
     return {"ok": True}
 
 

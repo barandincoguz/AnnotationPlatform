@@ -7,6 +7,7 @@ import { registerFeedHandlers } from './sse/feedHandlers'
 import { registerNotificationHandlers } from './sse/notificationHandlers'
 import { registerPresenceHandlers } from './sse/presenceHandlers'
 import { usersKeys } from '@/api/queries/users'
+import { feedKeys } from '@/api/queries/feed'
 
 interface UseSSEOpts {
   acquiringDocId: string | null
@@ -32,7 +33,7 @@ export function useSSE(opts: UseSSEOpts) {
       if (cancelled) return
       if (es.readyState === EventSource.CONNECTING) {
         // 16d: reconcile feed AND online roster on flaky links.
-        void qc.invalidateQueries({ queryKey: ['feed'] })
+        void qc.invalidateQueries({ queryKey: feedKeys.all })
         void qc.invalidateQueries({ queryKey: usersKeys.online() })
       }
     }

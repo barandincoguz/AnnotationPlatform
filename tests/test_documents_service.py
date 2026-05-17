@@ -92,7 +92,9 @@ def test_list_documents_returns_metadata(db, tmp_path):
     f.write_text(json.dumps(SAMPLE))
     service.ingest_file(db, f)
 
-    docs = service.list_documents(db)
+    # Signature changed for polish-phase M1: returns (rows, total).
+    docs, total = service.list_documents(db)
+    assert total == 1
     assert len(docs) == 1
     assert docs[0]["document_id"] == "doc_abc"
     assert "pdf_text" not in docs[0]  # not included in summary view

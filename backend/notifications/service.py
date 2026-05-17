@@ -82,12 +82,18 @@ def mark_read(
     notification_id: int,
     user_id: int,
 ) -> None:
-    row = db.execute(
-        "SELECT user_id FROM notifications WHERE id=?", (notification_id,)
-    ).fetchone()
-    if row is None or row["user_id"] != user_id:
+    # Single UPDATE keyed on (id, user_id) replaces the prior
+    # SELECT-then-UPDATE: one round-trip instead of two, and the
+    # ownership check is enforced by the same statement that performs
+    # the write (no TOCTOU window). `rowcount == 0` means either the
+    # notification doesn't exist or it belongs to a different user;
+    # either way the caller's correct response is NotificationNotFound.
+    cur = db.execute(
+        "UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?",
+        (notification_id, user_id),
+    )
+    if cur.rowcount == 0:
         raise NotificationNotFound(notification_id)
-    db.execute("UPDATE notifications SET is_read=1 WHERE id=?", (notification_id,))
 
 
 def mark_all_read(db: sqlite3.Connection, *, user_id: int) -> int:
@@ -104,5 +110,7 @@ def mark_all_read(db: sqlite3.Connection, *, user_id: int) -> int:
         "WHERE user_id=? AND is_read=0",
         (user_id,),
     )
-    db.commit()
+    # Connection is opened with isolation_level=None (autocommit), so
+    # calling .commit() here was misleading — implied this function
+    # owned a transaction it didn't actually have. Drop it.
     return cur.rowcount or 0

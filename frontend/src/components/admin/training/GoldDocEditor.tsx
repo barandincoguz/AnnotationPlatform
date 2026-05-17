@@ -49,7 +49,7 @@ export function GoldDocEditor({ doc }: Props) {
     <div className="space-y-4">
       <div className="font-mono text-sm">{doc.gold_id}</div>
       <div className="block">
-        <label htmlFor="gd-content" className="mb-1 block text-sm">i̇çerik</label>
+        <label htmlFor="gd-content" className="mb-1 block text-sm">İçerik</label>
         <Textarea
           id="gd-content"
           value={content}

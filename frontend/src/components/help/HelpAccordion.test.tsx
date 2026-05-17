@@ -5,7 +5,7 @@ import { HelpAccordion } from './HelpAccordion'
 
 const sections = [
   { id: '01-welcome', order: 1, title: 'Hoş geldin', body: '# Hoş geldin\n\nMerhaba.' },
-  { id: '02-getting-started', order: 2, title: 'Başlarken', body: '# Başlarken\n\ni̇lk adım.' },
+  { id: '02-getting-started', order: 2, title: 'Başlarken', body: '# Başlarken\n\nİlk adım.' },
   { id: '03-annotation-guide', order: 3, title: 'Anotasyon', body: '# Anotasyon\n\nReferans ekle.' },
 ]
 
@@ -25,9 +25,9 @@ describe('HelpAccordion', () => {
   it('expands additional sections without collapsing the first', async () => {
     const user = userEvent.setup()
     render(<HelpAccordion sections={sections} />)
-    expect(screen.queryByText(/i̇lk adım/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/İlk adım/i)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /başlarken/i }))
-    expect(screen.getByText(/i̇lk adım/i)).toBeInTheDocument()
+    expect(screen.getByText(/İlk adım/i)).toBeInTheDocument()
     expect(screen.getByText(/merhaba/i)).toBeInTheDocument()
   })
 
