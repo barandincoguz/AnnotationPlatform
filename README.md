@@ -75,9 +75,16 @@ Skips automatically when `docker` is not on PATH.
 
 ## Test status
 
-- Backend: 782 passing (excluding 3 Docker-smoke tests that require a Docker daemon).
-- Frontend: 455 passing.
-- Lint: clean (pyflakes + eslint).
+Counts drift constantly; run these to read the live numbers instead:
+
+```bash
+.venv/bin/python -m pytest tests -q | tail -3       # backend
+cd frontend && npm run test:run -- --reporter=basic | tail -3   # frontend
+```
+
+The 3 Docker-smoke cases skip automatically when the Docker daemon is
+unreachable (CLI on PATH alone is not enough — see
+`tests/test_docker_smoke.py::_docker_daemon_reachable`).
 
 ## Release tags
 

@@ -4,15 +4,14 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ReferenceCard } from '@/components/annotation/ReferenceCard'
 import { useTrainingStore } from '@/stores/trainingStore'
-import { areAllTrainingReferencesValid } from '@/lib/validateReferences'
+import {
+  areAllTrainingReferencesValid,
+  emptyReferenceItem,
+} from '@/lib/validateReferences'
 import { formatConcept } from '@/lib/formatTrainingConcept'
 import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
-
-function emptyRef(): ReferenceItem {
-  return { kanun_no: null, kanun_ad: null, madde: null, fikra: null, bent: null, source_text: '' }
-}
 
 interface AnnotateStepProps {
   onSubmit: (goldId: string, references: ReferenceItem[]) => void
@@ -52,7 +51,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
     setDocRefs(currentDoc.gold_id, updated)
   }
   const removeRef = (idx: number) => setDocRefs(currentDoc.gold_id, refs.filter((_, i) => i !== idx))
-  const addRef = () => setDocRefs(currentDoc.gold_id, [...refs, emptyRef()])
+  const addRef = () => setDocRefs(currentDoc.gold_id, [...refs, emptyReferenceItem()])
 
   if (resultShown?.kind === 'doc' && resultShown.goldId === currentDoc.gold_id) {
     const result = docResults[currentDoc.gold_id]

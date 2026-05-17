@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-
-export type FeedTab = 'new' | 'review' | 'verified'
+// FeedTab is owned by the data layer (api/queries/feed). Re-export here
+// so existing callers that pull `FeedTab` from the store don't break,
+// but the type itself has a single definition site.
+export type { FeedTab } from '@/api/queries/feed'
+import type { FeedTab } from '@/api/queries/feed'
 
 /**
  * Sort keys mirrored from backend/shuffle/service.py SORT_COLUMNS.

@@ -114,7 +114,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     })
 
     if (lockReleaseFailed) {
-      toast.warning('Kilit serbest bırakılamadı; 90 saniye içinde otomatik temizlenir.')
+      toast.warning('Kilit serbest bırakılamadı; 5 dakika içinde otomatik temizlenir.')
     }
     if (draftDeleteFailed) {
       toast.warning('Taslak silinemedi; bir sonraki düzenlemede üzerine yazılacak.')
@@ -162,7 +162,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     })
 
     if (lockReleaseFailed) {
-      toast.warning('Kilit serbest bırakılamadı; 90 saniye içinde otomatik temizlenir.')
+      toast.warning('Kilit serbest bırakılamadı; 5 dakika içinde otomatik temizlenir.')
     }
     toast.success(
       targetCompleted
