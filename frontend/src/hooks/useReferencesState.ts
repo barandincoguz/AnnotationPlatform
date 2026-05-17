@@ -27,6 +27,7 @@ function reducer(state: ReferenceItem[], action: Action): ReferenceItem[] {
 }
 
 export interface UseReferencesStateOpts {
+  sourceKey?: string
   draftQueryStatus: 'pending' | 'success' | 'error'
   draftData: { references: ReferenceItem[] } | null
   annotationData: { references: ReferenceItem[] } | null
@@ -38,6 +39,7 @@ type DispatchOrigin = 'init' | 'user'
 export function useReferencesState(opts: UseReferencesStateOpts) {
   const [list, dispatch] = useReducer(reducer, [])
   const hydratedRef = useRef(false)
+  const sourceKeyRef = useRef<string | null>(null)
   // Distinguishes server-driven hydration from user-driven mutations.
   // Only user mutations should propagate via onChange — otherwise the
   // initial hydrated value gets echoed back into draft.debouncedSave,
@@ -45,6 +47,15 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
   const lastOriginRef = useRef<DispatchOrigin>('init')
   const onChangeRef = useRef(opts.onChange)
   onChangeRef.current = opts.onChange
+  const sourceKey = opts.sourceKey ?? '__default__'
+
+  useEffect(() => {
+    if (sourceKeyRef.current === sourceKey) return
+    sourceKeyRef.current = sourceKey
+    hydratedRef.current = false
+    lastOriginRef.current = 'init'
+    dispatch({ type: 'init', refs: [] })
+  }, [sourceKey])
 
   useEffect(() => {
     if (hydratedRef.current) return
@@ -61,7 +72,7 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
     lastOriginRef.current = 'init'
     dispatch({ type: 'init', refs: initial })
     hydratedRef.current = true
-  }, [opts.draftQueryStatus, opts.draftData, opts.annotationData])
+  }, [sourceKey, opts.draftQueryStatus, opts.draftData, opts.annotationData])
 
   useEffect(() => {
     if (!hydratedRef.current) return

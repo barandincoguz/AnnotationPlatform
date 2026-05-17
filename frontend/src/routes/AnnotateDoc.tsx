@@ -56,6 +56,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   )
 
   const refs = useReferencesState({
+    sourceKey: docId,
     draftQueryStatus:
       draft.draftQuery.status === 'success'
         ? 'success'
@@ -134,6 +135,37 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     if (!hasAnnotation) return
     const targetCompleted = !isCompleted
     draft.blockSavesUntilFurtherNotice()
+
+    // CRITICAL: when completing, persist whatever the user has on screen
+    // BEFORE flipping the is_completed flag. The backend `set_complete`
+    // endpoint only flips the flag — it reads `references_json` from the
+    // existing annotation row and writes a `complete_mark` version row;
+    // it never consults the drafts table. Without this pre-save:
+    //   - the user types refs into the UI
+    //   - the 2s draft-debounce hasn't fired yet (or the latest tick is
+    //     still in flight)
+    //   - the user clicks "Tamamla"
+    //   - blockSavesUntilFurtherNotice() cancels the pending PUT
+    //   - the document gets marked complete with whatever was previously
+    //     committed to `annotations.references_json` (often empty / stale
+    //     / a different user's work)
+    //   - the on-screen content the user "completed" is silently dropped
+    //     into the orphan drafts row (Bug: completed annotations of "a"
+    //     with 11-ref drafts left over)
+    // Uncomplete (targetCompleted=false) skips this — the user is
+    // reversing a prior commit, not freezing a new one.
+    if (targetCompleted) {
+      try {
+        await saveMutation.mutateAsync({
+          document_id: docId,
+          references: refs.list,
+        })
+      } catch {
+        draft.unblockSaves()
+        return
+      }
+    }
+
     try {
       await completeMutation.mutateAsync({
         document_id: docId,
@@ -142,6 +174,18 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     } catch {
       draft.unblockSaves()
       return
+    }
+
+    // Drop the now-stale draft row so a later viewer (or the same user
+    // uncomplete-then-recomplete) doesn't see ghost content from the
+    // pre-save period.
+    let draftDeleteFailed = false
+    if (targetCompleted) {
+      try {
+        await draft.deleteMutation.mutateAsync()
+      } catch {
+        draftDeleteFailed = true
+      }
     }
 
     let lockReleaseFailed = false
@@ -163,6 +207,9 @@ function AnnotateDocInner({ docId }: { docId: string }) {
 
     if (lockReleaseFailed) {
       toast.warning('Kilit serbest bırakılamadı; 5 dakika içinde otomatik temizlenir.')
+    }
+    if (draftDeleteFailed) {
+      toast.warning('Taslak silinemedi; bir sonraki düzenlemede üzerine yazılacak.')
     }
     toast.success(
       targetCompleted
