@@ -82,6 +82,88 @@ def test_review_tab_excludes_completed_docs(db):
     assert result["total"] == 0
 
 
+# === Draft-only docs ("Devam Eden" semantic extension) ===
+#
+# A draft row owned by the calling user, on a doc that has no
+# annotation row yet, counts as "Devam Eden" for that user. Without
+# this, in-flight work that hasn't yet been "Kaydet"-saved hides in
+# the "Yeni" tab and the operator never sees it.
+
+def _set_draft(db, *, document_id: str, user_id: int, references: list[dict]) -> None:
+    """Insert/replace a draft directly via SQL — bypasses the service
+    layer's document-existence guard so test setup stays small."""
+    now = "2026-01-01T00:00:00+00:00"
+    db.execute(
+        "INSERT OR REPLACE INTO drafts(document_id, user_id, references_json, updated_at) "
+        "VALUES (?, ?, ?, ?)",
+        (document_id, user_id, json.dumps(references), now),
+    )
+
+
+def test_review_tab_includes_draft_only_doc_for_owning_user(db):
+    """User has a non-empty draft on a doc with no annotation row →
+    that doc shows up in the user's 'review' tab as a draft-only entry."""
+    _set_draft(db, document_id="doc_1", user_id=1, references=[_ref(source_text="wip")])
+    result = shuffle_service.list_feed(db, user_id=1, tab="review", limit=50, offset=0)
+    ids = {i["document_id"] for i in result["items"]}
+    assert "doc_1" in ids
+    # Draft-only entry: annotation columns are absent / defaulted.
+    item = next(i for i in result["items"] if i["document_id"] == "doc_1")
+    assert item["has_annotation"] is False
+    assert item["is_completed"] is False
+    assert item["edit_count"] == 0
+    assert item["last_editor_user_id"] is None
+
+
+def test_review_tab_excludes_other_users_drafts(db):
+    """Drafts are per-user. Bob's draft must NOT appear in alice's
+    'review' tab."""
+    _set_draft(db, document_id="doc_1", user_id=2, references=[_ref(source_text="wip")])
+    result = shuffle_service.list_feed(db, user_id=1, tab="review", limit=50, offset=0)
+    assert result["total"] == 0
+
+
+def test_review_tab_excludes_empty_drafts(db):
+    """Click-then-back-out creates an empty `[]` draft. That should
+    NOT count as 'Devam Eden' — the user wasn't really working on it."""
+    _set_draft(db, document_id="doc_1", user_id=1, references=[])
+    result = shuffle_service.list_feed(db, user_id=1, tab="review", limit=50, offset=0)
+    assert result["total"] == 0
+
+
+def test_new_tab_excludes_docs_with_my_draft(db):
+    """Mutual exclusion: a doc that has my non-empty draft must NOT
+    appear in 'Yeni' (it's already in my 'Devam Eden')."""
+    _set_draft(db, document_id="doc_1", user_id=1, references=[_ref(source_text="wip")])
+    result = shuffle_service.list_feed(db, user_id=1, tab="new", limit=50, offset=0)
+    ids = {i["document_id"] for i in result["items"]}
+    assert "doc_1" not in ids
+
+
+def test_new_tab_includes_docs_with_other_users_draft(db):
+    """Other users' drafts don't move a doc out of MY 'Yeni' tab —
+    that's their work, not mine."""
+    _set_draft(db, document_id="doc_1", user_id=2, references=[_ref(source_text="wip")])
+    result = shuffle_service.list_feed(db, user_id=1, tab="new", limit=50, offset=0)
+    ids = {i["document_id"] for i in result["items"]}
+    assert "doc_1" in ids
+
+
+def test_annotation_overrides_draft_for_tab_placement(db):
+    """If a doc has BOTH an annotation row AND a user draft, the
+    annotation wins the classification (review path uses the
+    annotation/is_completed=0 branch, not the draft branch). Verifies
+    the OR clause priority in _REVIEW_FROM_WHERE — annotation route
+    populates the chain fields correctly even when a draft exists."""
+    ann_service.save_annotation(db, document_id="doc_1", user_id=1, references=[_ref(source_text="annot")])
+    _set_draft(db, document_id="doc_1", user_id=1, references=[_ref(source_text="newer")])
+    result = shuffle_service.list_feed(db, user_id=1, tab="review", limit=50, offset=0)
+    item = next(i for i in result["items"] if i["document_id"] == "doc_1")
+    # Annotation branch hit → has_annotation True, edit_count == 1 from save_annotation
+    assert item["has_annotation"] is True
+    assert item["edit_count"] >= 1
+
+
 def test_verified_tab_includes_completed_only(db):
     """Only completed docs appear in 'verified' regardless of who completed them."""
     ann_service.save_annotation(db, document_id="doc_1", user_id=1, references=[])

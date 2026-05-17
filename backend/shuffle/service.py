@@ -118,10 +118,18 @@ _NEW_COLUMNS = (
     "d.document_id, d.sayi, d.tarih, d.konu, d.vergi_turu, "
     "d.estimated_difficulty, d.word_count"
 )
+# "Yeni" = no annotation row AND no draft-with-refs by the calling user.
+# The drafts filter keeps tabs mutually exclusive once the Devam Eden
+# tab also accepts draft-only documents — without it, a doc with only
+# a user draft would appear in both Yeni AND Devam Eden simultaneously.
+# Same single bound parameter as the review query: the caller's user_id.
 _NEW_FROM_WHERE = (
     "FROM documents_meta d "
     "LEFT JOIN annotations a ON a.document_id = d.document_id "
-    "WHERE a.document_id IS NULL"
+    "LEFT JOIN drafts dr ON dr.document_id = d.document_id AND dr.user_id = ? "
+    "WHERE a.document_id IS NULL "
+    "  AND (dr.user_id IS NULL "
+    "       OR json_array_length(COALESCE(dr.references_json, '[]')) = 0)"
 )
 
 _CHAIN_COLUMNS = (
@@ -130,11 +138,28 @@ _CHAIN_COLUMNS = (
     "a.is_completed, a.last_editor_user_id, u.username AS last_editor_username, "
     "a.edit_count, a.unique_users_count, a.updated_at"
 )
+# Review = "Devam Eden". Two populations live here:
+#   1. Shared annotations that exist but are not yet completed
+#      (the original, multi-user definition).
+#   2. Drafts owned by the current caller that point at a document
+#      WITHOUT an annotation row yet — i.e. the user has typed at
+#      least one reference into the right pane but has not clicked
+#      "Kaydet". Without this, a caller's in-flight work is
+#      indistinguishable from "Yeni" until they save, which doesn't
+#      match the operator's mental model of "Devam Eden".
+#
+# The query needs ONE bound parameter (?) — the calling user_id — so
+# the drafts LEFT JOIN filters to that caller only. `json_array_length`
+# guards against the empty-array draft case (a click-then-back-out
+# pattern creates a `[]` draft that should NOT count as "in progress").
 _REVIEW_FROM_WHERE = (
     "FROM documents_meta d "
-    "INNER JOIN annotations a ON a.document_id = d.document_id "
+    "LEFT JOIN annotations a ON a.document_id = d.document_id "
     "LEFT JOIN users u ON u.id = a.last_editor_user_id "
-    "WHERE a.is_completed = 0"
+    "LEFT JOIN drafts dr ON dr.document_id = d.document_id AND dr.user_id = ? "
+    "WHERE (a.document_id IS NOT NULL AND a.is_completed = 0) "
+    "   OR (a.document_id IS NULL AND dr.user_id IS NOT NULL "
+    "       AND json_array_length(COALESCE(dr.references_json, '[]')) > 0)"
 )
 _VERIFIED_FROM_WHERE = (
     "FROM documents_meta d "
@@ -186,6 +211,14 @@ def _row_to_item_new(row: sqlite3.Row) -> dict:
 
 
 def _row_to_item_chain(row: sqlite3.Row) -> dict:
+    # The row may come from one of two populations on the review tab:
+    #   (a) a real annotation row (LEFT JOIN, annotation columns populated)
+    #   (b) a draft-only row (annotation columns NULL because no annotation
+    #       row exists yet). We surface `has_annotation=False` for (b) so
+    #       the frontend can still render the doc card with the
+    #       appropriate "draft-only" treatment, and we default the
+    #       numeric counters to 0 instead of None.
+    has_annotation = row["is_completed"] is not None
     return {
         "document_id": row["document_id"],
         "sayi": row["sayi"],
@@ -194,12 +227,12 @@ def _row_to_item_chain(row: sqlite3.Row) -> dict:
         "vergi_turu": row["vergi_turu"],
         "estimated_difficulty": row["estimated_difficulty"],
         "word_count": row["word_count"],
-        "has_annotation": True,
-        "is_completed": bool(row["is_completed"]),
+        "has_annotation": has_annotation,
+        "is_completed": bool(row["is_completed"]) if has_annotation else False,
         "last_editor_user_id": row["last_editor_user_id"],
         "last_editor_username": row["last_editor_username"],
-        "edit_count": row["edit_count"],
-        "unique_users_count": row["unique_users_count"],
+        "edit_count": row["edit_count"] if has_annotation else 0,
+        "unique_users_count": row["unique_users_count"] if has_annotation else 0,
         "updated_at": row["updated_at"],
     }
 
@@ -241,9 +274,15 @@ def list_feed(
     columns, from_where = _TAB_PARTS[tab]
     row_mapper = _row_to_item_new if tab == "new" else _row_to_item_chain
 
+    # Both the new and review tabs' FROM clauses bind the caller's
+    # user_id (to scope the drafts LEFT JOIN). The verified tab has no
+    # bound parameters from the FROM/WHERE. Build a tuple prefix that
+    # the page / count / shuffle queries can each splice in.
+    from_where_params: tuple = (user_id,) if tab in ("new", "review") else ()
+
     if resolved_sort == "shuffle":
         sql = f"SELECT {columns} {from_where} {_SHUFFLE_FALLBACK_ORDER_BY[tab]}"
-        rows = db.execute(sql).fetchall()
+        rows = db.execute(sql, from_where_params).fetchall()
         items = [row_mapper(r) for r in rows]
         total = len(items)
         items = _shuffle(items, user_id=user_id, tab=tab)
@@ -252,7 +291,7 @@ def list_feed(
 
     order_by = _build_order_by(tab=tab, sort=resolved_sort, order=resolved_order)
     page_sql = f"SELECT {columns} {from_where} {order_by} LIMIT ? OFFSET ?"
-    rows = db.execute(page_sql, (limit, offset)).fetchall()
+    rows = db.execute(page_sql, (*from_where_params, limit, offset)).fetchall()
     items = [row_mapper(r) for r in rows]
     # COUNT(*) over the new-tab anti-join (~17.9k rows, no covering
     # index on `a.document_id IS NULL`) is the single most expensive
@@ -263,8 +302,11 @@ def list_feed(
     # 17.9k-doc new tab). The frontend treats `None` as "use last known
     # total" — see frontend/src/api/queries/feed.ts.
     if offset == 0:
+        # COUNT shares from_where so it must also carry user_id for the
+        # review tab. Other tabs pass an empty tuple.
         total: Optional[int] = db.execute(
-            f"SELECT COUNT(*) {from_where}"
+            f"SELECT COUNT(*) {from_where}",
+            from_where_params,
         ).fetchone()[0]
     else:
         total = None
