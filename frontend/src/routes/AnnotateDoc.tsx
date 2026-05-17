@@ -63,6 +63,16 @@ function AnnotateDocInner({ docId }: { docId: string }) {
         : draft.draftQuery.status === 'error'
           ? 'error'
           : 'pending',
+    // Race fix: when draft resolves as null/empty first, hydration
+    // MUST wait for annotation status before committing — otherwise
+    // `annotationData=null` gets locked in as the initial ref list
+    // and the late-arriving annotation refs never reach the UI.
+    annotationQueryStatus:
+      annotation.status === 'success'
+        ? 'success'
+        : annotation.status === 'error'
+          ? 'error'
+          : 'pending',
     draftData: draft.draftQuery.data ?? null,
     annotationData: annotation.data?.annotation
       ? { references: annotation.data.annotation.references }

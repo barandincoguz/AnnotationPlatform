@@ -29,6 +29,15 @@ function reducer(state: ReferenceItem[], action: Action): ReferenceItem[] {
 export interface UseReferencesStateOpts {
   sourceKey?: string
   draftQueryStatus: 'pending' | 'success' | 'error'
+  // Hydration must consult BOTH query statuses to avoid a race where the
+  // draft endpoint resolves first (small response, or 404 for completed
+  // docs whose draft was cleaned up), reports `draftData=null`, and the
+  // hook commits an empty list while the annotation GET is still in
+  // flight — locking hydratedRef=true so the late-arriving annotation
+  // refs never make it to the UI. Symptom: refresh during page load
+  // shows an empty reference panel until a subsequent refresh wins the
+  // race with a different network timing.
+  annotationQueryStatus: 'pending' | 'success' | 'error'
   draftData: { references: ReferenceItem[] } | null
   annotationData: { references: ReferenceItem[] } | null
   onChange: (refs: ReferenceItem[]) => void
@@ -66,13 +75,32 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
     // annotation when the draft contains no rows.
     const draftRefs = opts.draftData?.references
     const hasDraftRefs = Array.isArray(draftRefs) && draftRefs.length > 0
-    const initial = hasDraftRefs
-      ? draftRefs
-      : (opts.annotationData?.references ?? [])
+    if (hasDraftRefs) {
+      // Draft wins; annotation status is irrelevant — even if annotation
+      // hasn't resolved yet, the draft's content takes precedence
+      // (drafts/{id} is per-user; annotation is shared; the per-user
+      // draft is the canonical "what the user was last working on").
+      lastOriginRef.current = 'init'
+      dispatch({ type: 'init', refs: draftRefs })
+      hydratedRef.current = true
+      return
+    }
+    // Draft is empty or null — MUST wait for the annotation query to
+    // settle before committing. Otherwise we'd lock hydratedRef=true
+    // with an empty list while the real refs are still in flight (the
+    // refresh-thrash bug: refs disappear until the next race lottery).
+    if (opts.annotationQueryStatus === 'pending') return
+    const annotationRefs = opts.annotationData?.references ?? []
     lastOriginRef.current = 'init'
-    dispatch({ type: 'init', refs: initial })
+    dispatch({ type: 'init', refs: annotationRefs })
     hydratedRef.current = true
-  }, [sourceKey, opts.draftQueryStatus, opts.draftData, opts.annotationData])
+  }, [
+    sourceKey,
+    opts.draftQueryStatus,
+    opts.annotationQueryStatus,
+    opts.draftData,
+    opts.annotationData,
+  ])
 
   useEffect(() => {
     if (!hydratedRef.current) return

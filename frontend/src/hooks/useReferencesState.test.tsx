@@ -8,6 +8,7 @@ describe('useReferencesState', () => {
     const { result } = renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'pending',
+        annotationQueryStatus: 'pending',
         draftData: null,
         annotationData: null,
         onChange: vi.fn(),
@@ -22,6 +23,7 @@ describe('useReferencesState', () => {
     const { result } = renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: { references: [ref] },
         annotationData: { references: [makeReferenceItem({ madde: 'other' })] },
         onChange: vi.fn(),
@@ -36,6 +38,7 @@ describe('useReferencesState', () => {
     const { result } = renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: null,
         annotationData: { references: [ref] },
         onChange: vi.fn(),
@@ -52,6 +55,7 @@ describe('useReferencesState', () => {
     const { result } = renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: { references: [] },
         annotationData: { references: [annotationRef] },
         onChange: vi.fn(),
@@ -65,6 +69,7 @@ describe('useReferencesState', () => {
     const { result } = renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: null,
         annotationData: null,
         onChange: vi.fn(),
@@ -83,6 +88,7 @@ describe('useReferencesState', () => {
     renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: null,
         annotationData: { references: [annotationRef] },
         onChange,
@@ -96,6 +102,7 @@ describe('useReferencesState', () => {
     renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: null,
         annotationData: null,
         onChange,
@@ -109,6 +116,7 @@ describe('useReferencesState', () => {
     const { result } = renderHook(() =>
       useReferencesState({
         draftQueryStatus: 'success',
+        annotationQueryStatus: 'success',
         draftData: null,
         annotationData: null,
         onChange,
@@ -140,6 +148,7 @@ describe('useReferencesState', () => {
       }) =>
         useReferencesState({
           draftQueryStatus: props.s,
+          annotationQueryStatus: 'success',
           draftData: props.d,
           annotationData: props.a,
           onChange: vi.fn(),
@@ -152,6 +161,46 @@ describe('useReferencesState', () => {
 
     rerender({ s: 'success', d: { references: [ref2] }, a: null })
     expect(result.current.list).toEqual([ref1])
+  })
+
+  it('defers hydration until annotation resolves when draft is empty (race fix)', () => {
+    // Regression for the "refresh 3-4 times, refs disappear" bug.
+    // Hydration must NOT commit when:
+    //   - draftQueryStatus = success, draftData null/empty
+    //   - annotationQueryStatus still pending
+    // Otherwise the empty annotationData gets locked in as the initial
+    // list and the late-arriving annotation refs never reach the UI.
+    const annotationRef = makeReferenceItem({ madde: 'LATE' })
+    const { result, rerender } = renderHook(
+      (props: {
+        annotationStatus: 'pending' | 'success'
+        a: { references: ReturnType<typeof makeReferenceItem>[] } | null
+      }) =>
+        useReferencesState({
+          draftQueryStatus: 'success',
+          annotationQueryStatus: props.annotationStatus,
+          draftData: null, // draft resolved fast, no content
+          annotationData: props.a, // annotation still in flight
+          onChange: vi.fn(),
+        }),
+      {
+        initialProps: {
+          annotationStatus: 'pending' as 'pending' | 'success',
+          a: null as { references: ReturnType<typeof makeReferenceItem>[] } | null,
+        },
+      },
+    )
+    // Annotation still loading: hydration must NOT have committed.
+    expect(result.current.hydrated).toBe(false)
+    expect(result.current.list).toEqual([])
+
+    // Annotation arrives — NOW hydration commits.
+    rerender({
+      annotationStatus: 'success',
+      a: { references: [annotationRef] },
+    })
+    expect(result.current.hydrated).toBe(true)
+    expect(result.current.list).toEqual([annotationRef])
   })
 
   it('clears and re-hydrates when the source document key changes', () => {
@@ -168,6 +217,7 @@ describe('useReferencesState', () => {
         useReferencesState({
           sourceKey: props.sourceKey,
           draftQueryStatus: 'success',
+          annotationQueryStatus: 'success',
           draftData: props.d,
           annotationData: props.a,
           onChange,
