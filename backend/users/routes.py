@@ -256,7 +256,14 @@ def admin_demote(
     except service.UserNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except service.LastAdminCannotBeRemoved as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # 409 (Conflict) is the right answer per RFC 7231 — this is a
+        # state-invariant rejection ("the system has exactly one admin
+        # and you're trying to remove them"), not a malformed-input
+        # error. Matches the LockOwnedByOther → 409 mapping elsewhere.
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "last_admin_protection", "message": str(e)},
+        )
     return {"ok": True}
 
 
@@ -275,7 +282,14 @@ def admin_disable(
     except service.UserNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except service.LastAdminCannotBeRemoved as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # 409 (Conflict) is the right answer per RFC 7231 — this is a
+        # state-invariant rejection ("the system has exactly one admin
+        # and you're trying to remove them"), not a malformed-input
+        # error. Matches the LockOwnedByOther → 409 mapping elsewhere.
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "last_admin_protection", "message": str(e)},
+        )
     return {"ok": True}
 
 

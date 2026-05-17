@@ -68,7 +68,7 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
             return (
               <div key={g.gold_id} className="flex items-center justify-between px-4 py-3">
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Döküman {i + 1}
+                  Doküman {i + 1}
                 </span>
                 <span>
                   <strong className="font-display text-base">
@@ -88,7 +88,7 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
           </div>
           <div className="flex items-center justify-between px-4 py-3 bg-success/5">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Overall</span>
-            <span className="font-semibold text-success">GEÇTI</span>
+            <span className="font-semibold text-success">GEÇTİ</span>
           </div>
         </div>
 

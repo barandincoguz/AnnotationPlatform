@@ -39,7 +39,11 @@ def test_admin_cannot_demote_last_admin(client, bootstrap_admin):
     r = client.get("/api/admin/users")
     me = next(u for u in r.json()["users"] if u["username"] == "root")
     demote = client.post(f"/api/admin/users/{me['id']}/demote")
-    assert demote.status_code == 400
+    # Polish-phase M2: state-invariant rejection now returns 409 with a
+    # `last_admin_protection` error code, matching the project's
+    # `{error, message}` shape.
+    assert demote.status_code == 409
+    assert demote.json()["detail"]["error"] == "last_admin_protection"
 
 
 def test_admin_disable_user(client, bootstrap_admin):

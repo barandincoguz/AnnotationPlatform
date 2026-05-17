@@ -65,6 +65,16 @@ interface SortMenuProps {
  * a 400 from the backend.
  */
 export function SortMenu({ tab, sort, onChange }: SortMenuProps) {
+  // Surface the active sort + direction through the trigger's
+  // aria-label so screen-reader users learn what the icon-only button
+  // currently controls (the direction was previously color-only via
+  // the small arrow badge). Falls back to a plain "Sıralama" label
+  // when the user is on shuffle (no direction concept).
+  const activeLabel = SORT_OPTIONS.find((o) => o.key === sort.by)?.label
+  const triggerLabel = sort.by === 'shuffle'
+    ? 'Sıralama: Karıştır'
+    : `Sıralama: ${activeLabel ?? sort.by} ${sort.order === 'desc' ? 'azalan' : 'artan'}`
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -72,7 +82,7 @@ export function SortMenu({ tab, sort, onChange }: SortMenuProps) {
           type="button"
           variant="outline"
           size="icon"
-          aria-label="Sıralama"
+          aria-label={triggerLabel}
           className="relative"
         >
           <ArrowUpDown />

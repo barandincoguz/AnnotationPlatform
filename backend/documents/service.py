@@ -4,12 +4,16 @@ Ingestion is upsert: same evrakOid replaces metadata + ref tables.
 Listing returns summary view (no pdf_text). get_document returns full row.
 """
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from backend.documents.parser import parse_document, ParseError
+
+
+log = logging.getLogger(__name__)
 
 
 META_COLUMNS = [
@@ -81,7 +85,11 @@ def ingest_file(db: sqlite3.Connection, path: Path) -> int:
             parsed = parse_document(item, file_path=str(path))
         except ParseError as e:
             skipped += 1
-            print(f"WARN: skipping item[{idx}]: {e}")
+            # Was `print(...)` which hit stdout and interleaved with
+            # FastAPI request logs. Now flows through the standard
+            # logging pipeline so operator filters on .WARNING actually
+            # catch these messages.
+            log.warning("skipping item[%s] in %s: %s", idx, path.name, e)
             continue
         meta = parsed["meta"]
         _upsert_meta(db, meta)
@@ -89,9 +97,9 @@ def ingest_file(db: sqlite3.Connection, path: Path) -> int:
         _replace_bkk_refs(db, meta["document_id"], parsed["bkk_refs"])
         count += 1
         if total > 1000 and (count % 1000 == 0):
-            print(f"  ingested {count}/{total} ({skipped} skipped)")
+            log.info("ingested %s/%s (%s skipped)", count, total, skipped)
     if skipped:
-        print(f"  total skipped: {skipped}")
+        log.info("total skipped: %s", skipped)
     return count
 
 
@@ -101,15 +109,33 @@ def ingest_directory(db: sqlite3.Connection, dir_path: Path) -> int:
         try:
             total += ingest_file(db, path)
         except ParseError as e:
-            print(f"WARN: skipping {path.name}: {e}")
+            log.warning("skipping %s: %s", path.name, e)
     return total
 
 
-def list_documents(db: sqlite3.Connection) -> list[dict]:
+def list_documents(
+    db: sqlite3.Connection,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """Paginated SELECT — returns (rows, total).
+
+    Without a cap, calling this at production scale (~17.9k rows) emits
+    a multi-MB response on every request. Other feeds cap at MAX_LIMIT=200;
+    this helper does the same. Total is returned via a separate COUNT(*)
+    so the frontend can show "M of N" and drive pagination without a
+    second round-trip.
+    """
     rows = db.execute(
-        f"SELECT {', '.join(SUMMARY_COLUMNS)} FROM documents_meta ORDER BY created_at DESC"
+        f"SELECT {', '.join(SUMMARY_COLUMNS)} FROM documents_meta "
+        f"ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (limit, offset),
     ).fetchall()
-    return [dict(r) for r in rows]
+    total = db.execute(
+        "SELECT COUNT(*) AS c FROM documents_meta"
+    ).fetchone()["c"]
+    return [dict(r) for r in rows], total
 
 
 def get_document(db: sqlite3.Connection, document_id: str) -> Optional[dict]:

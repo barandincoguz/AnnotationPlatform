@@ -62,7 +62,11 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
   )
 
   if (feed.isPending) {
-    return <div className="p-4 text-sm text-muted-foreground">Yükleniyor…</div>
+    return (
+      <div role="status" aria-live="polite" className="p-4 text-sm text-muted-foreground">
+        Yükleniyor…
+      </div>
+    )
   }
   if (items.length === 0) {
     return (

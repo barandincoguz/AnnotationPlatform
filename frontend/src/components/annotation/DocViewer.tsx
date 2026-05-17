@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   BookMarked,
   BookOpen,
@@ -215,14 +216,29 @@ function Header({ d }: { d: DocumentDetail }) {
 
 export function DocViewer({ docId }: DocViewerProps) {
   const q = useDoc(docId)
+  // 3-pass regex over multi-KB pdf_text. Memoized so any unrelated
+  // parent re-render (zustand tick, child query refetch, typing in
+  // the right-pane ReferenceCards if they ever bubble state up) does
+  // not re-normalize the entire özelge. Hook MUST run unconditionally
+  // (rules-of-hooks) — handle the still-loading case inside the
+  // closure with an empty fallback; the early returns below render
+  // before `cleaned` is ever read so the empty string is harmless.
+  const rawPdfText = q.data?.pdf_text
+  const cleaned = useMemo(
+    () => (rawPdfText ? normalizeOzelgeText(rawPdfText) : ''),
+    [rawPdfText],
+  )
   if (q.isPending) {
-    return <div className="p-4 text-[15px] text-muted-foreground">Yükleniyor…</div>
+    return (
+      <div role="status" aria-live="polite" className="p-4 text-[15px] text-muted-foreground">
+        Yükleniyor…
+      </div>
+    )
   }
   if (q.error || !q.data) {
     return <div className="p-4 text-[15px] text-destructive">Doküman yüklenemedi.</div>
   }
   const d = q.data
-  const cleaned = normalizeOzelgeText(d.pdf_text)
   const hasRefs = d.kanun_refs.length > 0 || d.bkk_refs.length > 0
 
   return (

@@ -41,7 +41,7 @@ describe('GoldDocsPage', () => {
     render(<Wrap />)
     await waitFor(() => expect(screen.getByText('g_a')).toBeInTheDocument())
     await user.click(screen.getByText('g_a'))
-    const contentTa = screen.getByLabelText(/i̇çerik/i)
+    const contentTa = screen.getByLabelText(/İçerik/i)
     await user.clear(contentTa)
     await user.type(contentTa, 'doc A2')
     await user.click(screen.getByRole('button', { name: /^kaydet$/i }))

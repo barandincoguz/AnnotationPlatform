@@ -39,40 +39,53 @@ export function TypedConfirmDialog({
     }
   }
 
+  // Wrap the body+footer in a <form> so pressing Enter after typing
+  // the confirm word fires the action (the prior dialog only accepted
+  // a mouse click). canSubmit is re-checked on submit because Pydantic
+  // and Radix can both lag a tick behind the keystroke that triggered
+  // the submission.
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (canSubmit) onConfirm()
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 text-sm">
-          {body}
-          <p>Devam etmek için aşağıya <strong>{confirmWord}</strong> yazın:</p>
-          <Input
-            // eslint-disable-next-line jsx-a11y/no-autofocus -- dialog input must capture focus for typed-gate flow
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={confirmWord}
-            aria-label={`${confirmWord} yazınız`}
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => { setText(''); onClose() }}
-            disabled={isPending}
-          >
-            Vazgeç
-          </Button>
-          <Button
-            variant={variant}
-            disabled={!canSubmit}
-            onClick={onConfirm}
-          >
-            {isPending ? pendingLabel : confirmLabel}
-          </Button>
-        </DialogFooter>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-3 text-sm">
+            {body}
+            <p>Devam etmek için aşağıya <strong>{confirmWord}</strong> yazın:</p>
+            <Input
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- dialog input must capture focus for typed-gate flow
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={confirmWord}
+              aria-label={`${confirmWord} yazınız`}
+            />
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setText(''); onClose() }}
+              disabled={isPending}
+            >
+              Vazgeç
+            </Button>
+            <Button
+              type="submit"
+              variant={variant}
+              disabled={!canSubmit}
+            >
+              {isPending ? pendingLabel : confirmLabel}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

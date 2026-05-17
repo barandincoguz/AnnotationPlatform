@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { E2E_PASSWORD, E2E_USERS, loginAs } from './helpers'
+import { E2E_USERS, loginAs } from './helpers'
 
 test.describe('Auth', () => {
   test('seeded user can log in and lands on the home shell', async ({ page }) => {
@@ -40,11 +40,5 @@ test.describe('Auth', () => {
     await expect(page).toHaveURL(/\/register$/)
     await page.getByRole('link', { name: /giriş yap/i }).click()
     await expect(page).toHaveURL(/\/login$/)
-  })
-
-  // E2E_PASSWORD imported so a future test can opt back into the raw
-  // string without rebuilding the import line.
-  test('password literal is shared via the helper, not duplicated', () => {
-    expect(E2E_PASSWORD).toBe('e2e-pass-123!')
   })
 })

@@ -8,6 +8,17 @@ import { Label } from '@/components/ui/label'
 import { BrandLogo } from '@/components/shell/BrandLogo'
 import { ApiError } from '@/api/client'
 
+// Hoisted to module scope so typing into the username/password fields
+// (which fires per-keystroke state updates) doesn't allocate a new
+// style object and re-apply identical CSS each render.
+const ASIDE_BACKGROUND: React.CSSProperties = {
+  background:
+    'radial-gradient(at 12% 12%, hsl(32 60% 92% / 0.85) 0px, transparent 55%),' +
+    'radial-gradient(at 88% 18%, hsl(175 45% 90% / 0.7) 0px, transparent 50%),' +
+    'radial-gradient(at 50% 100%, hsl(222 35% 94% / 0.8) 0px, transparent 60%),' +
+    'hsl(var(--card) / 0.6)',
+}
+
 export function Login() {
   const { loginMutation } = useAuth()
   const navigate = useNavigate()
@@ -36,13 +47,7 @@ export function Login() {
         <div
           aria-hidden
           className="absolute inset-0 -z-10"
-          style={{
-            background:
-              'radial-gradient(at 12% 12%, hsl(32 60% 92% / 0.85) 0px, transparent 55%),' +
-              'radial-gradient(at 88% 18%, hsl(175 45% 90% / 0.7) 0px, transparent 50%),' +
-              'radial-gradient(at 50% 100%, hsl(222 35% 94% / 0.8) 0px, transparent 60%),' +
-              'hsl(var(--card) / 0.6)',
-          }}
+          style={ASIDE_BACKGROUND}
         />
         <div className="relative z-10 flex items-center justify-between">
           <div className="inline-flex items-center gap-3">

@@ -93,7 +93,7 @@ async def _stream_for_user(
         raise
     finally:
         broker.unsubscribe(user_id, queue)
-        if user_id not in broker._subscribers:
+        if user_id not in broker.online_user_ids():
             try:
                 await broker.publish_to_others(
                     except_user_id=user_id,

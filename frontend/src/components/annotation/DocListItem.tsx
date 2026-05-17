@@ -1,10 +1,17 @@
 import { memo } from 'react'
 import { CheckCircle2, CircleDashed, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatYmd } from '@/lib/formatters'
 import { AttributionLabel } from './AttributionLabel'
 import type { components } from '@/api/types'
 
 type FeedItem = components['schemas']['FeedItem']
+
+function statusText(item: FeedItem): string {
+  if (item.is_completed) return 'tamamlandı'
+  if (item.has_annotation) return 'devam ediyor'
+  return 'yeni'
+}
 
 interface DocListItemProps {
   item: FeedItem
@@ -18,38 +25,29 @@ interface DocListItemProps {
   onClick: (docId: string) => void
 }
 
+// StatusIcon: visual only; aria-hidden so the row's aria-label is the
+// sole spoken description (the icon's status is included in that label).
 function StatusIcon({ item }: { item: FeedItem }) {
+  const className = 'h-5 w-5 shrink-0'
   if (item.is_completed) {
-    return (
-      <CheckCircle2
-        aria-label="tamamlandı"
-        className="h-5 w-5 text-success shrink-0"
-        strokeWidth={2.25}
-      />
-    )
+    return <CheckCircle2 aria-hidden className={`${className} text-success`} strokeWidth={2.25} />
   }
   if (item.has_annotation) {
-    return (
-      <CircleDashed
-        aria-label="devam ediyor"
-        className="h-5 w-5 text-accent shrink-0"
-        strokeWidth={2.25}
-      />
-    )
+    return <CircleDashed aria-hidden className={`${className} text-accent`} strokeWidth={2.25} />
   }
-  return (
-    <Circle
-      aria-label="yeni"
-      className="h-5 w-5 text-accent2 shrink-0"
-      strokeWidth={2.25}
-    />
-  )
+  return <Circle aria-hidden className={`${className} text-accent2`} strokeWidth={2.25} />
 }
 
 function DocListItemImpl({ item, isSelected, onClick }: DocListItemProps) {
+  // Compose a sentence-shaped aria-label that leads with the konu (the
+  // most informative content) and finishes with status + document_id.
+  // Default to the icon-only state when konu is missing so the user
+  // still hears something meaningful.
+  const accessibleName = `${item.konu ?? 'konu yok'} — ${statusText(item)}, ${item.document_id}`
   return (
     <button
       type="button"
+      aria-label={accessibleName}
       onClick={() => onClick(item.document_id)}
       className={cn(
         'group relative flex w-full flex-col gap-2 border-b border-border/60 px-5 py-4 text-left transition-colors',
@@ -72,8 +70,13 @@ function DocListItemImpl({ item, isSelected, onClick }: DocListItemProps) {
             {item.document_id}
           </span>
           {item.tarih && (
-            <span className="font-mono text-[10px] text-muted-foreground/80 tabular-nums">
-              {item.tarih}
+            <span
+              className="font-mono text-[10px] text-muted-foreground/80 tabular-nums"
+              aria-hidden
+            >
+              {/* Format matches DocViewer; raw YYYYMMDD looked alien
+                  beside the dd.mm.yyyy used everywhere else. */}
+              {formatYmd(item.tarih)}
             </span>
           )}
         </div>
