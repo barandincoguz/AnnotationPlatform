@@ -21,7 +21,7 @@ describe('annotateStore', () => {
   it('setCurrentTab updates and persists to sessionStorage', () => {
     useAnnotateStore.getState().setCurrentTab('review')
     expect(useAnnotateStore.getState().currentTab).toBe('review')
-    expect(sessionStorage.getItem('annotate.store.v2')).toContain('review')
+    expect(sessionStorage.getItem('annotate.store.v3')).toContain('review')
   })
 
   it('only accepts valid tabs', () => {
@@ -37,15 +37,15 @@ describe('annotateStore', () => {
   })
 
   it('setSort mutates a single tab without touching the others', () => {
-    useAnnotateStore.getState().setSort('new', { by: 'sayi', order: 'asc' })
+    useAnnotateStore.getState().setSort('new', { by: 'konu', order: 'asc' })
     const { sort } = useAnnotateStore.getState()
-    expect(sort.new).toEqual({ by: 'sayi', order: 'asc' })
+    expect(sort.new).toEqual({ by: 'konu', order: 'asc' })
     expect(sort.review).toEqual({ by: 'updated_at', order: 'desc' })
   })
 
   it('setSort persists to sessionStorage', () => {
     useAnnotateStore.getState().setSort('review', { by: 'editors_count', order: 'desc' })
-    const raw = sessionStorage.getItem('annotate.store.v2')
+    const raw = sessionStorage.getItem('annotate.store.v3')
     expect(raw).toContain('editors_count')
   })
 })
@@ -54,7 +54,7 @@ describe('isSortAvailable', () => {
   it('column-only keys are available on every tab', () => {
     for (const tab of ['new', 'review', 'verified'] as const) {
       expect(isSortAvailable(tab, 'tarih')).toBe(true)
-      expect(isSortAvailable(tab, 'sayi')).toBe(true)
+      expect(isSortAvailable(tab, 'konu')).toBe(true)
       expect(isSortAvailable(tab, 'shuffle')).toBe(true)
     }
   })

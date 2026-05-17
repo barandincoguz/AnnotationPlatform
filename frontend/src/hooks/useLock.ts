@@ -123,12 +123,21 @@ export function useLock(docId: string) {
       try {
         // Best-effort fire-and-forget release on cleanup (page close, route
         // change). Uses keepalive so the browser will deliver it even if the
-        // tab is closing. 90s server TTL is the correctness backstop if this
-        // never lands. Errors are intentionally swallowed.
-        // Build absolute URL so MSW (jsdom tests) matches reliably and any
-        // misconfigured baseURL in prod still works.
-        const origin = typeof window !== 'undefined' ? window.location.origin : ''
-        fetch(`${origin}/api/locks/${encodeURIComponent(docId)}/release`, {
+        // tab is closing. The 5-minute server TTL is the correctness
+        // backstop if this never lands. Errors are intentionally swallowed.
+        //
+        // Use VITE_API_BASE_URL (matching `client`) so split-origin deploys
+        // (frontend behind a CDN, API on a separate host, preview deploys)
+        // hit the right backend. window.location.origin breaks every
+        // deployment that does NOT serve the API from the same host as
+        // the SPA; falling back to '' yields a relative path which the
+        // browser resolves against the SPA origin — correct for same-origin
+        // deploys and the standard dev setup.
+        const apiBase =
+          typeof import.meta.env.VITE_API_BASE_URL === 'string'
+            ? import.meta.env.VITE_API_BASE_URL
+            : ''
+        fetch(`${apiBase}/api/locks/${encodeURIComponent(docId)}/release`, {
           method: 'POST',
           credentials: 'include',
           keepalive: true,

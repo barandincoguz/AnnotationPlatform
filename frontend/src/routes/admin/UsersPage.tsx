@@ -216,8 +216,15 @@ export function UsersPage() {
           <div className="rounded bg-muted p-3 font-mono text-sm">{inviteCode}</div>
           <DialogFooter>
             <Button onClick={() => {
-              if (inviteCode) void navigator.clipboard.writeText(inviteCode)
-              toast.success('Kopyalandı')
+              if (!inviteCode) return
+              // Toast only AFTER the clipboard promise resolves; reject path
+              // (insecure context, permission denied, page unfocused) was
+              // previously swallowed by `void` so the user got a misleading
+              // "Kopyalandı" even when nothing landed in the buffer.
+              navigator.clipboard.writeText(inviteCode).then(
+                () => toast.success('Kopyalandı'),
+                () => toast.error('Kopyalanamadı'),
+              )
             }}>
               Kopyala
             </Button>

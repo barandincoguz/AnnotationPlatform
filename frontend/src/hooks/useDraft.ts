@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { client, ApiError } from '@/api/client'
 import type { components } from '@/api/types'
@@ -75,6 +75,20 @@ export function useDraft(docId: string) {
       }, DRAFT_DEBOUNCE_MS),
     [putRaw],
   )
+
+  // Cancel the captured-closure setTimeout when the memo regenerates
+  // (docId change) or the component unmounts. Without this, a pending
+  // 2-second edit from doc A whose timer is still ticking can resolve
+  // and PUT against the OLD docId after the user has already navigated
+  // to doc B (the closure captures the previous `putRaw`, which itself
+  // is keyed off the old docId). Tracked as the root of the
+  // "stale draft shadows shared annotation" symptom.
+  useEffect(() => {
+    return () => {
+      debouncedSave.cancel()
+      inFlightAbortRef.current?.abort()
+    }
+  }, [debouncedSave])
 
   const blockSavesUntilFurtherNotice = useCallback(() => {
     isBlockedRef.current = true

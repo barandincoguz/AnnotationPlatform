@@ -49,8 +49,14 @@ export function EventsPage() {
   }
 
   const copyTrace = async (t: string) => {
-    await navigator.clipboard.writeText(t)
-    toast.success('Trace ID kopyalandı')
+    // See AuditPage: same defensive wrap so clipboard rejections become
+    // a visible error rather than a swallowed promise.
+    try {
+      await navigator.clipboard.writeText(t)
+      toast.success('Trace ID kopyalandı')
+    } catch {
+      toast.error('Kopyalanamadı')
+    }
   }
 
   return (

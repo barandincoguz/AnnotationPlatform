@@ -23,7 +23,18 @@ interface PickNextOpts {
    * lookup (preserves existing tests that seed via `feedKeys.tab`).
    */
   sort?: FeedSort
+  /**
+   * Recursion depth guard. The intended contract is "at end of loaded
+   * pages: refetch once and try again." Anything beyond one recursion
+   * means the cache mutated in a way we don't expect (SSE-triggered
+   * invalidation that keeps appending pages without ever including the
+   * next index after idx). Bail to `done` rather than spinning.
+   * Callers MUST NOT pass this — it's an internal recursion marker.
+   */
+  _depth?: number
 }
+
+const MAX_RECURSION_DEPTH = 1
 
 export async function pickNextInFeedAcrossPages(opts: PickNextOpts): Promise<NextDocResult> {
   const queryKey = opts.sort
@@ -46,8 +57,14 @@ export async function pickNextInFeedAcrossPages(opts: PickNextOpts): Promise<Nex
   const direct = items[idx + 1]
   if (direct) return { type: 'next', id: direct.document_id }
 
-  // At end of loaded pages — refetch and recurse once.
-  if (items.length < total) {
+  // At end of loaded pages — refetch and recurse once. The depth guard
+  // is the load-bearing termination signal: if the cache mutates such
+  // that `grown.length` keeps incrementing without ever including the
+  // next index after `idx` (plausible under flaky network + SSE
+  // invalidation racing with the refetch), the recursion would spin
+  // forever otherwise.
+  const depth = opts._depth ?? 0
+  if (items.length < total && depth < MAX_RECURSION_DEPTH) {
     await opts.qc.refetchQueries({ queryKey })
     const after = opts.qc.getQueryData<InfiniteData>(queryKey)
     const grown = after ? itemsOf(after) : []
@@ -56,6 +73,7 @@ export async function pickNextInFeedAcrossPages(opts: PickNextOpts): Promise<Nex
         qc: opts.qc,
         currentTab: opts.currentTab,
         currentDocId: opts.currentDocId,
+        _depth: depth + 1,
       }
       if (opts.sort) recurseOpts.sort = opts.sort
       return pickNextInFeedAcrossPages(recurseOpts)
