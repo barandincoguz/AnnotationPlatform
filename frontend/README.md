@@ -90,9 +90,11 @@ under `annotate.currentTab`. URL stays clean (no `?tab=` query param).
 ### Lock lifecycle
 
 - Eager: navigating to `/docs/:docId` triggers `POST /api/locks/{id}/acquire`
-- Heartbeat: every 30s while the route is mounted (server TTL is 90s)
+- Heartbeat: every 30s while the route is mounted (server TTL is 5 minutes,
+  swept every 60s — see `backend/locks/service.py::DEFAULT_LOCK_EXPIRES_SECONDS`)
 - Release: best-effort `fetch(..., { keepalive: true })` on cleanup, plus
-  explicit release after save. The 90s server TTL is the correctness backstop.
+  explicit release after save. The 5-minute server TTL is the correctness
+  backstop if the keepalive POST never lands.
 - 409 on acquire → `LockConflictModal`. Different wording when the conflicting
   user is the current user (same-user-cross-tab case).
 

@@ -3,6 +3,33 @@ import type { components } from '@/api/types'
 type ReferenceItem = components['schemas']['ReferenceItem']
 
 /**
+ * Canonical empty-row factory. Two earlier sites built this literal by
+ * hand (useReferencesState's `empty()` and training's `emptyRef()`);
+ * consolidated here so adding a new optional field touches one place.
+ */
+export function emptyReferenceItem(): ReferenceItem {
+  return {
+    kanun_no: null,
+    kanun_ad: null,
+    madde: null,
+    fikra: null,
+    bent: null,
+    source_text: '',
+  }
+}
+
+/**
+ * True iff the reference has SOME kanun signal (kanun_no or kanun_ad).
+ * Shared helper that both validators below call — the same three lines
+ * were duplicated in `isValidReference` and `isValidTrainingReference`.
+ */
+function hasAtLeastOneKanunField(r: ReferenceItem): boolean {
+  const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
+  const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
+  return hasKanunNo || hasKanunAd
+}
+
+/**
  * A reference is valid iff source_text is non-empty AND at least one of
  * {kanun_no, kanun_ad} is present.
  *
@@ -13,10 +40,7 @@ type ReferenceItem = components['schemas']['ReferenceItem']
  */
 export function isValidReference(r: ReferenceItem): boolean {
   if (!r.source_text || r.source_text.trim().length === 0) return false
-  const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
-  const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
-  if (!hasKanunNo && !hasKanunAd) return false
-  return true
+  return hasAtLeastOneKanunField(r)
 }
 
 /**
@@ -36,9 +60,7 @@ export function areAllReferencesValid(refs: ReferenceItem[]): boolean {
  * main annotation save — do NOT swap it.
  */
 export function isValidTrainingReference(r: ReferenceItem): boolean {
-  const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
-  const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
-  return hasKanunNo || hasKanunAd
+  return hasAtLeastOneKanunField(r)
 }
 
 export function areAllTrainingReferencesValid(refs: ReferenceItem[]): boolean {

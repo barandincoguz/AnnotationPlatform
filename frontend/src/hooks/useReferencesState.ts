@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react'
 import type { components } from '@/api/types'
+import { emptyReferenceItem } from '@/lib/validateReferences'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
 
@@ -9,21 +10,12 @@ type Action =
   | { type: 'update'; index: number; ref: ReferenceItem }
   | { type: 'remove'; index: number }
 
-const empty = (): ReferenceItem => ({
-  kanun_no: null,
-  kanun_ad: null,
-  madde: null,
-  fikra: null,
-  bent: null,
-  source_text: '',
-})
-
 function reducer(state: ReferenceItem[], action: Action): ReferenceItem[] {
   switch (action.type) {
     case 'init':
       return action.refs
     case 'add':
-      return [...state, empty()]
+      return [...state, emptyReferenceItem()]
     case 'update': {
       const next = state.slice()
       next[action.index] = action.ref
