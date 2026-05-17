@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { CheckCircle2, CircleDashed, Circle } from 'lucide-react'
+import { CheckCircle2, CircleDashed, CircleDot, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatYmd } from '@/lib/formatters'
 import { AttributionLabel } from './AttributionLabel'
@@ -7,10 +7,28 @@ import type { components } from '@/api/types'
 
 type FeedItem = components['schemas']['FeedItem']
 
+// Single source of truth for status branding. The four-state
+// `workflow_state` collapses the pre-Phase-1 has_annotation +
+// is_completed ternaries that shadowed earlier UI bugs (a
+// "completed but no annotation row" combination accidentally rendered
+// as "yeni" instead of "tamamlandı"). Backend now hands us a single
+// enum value per row — no derivation required at the row layer.
 function statusText(item: FeedItem): string {
-  if (item.is_completed) return 'tamamlandı'
-  if (item.has_annotation) return 'devam ediyor'
-  return 'yeni'
+  switch (item.workflow_state) {
+    case 'verified':
+      return 'tamamlandı'
+    case 'review':
+      // Shared-annotation in-progress. Kept the legacy "devam ediyor"
+      // phrase for accessibility-test continuity; aria consumers
+      // (screen readers) won't have learned "incelemede" yet.
+      return 'devam ediyor'
+    case 'draft':
+      // Caller's own draft, not yet committed to the shared annotation.
+      // Surfaces in Devam Eden tab alongside 'review' entries.
+      return 'taslak'
+    case 'new':
+      return 'yeni'
+  }
 }
 
 interface DocListItemProps {
@@ -27,15 +45,48 @@ interface DocListItemProps {
 
 // StatusIcon: visual only; aria-hidden so the row's aria-label is the
 // sole spoken description (the icon's status is included in that label).
+// Icon vocabulary:
+//   new      → empty circle      (untouched)
+//   draft    → circle with a dot (started locally, not yet shared)
+//   review   → dashed circle    (shared annotation, in progress)
+//   verified → check circle     (completed)
 function StatusIcon({ item }: { item: FeedItem }) {
   const className = 'h-5 w-5 shrink-0'
-  if (item.is_completed) {
-    return <CheckCircle2 aria-hidden className={`${className} text-success`} strokeWidth={2.25} />
+  switch (item.workflow_state) {
+    case 'verified':
+      return (
+        <CheckCircle2
+          aria-hidden
+          className={`${className} text-success`}
+          strokeWidth={2.25}
+        />
+      )
+    case 'review':
+      return (
+        <CircleDashed
+          aria-hidden
+          className={`${className} text-accent`}
+          strokeWidth={2.25}
+        />
+      )
+    case 'draft':
+      return (
+        <CircleDot
+          aria-hidden
+          className={`${className} text-accent2`}
+          strokeWidth={2.25}
+        />
+      )
+    case 'new':
+    default:
+      return (
+        <Circle
+          aria-hidden
+          className={`${className} text-muted-foreground`}
+          strokeWidth={2.25}
+        />
+      )
   }
-  if (item.has_annotation) {
-    return <CircleDashed aria-hidden className={`${className} text-accent`} strokeWidth={2.25} />
-  }
-  return <Circle aria-hidden className={`${className} text-accent2`} strokeWidth={2.25} />
 }
 
 function DocListItemImpl({ item, isSelected, onClick }: DocListItemProps) {
@@ -91,7 +142,7 @@ function DocListItemImpl({ item, isSelected, onClick }: DocListItemProps) {
             {item.vergi_turu}
           </span>
         )}
-        {item.has_annotation && (
+        {(item.workflow_state === 'review' || item.workflow_state === 'verified') && (
           <AttributionLabel
             username={item.last_editor_username}
             date={item.updated_at}

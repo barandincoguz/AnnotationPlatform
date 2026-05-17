@@ -34,6 +34,13 @@ export function makeFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
     vergi_turu: 'KDV',
     estimated_difficulty: 'orta',
     word_count: 850,
+    // Phase 1 canonical state — defaults to 'new' / no draft, callers
+    // override per test scenario. has_annotation + is_completed are
+    // retained for backward compat with pre-Phase-3 callers that
+    // still set them; once everything reads workflow_state these can
+    // simply be derived.
+    workflow_state: 'new',
+    has_draft: false,
     has_annotation: false,
     is_completed: false,
     last_editor_user_id: null,

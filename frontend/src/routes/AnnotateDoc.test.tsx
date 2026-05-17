@@ -98,4 +98,148 @@ describe('AnnotateDoc integration', () => {
     await user.click(screen.getByRole('button', { name: /atla/i }))
     await waitFor(() => expect(skipSpy).toHaveBeenCalled())
   })
+
+  // === Phase 3: handleComplete collapses to a single atomic POST ===
+  //
+  // Pre-Phase-2 the frontend ran save → complete → delete_draft in a
+  // chain. After Phase 2 the backend handles all three inside one
+  // BEGIN IMMEDIATE when refs are passed in the complete body. This
+  // test verifies the frontend uses the new contract and does NOT
+  // fall back to the legacy save call.
+
+  it('Complete sends refs in a single POST /complete and skips legacy save endpoint', async () => {
+    // Hydrate an annotation row with one ref so refs.list is populated
+    // when the Tamamla button is clicked.
+    server.use(
+      http.get('http://localhost/api/documents/doc-1', () =>
+        HttpResponse.json(
+          makeDocumentDetail({ document_id: 'doc-1', pdf_text: 'BELGE' }),
+        ),
+      ),
+      http.get('http://localhost/api/documents/doc-1/annotation', () =>
+        HttpResponse.json({
+          annotation: {
+            document_id: 'doc-1',
+            references: [
+              {
+                kanun_no: '193',
+                kanun_ad: null,
+                madde: '37',
+                fikra: null,
+                bent: null,
+                source_text: 'on-screen ref',
+              },
+            ],
+            is_completed: false,
+            last_editor_user_id: 1,
+            completed_by_user_id: null,
+            edit_count: 1,
+            unique_users_count: 1,
+            created_at: '2026-05-17T00:00:00+00:00',
+            updated_at: '2026-05-17T00:00:00+00:00',
+          },
+          chain: [],
+        }),
+      ),
+    )
+
+    // Spies for both endpoints — assert the legacy save was NOT hit
+    // while complete WAS hit with refs in the body.
+    const saveSpy = vi.fn(() => HttpResponse.json({ ok: true }))
+    let completeBody: unknown = null
+    const completeSpy = vi.fn(async ({ request }: { request: Request }) => {
+      completeBody = await request.json()
+      return HttpResponse.json({ ok: true })
+    })
+    server.use(
+      http.post('http://localhost/api/annotations', saveSpy),
+      http.post('http://localhost/api/annotations/doc-1/complete', completeSpy),
+    )
+
+    const user = userEvent.setup()
+    renderDoc('/docs/doc-1')
+    await waitFor(
+      () => {
+        const btn = screen.getByRole('button', { name: /^tamamla$/i })
+        expect(btn).not.toBeDisabled()
+      },
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /^tamamla$/i }))
+
+    await waitFor(() => expect(completeSpy).toHaveBeenCalledTimes(1))
+    // Legacy save endpoint MUST NOT have been hit — that was the
+    // pre-Phase-2 chain step we just collapsed.
+    expect(saveSpy).not.toHaveBeenCalled()
+    // Body carried refs alongside the flag.
+    const body = completeBody as { completed: boolean; references: { source_text: string }[] }
+    expect(body.completed).toBe(true)
+    expect(body.references).toHaveLength(1)
+    expect(body.references[0]?.source_text).toBe('on-screen ref')
+  })
+
+  it('Uncomplete (completed=false) omits refs from the complete body', async () => {
+    // Already-completed annotation — clicking the (now-rendered)
+    // "Tamamlanmayı geri al" button must send `{completed: false}`
+    // with NO references key (the backend would 422 otherwise).
+    server.use(
+      http.get('http://localhost/api/documents/doc-1', () =>
+        HttpResponse.json(
+          makeDocumentDetail({ document_id: 'doc-1', pdf_text: 'BELGE' }),
+        ),
+      ),
+      http.get('http://localhost/api/documents/doc-1/annotation', () =>
+        HttpResponse.json({
+          annotation: {
+            document_id: 'doc-1',
+            references: [
+              {
+                kanun_no: '193',
+                kanun_ad: null,
+                madde: '37',
+                fikra: null,
+                bent: null,
+                source_text: 'prior',
+              },
+            ],
+            is_completed: true,
+            last_editor_user_id: 1,
+            completed_by_user_id: 1,
+            edit_count: 1,
+            unique_users_count: 1,
+            created_at: '2026-05-17T00:00:00+00:00',
+            updated_at: '2026-05-17T00:00:00+00:00',
+          },
+          chain: [],
+        }),
+      ),
+    )
+
+    let completeBody: Record<string, unknown> | null = null
+    const completeSpy = vi.fn(async ({ request }: { request: Request }) => {
+      completeBody = (await request.json()) as Record<string, unknown>
+      return HttpResponse.json({ ok: true })
+    })
+    server.use(
+      http.post('http://localhost/api/annotations/doc-1/complete', completeSpy),
+    )
+
+    const user = userEvent.setup()
+    renderDoc('/docs/doc-1')
+    await waitFor(
+      () => {
+        // The uncomplete button has a different label — it shows
+        // when isCompleted=true.
+        const btn = screen.getByRole('button', { name: /geri al/i })
+        expect(btn).not.toBeDisabled()
+      },
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /geri al/i }))
+
+    await waitFor(() => expect(completeSpy).toHaveBeenCalledTimes(1))
+    expect(completeBody).toEqual({ completed: false })
+    // No `references` key in the uncomplete payload.
+    expect(completeBody).not.toHaveProperty('references')
+  })
 })

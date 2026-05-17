@@ -142,60 +142,37 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   }
 
   const handleComplete = async () => {
-    if (!hasAnnotation) return
     const targetCompleted = !isCompleted
     draft.blockSavesUntilFurtherNotice()
 
-    // CRITICAL: when completing, persist whatever the user has on screen
-    // BEFORE flipping the is_completed flag. The backend `set_complete`
-    // endpoint only flips the flag — it reads `references_json` from the
-    // existing annotation row and writes a `complete_mark` version row;
-    // it never consults the drafts table. Without this pre-save:
-    //   - the user types refs into the UI
-    //   - the 2s draft-debounce hasn't fired yet (or the latest tick is
-    //     still in flight)
-    //   - the user clicks "Tamamla"
-    //   - blockSavesUntilFurtherNotice() cancels the pending PUT
-    //   - the document gets marked complete with whatever was previously
-    //     committed to `annotations.references_json` (often empty / stale
-    //     / a different user's work)
-    //   - the on-screen content the user "completed" is silently dropped
-    //     into the orphan drafts row (Bug: completed annotations of "a"
-    //     with 11-ref drafts left over)
-    // Uncomplete (targetCompleted=false) skips this — the user is
-    // reversing a prior commit, not freezing a new one.
-    if (targetCompleted) {
-      try {
-        await saveMutation.mutateAsync({
-          document_id: docId,
-          references: refs.list,
-        })
-      } catch {
-        draft.unblockSaves()
-        return
-      }
-    }
-
+    // Phase 3: single atomic POST.
+    //
+    // Pre-Phase-2 the frontend ran a 3-call chain (save → complete →
+    // delete_draft) so that the on-screen refs were persisted before
+    // the flag flipped. Backend Phase 2 collapsed all three into one
+    // BEGIN IMMEDIATE on /complete: when `references` accompanies a
+    // `completed=true` body the server saves the refs, flips the flag,
+    // and deletes the caller's draft in a single transaction. The
+    // pre-Phase-2 race (where blockSaves cancelled a pending PUT and
+    // a stale `annotations.references_json` got frozen as "complete")
+    // is now impossible — the server is the only writer of the final
+    // state.
+    //
+    // Uncomplete (`completed=false`) is unchanged semantically: no refs
+    // in the body, server flips the flag only. CompleteRequest's
+    // model_validator rejects `completed=false` + refs at 422.
     try {
       await completeMutation.mutateAsync({
         document_id: docId,
         completed: targetCompleted,
+        // Conditional spread — `exactOptionalPropertyTypes` rejects
+        // `references: undefined` as an in-band signal. Only include
+        // the key on the atomic path.
+        ...(targetCompleted && { references: refs.list }),
       })
     } catch {
       draft.unblockSaves()
       return
-    }
-
-    // Drop the now-stale draft row so a later viewer (or the same user
-    // uncomplete-then-recomplete) doesn't see ghost content from the
-    // pre-save period.
-    let draftDeleteFailed = false
-    if (targetCompleted) {
-      try {
-        await draft.deleteMutation.mutateAsync()
-      } catch {
-        draftDeleteFailed = true
-      }
     }
 
     let lockReleaseFailed = false
@@ -205,7 +182,10 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       lockReleaseFailed = true
     }
 
-    await qc.invalidateQueries({ queryKey: feedKeys.all })
+    // Mutation onSuccess already invalidates feedKeys.all + the
+    // doc's annotation + draft caches. We still refetch the active
+    // tab explicitly so pickNextInFeedAcrossPages reads up-to-date
+    // pages before navigating.
     await qc.refetchQueries({ queryKey: feedKeys.tab(currentTab) })
 
     const next = await pickNextInFeedAcrossPages({
@@ -217,9 +197,6 @@ function AnnotateDocInner({ docId }: { docId: string }) {
 
     if (lockReleaseFailed) {
       toast.warning('Kilit serbest bırakılamadı; 5 dakika içinde otomatik temizlenir.')
-    }
-    if (draftDeleteFailed) {
-      toast.warning('Taslak silinemedi; bir sonraki düzenlemede üzerine yazılacak.')
     }
     toast.success(
       targetCompleted
