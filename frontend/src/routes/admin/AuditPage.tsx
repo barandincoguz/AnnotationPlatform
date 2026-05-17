@@ -43,8 +43,15 @@ export function AuditPage() {
   }
 
   const copyTrace = async (t: string) => {
-    await navigator.clipboard.writeText(t)
-    toast.success('Trace ID kopyalandı')
+    // Wrap the write in try/catch so a clipboard rejection (insecure
+    // context, permission denied) surfaces as an error toast instead
+    // of an uncaught promise + dead button.
+    try {
+      await navigator.clipboard.writeText(t)
+      toast.success('Trace ID kopyalandı')
+    } catch {
+      toast.error('Kopyalanamadı')
+    }
   }
 
   return (

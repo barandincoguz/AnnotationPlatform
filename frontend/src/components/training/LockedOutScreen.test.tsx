@@ -4,10 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { LockedOutScreen } from './LockedOutScreen'
 
 describe('LockedOutScreen', () => {
-  it('renders explainer + admin email', () => {
+  it('renders explainer + admin-contact instruction', () => {
     render(<LockedOutScreen onLogout={vi.fn()} onGoToHelp={vi.fn()} />)
     expect(screen.getByText(/maksimum deneme sayısına ulaşıldı/i)).toBeInTheDocument()
-    expect(screen.getByText(/team@example\.com/i)).toBeInTheDocument()
+    // No mailto/email here on purpose — the prior `team@example.com`
+    // was a placeholder that pointed nowhere. Real support routing
+    // belongs to an admin contact UI (out of polish-phase scope).
+    expect(screen.getByText(/yöneticiyle iletişime geç/i)).toBeInTheDocument()
   })
 
   it('Çıkış yap → onLogout', async () => {

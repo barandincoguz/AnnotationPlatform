@@ -7,12 +7,17 @@ export type FeedTab = 'new' | 'review' | 'verified'
  * Sort keys mirrored from backend/shuffle/service.py SORT_COLUMNS.
  * "shuffle" is the legacy per-user-per-day deterministic shuffle path;
  * any other key triggers a SQL ORDER BY on the matching column.
+ *
+ * Removed: 'sayi'. The per-year sayi was dropped from the doc display
+ * (paket-6, commit 586b811: "drop misleading per-year № sayi") because
+ * sayi is not unique across years. The SortMenu UI never rendered an
+ * entry for it; keeping it in the type allowed a stale persisted sort
+ * to survive rehydration and produce a sort the UI couldn't represent.
  */
 export type SortKey =
   | 'shuffle'
   | 'tarih'
   | 'created_at'
-  | 'sayi'
   | 'vergi_turu'
   | 'konu'
   | 'difficulty'
@@ -36,7 +41,6 @@ const SORT_AVAILABILITY: Record<SortKey, readonly FeedTab[]> = {
   shuffle: ['new', 'review', 'verified'],
   tarih: ['new', 'review', 'verified'],
   created_at: ['new', 'review', 'verified'],
-  sayi: ['new', 'review', 'verified'],
   vergi_turu: ['new', 'review', 'verified'],
   konu: ['new', 'review', 'verified'],
   difficulty: ['new', 'review', 'verified'],
@@ -77,10 +81,12 @@ export const useAnnotateStore = create<AnnotateState>()(
         set((state) => ({ sort: { ...state.sort, [tab]: next } })),
     }),
     {
-      // Bumped storage name (v2) because the schema gained `sort`; an
-      // older "annotate.currentTab" entry would deserialize as a
-      // partial state and leave `sort` undefined.
-      name: 'annotate.store.v2',
+      // Bumped storage name (v3) on removal of the 'sayi' SortKey: a
+      // stale persisted `{by: 'sayi', order: 'desc'}` entry would
+      // survive rehydration and trip the new sortKeySchema (`v3`
+      // discards the old entry on parse failure rather than booting
+      // into a sort the SortMenu can't display).
+      name: 'annotate.store.v3',
       storage: createJSONStorage(() => sessionStorage),
     },
   ),
