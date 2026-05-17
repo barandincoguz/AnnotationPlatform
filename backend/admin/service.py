@@ -2,7 +2,21 @@
 
 Houses list_system_events and list_admin_audit (paginated/filtered queries
 over system_events and admin_audit_log respectively)."""
+import json
 import sqlite3
+
+
+def _decode_json_blob(raw):
+    """Parse a JSON-text DB blob into a dict/list/None. Returns None for
+    null/empty input. Returns the raw string if it is not valid JSON
+    so callers see the original cell content rather than `null`
+    (helps debugging corrupted rows)."""
+    if raw is None or raw == "":
+        return None
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return raw
 
 
 def list_system_events(
@@ -52,7 +66,7 @@ def list_system_events(
             "event_type": r["event_type"],
             "severity": r["severity"],
             "message": r["message"],
-            "extra": r["extra_json"],
+            "extra": _decode_json_blob(r["extra_json"]),
             "trace_id": r["trace_id"],
             "created_at": r["created_at"],
         }
@@ -115,7 +129,7 @@ def list_admin_audit(
             "action_type": r["action_type"],
             "target_kind": r["target_kind"],
             "target_id": r["target_id"],
-            "metadata": r["metadata_json"],
+            "metadata": _decode_json_blob(r["metadata_json"]),
             "trace_id": r["trace_id"],
             "created_at": r["created_at"],
         }

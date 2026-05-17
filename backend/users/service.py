@@ -86,44 +86,80 @@ def register(
     invite_code: str,
     email: Optional[str],
 ) -> int:
-    """Register a new bursiyer. Returns new user_id."""
+    """Register a new bursiyer. Returns new user_id.
+
+    Both inserts run inside BEGIN IMMEDIATE / COMMIT so a mid-sequence
+    failure cannot orphan a user row without its gamification state.
+    The uniqueness pre-checks happen inside the same transaction; an
+    `sqlite3.IntegrityError` from a concurrent registration of the same
+    username/email is translated to UsernameTaken/EmailTaken (HTTP 409)
+    rather than leaking as a 500.
+
+    Invite check ordering: the invite is checked AFTER username/email
+    uniqueness so an attacker pairing a guessed invite code with a
+    known-taken username always receives 409, never 403. Probing the
+    invite still requires a fresh free username, raising the friction
+    versus the prior 403/409 oracle.
+    """
     if len(password) < 8:
         raise InvalidPassword("password must be at least 8 characters")
 
-    _check_active_invite(db, invite_code)
-
-    # Username uniqueness
-    if db.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
-        raise UsernameTaken(f"username '{username}' already exists")
-
-    if email and db.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
-        raise EmailTaken(f"email '{email}' already registered")
-
     now = _now()
-    cur = db.execute(
-        """
-        INSERT INTO users(username, email, password_hash, role, is_active,
-                          avatar_color, created_at, updated_at)
-        VALUES (?, ?, ?, 'user', 1, ?, ?, ?)
-        """,
-        (
-            username, email,
-            auth.hash_password(password),
-            _avatar_color_for(username),
-            now, now,
-        ),
-    )
-    user_id = cur.lastrowid
-    assert user_id is not None  # AUTOINCREMENT
+    pw_hash = auth.hash_password(password)
+    avatar = _avatar_color_for(username)
 
-    # Initialize gamification state
-    db.execute(
-        """
-        INSERT INTO gamification_state(user_id, updated_at)
-        VALUES (?, ?)
-        """,
-        (user_id, now),
-    )
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        if db.execute(
+            "SELECT 1 FROM users WHERE username=?", (username,)
+        ).fetchone():
+            raise UsernameTaken(f"username '{username}' already exists")
+
+        if email and db.execute(
+            "SELECT 1 FROM users WHERE email=?", (email,)
+        ).fetchone():
+            raise EmailTaken(f"email '{email}' already registered")
+
+        # Invite check is the last gate so 403 only escapes for a
+        # FREE username; combined with any taken-name probe the
+        # response collapses to 409 regardless of invite validity.
+        _check_active_invite(db, invite_code)
+
+        cur = db.execute(
+            """
+            INSERT INTO users(username, email, password_hash, role, is_active,
+                              avatar_color, created_at, updated_at)
+            VALUES (?, ?, ?, 'user', 1, ?, ?, ?)
+            """,
+            (username, email, pw_hash, avatar, now, now),
+        )
+        user_id = cur.lastrowid
+        assert user_id is not None  # AUTOINCREMENT
+
+        # Initialize gamification state (same transaction so a failure
+        # here aborts the whole register flow, no orphan user rows).
+        db.execute(
+            """
+            INSERT INTO gamification_state(user_id, updated_at)
+            VALUES (?, ?)
+            """,
+            (user_id, now),
+        )
+        db.execute("COMMIT")
+    except sqlite3.IntegrityError as exc:
+        db.execute("ROLLBACK")
+        # UNIQUE collision raced past our SELECTs above. Translate to
+        # the same domain exceptions so the route still returns 409,
+        # not 500.
+        msg = str(exc).lower()
+        if "users.username" in msg or "users_username" in msg:
+            raise UsernameTaken(f"username '{username}' already exists") from exc
+        if "users.email" in msg or "users_email" in msg:
+            raise EmailTaken(f"email '{email}' already registered") from exc
+        raise
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
     return user_id
 

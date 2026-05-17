@@ -9,6 +9,7 @@ from backend import config
 from backend.gamification import service as gamification_service
 from backend.gamification.models import ProfileResponse
 from backend.shared import audit
+from backend.shared.rate_limit import rate_limit
 from backend.users import service
 from backend.users.deps import (
     get_db, get_current_user, get_request_ip
@@ -18,6 +19,23 @@ from backend.users.models import (
 )
 
 router = APIRouter(prefix="/api", tags=["users"])
+
+
+# Per-IP throttles. Generous-but-noticeable: a real user typing a wrong
+# password ten times wakes up; an attacker brute-forcing the seeded
+# admin password hits 429 long before bcrypt is the bottleneck. The
+# in-memory sliding-window limiter is appropriate for the single-process
+# uvicorn deployment; cross-host coordination is out of polish scope.
+_login_throttle = rate_limit(
+    namespace="auth.login",
+    max_hits=10,
+    window_seconds=5 * 60,
+)
+_register_throttle = rate_limit(
+    namespace="auth.register",
+    max_hits=5,
+    window_seconds=60 * 60,
+)
 
 
 def _user_to_out(row: sqlite3.Row) -> dict:
@@ -38,6 +56,7 @@ def _user_to_out(row: sqlite3.Row) -> dict:
 def register(
     payload: RegisterRequest,
     db: sqlite3.Connection = Depends(get_db),
+    _throttle: None = Depends(_register_throttle),
 ):
     try:
         user_id = service.register(
@@ -66,6 +85,7 @@ def login(
     request: Request,
     response: Response,
     db: sqlite3.Connection = Depends(get_db),
+    _throttle: None = Depends(_login_throttle),
 ):
     try:
         token = service.login(
@@ -174,14 +194,22 @@ def list_online_users(
     ]
 
 
-from pydantic import BaseModel as _BaseModel
+from pydantic import BaseModel as _BaseModel, Field
 
 from backend.users.deps import require_admin
 from backend.users.models import UsersListResponse
 
 
 class RotateInviteRequest(_BaseModel):
-    new_code: str
+    # Strict alphabet + 8-32 char range. Without min/max an admin could
+    # rotate to "" and brick registration; without a pattern an admin
+    # could rotate to a value containing whitespace / control bytes that
+    # later fail subtle string-equality checks.
+    new_code: str = Field(
+        min_length=8,
+        max_length=32,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )
 
 
 @router.get("/admin/users", response_model=UsersListResponse)

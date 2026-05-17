@@ -12,6 +12,19 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Tests rapidly fire /api/auth/login and /api/auth/register from a
+    single TestClient (one client IP). Without resetting the in-memory
+    sliding-window limiter between tests, later tests in the same module
+    inherit hits from earlier tests and trip 429 unrelated to what they
+    are exercising. The CSRF-style dedicated tests
+    (`tests/test_rate_limit.py`) exercise the limiter directly."""
+    from backend.shared.rate_limit import reset_for_tests
+    reset_for_tests()
+    yield
+
+
 @pytest.fixture
 def db_path(tmp_path: Path) -> Path:
     return tmp_path / "test.db"

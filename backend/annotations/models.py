@@ -4,17 +4,24 @@ from pydantic import BaseModel, Field
 
 
 class ReferenceItem(BaseModel):
-    kanun_no: Optional[str] = None
-    kanun_ad: Optional[str] = None
-    madde: Optional[str] = None
-    fikra: Optional[str] = None
-    bent: Optional[str] = None
-    source_text: str = Field(min_length=1)
+    # Per-field caps prevent multi-MB payloads from ballooning the
+    # annotations + version-history rows. Lengths are generous (Turkish
+    # law identifiers + free-text source quotes typical of özelge work).
+    kanun_no: Optional[str] = Field(default=None, max_length=64)
+    kanun_ad: Optional[str] = Field(default=None, max_length=512)
+    madde: Optional[str] = Field(default=None, max_length=64)
+    fikra: Optional[str] = Field(default=None, max_length=64)
+    bent: Optional[str] = Field(default=None, max_length=64)
+    source_text: str = Field(min_length=1, max_length=4_000)
 
 
 class SaveAnnotationRequest(BaseModel):
-    document_id: str
-    references: list[ReferenceItem]
+    # Document IDs are 14-char base36 in production; cap is loose to
+    # accommodate seed-e2e fixtures while still rejecting unbounded blobs.
+    document_id: str = Field(min_length=1, max_length=128)
+    # Caps total reference count; combined with ReferenceItem caps this
+    # bounds the worst-case payload to ~800 KB.
+    references: list[ReferenceItem] = Field(max_length=200)
 
 
 class SaveAnnotationResponse(BaseModel):

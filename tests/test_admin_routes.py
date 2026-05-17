@@ -63,7 +63,11 @@ def test_admin_rotate_invite_code(client, bootstrap_admin):
 
 def test_admin_audit_log_endpoint_returns_actions(client, bootstrap_admin):
     bootstrap_admin()
-    client.post("/api/admin/invite/rotate", json={"new_code": "X-2026"})
+    # The new RotateInviteRequest validator enforces an 8-char minimum
+    # (security: rotating to a short code makes registration trivially
+    # guessable). The original "X-2026" failed the validator silently,
+    # producing zero audit rows.
+    client.post("/api/admin/invite/rotate", json={"new_code": "XPSTRY26"})
     r = client.get("/api/admin/audit-log")
     assert r.status_code == 200
     body = r.json()
