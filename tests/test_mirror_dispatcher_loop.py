@@ -20,6 +20,16 @@ from backend.migrations.runner import apply_migrations
 from backend.shared.db import connect
 
 
+@pytest.fixture(autouse=True)
+def _reset_dispatcher_module_state():
+    """Reset cold-start flag + last_status between tests."""
+    from backend.mirror import dispatcher as d
+    d._cold_start_emitted = False
+    d.last_status = None
+    d.last_delivered_at = None
+    yield
+
+
 def _seed_pending(conn: sqlite3.Connection, n: int = 3) -> list[int]:
     """Insert N pending outbox rows; returns their ids."""
     ids: list[int] = []
