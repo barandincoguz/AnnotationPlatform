@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.admin import service as admin_service
 from backend.admin.models import SettingUpdateRequest, SettingUpdateResponse
+from backend.mirror import health as mirror_health
 from backend.shared import audit, settings as S
 from backend.users.deps import get_db, require_admin
 
@@ -128,3 +129,18 @@ def admin_system_events(
         event_type=event_type, severity=severity, trace_id=trace_id,
         date_from=date_from, date_to=date_to,
     )
+
+
+@router.get("/mirror/health")
+def mirror_health_view(
+    db: sqlite3.Connection = Depends(get_db),
+    _admin: sqlite3.Row = Depends(require_admin),
+):
+    """Neon mirror outbox queue depth, dead-letter count, oldest age,
+    last delivered timestamp, dispatcher liveness, and Neon reachability.
+
+    `dispatcher_alive` and `neon_reachable` are operational ergonomics
+    fields (not strictly required by D-18) — they let the operator
+    distinguish a healthy quiet queue from a silently-crashed dispatcher.
+    """
+    return mirror_health.collect_health(db)
