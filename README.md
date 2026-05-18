@@ -87,6 +87,12 @@ flowchart LR
         Drafts[("drafts<br/>(per user, per doc)")]
         Locks[("document_locks<br/>(lease + heartbeat)")]
         Audit[("activity_events<br/>+ admin_audit_log")]
+        Outbox[("_outbox<br/>(mirror queue, 69 triggers)")]
+    end
+
+    subgraph Mirror["Neon mirror (async, one-way)"]
+        Dispatcher["asyncio dispatcher<br/>(lifespan task)"]
+        Neon[("Neon Postgres<br/>baran_* tables")]
     end
 
     UI --> QC --> Routes
@@ -97,6 +103,11 @@ flowchart LR
     Services --> Locks
     Services --> Audit
     Services -.publish.-> Broker
+    Annots -.trigger.-> Outbox
+    Drafts -.trigger.-> Outbox
+    Locks -.trigger.-> Outbox
+    Audit -.trigger.-> Outbox
+    Outbox --> Dispatcher --> Neon
 ```
 
 **Why these choices?** SQLite + a single uvicorn worker eliminates an entire
