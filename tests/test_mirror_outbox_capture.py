@@ -249,3 +249,229 @@ def test_neon_client_delete_sql_shape():
     sql2, args2 = _build_delete("baran_drafts", ["document_id", "user_id"], "doc-1::99")
     assert "WHERE document_id = %s AND user_id = %s" in sql2
     assert args2 == ["doc-1", "99"]
+
+
+# === Task 13: end-to-end smoke + latency regression guard ===
+#
+# Wires the live FastAPI app (via TestClient) to the trigger-capture
+# layer and verifies the full round-trip: HTTP write → SQLite row +
+# _outbox row → dispatcher drain → mark delivered. The latency check
+# is a SOFT 50ms p95 regression bound, NOT the MIRROR-07 5ms target
+# (that one is verified out-of-process via wrk/hey and recorded in
+# 4-SUMMARY.md; see <output> of 4-PLAN.md).
+
+
+def test_http_write_creates_one_outbox_row(client):
+    """POST /api/auth/register writes a users row; the _outbox trigger
+    captures the INSERT exactly once with the right shape."""
+    # Seed an invite code first (registration needs one).
+    from backend.shared.db import connect
+    from backend import config as app_config
+    conn = connect(app_config.DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO invite_codes(code, is_active, created_at) "
+            "VALUES (?,1,datetime('now'))",
+            ("E2E-INV-13",),
+        )
+        conn.commit()
+        # Snapshot _outbox BEFORE the HTTP write so we can isolate
+        # rows produced by the register endpoint specifically.
+        before = conn.execute(
+            "SELECT COUNT(*) AS c FROM _outbox WHERE table_name=? AND op=?",
+            ("users", "INSERT"),
+        ).fetchone()["c"]
+    finally:
+        conn.close()
+
+    r = client.post("/api/auth/register", json={
+        "username": "e2e_user_13",
+        "password": "password123",
+        "invite_code": "E2E-INV-13",
+        "email": "e2e13@example.com",
+    })
+    assert r.status_code == 201, r.text
+
+    conn = connect(app_config.DB_PATH)
+    try:
+        after = conn.execute(
+            "SELECT COUNT(*) AS c FROM _outbox WHERE table_name=? AND op=?",
+            ("users", "INSERT"),
+        ).fetchone()["c"]
+        # Exactly one new users INSERT outbox row from the register endpoint.
+        assert after - before == 1
+        row = conn.execute(
+            "SELECT table_name, op, pk_value, payload_json, delivered_at, retry_count "
+            "FROM _outbox WHERE table_name=? AND op=? ORDER BY id DESC LIMIT 1",
+            ("users", "INSERT"),
+        ).fetchone()
+        assert row["table_name"] == "users"
+        assert row["op"] == "INSERT"
+        assert row["delivered_at"] is None  # not yet drained
+        assert row["retry_count"] == 0
+        payload = json.loads(row["payload_json"])
+        assert payload["username"] == "e2e_user_13"
+        # pk_value reflects the row's PK (users.id is INTEGER, surfaces as str).
+        assert row["pk_value"] == str(payload["id"])
+    finally:
+        conn.close()
+
+
+async def test_dispatcher_drains_http_originated_outbox_rows(client):
+    """End-to-end Task 13 contract: an HTTP write produces an _outbox
+    row, then the dispatcher (with a FakeNeon stand-in) drains the
+    row and marks it delivered."""
+    import asyncio
+    from backend.shared.db import connect
+    from backend import config as app_config
+    from backend.mirror.dispatcher import run_dispatcher
+
+    # Seed invite + register (HTTP write → trigger → outbox row).
+    conn = connect(app_config.DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO invite_codes(code, is_active, created_at) "
+            "VALUES (?,1,datetime('now'))",
+            ("E2E-INV-13B",),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    r = client.post("/api/auth/register", json={
+        "username": "e2e_user_13b",
+        "password": "password123",
+        "invite_code": "E2E-INV-13B",
+        "email": "e2e13b@example.com",
+    })
+    assert r.status_code == 201, r.text
+
+    # Spin up the dispatcher with a FakeNeon that always succeeds.
+    class _FakeNeon:
+        def __init__(self):
+            self.applied = []
+            self.last_status = None
+            self.has_connected_once = False
+        def connect(self):
+            self.has_connected_once = True
+            return True
+        def close(self):
+            pass
+        def apply(self, op, table, pk_value, payload):
+            self.applied.append((op, table, pk_value, payload))
+            self.last_status = True
+
+    neon = _FakeNeon()
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        run_dispatcher(
+            conn_factory=lambda: connect(app_config.DB_PATH),
+            neon_client=neon,
+            batch_size=100,
+            sleep_empty=0.0,
+            sleep_batch=0.0,
+            max_retries=5,
+            stop_event=stop,
+        )
+    )
+    # Let the dispatcher drain at least once.
+    for _ in range(20):
+        await asyncio.sleep(0.01)
+        # Stop as soon as the new users INSERT shows up in the applied log.
+        if any(a[1] == "users" and a[0] == "INSERT" for a in neon.applied):
+            break
+    stop.set()
+    try:
+        await asyncio.wait_for(task, timeout=2.0)
+    except asyncio.TimeoutError:
+        task.cancel()
+        raise
+
+    # The dispatcher applied at least one users INSERT (the one we just made).
+    user_inserts = [a for a in neon.applied if a[1] == "users" and a[0] == "INSERT"]
+    assert len(user_inserts) >= 1
+    # And the _outbox row for that insert is now marked delivered.
+    conn = connect(app_config.DB_PATH)
+    try:
+        delivered = conn.execute(
+            "SELECT COUNT(*) AS c FROM _outbox "
+            "WHERE table_name='users' AND op='INSERT' "
+            "  AND delivered_at IS NOT NULL"
+        ).fetchone()["c"]
+        assert delivered >= 1
+    finally:
+        conn.close()
+
+
+def test_http_latency_regression_guard_under_dispatcher(client):
+    """Soft 50ms p95 regression bound on a lightweight GET while the
+    dispatcher is NOT running vs. running. The strict MIRROR-07 5ms p95
+    budget is verified out-of-process via wrk/hey and recorded in
+    `4-SUMMARY.md`; this in-process check is a coarse regression guard
+    only — do NOT tighten to 5ms (CI jitter + GIL noise make a tight
+    in-process assertion flaky)."""
+    import time
+    import asyncio
+    from backend.shared.db import connect
+    from backend import config as app_config
+    from backend.mirror.dispatcher import run_dispatcher
+
+    def _measure_p95():
+        samples = []
+        for _ in range(100):
+            t0 = time.perf_counter()
+            r = client.get("/api/health")
+            assert r.status_code == 200
+            samples.append((time.perf_counter() - t0) * 1000.0)  # ms
+        samples.sort()
+        return samples[int(len(samples) * 0.95)]
+
+    # Baseline: no dispatcher.
+    p95_no_dispatcher = _measure_p95()
+
+    # Now start a dispatcher in the background and re-measure.
+    class _IdleNeon:
+        def __init__(self):
+            self.last_status = None
+            self.has_connected_once = False
+        def connect(self):
+            self.has_connected_once = True
+            return True
+        def close(self):
+            pass
+        def apply(self, op, table, pk_value, payload):
+            self.last_status = True
+
+    async def _with_dispatcher():
+        neon = _IdleNeon()
+        stop = asyncio.Event()
+        task = asyncio.create_task(
+            run_dispatcher(
+                conn_factory=lambda: connect(app_config.DB_PATH),
+                neon_client=neon,
+                batch_size=100,
+                sleep_empty=0.05,
+                sleep_batch=0.0,
+                max_retries=5,
+                stop_event=stop,
+            )
+        )
+        await asyncio.sleep(0.05)  # let it spin up
+        p95 = await asyncio.to_thread(_measure_p95)
+        stop.set()
+        try:
+            await asyncio.wait_for(task, timeout=2.0)
+        except asyncio.TimeoutError:
+            task.cancel()
+        return p95
+
+    p95_with_dispatcher = asyncio.run(_with_dispatcher())
+
+    delta_ms = p95_with_dispatcher - p95_no_dispatcher
+    # Soft 50ms p95 regression bound. DO NOT TIGHTEN.
+    assert delta_ms <= 50.0, (
+        f"p95 latency regression {delta_ms:.2f}ms exceeded the 50ms soft "
+        f"guard (no-dispatcher={p95_no_dispatcher:.2f}ms, "
+        f"with-dispatcher={p95_with_dispatcher:.2f}ms). The strict 5ms "
+        f"MIRROR-07 budget is verified out-of-process via wrk/hey; this "
+        f"in-process check is a coarse regression guard only."
+    )
