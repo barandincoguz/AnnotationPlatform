@@ -17,6 +17,10 @@ from backend.migrations.helpers.schema_introspect import (
     introspect_table,
     list_project_tables,
 )
+from backend.migrations.helpers.postgres_ddl import (
+    build_all_pg_ddl,
+    build_pg_ddl_for_table,
+)
 
 
 def _migrated_conn() -> sqlite3.Connection:
@@ -101,4 +105,145 @@ def test_introspect_system_events_check_clause_with_nested_parens():
     conn = _migrated_conn()
     s = introspect_table(conn, "system_events")
     assert any("severity" in c.lower() and "info" in c.lower() for c in s.checks), s.checks
+    conn.close()
+
+
+# === Task 3: Postgres DDL generator ===
+
+
+def _full_ddl(conn) -> str:
+    return build_all_pg_ddl(conn)
+
+
+def test_pg_ddl_users_bigserial_primary_key():
+    conn = _migrated_conn()
+    stmts = build_pg_ddl_for_table(introspect_table(conn, "users"))
+    sql = "\n".join(stmts)
+    assert "CREATE TABLE IF NOT EXISTS baran_users" in sql
+    # `id` is the AUTOINCREMENT PK → bigserial PRIMARY KEY
+    assert "id bigserial PRIMARY KEY" in sql, sql
+    conn.close()
+
+
+def test_pg_ddl_annotations_text_primary_key_preserved():
+    """`annotations.document_id TEXT PRIMARY KEY` must NOT be rewritten to bigserial."""
+    conn = _migrated_conn()
+    stmts = build_pg_ddl_for_table(introspect_table(conn, "annotations"))
+    sql = "\n".join(stmts)
+    # Must contain `document_id text PRIMARY KEY` (or with the inline REFERENCES)
+    assert "document_id text PRIMARY KEY" in sql, sql
+    # Must NOT contain `document_id bigserial`
+    assert "document_id bigserial" not in sql, sql
+    conn.close()
+
+
+def test_pg_ddl_drafts_composite_pk_with_mixed_types():
+    """`drafts` composite PK (document_id TEXT, user_id INTEGER)."""
+    conn = _migrated_conn()
+    stmts = build_pg_ddl_for_table(introspect_table(conn, "drafts"))
+    sql = "\n".join(stmts)
+    # Each column line with its mapped type (no inline PRIMARY KEY).
+    assert "document_id text" in sql
+    assert "user_id bigint" in sql
+    # Trailing composite PK clause.
+    assert "PRIMARY KEY (document_id, user_id)" in sql, sql
+    # Composite PK columns must NOT carry inline PRIMARY KEY tokens
+    # ("document_id text PRIMARY KEY" would be wrong here).
+    assert "document_id text PRIMARY KEY" not in sql
+    assert "user_id bigint PRIMARY KEY" not in sql
+    conn.close()
+
+
+def test_pg_ddl_fk_rewrites_to_baran():
+    """`REFERENCES users(id) ON DELETE SET NULL` → `REFERENCES baran_users(id) ON DELETE SET NULL`."""
+    conn = _migrated_conn()
+    stmts = build_pg_ddl_for_table(introspect_table(conn, "annotations"))
+    sql = "\n".join(stmts)
+    assert "REFERENCES baran_users(id) ON DELETE SET NULL" in sql, sql
+    # And no un-rewritten REFERENCES to bare project tables
+    assert "REFERENCES users(id)" not in sql
+    assert "REFERENCES documents_meta(document_id)" not in sql
+    conn.close()
+
+
+def test_pg_ddl_drafts_references_json_maps_to_jsonb():
+    conn = _migrated_conn()
+    stmts = build_pg_ddl_for_table(introspect_table(conn, "drafts"))
+    sql = "\n".join(stmts)
+    assert "references_json jsonb" in sql, sql
+    conn.close()
+
+
+def test_pg_ddl_system_events_check_copied_verbatim():
+    conn = _migrated_conn()
+    stmts = build_pg_ddl_for_table(introspect_table(conn, "system_events"))
+    sql = "\n".join(stmts)
+    # CHECK body contains the literal severity-in-list expression.
+    assert "CHECK (" in sql
+    assert "severity IN ('info','warn','error')" in sql, sql
+    conn.close()
+
+
+def test_pg_ddl_topological_order_users_before_annotations():
+    conn = _migrated_conn()
+    full = build_all_pg_ddl(conn)
+    pos_users = full.find("CREATE TABLE IF NOT EXISTS baran_users")
+    pos_anno = full.find("CREATE TABLE IF NOT EXISTS baran_annotations")
+    assert pos_users != -1 and pos_anno != -1
+    assert pos_users < pos_anno, "users must come before annotations (FK target)"
+    # documents_meta is also a parent of annotations
+    pos_meta = full.find("CREATE TABLE IF NOT EXISTS baran_documents_meta")
+    assert pos_meta < pos_anno
+    conn.close()
+
+
+def test_pg_ddl_excludes_outbox_and_schema_migrations():
+    conn = _migrated_conn()
+    full = build_all_pg_ddl(conn)
+    assert "baran__outbox" not in full
+    assert "baran_schema_migrations" not in full
+    conn.close()
+
+
+def test_pg_ddl_every_create_table_is_idempotent():
+    conn = _migrated_conn()
+    full = build_all_pg_ddl(conn)
+    create_count = full.count("CREATE TABLE ")
+    idempotent_count = full.count("CREATE TABLE IF NOT EXISTS ")
+    assert create_count == idempotent_count == 23, (create_count, idempotent_count)
+    conn.close()
+
+
+def test_pg_ddl_every_underscore_json_column_maps_to_jsonb():
+    """Heuristic guard: every column ending in `_json` across all 23 in-scope
+    tables must surface as `jsonb` in the generated DDL.
+    """
+    conn = _migrated_conn()
+    full = build_all_pg_ddl(conn)
+    json_columns: list[tuple[str, str]] = []
+    for t in list_project_tables(conn):
+        s = introspect_table(conn, t)
+        for c in s.columns:
+            if c.name.endswith("_json"):
+                json_columns.append((t, c.name))
+    assert json_columns, "expected at least one *_json column in the project schema"
+    for table, col in json_columns:
+        # The `col jsonb` token must appear within the `baran_<table>` block.
+        block_start = full.find(f"CREATE TABLE IF NOT EXISTS baran_{table}")
+        assert block_start != -1, f"missing baran_{table} block"
+        block_end = full.find("CREATE TABLE IF NOT EXISTS", block_start + 1)
+        if block_end == -1:
+            block_end = len(full)
+        block = full[block_start:block_end]
+        assert f"{col} jsonb" in block, (
+            f"baran_{table}.{col} did not map to jsonb in:\n{block}"
+        )
+    conn.close()
+
+
+def test_pg_ddl_full_script_contains_23_create_table_statements():
+    conn = _migrated_conn()
+    full = build_all_pg_ddl(conn)
+    count = full.count("CREATE TABLE IF NOT EXISTS baran_")
+    assert count == 23, count
     conn.close()
