@@ -38,6 +38,8 @@ from backend.exports.routes import router as exports_router
 from backend.locks import sweep as locks_sweep
 from backend.backup import loop as backup_loop
 from backend.retention import loop as retention_loop
+from backend.mirror import dispatcher as mirror_dispatcher
+from backend.mirror import config as mirror_config
 
 VERSION = "0.1.0"
 
@@ -72,6 +74,22 @@ async def lifespan(_app: FastAPI):
     sweep_task     = locks_sweep.start(interval_seconds=60)
     backup_task    = backup_loop.start()
     retention_task = retention_loop.start()
+
+    # Phase 4: Neon mirror dispatcher. Failure to reach Neon at boot is
+    # non-fatal (MIRROR-10, D-14) — we log a warn event and let the
+    # dispatcher keep retrying connect in its loop.
+    mirror_config.reload_from_env()
+    mirror_task = mirror_dispatcher.start()
+    if not mirror_config.NEON_MIRROR_URL:
+        c = connect(config.DB_PATH)
+        try:
+            audit.log_system_event(
+                c, "neon_mirror_unreachable", "warn",
+                message="NEON_MIRROR_URL is unset; dispatcher running in degraded mode",
+            )
+        finally:
+            c.close()
+
     yield
 
     locks_sweep.stop()
@@ -89,6 +107,12 @@ async def lifespan(_app: FastAPI):
     retention_loop.stop()
     try:
         await retention_task
+    except Exception:
+        pass
+
+    mirror_dispatcher.stop()
+    try:
+        await mirror_task
     except Exception:
         pass
 
