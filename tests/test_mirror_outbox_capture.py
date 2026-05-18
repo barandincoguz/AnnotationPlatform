@@ -171,3 +171,81 @@ def test_outbox_table_not_self_mirrored():
     ).fetchone()
     assert rows["c"] == 0  # no recursion
     conn.close()
+
+
+# === Task 7: mirror config defaults ===
+
+
+def test_config_defaults(monkeypatch):
+    """Config module exposes the documented defaults when no env vars are set."""
+    for name in (
+        "NEON_MIRROR_URL", "NEON_MIRROR_BATCH_SIZE", "NEON_MIRROR_MAX_RETRIES",
+        "NEON_MIRROR_EMPTY_SLEEP", "NEON_MIRROR_BATCH_SLEEP",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    from backend.mirror import config as cfg
+    cfg.reload_from_env()
+    assert cfg.NEON_MIRROR_URL is None
+    assert cfg.NEON_MIRROR_BATCH_SIZE == 100
+    assert cfg.MAX_RETRIES == 5
+    assert cfg.EMPTY_QUEUE_SLEEP == 5.0
+    assert cfg.INTER_BATCH_SLEEP == 0.1
+    assert cfg.BACKOFF_SECONDS == (1.0, 2.0, 4.0, 8.0, 16.0)
+
+
+def test_config_env_override(monkeypatch):
+    monkeypatch.setenv("NEON_MIRROR_URL", "postgresql://u:p@h/db")
+    monkeypatch.setenv("NEON_MIRROR_BATCH_SIZE", "50")
+    monkeypatch.setenv("NEON_MIRROR_EMPTY_SLEEP", "2.5")
+    from backend.mirror import config as cfg
+    cfg.reload_from_env()
+    assert cfg.NEON_MIRROR_URL == "postgresql://u:p@h/db"
+    assert cfg.NEON_MIRROR_BATCH_SIZE == 50
+    assert cfg.EMPTY_QUEUE_SLEEP == 2.5
+    # Restore defaults for downstream tests.
+    monkeypatch.delenv("NEON_MIRROR_URL", raising=False)
+    monkeypatch.delenv("NEON_MIRROR_BATCH_SIZE", raising=False)
+    monkeypatch.delenv("NEON_MIRROR_EMPTY_SLEEP", raising=False)
+    cfg.reload_from_env()
+
+
+def test_neon_client_lazy_connect_with_no_dsn():
+    """NeonClient(None).connect() returns False; no exception."""
+    from backend.mirror.neon_client import NeonClient
+    client = NeonClient(None)
+    assert client.connect() is False
+    assert client._conn is None
+    # apply() should raise NeonTransient since connect failed.
+    from backend.mirror.neon_client import NeonTransient
+    with pytest.raises(NeonTransient):
+        client.apply("INSERT", "users", "1", {"id": 1, "username": "x"})
+
+
+def test_neon_client_upsert_sql_shape():
+    """Confirm the upsert builder produces the expected SQL for both single and composite PKs."""
+    from backend.mirror.neon_client import _build_upsert
+    # Single-column PK (users.id).
+    sql, args = _build_upsert("baran_users", ["id"], {"id": 1, "username": "a"})
+    assert "INSERT INTO baran_users" in sql
+    assert "ON CONFLICT (id) DO UPDATE" in sql
+    assert "username = EXCLUDED.username" in sql
+    assert args == [1, "a"]
+    # Composite PK (drafts).
+    sql2, args2 = _build_upsert(
+        "baran_drafts", ["document_id", "user_id"],
+        {"document_id": "doc1", "user_id": 42, "references_json": "[]"},
+    )
+    assert "ON CONFLICT (document_id, user_id) DO UPDATE" in sql2
+    assert "references_json = EXCLUDED.references_json" in sql2
+
+
+def test_neon_client_delete_sql_shape():
+    from backend.mirror.neon_client import _build_delete
+    # Single PK.
+    sql, args = _build_delete("baran_users", ["id"], "42")
+    assert sql == "DELETE FROM baran_users WHERE id = %s"
+    assert args == ["42"]
+    # Composite PK split on '::'.
+    sql2, args2 = _build_delete("baran_drafts", ["document_id", "user_id"], "doc-1::99")
+    assert "WHERE document_id = %s AND user_id = %s" in sql2
+    assert args2 == ["doc-1", "99"]
