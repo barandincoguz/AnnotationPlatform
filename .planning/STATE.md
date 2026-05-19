@@ -32,7 +32,7 @@ See [4-SUMMARY.md](./phases/04-neon-postgres-dual-write-mirror/4-SUMMARY.md) for
 
 - `data/db/annotations.db` — 17923 documents (fresh Neon ETL on 2026-05-18), 0 annotations, 0 drafts, 0 users.
 - `_outbox` table + 69 triggers active (migrations v0005, v0006).
-- Backups under `data/db/annotations.db.bak-*` (pre-clean-restart snapshots).
+- Backups: cleared 2026-05-19 after Phase 4 closeout. Canonical state lives in the partner Neon DB's `baran_*` mirror (62610 rows backfilled).
 
 ## Notes
 
