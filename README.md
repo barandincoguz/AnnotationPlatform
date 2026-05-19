@@ -13,7 +13,7 @@ tax practitioners.**
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TanStack Query](https://img.shields.io/badge/TanStack-Query%205-FF4154?logo=react-query&logoColor=white)](https://tanstack.com/query)
-[![Tests](https://img.shields.io/badge/tests-872%20backend%20%2F%20511%20frontend-success)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-946%20backend%20%2F%20511%20frontend-success)](#-tests)
 
 <p>
   <img src="docs/screenshots/hero.png" alt="Annotation workspace screenshot" width="850"/>
@@ -279,7 +279,7 @@ cd frontend && npm run test:run -- --reporter=basic              # frontend unit
 cd frontend && npm run e2e                                       # Playwright e2e
 ```
 
-Current counts: **872 backend** (3 Docker-smoke skips when daemon is down) +
+Current counts: **946 backend** (3 Docker-smoke skips when daemon is down) +
 **511 frontend** + **9 e2e**.
 
 Numbers drift; run the commands above for live truth.
@@ -324,7 +324,7 @@ deneme/
 │   │   ├── stores/           # Zustand (auth, annotate, sort)
 │   │   └── lib/              # formatters / validators / utils
 │   └── tests/e2e/            # Playwright smoke
-├── tests/                    # backend pytest (~103 files, 872 tests)
+├── tests/                    # backend pytest (~110 files, 946 tests)
 ├── data/                     # gitignored; SQLite DB + uploaded JSON
 ├── docs/
 │   ├── deployment.md         # production runbook
@@ -353,7 +353,7 @@ deneme/
 
 ## Releases & tags
 
-Latest milestone: **`paket-16f-production-bootstrap`** — production bootstrap
+Latest tag: **`paket-16g-hardening`**. Most recent shipped milestone: **Phase 4 — Neon Postgres dual-write mirror** (commits `1f33a53 .. 9fb4a17`). Earlier production bootstrap
 with `ENVIRONMENT` enforcement, first-admin seed in lifespan, and the full
 deployment runbook. See `git tag` for the full chronology.
 
