@@ -43,3 +43,6 @@ openapi.json
 docs/external/
 data/import-neon/
 .env.local
+.ruff_cache
+.claude 
+.planning
