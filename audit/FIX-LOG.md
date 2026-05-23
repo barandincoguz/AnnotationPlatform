@@ -21,3 +21,4 @@
 | W3-T1      | Doc  | a6b6d84    | runbooks/restore-drill.md — copy-only drill with 2 STOP gates; references U1 POST /api/admin/backup/restore route |
 | W3-T2      | Doc  | 461a021    | docs/deployment.md refresh: Phase 5 admin surfaces section + Hetzner CPX11 + Oracle A1.Flex ARM appendices + link to runbooks/restore-drill.md |
 | W3-T3      | Ops  | 6e2bc73    | .github/workflows/ci.yml — 3 jobs (backend ruff+pytest, frontend tsc+eslint+vitest, docker build smoke); validation PR on personal remote at https://github.com/barandincoguz/AnnotationPlatform/pull/1 |
+| W4-T1      | Validation | (pending) | audit/SMOKE.md — Wave 4 smoke + wrk + Playwright e2e against built container |
