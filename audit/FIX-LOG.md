@@ -19,4 +19,4 @@
 | DC1 + lint | Dead | a875319    | Delete orphan frontend/src/lib/env.ts (zero importers) + fix 10 eslint errors in U4/U5/U6 (require-await, react/no-unescaped-entities) |
 | DC2+DC3    | Dead | (n/a)      | No action: `user_badges` + `user_quiz_answers` do NOT exist in current DB, migrations, or source. Audit hallucinated their presence (referenced as "created in v0001" but v0001_initial_schema.py contains neither). Live DB has 24 tables; orphan tables 0. Verified 2026-05-23 via `sqlite3 ... SELECT name FROM sqlite_master` + `grep` across `backend/` + migrations. |
 | W3-T1      | Doc  | a6b6d84    | runbooks/restore-drill.md — copy-only drill with 2 STOP gates; references U1 POST /api/admin/backup/restore route |
-| W3-T2      | Doc  | <sha>      | docs/deployment.md refresh: Phase 5 admin surfaces section + Hetzner CPX11 + Oracle A1.Flex ARM appendices + link to runbooks/restore-drill.md |
+| W3-T2      | Doc  | 461a021    | docs/deployment.md refresh: Phase 5 admin surfaces section + Hetzner CPX11 + Oracle A1.Flex ARM appendices + link to runbooks/restore-drill.md |
