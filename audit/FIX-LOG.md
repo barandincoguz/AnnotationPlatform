@@ -5,4 +5,4 @@
 | FE-1       | High | 79d7295    | Switch vitest env jsdom→happy-dom; 34 AbortSignal cross-realm failures fixed; suite 477→511 passed |
 | SEC-1      | High | a8b7ceb    | psycopg.sql.Identifier composables in NeonClient — replaces f-string identifier interpolation |
 | BE-1+BE-2  | High | 43ac272    | locks heartbeat + sweep_expired now wrap read-then-write in BEGIN IMMEDIATE |
-| BE-3       | High | TBD        | save_annotation + set_complete re-verify lock ownership inside BEGIN IMMEDIATE; 4 new TOCTOU tests |
+| BE-3       | High | 350bc5b    | save_annotation + set_complete re-verify lock ownership inside BEGIN IMMEDIATE; 4 new TOCTOU tests |
