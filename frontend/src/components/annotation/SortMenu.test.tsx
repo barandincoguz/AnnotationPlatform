@@ -1,7 +1,45 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SortMenu } from './SortMenu'
+
+// Phase 6: SortMenu is hidden behind a localStorage dev flag for
+// every user except a developer that has explicitly opted in. The
+// existing test surface still expects the menu to render — set the
+// flag before each test, and clean up after.
+beforeEach(() => {
+  window.localStorage.setItem('a11n.dev_sort', '1')
+})
+afterEach(() => {
+  window.localStorage.removeItem('a11n.dev_sort')
+})
+
+describe('SortMenu (dev flag gate)', () => {
+  it('returns null when the dev flag is OFF (default state for users)', () => {
+    window.localStorage.removeItem('a11n.dev_sort')
+    const { container } = render(
+      <SortMenu
+        tab="new"
+        sort={{ by: 'document_id', order: 'desc' }}
+        onChange={vi.fn()}
+      />,
+    )
+    // No trigger button, no content — fully invisible.
+    expect(container.firstChild).toBeNull()
+    expect(screen.queryByRole('button', { name: /sıralama/i })).not.toBeInTheDocument()
+  })
+
+  it('renders the trigger when the dev flag is ON', () => {
+    render(
+      <SortMenu
+        tab="new"
+        sort={{ by: 'document_id', order: 'desc' }}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /sıralama/i })).toBeInTheDocument()
+  })
+})
 
 describe('SortMenu', () => {
   it('opens the dropdown and lists every sort option', async () => {

@@ -26,6 +26,7 @@ import {
   type SortState,
   isSortAvailable,
 } from '@/stores/annotateStore'
+import { isDevSortEnabled } from '@/lib/devFlags'
 
 interface SortOption {
   key: SortKey
@@ -65,6 +66,18 @@ interface SortMenuProps {
  * a 400 from the backend.
  */
 export function SortMenu({ tab, sort, onChange }: SortMenuProps) {
+  // Phase 6: SortMenu is hidden from all users by default. The
+  // cross-team coordination contract (annotate in document_id DESC
+  // order, shared with the partner team) requires every annotator
+  // to see the same feed sequence — exposing a user-controlled sort
+  // would silently break it. Developer escape hatch:
+  //   localStorage.setItem('a11n.dev_sort', '1')  // then reload
+  // restores the full sort menu without a code change. See
+  // frontend/src/lib/devFlags.ts.
+  if (!isDevSortEnabled()) {
+    return null
+  }
+
   // Surface the active sort + direction through the trigger's
   // aria-label so screen-reader users learn what the icon-only button
   // currently controls (the direction was previously color-only via
