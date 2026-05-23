@@ -20,6 +20,7 @@ See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit
 | 3 | Complete | `ca5555f` |
 | 4 | Executed | `1f33a53 .. 66f0986` (14 commits) — wrk smoke verified in Phase 5 W4-T1 (`audit/SMOKE.md`) |
 | 5 | Complete | Wave 0..4 across ~25 commits; tagged `phase-5` |
+| 6 | In progress | Cross-team coordination ordering. `4d750c7` backend default = document_id DESC across all 3 tabs; `08026a9` frontend store v4 + SortMenu hidden behind `a11n.dev_sort` localStorage flag. Matches partner team (Zeynep) DB ordering `evrak_id DESC`. |
 
 ## Test Baseline (post Phase 5)
 
