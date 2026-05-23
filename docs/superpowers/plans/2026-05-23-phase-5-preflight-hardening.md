@@ -35,9 +35,9 @@
 | `.github/workflows/ci.yml` | PR-gate CI (ruff, mypy?, pytest, vitest, eslint, tsc, docker build smoke) |
 | `backend/backup/routes.py` *(extended)* | Add `POST /api/admin/backup/restore` (U1) |
 | `backend/backup/models.py` *(extended)* | Add `BackupRestoreRequest`, `BackupRestoreResponse` |
-| `backend/tests/test_backup_restore_route.py` | U1 route + service tests |
+| `tests/test_backup_restore_route.py` | U1 route + service tests |
 | `backend/migrations/v0007_drop_orphan_tables.py` | DC2 + DC3 — drop `user_badges` + `user_quiz_answers` after emptiness assertion |
-| `backend/tests/test_v0007_drop_orphan_tables.py` | Migration v0007 tests (idempotent + assertion firing on non-empty) |
+| `tests/test_v0007_drop_orphan_tables.py` | Migration v0007 tests (idempotent + assertion firing on non-empty) |
 | `frontend/src/routes/admin/MirrorHealthPage.tsx` | U4 mirror health admin page |
 | `frontend/src/routes/admin/MirrorHealthPage.test.tsx` | U4 tests |
 | `frontend/src/routes/admin/BackupPage.tsx` | U5 backup admin page |
@@ -110,7 +110,7 @@ def admin_<area>_<verb>(
 
 ### Backend test convention
 
-Tests live under `backend/tests/`. Each test file owns one area. Fixture `client` → `TestClient(app)`; fixture `db` → in-memory SQLite with migrations applied; fixture `admin_session` → cookie-authed admin.
+Tests live under `tests/`. Each test file owns one area. Fixture `client` → `TestClient(app)`; fixture `db` → in-memory SQLite with migrations applied; fixture `admin_session` → cookie-authed admin.
 
 ### Frontend page convention (from `frontend/src/routes/admin/AuditPage.tsx`)
 
@@ -172,7 +172,7 @@ Conventional commits with scope: `feat(<area>)`, `fix(<area>)`, `docs(<area>)`, 
 
 ```bash
 cd /Users/barandincoguz/Desktop/deneme && \
-  python -m pytest backend/tests/ --tb=no -q 2>&1 | tail -10
+  python -m pytest tests/ --tb=no -q 2>&1 | tail -10
 ```
 Expected output ends with a line like `946 passed, 3 skipped in 30.42s`. Note the numbers.
 
@@ -385,13 +385,13 @@ This wave is finding-driven. Each APPLY-W2 row in `audit/BACKLOG.md` becomes one
 
 - [ ] **Step 1: Reproduce the issue in a test (TDD)**
 
-Write a failing test that demonstrates the bug. Test path matches existing conventions (`backend/tests/test_<area>.py` or `frontend/src/<dir>/<file>.test.tsx`).
+Write a failing test that demonstrates the bug. Test path matches existing conventions (`tests/test_<area>.py` or `frontend/src/<dir>/<file>.test.tsx`).
 
 - [ ] **Step 2: Run the test, confirm it fails for the expected reason**
 
 ```bash
 # Backend
-pytest backend/tests/test_<area>.py::test_<name> -v
+pytest tests/test_<area>.py::test_<name> -v
 
 # Frontend
 cd frontend && npx vitest run src/<path>/<file>.test.tsx -t "<test name>"
@@ -410,14 +410,14 @@ Same command as Step 2. Expected: PASS.
 
 ```bash
 # Example for backend mirror surface
-pytest backend/tests/test_mirror_*.py -v --tb=short
+pytest tests/test_mirror_*.py -v --tb=short
 ```
 Expected: all PASS.
 
 - [ ] **Step 6: If the fix touched mirror code, also run the dispatcher e2e**
 
 ```bash
-pytest backend/tests/test_mirror_e2e.py -v
+pytest tests/test_mirror_e2e.py -v
 ```
 Expected: all PASS.
 
@@ -445,7 +445,7 @@ Commit `audit/FIX-LOG.md` updates in the same atomic commit as the fix.
 - [ ] **Step 1: Full backend pytest re-run**
 
 ```bash
-pytest backend/tests/ --tb=short -q | tail -10
+pytest tests/ --tb=short -q | tail -10
 ```
 Expected: total pass ≥ Wave 0 baseline; 0 fail.
 
@@ -482,13 +482,13 @@ This is the build wave. 10 concrete tasks: 4 backend/frontend features, 3 doc ed
 - Modify: `backend/backup/models.py` (add request/response models)
 - Modify: `backend/backup/routes.py` (add route handler)
 - Modify: `backend/backup/service.py` (add wrapper that runs migrations first + emits system event)
-- Create: `backend/tests/test_backup_restore_route.py`
+- Create: `tests/test_backup_restore_route.py`
 
 **Steps:**
 
 - [ ] **Step 1: Write failing test for happy-path restore**
 
-Create `backend/tests/test_backup_restore_route.py`:
+Create `tests/test_backup_restore_route.py`:
 
 ```python
 """Tests for the U1 backup restore HTTP route."""
@@ -497,7 +497,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # These fixtures are assumed from existing conftest: `client`, `admin_session`,
-# `db_factory` — they follow the patterns already in backend/tests/.
+# `db_factory` — they follow the patterns already in tests/.
 
 def test_restore_route_replaces_db_state(client, admin_session, db_factory, tmp_path):
     """POSTing a valid snapshot to /api/admin/backup/restore must replace
@@ -580,7 +580,7 @@ def test_restore_route_requires_admin(client, annotator_session, tmp_path):
 - [ ] **Step 4: Run the 3 tests; confirm all 3 fail for the right reason**
 
 ```bash
-pytest backend/tests/test_backup_restore_route.py -v
+pytest tests/test_backup_restore_route.py -v
 ```
 Expected: 3 FAIL — route does not exist yet (`404` or `405`).
 
@@ -714,14 +714,14 @@ async def admin_backup_restore(
 - [ ] **Step 8: Run the 3 tests; expect all PASS**
 
 ```bash
-pytest backend/tests/test_backup_restore_route.py -v
+pytest tests/test_backup_restore_route.py -v
 ```
 Expected: 3 PASS.
 
 - [ ] **Step 9: Run the full backup test suite to confirm no regression**
 
 ```bash
-pytest backend/tests/test_backup*.py -v --tb=short
+pytest tests/test_backup*.py -v --tb=short
 ```
 Expected: all PASS.
 
@@ -729,7 +729,7 @@ Expected: all PASS.
 
 ```bash
 git add backend/backup/models.py backend/backup/routes.py backend/backup/service.py \
-        backend/tests/test_backup_restore_route.py && \
+        tests/test_backup_restore_route.py && \
 git commit -m "feat(backup): expose POST /api/admin/backup/restore (U1)
 
 phase-5 D12: previously restore_from_snapshot was implementation-only
@@ -1644,7 +1644,7 @@ Type-check + lint + tests stayed clean after delete."
 
 **Files:**
 - Create: `backend/migrations/v0007_drop_orphan_tables.py`
-- Create: `backend/tests/test_v0007_drop_orphan_tables.py`
+- Create: `tests/test_v0007_drop_orphan_tables.py`
 
 **Steps:**
 
@@ -1659,7 +1659,7 @@ Expected: both rows show 0 count. If non-zero, STOP and revisit DC2/DC3.
 
 - [ ] **Step 2: Write failing test for the migration**
 
-Create `backend/tests/test_v0007_drop_orphan_tables.py`:
+Create `tests/test_v0007_drop_orphan_tables.py`:
 
 ```python
 """Tests for v0007 migration that drops orphan user_badges + user_quiz_answers."""
@@ -1730,7 +1730,7 @@ def test_v0007_is_idempotent_when_tables_already_dropped(conn):
 - [ ] **Step 3: Run; expect 4 FAIL (migration doesn't exist)**
 
 ```bash
-pytest backend/tests/test_v0007_drop_orphan_tables.py -v
+pytest tests/test_v0007_drop_orphan_tables.py -v
 ```
 Expected: 4 FAIL.
 
@@ -1785,14 +1785,14 @@ def up(conn: sqlite3.Connection) -> None:
 - [ ] **Step 5: Run tests; expect 4 PASS**
 
 ```bash
-pytest backend/tests/test_v0007_drop_orphan_tables.py -v
+pytest tests/test_v0007_drop_orphan_tables.py -v
 ```
 Expected: 4 PASS.
 
 - [ ] **Step 6: Run full backend test suite**
 
 ```bash
-pytest backend/tests/ --tb=short -q | tail -5
+pytest tests/ --tb=short -q | tail -5
 ```
 Expected: total pass ≥ Wave 0 baseline + 4 new tests; 0 fail.
 
@@ -1800,7 +1800,7 @@ Expected: total pass ≥ Wave 0 baseline + 4 new tests; 0 fail.
 
 ```bash
 git add backend/migrations/v0007_drop_orphan_tables.py \
-        backend/tests/test_v0007_drop_orphan_tables.py && \
+        tests/test_v0007_drop_orphan_tables.py && \
 git commit -m "feat(migrations): v0007 drop orphan tables (DC2 + DC3)
 
 phase-5 D12: drop user_badges and user_quiz_answers, both
@@ -1848,7 +1848,7 @@ Identify the commits for U1, U4, U5, U6, DR1, DR2, DR3, DC1, DC2-3 (single migra
 - [ ] **Step 3: Full backend + frontend test re-run**
 
 ```bash
-pytest backend/tests/ --tb=short -q | tail -5
+pytest tests/ --tb=short -q | tail -5
 cd frontend && npx vitest run --reporter=basic | tail -5
 ```
 Expected: both ≥ baseline + new tests, 0 fail.
@@ -2117,7 +2117,7 @@ jobs:
       - name: ruff
         run: ruff check
       - name: pytest
-        run: pytest backend/tests/ -q
+        run: pytest tests/ -q
 
   frontend:
     runs-on: ubuntu-latest
