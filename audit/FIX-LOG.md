@@ -15,4 +15,4 @@
 | U5         | High | 10de755    | /admin/backup admin page with run-now button + last-20-backup-event history; event_type_prefix query param added to /api/admin/system-events; 3 tests |
 | U6         | High | 859d784    | /admin/retention page with preview + confirm-modal-gated run-now; 4 tests |
 | BE-10      | Med  | e31d124    | POST /api/admin/mirror/dead-letter/requeue + UI button on /admin/mirror; BEGIN IMMEDIATE reset, rowcount returned, audit row, confirm-modal-gated; 3 backend + 3 frontend tests |
-| DR1+DR2+DR3| Doc  | (this)     | README scrypt→bcrypt(rounds=12) ×3 + 90s→300s ×3; REQUIREMENTS.md MIRROR-01..10 Pending→Complete with commit SHAs |
+| DR1+DR2+DR3| Doc  | edcec56    | README scrypt→bcrypt(rounds=12) ×3 + 90s→300s ×3; REQUIREMENTS.md MIRROR-01..10 Pending→Complete with commit SHAs |
