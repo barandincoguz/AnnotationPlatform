@@ -443,3 +443,28 @@ export function useMirrorHealth(refetchMs = 10_000) {
     staleTime: 5_000,
   })
 }
+
+export interface DeadLetterRequeueResult {
+  ok: boolean
+  rows_requeued: number
+  trace_id: string
+}
+
+export function useDeadLetterRequeue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/mirror/dead-letter/requeue', {
+        method: 'POST', credentials: 'include',
+      })
+      if (!res.ok) {
+        interface ErrorBody { detail?: { message?: string } }
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const body: ErrorBody = await res.json().catch(() => ({}))
+        throw new Error(body.detail?.message ?? `requeue failed ${res.status}`)
+      }
+      return res.json() as Promise<DeadLetterRequeueResult>
+    },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'mirror', 'health'] }) },
+  })
+}

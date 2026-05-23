@@ -146,3 +146,31 @@ def mirror_health_view(
     distinguish a healthy quiet queue from a silently-crashed dispatcher.
     """
     return mirror_health.collect_health(db)
+
+
+@router.post("/mirror/dead-letter/requeue")
+def admin_mirror_dead_letter_requeue(
+    db: sqlite3.Connection = Depends(get_db),
+    admin: sqlite3.Row = Depends(require_admin),
+):
+    """Reset retry_count + clear error for all dead-lettered _outbox rows.
+
+    Returns the count requeued + trace_id. Admin-only, audited."""
+    trace_id = audit.gen_trace_id()
+    try:
+        affected = mirror_health.requeue_dead_letter(db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "requeue_failed", "message": str(e), "trace_id": trace_id},
+        )
+    try:
+        audit.log_admin_action(
+            db, admin_user_id=admin["id"], action_type="mirror_dead_letter_requeue",
+            target_kind="mirror", target_id=None,
+            metadata={"rows_affected": affected},
+            trace_id=trace_id,
+        )
+    except Exception:
+        log.exception("audit mirror_dead_letter_requeue failed")
+    return {"ok": True, "rows_requeued": affected, "trace_id": trace_id}

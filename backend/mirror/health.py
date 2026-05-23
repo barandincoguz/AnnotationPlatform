@@ -99,3 +99,30 @@ def collect_health(conn: sqlite3.Connection) -> dict:
         "dispatcher_alive": dispatcher_alive,
         "neon_reachable": neon_reachable,
     }
+
+
+def requeue_dead_letter(conn: sqlite3.Connection) -> int:
+    """Reset retry_count and clear error for all dead-lettered _outbox rows.
+
+    A dead-lettered row is one where delivered_at IS NULL and
+    retry_count >= MAX_RETRIES. After this call those rows become eligible
+    for the dispatcher's next drain. Returns the number of rows updated.
+
+    Uses BEGIN IMMEDIATE so the count and the UPDATE see the same snapshot
+    (avoiding the dispatcher transitioning a row in or out between the
+    COUNT and the UPDATE).
+    """
+    max_retries = mirror_config.MAX_RETRIES
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        cur = conn.execute(
+            "UPDATE _outbox SET retry_count = 0, error = NULL "
+            "WHERE delivered_at IS NULL AND retry_count >= ?",
+            (max_retries,),
+        )
+        affected = cur.rowcount
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    return affected
