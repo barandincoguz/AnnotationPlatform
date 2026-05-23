@@ -75,7 +75,30 @@ After the first successful boot:
   from `.env.production` for hygiene. (Idempotency means leaving them
   in does nothing, but stale secrets in env are bad practice.)
 
-## 5. Backup setup (GitHub remote)
+## 5. Admin surfaces (Phase 5)
+
+After login as an admin, the following pages are available under `/admin/`.
+The sidebar nav lists them in the "Operations" group:
+
+| Path | Purpose |
+|------|---------|
+| `/admin/mirror` | Neon mirror health: outbox queue depth, dead-letter count, dispatcher state, last-delivered-at, oldest-undelivered. Auto-refresh every 10 s. When dead-letter count > 0, a confirm-gated button re-queues those rows for the dispatcher's next drain. |
+| `/admin/backup` | Manual backup trigger + last 20 backup-related `system_events`. The "Şimdi yedek al" button calls `POST /api/admin/backup/run-now` and pushes the snapshot to the configured `BACKUP_REPO_URL` if set. |
+| `/admin/retention` | Retention preview (per-table rows to purge + active policy) + confirm-modal-gated run-now. |
+| `/admin/users`, `/admin/audit`, `/admin/settings`, `/admin/events`, `/admin/locks`, `/admin/training/*` | (existing — see prior sections) |
+
+### Backup restore via HTTP
+
+`POST /api/admin/backup/restore` accepts an uploaded snapshot JSON
+(multipart form, field name `snapshot`) and replaces DB state. Refuses
+with 409 `db_busy` when WAL has uncommitted frames from another writer.
+Writes an `admin_audit_log` row on success.
+
+For a guided restore procedure on a copy of production data, see
+[runbooks/restore-drill.md](../runbooks/restore-drill.md) — copy-only
+drill with two STOP gates.
+
+## 6. Backup setup (GitHub remote)
 
 Set up off-host snapshots so a host failure does not destroy data.
 
@@ -107,7 +130,7 @@ docker compose exec app sqlite3 /data/db/annotations.db \
 
 You should see `backup_success` (info severity) within a few minutes.
 
-## 6. Restore drill
+## 7. Restore drill
 
 ⚠️ **STOP THE APP CONTAINER FIRST.** The CLI does not currently detect
 a running server's WAL lock; running restore against a hot DB risks
@@ -149,7 +172,7 @@ This rehashes the password, deletes all of that user's active session
 rows (forcing fresh login), and writes a `reset_password_cli` audit
 entry.
 
-## 7. Reverse proxy
+## 8. Reverse proxy
 
 The app listens on port 8000 in the container, mapped to host 8000 by
 default. Terminate HTTPS at a proxy. Two minimal examples:
@@ -191,7 +214,7 @@ server {
 }
 ```
 
-## 8. Logs and observability
+## 9. Logs and observability
 
 ```bash
 docker compose logs -f app          # follow stdout/stderr
@@ -210,7 +233,7 @@ backup loop, retention loop, and lifespan do. Filter by severity:
 SELECT * FROM system_events WHERE severity='error' ORDER BY id DESC LIMIT 20;
 ```
 
-## 9. Upgrade procedure
+## 10. Upgrade procedure
 
 ```bash
 cd anotasyon
@@ -223,7 +246,7 @@ docker compose logs -f app          # confirm migrations applied
 The container runs `python -m backend.cli migrate` on every start
 (idempotent — `schema_migrations` table tracks applied versions).
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -237,3 +260,104 @@ The container runs `python -m backend.cli migrate` on every start
 
 For deeper diagnosis, the `admin_audit_log` and `system_events` tables
 are the authoritative source of what the server did and when.
+
+## Appendix A — Hetzner Cloud CPX11
+
+A typical low-cost VPS deploy. CPX11 ships ~€4.5/mo with 2 vCPU + 2 GB
+RAM + 40 GB NVMe — well above this workload's requirements.
+
+1. **Provision.** Hetzner Cloud Console → new project → new server →
+   CPX11 → Ubuntu 24.04. Reserve a Floating IP if you want a stable
+   address across reboots. SSH-key auth recommended.
+
+2. **Install Docker.**
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+3. **Install Caddy for TLS termination.**
+   ```bash
+   sudo apt update && sudo apt install -y caddy
+   ```
+
+   Caddyfile (`/etc/caddy/Caddyfile`):
+   ```
+   anotasyon.example.com {
+     reverse_proxy 127.0.0.1:8000
+     encode gzip
+   }
+   ```
+
+4. **Clone + configure.**
+   ```bash
+   git clone <repo-url> anotasyon && cd anotasyon
+   cp .env.example .env.production
+   $EDITOR .env.production
+   # Set SESSION_SECRET (openssl rand -hex 32),
+   # BOOTSTRAP_ADMIN_USERNAME + BOOTSTRAP_ADMIN_PASSWORD,
+   # ALLOWED_ORIGINS=https://anotasyon.example.com,
+   # ENVIRONMENT=production
+   ```
+
+5. **Boot.**
+   ```bash
+   docker compose --env-file .env.production up -d
+   docker compose logs -f app   # wait for "Bootstrap admin '<x>' created"
+   sudo systemctl reload caddy
+   ```
+
+   Caddy provisions a Let's Encrypt cert automatically within a minute.
+
+6. **First login** at `https://anotasyon.example.com/login` with the
+   bootstrap admin credentials, then immediately:
+   - Rotate the bootstrap password via `/admin/users`.
+   - Remove `BOOTSTRAP_ADMIN_*` from `.env.production` (idempotent —
+     a second boot is a no-op — but stale secrets in env files are
+     bad practice; see [SEC-3 in audit/SEC.md](../audit/SEC.md) for
+     why).
+
+### Sizing notes
+
+- 17,923 documents + ~62k rows mirror well under CPX11 disk budget.
+- SQLite WAL + `workers=1` means horizontal scaling on Hetzner Cloud
+  is **not** a path forward — the design is single-instance by
+  contract.
+
+## Appendix B — Oracle Cloud Always Free (A1.Flex / ARM)
+
+Oracle's Always Free tier provides 4 OCPU + 24 GB RAM on the ARM
+Ampere A1.Flex shape — generous for this workload, free forever.
+Caveats: ARM image required, capacity availability is regional.
+
+1. **Provision.** Oracle Cloud Console → Compute → Instances →
+   Create. Shape = `VM.Standard.A1.Flex`. OCPUs 1-4 (free up to 4),
+   memory 6-24 GB (free up to 24). Image = Canonical Ubuntu 24.04 ARM.
+   If "Out of capacity" — retry in another region; capacity rotates.
+
+2. **Open ports.** Oracle's VCN Security List defaults to closed.
+   Add ingress rules for:
+   - 80/tcp (Let's Encrypt HTTP-01 challenge)
+   - 443/tcp (HTTPS)
+
+   `ufw` on the VM also needs to allow these.
+
+3. **Install Docker (ARM build of step 2 from Appendix A — same
+   command works).**
+
+4. **Build the image natively on the VM.** Docker on ARM will produce
+   an ARM64 image automatically. Alternative: push a multi-arch
+   image from a GitHub Actions build matrix that publishes
+   `linux/amd64,linux/arm64`.
+
+   ```bash
+   git clone <repo-url> anotasyon && cd anotasyon
+   docker build -t anotasyon-platform:local .
+   # ... rest same as Appendix A steps 4-6.
+   ```
+
+5. **Caveat — A1.Flex capacity.** Oracle de-provisions A1.Flex VMs
+   that go idle for extended periods. Set up a low-frequency
+   uptime-monitor (any cron-pinger against `/api/health`) to keep
+   the VM warm; otherwise expect to re-provision occasionally.
