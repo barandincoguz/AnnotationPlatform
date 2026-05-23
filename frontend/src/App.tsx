@@ -27,6 +27,7 @@ import { UsersPage } from '@/routes/admin/UsersPage'
 import { SettingsPage } from '@/routes/admin/SettingsPage'
 import { GoldDocsPage } from '@/routes/admin/training/GoldDocsPage'
 import { QuizPage } from '@/routes/admin/training/QuizPage'
+import { MirrorHealthPage } from '@/routes/admin/MirrorHealthPage'
 
 export default function App() {
   const navigate = useNavigate()
@@ -127,6 +128,7 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="training/gold-docs" element={<GoldDocsPage />} />
           <Route path="training/quiz" element={<QuizPage />} />
+          <Route path="mirror" element={<MirrorHealthPage />} />
         </Route>
       </Route>
 

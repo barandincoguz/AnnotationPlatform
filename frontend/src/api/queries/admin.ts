@@ -311,3 +311,27 @@ export function useDeleteQuizMutation() {
     },
   })
 }
+
+// ---- Mirror health ----
+
+export interface MirrorHealth {
+  queue_depth: number
+  dead_letter_count: number
+  oldest_undelivered_age_seconds: number | null
+  last_delivered_at: string | null
+  dispatcher_alive: boolean
+  neon_reachable: boolean | null
+}
+
+export function useMirrorHealth(refetchMs = 10_000) {
+  return useQuery<MirrorHealth>({
+    queryKey: ['admin', 'mirror', 'health'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/mirror/health', { credentials: 'include' })
+      if (!res.ok) throw new Error(`mirror health ${res.status}`)
+      return res.json() as Promise<MirrorHealth>
+    },
+    refetchInterval: refetchMs,
+    staleTime: 5_000,
+  })
+}
