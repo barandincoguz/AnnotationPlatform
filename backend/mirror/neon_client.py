@@ -28,13 +28,9 @@ from typing import Any
 
 try:
     import psycopg
-    from psycopg import errors as psycopg_errors
-    from psycopg import sql as pg_sql
     _PSYCOPG_AVAILABLE = True
 except ImportError:  # pragma: no cover — psycopg is a project dep
-    psycopg = None  # type: ignore
-    psycopg_errors = None  # type: ignore
-    pg_sql = None  # type: ignore
+    psycopg = None  # type: ignore[assignment]
     _PSYCOPG_AVAILABLE = False
 
 log = logging.getLogger(__name__)
@@ -68,7 +64,7 @@ class NeonClient:
         """
         if self._conn is not None:
             return True
-        if not self.dsn or not _PSYCOPG_AVAILABLE:
+        if not self.dsn or not _PSYCOPG_AVAILABLE or psycopg is None:
             return False
         try:
             self._conn = psycopg.connect(self.dsn, autocommit=True)
@@ -119,7 +115,7 @@ class NeonClient:
             self.last_status = False
             # Classify: psycopg.errors.* with sqlstate starting with "23" (integrity)
             # or "42" (syntax / schema) -> permanent. Network / timeout / closed -> transient.
-            if _PSYCOPG_AVAILABLE and isinstance(exc, (psycopg.OperationalError, psycopg.InterfaceError)):
+            if psycopg is not None and isinstance(exc, (psycopg.OperationalError, psycopg.InterfaceError)):
                 # Connection died — drop it so the next attempt reconnects.
                 self.close()
                 raise NeonTransient(str(exc)) from exc
