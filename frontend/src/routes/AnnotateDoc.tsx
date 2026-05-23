@@ -262,7 +262,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
           </p>
           <button
             type="button"
-            className="text-sm underline"
+            className="text-sm underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
             onClick={() => navigate('/', { replace: true })}
           >
             Listeye dön
