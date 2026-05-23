@@ -589,3 +589,68 @@ def test_complete_idempotent_with_refs_none_unchanged(db):
         ("doc_1", "complete_mark"),
     ).fetchone()["c"]
     assert versions_before == versions_after
+
+
+# === Phase 5 B-01: O(1) unique_users_count increment ===
+#
+# _count_unique_users() ran COUNT(DISTINCT user_id) over annotation_versions
+# on every save — O(N) in chain length. Replaced with an EXISTS check on
+# (document_id, user_id) + increment-by-1 when the saving user has no prior
+# version row. Same external semantics, O(1) instead of O(N).
+
+
+def test_unique_users_count_incremented_on_first_user_save(db):
+    """First save by a new user must increment unique_users_count by exactly 1."""
+    result = ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="first")],
+    )
+    assert result["is_new"] is True
+    row = db.execute(
+        "SELECT unique_users_count FROM annotations WHERE document_id=?",
+        ("doc_1",),
+    ).fetchone()
+    assert row["unique_users_count"] == 1
+
+
+def test_unique_users_count_unchanged_on_repeat_save_same_user(db):
+    """Same user saving twice must NOT increment the counter beyond 1."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="save-1")],
+    )
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="save-2")],
+    )
+    row = db.execute(
+        "SELECT unique_users_count FROM annotations WHERE document_id=?",
+        ("doc_1",),
+    ).fetchone()
+    assert row["unique_users_count"] == 1
+
+
+def test_unique_users_count_incremented_on_second_distinct_user(db):
+    """Different user saving must increment the counter to 2."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="alice")],
+    )
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=2,
+        references=[_ref(source_text="bob")],
+    )
+    row = db.execute(
+        "SELECT unique_users_count FROM annotations WHERE document_id=?",
+        ("doc_1",),
+    ).fetchone()
+    assert row["unique_users_count"] == 2
+
+
+def test_unique_users_count_no_full_chain_scan_structural(db):
+    """Structural: _count_unique_users() must no longer exist on the service
+    module. Its presence would mean the O(N) COUNT(DISTINCT user_id) scan
+    over annotation_versions is still reachable from the save path (B-01)."""
+    assert not hasattr(ann_service, "_count_unique_users"), (
+        "_count_unique_users() still exists — B-01 O(N) scan not removed"
+    )
