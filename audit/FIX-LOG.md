@@ -6,4 +6,4 @@
 | SEC-1      | High | a8b7ceb    | psycopg.sql.Identifier composables in NeonClient — replaces f-string identifier interpolation |
 | BE-1+BE-2  | High | 43ac272    | locks heartbeat + sweep_expired now wrap read-then-write in BEGIN IMMEDIATE |
 | BE-3       | High | 350bc5b    | save_annotation + set_complete re-verify lock ownership inside BEGIN IMMEDIATE; 4 new TOCTOU tests |
-| BE-4       | High | TBD        | submit_quiz + submit_annotation wrap read-modify-write of annotation_details_json in BEGIN IMMEDIATE; finalize_if_complete joins outer txn via in_txn param; 3 new concurrency tests |
+| BE-4       | High | 0acc20a    | submit_quiz + submit_annotation wrap read-modify-write of annotation_details_json in BEGIN IMMEDIATE; finalize_if_complete joins outer txn via in_txn param; 3 new concurrency tests |
