@@ -35,6 +35,24 @@ EXCLUDED_TABLES = {"schema_migrations", "user_sessions"}
 SNAPSHOT_FORMAT_VERSION = 1
 
 
+def is_wal_busy(db: sqlite3.Connection) -> bool:
+    """Cheap heuristic: WAL has uncommitted frames from another connection.
+
+    Returns True if PRAGMA wal_checkpoint(PASSIVE) reports either the
+    `busy` flag is set OR there are log frames not yet checkpointed.
+    Conservative — false positives are fine (operator retries); false
+    negatives risk corruption of the restored DB.
+    """
+    try:
+        row = db.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+    except sqlite3.OperationalError:
+        return True
+    if row is None:
+        return False
+    busy, log_frames, ckpt_frames = row[0], row[1], row[2]
+    return bool(busy) or (log_frames - ckpt_frames > 0)
+
+
 def dump_all_tables_to_json(db: sqlite3.Connection) -> dict:
     """Return a snapshot dict {<table>: [{col: val, ...}, ...]} of every
     user table in the DB. Excludes schema_migrations.
