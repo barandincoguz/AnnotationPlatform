@@ -17,6 +17,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { to: '/admin/locks', label: 'Locks' },
       { to: '/admin/mirror', label: 'Mirror health' },
       { to: '/admin/backup', label: 'Backup' },
+      { to: '/admin/retention', label: 'Retention' },
     ],
   },
   { label: 'People', items: [{ to: '/admin/users', label: 'Users' }] },
