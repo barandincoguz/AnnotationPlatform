@@ -11,6 +11,9 @@ import type { FeedTab } from '@/api/queries/feed'
  * "shuffle" is the legacy per-user-per-day deterministic shuffle path;
  * any other key triggers a SQL ORDER BY on the matching column.
  *
+ * Phase 6: `document_id` added as the cross-team canonical sort key
+ * (= evrakOid). This is now the DEFAULT for all three tabs.
+ *
  * Removed: 'sayi'. The per-year sayi was dropped from the doc display
  * (paket-6, commit 586b811: "drop misleading per-year № sayi") because
  * sayi is not unique across years. The SortMenu UI never rendered an
@@ -18,6 +21,7 @@ import type { FeedTab } from '@/api/queries/feed'
  * to survive rehydration and produce a sort the UI couldn't represent.
  */
 export type SortKey =
+  | 'document_id'
   | 'shuffle'
   | 'tarih'
   | 'created_at'
@@ -41,6 +45,7 @@ export interface SortState {
  * shuffle/service.py SORT_COLUMNS.
  */
 const SORT_AVAILABILITY: Record<SortKey, readonly FeedTab[]> = {
+  document_id: ['new', 'review', 'verified'],
   shuffle: ['new', 'review', 'verified'],
   tarih: ['new', 'review', 'verified'],
   created_at: ['new', 'review', 'verified'],
@@ -57,14 +62,18 @@ export function isSortAvailable(tab: FeedTab, key: SortKey): boolean {
 }
 
 /**
- * Per-tab default sort. Picked so each tab opens on its most useful
- * first row: new docs sorted by özelge date desc, in-progress and
- * verified docs sorted by last activity desc.
+ * Phase 6: per-tab default sort = document_id DESC across the board.
+ * Cross-team coordination: both this team and the partner team
+ * (Zeynep) work the same özelge corpus and must see the same fixed
+ * order. document_id (= evrakOid) lexicographic DESC matches the
+ * partner DB's `evrak_id` DESC and is fully deterministic across
+ * users. See backend/shuffle/service.py:DEFAULT_SORT_FOR for the
+ * matching backend contract.
  */
 const DEFAULT_SORT: Record<FeedTab, SortState> = {
-  new: { by: 'tarih', order: 'desc' },
-  review: { by: 'updated_at', order: 'desc' },
-  verified: { by: 'updated_at', order: 'desc' },
+  new: { by: 'document_id', order: 'desc' },
+  review: { by: 'document_id', order: 'desc' },
+  verified: { by: 'document_id', order: 'desc' },
 }
 
 interface AnnotateState {
@@ -84,12 +93,12 @@ export const useAnnotateStore = create<AnnotateState>()(
         set((state) => ({ sort: { ...state.sort, [tab]: next } })),
     }),
     {
-      // Bumped storage name (v3) on removal of the 'sayi' SortKey: a
-      // stale persisted `{by: 'sayi', order: 'desc'}` entry would
-      // survive rehydration and trip the new sortKeySchema (`v3`
-      // discards the old entry on parse failure rather than booting
-      // into a sort the SortMenu can't display).
-      name: 'annotate.store.v3',
+      // Phase 6 bumped storage name v3 → v4 so all users seed cleanly
+      // on the new cross-team default (document_id DESC). A surviving
+      // v3 entry would persist the old per-tab defaults (tarih /
+      // updated_at) and silently break the cross-team ordering
+      // contract — bumping the key discards it on first load.
+      name: 'annotate.store.v4',
       storage: createJSONStorage(() => sessionStorage),
     },
   ),
