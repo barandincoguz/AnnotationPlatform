@@ -143,7 +143,7 @@ def test_health_db_endpoint_reports_migrations(running_container):
     ) as r:
         body = json.loads(r.read().decode("utf-8"))
     assert body["status"] == "ok"
-    assert body["migrations_applied"] == 4  # v0001..v0004
+    assert body["migrations_applied"] == 7  # v0001..v0007
     assert body["table_count"] >= 23
 
 
