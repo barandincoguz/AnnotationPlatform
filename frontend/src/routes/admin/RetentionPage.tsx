@@ -73,10 +73,11 @@ export function RetentionPage() {
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="retention-confirm-dialog-title"
           className="fixed inset-0 z-40 bg-black/60 grid place-items-center"
         >
           <div className="bg-card border border-border rounded-lg p-6 max-w-md space-y-3">
-            <h2 className="text-lg font-medium">Onay</h2>
+            <h2 id="retention-confirm-dialog-title" className="text-lg font-medium">Onay</h2>
             <p className="text-sm">
               <strong>{preview.data?.total}</strong> satır kalıcı olarak silinecek. Geri
               alınamaz.
