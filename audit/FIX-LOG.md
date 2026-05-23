@@ -22,4 +22,4 @@
 | W3-T2      | Doc  | 461a021    | docs/deployment.md refresh: Phase 5 admin surfaces section + Hetzner CPX11 + Oracle A1.Flex ARM appendices + link to runbooks/restore-drill.md |
 | W3-T3      | Ops  | 6e2bc73    | .github/workflows/ci.yml — 3 jobs (backend ruff+pytest, frontend tsc+eslint+vitest, docker build smoke); validation PR on personal remote at https://github.com/barandincoguz/AnnotationPlatform/pull/1 |
 | W4-T1      | Validation | 6cc033d    | audit/SMOKE.md — Wave 4 smoke + wrk + Playwright e2e against built container |
-| W4-T2      | Validation | TBD        | audit/A11Y.md — Wave 4 a11y static audit (no axe-core); 4 core flows; 0 critical, 3 serious (2 fixed inline), 5 moderate, 2 minor |
+| W4-T2      | Validation | 2c4707a    | audit/A11Y.md — Wave 4 a11y static audit (no axe-core); 4 core flows; 0 critical, 3 serious (2 fixed inline), 5 moderate, 2 minor |
