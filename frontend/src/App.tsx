@@ -29,6 +29,7 @@ import { GoldDocsPage } from '@/routes/admin/training/GoldDocsPage'
 import { QuizPage } from '@/routes/admin/training/QuizPage'
 import { MirrorHealthPage } from '@/routes/admin/MirrorHealthPage'
 import { BackupPage } from '@/routes/admin/BackupPage'
+import { RetentionPage } from '@/routes/admin/RetentionPage'
 
 export default function App() {
   const navigate = useNavigate()
@@ -131,6 +132,7 @@ export default function App() {
           <Route path="training/quiz" element={<QuizPage />} />
           <Route path="mirror" element={<MirrorHealthPage />} />
           <Route path="backup" element={<BackupPage />} />
+          <Route path="retention" element={<RetentionPage />} />
         </Route>
       </Route>
 

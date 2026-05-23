@@ -366,6 +366,60 @@ export function useBackupRunNow() {
   })
 }
 
+// ---- Retention ----
+
+export interface RetentionPolicyEntry {
+  table: string
+  days: number
+  cutoff_iso: string | null
+}
+
+export interface RetentionPreview {
+  rows_to_purge: Record<string, number>
+  total: number
+  policy: RetentionPolicyEntry[]
+}
+
+export interface RetentionRunNowResult {
+  ok: boolean
+  total: number
+  purged: Record<string, number>
+  trace_id: string | null
+}
+
+export function useRetentionPreview() {
+  return useQuery<RetentionPreview>({
+    queryKey: ['admin', 'retention', 'preview'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/retention/preview', { credentials: 'include' })
+      if (!res.ok) throw new Error(`retention/preview ${res.status}`)
+      return res.json() as Promise<RetentionPreview>
+    },
+  })
+}
+
+export function useRetentionRunNow() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/retention/run-now', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        interface ErrorBody { detail?: { message?: string } }
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const body: ErrorBody = await res.json().catch(() => ({}))
+        throw new Error(body.detail?.message ?? `retention failed ${res.status}`)
+      }
+      return res.json() as Promise<RetentionRunNowResult>
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'retention', 'preview'] })
+    },
+  })
+}
+
 // ---- Mirror health ----
 
 export interface MirrorHealth {
