@@ -25,6 +25,8 @@ Sort:
   - sort=None: resolves to DEFAULT_SORT_FOR[tab].
 
 Sort whitelist (per-tab availability noted):
+  document_id    -> d.document_id    (all tabs; Phase 6 cross-team
+                                      coordination key — DEFAULT)
   shuffle        -> Python shuffle (no SQL ORDER BY chosen)
   tarih          -> d.tarih          (all tabs; NULLs sink to the end)
   created_at     -> d.created_at     (all tabs)
@@ -50,16 +52,31 @@ VALID_TABS = ("new", "review", "verified")
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
 
+# Cross-team coordination (Phase 6): both this annotator team and the
+# partner team (Zeynep) work the same özelge corpus. To preserve the
+# "annotate in fixed order" contract the document_id (= evrakOid) is the
+# canonical ordering key across teams. DESC matches the user's Neon
+# preview (DBeaver `evrak_id` DESC against the partner DB). The new tab
+# previously defaulted to `tarih DESC` (deterministic but date-only) and
+# review/verified to `updated_at DESC` (user-specific edit time — NOT
+# deterministic across teams). Phase 6 unifies all three tabs on
+# document_id DESC. The legacy keys (tarih, updated_at, …) remain
+# available via the explicit `sort=` query param; the frontend SortMenu
+# is hidden behind a localStorage dev flag (`a11n.dev_sort=1`) and does
+# not surface them to users.
 DEFAULT_SORT_FOR = {
-    "new": ("tarih", "desc"),
-    "review": ("updated_at", "desc"),
-    "verified": ("updated_at", "desc"),
+    "new": ("document_id", "desc"),
+    "review": ("document_id", "desc"),
+    "verified": ("document_id", "desc"),
 }
 
 # Whitelist of sort keys → (SQL column expression, allowed-tabs).
 # The SQL fragment is interpolated literally; never accept caller input
 # into the ORDER BY chain bypassing this mapping.
 SORT_COLUMNS: dict[str, tuple[str, frozenset[str]]] = {
+    # Phase 6 canonical cross-team ordering key (= evrakOid). Available
+    # on all tabs. PRIMARY KEY NOT NULL → no NULL-sink branch fires.
+    "document_id": ("d.document_id", frozenset({"new", "review", "verified"})),
     "tarih": ("d.tarih", frozenset({"new", "review", "verified"})),
     "created_at": ("d.created_at", frozenset({"new", "review", "verified"})),
     "sayi": ("d.sayi", frozenset({"new", "review", "verified"})),

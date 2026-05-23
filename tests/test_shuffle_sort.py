@@ -71,23 +71,71 @@ def sorted_db(db_path, tmp_path):
 
 # === Default sort per tab ===
 
-def test_default_sort_new_tab_is_tarih_desc(sorted_db):
-    """`new` tab without sort param → tarih DESC, NULLs at end."""
+def test_default_sort_new_tab_is_document_id_desc(sorted_db):
+    """Phase 6: `new` tab without sort param → document_id DESC.
+
+    Cross-team coordination: both teams (this + Zeynep) annotate the
+    same corpus in the same fixed order. document_id (= evrakOid) is
+    the canonical ordering key. DESC lexicographic matches the partner
+    DB's `evrak_id` DESC preview.
+    """
     r = shuffle_service.list_feed(sorted_db, user_id=1, tab="new", limit=50, offset=0)
     ids = [i["document_id"] for i in r["items"]]
-    assert ids == ["doc_c", "doc_a", "doc_b", "doc_e", "doc_d"]
+    # doc_e > doc_d > doc_c > doc_b > doc_a lexicographically.
+    assert ids == ["doc_e", "doc_d", "doc_c", "doc_b", "doc_a"]
 
 
-def test_default_sort_review_tab_is_updated_at_desc(sorted_db):
-    """`review` tab without sort param → updated_at DESC."""
+def test_default_sort_review_tab_is_document_id_desc(sorted_db):
+    """Phase 6: `review` tab without sort param → document_id DESC.
+
+    Was `updated_at DESC`. That was per-user (depends on who edited
+    when) and broke the cross-team determinism — Zeynep's annotators
+    would see a different order. document_id DESC is identical across
+    every user that touches the corpus.
+    """
+    # Save annotations in a non-lex order to prove the new default
+    # IGNORES updated_at and returns by document_id DESC.
     ann_service.save_annotation(sorted_db, document_id="doc_a", user_id=1, references=[_ref()])
     ann_service.save_annotation(sorted_db, document_id="doc_c", user_id=1, references=[_ref()])
     ann_service.save_annotation(sorted_db, document_id="doc_b", user_id=1, references=[_ref()])
     r = shuffle_service.list_feed(sorted_db, user_id=1, tab="review", limit=50, offset=0)
     ids = [i["document_id"] for i in r["items"]]
-    # Most recently saved appears first.
-    assert ids[0] == "doc_b"
-    assert ids[-1] == "doc_a"
+    # Three saved → all appear on the review tab. document_id DESC:
+    # doc_c, doc_b, doc_a.
+    assert ids == ["doc_c", "doc_b", "doc_a"]
+
+
+def test_default_sort_verified_tab_is_document_id_desc(sorted_db):
+    """Phase 6: `verified` tab without sort param → document_id DESC."""
+    ann_service.save_annotation(
+        sorted_db, document_id="doc_a", user_id=1, references=[_ref()],
+    )
+    ann_service.set_complete(
+        sorted_db, document_id="doc_a", user_id=1, completed=True,
+    )
+    ann_service.save_annotation(
+        sorted_db, document_id="doc_c", user_id=1, references=[_ref()],
+    )
+    ann_service.set_complete(
+        sorted_db, document_id="doc_c", user_id=1, completed=True,
+    )
+    r = shuffle_service.list_feed(sorted_db, user_id=1, tab="verified", limit=50, offset=0)
+    ids = [i["document_id"] for i in r["items"]]
+    assert ids == ["doc_c", "doc_a"]
+
+
+def test_document_id_sort_key_available_on_all_tabs(sorted_db):
+    """document_id sort key must be accepted on new, review, and verified."""
+    for tab in ("new", "review", "verified"):
+        r = shuffle_service.list_feed(
+            sorted_db, user_id=1, tab=tab, limit=50, offset=0,
+            sort="document_id", order="desc",
+        )
+        # Just assert it doesn't raise and returns the standard payload
+        # shape. Per-tab content is tab-dependent (review/verified empty
+        # without prior saves; new returns all 5).
+        assert "items" in r
+        assert "total" in r
 
 
 # === Explicit sort keys ===
