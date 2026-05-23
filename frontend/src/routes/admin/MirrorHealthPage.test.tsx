@@ -16,7 +16,7 @@ function renderWithProviders(ui: React.ReactNode) {
 
 describe('MirrorHealthPage', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo) => {
       const url = typeof input === 'string' ? input : input.url
       if (url.endsWith('/api/admin/mirror/health')) {
         return new Response(JSON.stringify({
@@ -40,7 +40,7 @@ describe('MirrorHealthPage', () => {
   })
 
   it('applies warn class when queue depth crosses 1000', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+    vi.stubGlobal('fetch', vi.fn(() => new Response(JSON.stringify({
       queue_depth: 1500, dead_letter_count: 0,
       oldest_undelivered_age_seconds: 100, last_delivered_at: null,
       dispatcher_alive: true, neon_reachable: true,
@@ -54,7 +54,7 @@ describe('MirrorHealthPage', () => {
   })
 
   it('applies critical class when queue depth crosses 10000', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+    vi.stubGlobal('fetch', vi.fn(() => new Response(JSON.stringify({
       queue_depth: 20000, dead_letter_count: 0,
       oldest_undelivered_age_seconds: 1000, last_delivered_at: null,
       dispatcher_alive: true, neon_reachable: false,
@@ -68,7 +68,7 @@ describe('MirrorHealthPage', () => {
   })
 
   it('renders neon-reachable false', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+    vi.stubGlobal('fetch', vi.fn(() => new Response(JSON.stringify({
       queue_depth: 0, dead_letter_count: 0,
       oldest_undelivered_age_seconds: null, last_delivered_at: null,
       dispatcher_alive: true, neon_reachable: false,
@@ -79,7 +79,7 @@ describe('MirrorHealthPage', () => {
   })
 
   it('shows requeue button when dead_letter_count > 0', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+    vi.stubGlobal('fetch', vi.fn(() => new Response(JSON.stringify({
       queue_depth: 5, dead_letter_count: 3,
       oldest_undelivered_age_seconds: 10, last_delivered_at: null,
       dispatcher_alive: true, neon_reachable: true,
@@ -98,7 +98,7 @@ describe('MirrorHealthPage', () => {
   })
 
   it('requeue button → confirm modal → POST + toast', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.url
       const method = init?.method ?? 'GET'
       if (url.endsWith('/api/admin/mirror/health')) {

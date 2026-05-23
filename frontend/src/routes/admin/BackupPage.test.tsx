@@ -10,7 +10,7 @@ function renderWithProviders(ui: React.ReactNode) {
 
 describe('BackupPage', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.url
       const method = init?.method ?? 'GET'
       if (url.includes('/api/admin/system-events') && method === 'GET') {

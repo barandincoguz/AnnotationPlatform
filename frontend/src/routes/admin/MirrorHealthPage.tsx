@@ -110,7 +110,7 @@ export function MirrorHealthPage() {
             <h2 className="text-lg font-medium">Onay</h2>
             <p className="text-sm">
               <strong>{q.data.dead_letter_count}</strong> dead-letter satırı kuyruğa geri alınacak.
-              Dispatcher bir sonraki drain'de yeniden deneyecek.
+              Dispatcher bir sonraki drain&apos;de yeniden deneyecek.
             </p>
             <div className="flex gap-2 justify-end">
               <Button variant="ghost" onClick={() => setConfirming(false)} disabled={requeue.isPending}>

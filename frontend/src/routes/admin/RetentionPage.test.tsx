@@ -32,7 +32,7 @@ const RUN_NOW_OK = {
 
 describe('RetentionPage', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.url
       const method = init?.method ?? 'GET'
       if (url.endsWith('/api/admin/retention/preview') && method === 'GET') {
@@ -89,7 +89,7 @@ describe('RetentionPage', () => {
   })
 
   it('Şimdi temizle disabled when total is 0', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
+    vi.stubGlobal('fetch', vi.fn(() =>
       new Response(JSON.stringify({ rows_to_purge: {}, total: 0, policy: [] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
