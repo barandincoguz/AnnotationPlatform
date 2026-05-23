@@ -261,3 +261,251 @@ def test_route_complete_returns_409_lock_owned_by_other(second_passed_user, inge
     assert r.status_code == 409, r.text
     body = r.json()
     assert body["detail"]["error"] == "lock_owned_by_other"
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 BE-3: inside-transaction lock re-verification
+# ---------------------------------------------------------------------------
+# These tests demonstrate the TOCTOU: a lock can be swapped between the
+# pre-txn check and the moment BEGIN IMMEDIATE acquires the RESERVED lock.
+# The fix must re-query document_locks INSIDE the transaction and raise
+# LockOwnedByOther (rolling back) if ownership changed.
+
+
+def test_save_annotation_inside_txn_lock_recheck(db, monkeypatch):
+    """BE-3: even if the pre-txn lock check passed, the inside-txn re-check
+    must catch a swap that happened in the window.
+
+    Strategy: monkeypatch locks_service.get_lock to lie (claim user 1 still
+    owns it) while we DELETE the lock row before BEGIN IMMEDIATE.  The pre-txn
+    guard is fooled; the inside-txn re-query sees no row → rollback + raise.
+    """
+    # User 1 acquires; user 1 is the legitimate owner.
+    lock_service.acquire(db, document_id="doc_1", user_id=1)
+
+    # Simulate the swap window: delete the row so user 1 no longer holds it.
+    db.execute("DELETE FROM document_locks WHERE document_id = ?", ("doc_1",))
+    db.commit()
+
+    # Fool the pre-txn check: claim user 1 still owns it.
+    fake_lock = {
+        "user_id": 1,
+        "by_user_id": 1,
+        "expires_at": "9999-12-31T00:00:00+00:00",
+        "document_id": "doc_1",
+    }
+    monkeypatch.setattr(lock_service, "get_lock", lambda _db, doc_id: fake_lock)
+
+    # User 1's save must raise — the inside-txn re-check detects no row.
+    with pytest.raises(Exception) as exc_info:
+        ann_service.save_annotation(
+            db, document_id="doc_1", user_id=1,
+            references=[_ref(source_text="should-not-land")],
+        )
+
+    exc = exc_info.value
+    assert (
+        "lock" in str(exc).lower()
+        or type(exc).__name__ in ("LockOwnedByOther", "NotLockHolder", "LockHeldByOther")
+    ), f"expected a lock-ownership error, got {type(exc).__name__}: {exc}"
+
+    # The write must have been rolled back — no annotation row.
+    row = db.execute(
+        "SELECT * FROM annotations WHERE document_id = ?", ("doc_1",)
+    ).fetchone()
+    assert row is None, "annotation row must not exist after inside-txn recheck failure"
+
+
+def test_save_annotation_inside_txn_lock_recheck_structural(db):
+    """BE-3 structural: verify that after BEGIN IMMEDIATE there is a SELECT on
+    document_locks BEFORE any INSERT/UPDATE into annotation tables.
+
+    Uses the same TraceConn proxy pattern from test_locks_concurrency.py.
+    """
+    # User 1 holds the lock legitimately so the whole path runs without error.
+    lock_service.acquire(db, document_id="doc_1", user_id=1)
+
+    calls: list[tuple[str, str]] = []  # (keyword, table_hint)
+
+    class _TraceConn:
+        def __getattr__(self, name):
+            return getattr(db, name)
+
+        def execute(self, stmt, *args, **kw):
+            stripped = stmt.strip()
+            first_word = stripped.split()[0].upper()
+            lower = stripped.lower()
+            if first_word in ("BEGIN", "COMMIT", "ROLLBACK"):
+                calls.append((first_word, ""))
+            elif first_word == "SELECT":
+                if "document_locks" in lower:
+                    calls.append(("SELECT", "document_locks"))
+                else:
+                    calls.append(("SELECT", "other"))
+            elif first_word in ("INSERT", "UPDATE", "DELETE"):
+                if "annotation" in lower:
+                    calls.append((first_word, "annotation"))
+                elif "document_locks" in lower:
+                    calls.append((first_word, "document_locks"))
+                else:
+                    calls.append((first_word, "other"))
+            return db.execute(stmt, *args, **kw)
+
+        def cursor(self):
+            return _TraceCursor(db.cursor(), calls)
+
+        def commit(self):
+            calls.append(("COMMIT", ""))
+            return db.commit()
+
+        def rollback(self):
+            calls.append(("ROLLBACK", ""))
+            return db.rollback()
+
+    class _TraceCursor:
+        def __init__(self, cur, call_list):
+            self._cur = cur
+            self._calls = call_list
+
+        def __getattr__(self, name):
+            return getattr(self._cur, name)
+
+        def execute(self, stmt, *args, **kw):
+            stripped = stmt.strip()
+            first_word = stripped.split()[0].upper()
+            lower = stripped.lower()
+            if first_word in ("BEGIN", "COMMIT", "ROLLBACK"):
+                self._calls.append((first_word, ""))
+            elif first_word == "SELECT":
+                if "document_locks" in lower:
+                    self._calls.append(("SELECT", "document_locks"))
+                else:
+                    self._calls.append(("SELECT", "other"))
+            elif first_word in ("INSERT", "UPDATE", "DELETE"):
+                if "annotation" in lower:
+                    self._calls.append((first_word, "annotation"))
+                elif "document_locks" in lower:
+                    self._calls.append((first_word, "document_locks"))
+                else:
+                    self._calls.append((first_word, "other"))
+            return self._cur.execute(stmt, *args, **kw)
+
+    ann_service.save_annotation(
+        _TraceConn(), document_id="doc_1", user_id=1,
+        references=[_ref(source_text="trace-run")],
+    )
+
+    # Must have a BEGIN.
+    assert ("BEGIN", "") in calls, f"no BEGIN found: {calls}"
+    begin_idx = next(i for i, c in enumerate(calls) if c == ("BEGIN", ""))
+
+    # After BEGIN, must have a SELECT document_locks BEFORE any INSERT/UPDATE into annotation*.
+    post_begin = calls[begin_idx + 1:]
+    dl_select_indices = [
+        i for i, c in enumerate(post_begin)
+        if c == ("SELECT", "document_locks")
+    ]
+    annotation_write_indices = [
+        i for i, c in enumerate(post_begin)
+        if c[0] in ("INSERT", "UPDATE") and c[1] == "annotation"
+    ]
+    assert dl_select_indices, (
+        f"no SELECT on document_locks found inside BEGIN IMMEDIATE: {calls}"
+    )
+    assert annotation_write_indices, (
+        f"no INSERT/UPDATE on annotation tables found: {calls}"
+    )
+    first_dl_select = min(dl_select_indices)
+    first_annotation_write = min(annotation_write_indices)
+    assert first_dl_select < first_annotation_write, (
+        f"document_locks SELECT (pos {first_dl_select}) must precede first "
+        f"annotation write (pos {first_annotation_write}); sequence: {post_begin}"
+    )
+
+
+def test_set_complete_inside_txn_lock_recheck(db, monkeypatch):
+    """BE-3: set_complete must also re-verify ownership inside BEGIN IMMEDIATE.
+
+    Same monkey-patch trick: fool pre-txn check, strip the lock row, assert
+    that the inside-txn check raises and rolls back.
+    """
+    # Seed an annotation so the legacy flag-flip path is available.
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[_ref(source_text="base")]
+    )
+    lock_service.acquire(db, document_id="doc_1", user_id=1)
+
+    # Simulate swap: delete the lock row.
+    db.execute("DELETE FROM document_locks WHERE document_id = ?", ("doc_1",))
+    db.commit()
+
+    # Fool the pre-txn check.
+    fake_lock = {
+        "user_id": 1,
+        "by_user_id": 1,
+        "expires_at": "9999-12-31T00:00:00+00:00",
+        "document_id": "doc_1",
+    }
+    monkeypatch.setattr(lock_service, "get_lock", lambda _db, doc_id: fake_lock)
+
+    with pytest.raises(Exception) as exc_info:
+        ann_service.set_complete(
+            db, document_id="doc_1", user_id=1, completed=True
+        )
+
+    exc = exc_info.value
+    assert (
+        "lock" in str(exc).lower()
+        or type(exc).__name__ in ("LockOwnedByOther", "NotLockHolder", "LockHeldByOther")
+    ), f"expected a lock-ownership error, got {type(exc).__name__}: {exc}"
+
+    # is_completed must remain 0 after rollback.
+    row = db.execute(
+        "SELECT is_completed FROM annotations WHERE document_id = ?", ("doc_1",)
+    ).fetchone()
+    assert row is not None
+    assert row["is_completed"] == 0, "is_completed must not flip after inside-txn recheck failure"
+
+
+def test_set_complete_inside_txn_lock_recheck_swapped_owner(db, monkeypatch):
+    """BE-3: if the lock row exists but ownership changed to another user,
+    set_complete must also detect this inside the transaction."""
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=[_ref(source_text="base")]
+    )
+    lock_service.acquire(db, document_id="doc_1", user_id=1)
+
+    # Swap the lock to user 2 (like a concurrent acquire winning the race).
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(seconds=300)
+    db.execute(
+        "UPDATE document_locks SET user_id = 2, acquired_at = ?, last_heartbeat = ?, "
+        "expires_at = ? WHERE document_id = ?",
+        (now.isoformat(), now.isoformat(), expires.isoformat(), "doc_1"),
+    )
+    db.commit()
+
+    # Fool pre-txn check: claim user 1 still owns it.
+    fake_lock = {
+        "user_id": 1,
+        "by_user_id": 1,
+        "expires_at": "9999-12-31T00:00:00+00:00",
+        "document_id": "doc_1",
+    }
+    monkeypatch.setattr(lock_service, "get_lock", lambda _db, doc_id: fake_lock)
+
+    with pytest.raises(Exception) as exc_info:
+        ann_service.set_complete(
+            db, document_id="doc_1", user_id=1, completed=True
+        )
+
+    exc = exc_info.value
+    assert (
+        "lock" in str(exc).lower()
+        or type(exc).__name__ in ("LockOwnedByOther", "NotLockHolder", "LockHeldByOther")
+    ), f"expected lock-ownership error, got {type(exc).__name__}: {exc}"
+
+    row = db.execute(
+        "SELECT is_completed FROM annotations WHERE document_id = ?", ("doc_1",)
+    ).fetchone()
+    assert row["is_completed"] == 0, "is_completed must not flip when inside-txn detects swap"

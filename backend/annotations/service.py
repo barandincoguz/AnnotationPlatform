@@ -212,6 +212,9 @@ def save_annotation(
     _active = locks_service.get_lock(db, document_id)
     if _active is not None and _active["user_id"] != user_id:
         raise LockOwnedByOther(document_id)
+    # Remember whether caller held the lock at pre-txn check time so the
+    # inside-txn re-check (BE-3) can detect a swap that happened in the window.
+    _caller_held_lock_pretxn = _active is not None and _active["user_id"] == user_id
 
     now = _now()
 
@@ -225,6 +228,29 @@ def save_annotation(
     # so the read sees the latest committed value.
     db.execute("BEGIN IMMEDIATE")
     try:
+        # BE-3: re-verify lock ownership INSIDE the transaction.  The pre-txn
+        # check above is a TOCTOU: a lock can expire and be re-acquired by a
+        # different user in the window between that check and this BEGIN
+        # IMMEDIATE acquiring the writer's RESERVED state.  Re-querying here
+        # closes the window — if ownership changed we raise (the outer except
+        # block handles the ROLLBACK).
+        _lock_row = db.execute(
+            "SELECT user_id, expires_at FROM document_locks WHERE document_id = ?",
+            (document_id,),
+        ).fetchone()
+        _now_iso = datetime.now(timezone.utc).isoformat()
+        # Two failure cases that indicate a swap in the window:
+        #   (a) caller had the lock pre-txn but the row is now gone (expired +
+        #       swept, or another path released it) → someone else can acquire
+        #   (b) any lock row currently belongs to a different user or is expired
+        _lock_row_invalid = _lock_row is not None and (
+            _lock_row["user_id"] != user_id
+            or _lock_row["expires_at"] <= _now_iso
+        )
+        _own_lock_vanished = _caller_held_lock_pretxn and _lock_row is None
+        if _lock_row_invalid or _own_lock_vanished:
+            raise LockOwnedByOther(document_id)
+
         result = _apply_save_inside_txn(
             db,
             document_id=document_id,
@@ -393,10 +419,28 @@ def set_complete(
     _active = locks_service.get_lock(db, document_id)
     if _active is not None and _active["user_id"] != user_id:
         raise LockOwnedByOther(document_id)
+    # Remember whether caller held the lock at pre-txn check time (BE-3).
+    _caller_held_lock_pretxn = _active is not None and _active["user_id"] == user_id
 
     now = _now()
     db.execute("BEGIN IMMEDIATE")
     try:
+        # BE-3: re-verify lock ownership INSIDE the transaction for the same
+        # reason as save_annotation — the pre-txn check is a TOCTOU.  Raise
+        # here; the outer except block handles the ROLLBACK.
+        _lock_row = db.execute(
+            "SELECT user_id, expires_at FROM document_locks WHERE document_id = ?",
+            (document_id,),
+        ).fetchone()
+        _now_iso = datetime.now(timezone.utc).isoformat()
+        _lock_row_invalid = _lock_row is not None and (
+            _lock_row["user_id"] != user_id
+            or _lock_row["expires_at"] <= _now_iso
+        )
+        _own_lock_vanished = _caller_held_lock_pretxn and _lock_row is None
+        if _lock_row_invalid or _own_lock_vanished:
+            raise LockOwnedByOther(document_id)
+
         cur = db.execute(
             "SELECT references_json, is_completed FROM annotations WHERE document_id=?",
             (document_id,),
