@@ -23,6 +23,7 @@ def list_system_events(
     db: sqlite3.Connection, *,
     limit: int, offset: int,
     event_type: str | None = None,
+    event_type_prefix: str | None = None,
     severity: str | None = None,
     trace_id: str | None = None,
     date_from: str | None = None,
@@ -35,6 +36,9 @@ def list_system_events(
     if event_type is not None:
         where.append("event_type = ?")
         params.append(event_type)
+    if event_type_prefix is not None:
+        where.append("event_type LIKE ?")
+        params.append(event_type_prefix + "%")
     if severity is not None:
         where.append("severity = ?")
         params.append(severity)
