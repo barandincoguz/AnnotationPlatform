@@ -1,11 +1,11 @@
 # State
 
-**Updated:** 2026-05-19
+**Updated:** 2026-05-23
 
 ## Current Phase
 
-**Phase 4** — Neon Postgres dual-write mirror — `Executed` (14/14 tasks shipped).
-See [4-SUMMARY.md](./phases/04-neon-postgres-dual-write-mirror/4-SUMMARY.md) for the per-commit breakdown.
+**Phase 5** — Pre-flight Hardening & Deploy Readiness — `Complete`. 27 of 32 success gates fully met, 4 partial (waivers / operator-side), 0 failed.
+See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit/FIX-LOG.md](../audit/FIX-LOG.md) for the commit crosswalk.
 
 ## Active Branch
 
@@ -18,15 +18,18 @@ See [4-SUMMARY.md](./phases/04-neon-postgres-dual-write-mirror/4-SUMMARY.md) for
 | 1 | Complete | `b536e22` |
 | 2 | Complete | `c93fbda` + Codex review fix `924e4e2` |
 | 3 | Complete | `ca5555f` |
-| 4 | Executed | `1f33a53 .. 66f0986` (14 commits) — pending operator-run wrk/hey + tag |
+| 4 | Executed | `1f33a53 .. 66f0986` (14 commits) — wrk smoke verified in Phase 5 W4-T1 (`audit/SMOKE.md`) |
+| 5 | Complete | Wave 0..4 across ~25 commits; tagged `phase-5` |
 
-## Test Baseline
+## Test Baseline (post Phase 5)
 
-- Backend pytest: **946 pass + 3 skip** (was 872 + 3 entering Phase 4; +74 mirror tests)
-- Frontend vitest: 511 pass / 511 (untouched by Phase 4)
+- Backend pytest: **987 pass** (was 946 + 3 skip entering Phase 5; +41 new tests across Wave 2 + Wave 2.5)
+- Frontend vitest: **525 pass / 525** (was 477 / 511 entering Phase 5; FE-1 unblocked 34 + 14 new admin-page tests)
 - Frontend typecheck: clean
 - Frontend lint: clean
-- e2e Playwright: 9 / 9
+- e2e Playwright: 9 / 9 against built container (`audit/SMOKE.md`)
+- ruff: 64 pre-existing errors (Phase 6 backlog; CI workflow gate is `continue-on-error: true` per W3-T3 design)
+- wrk `/api/health` baseline: 5098 req/s, p99 4.14 ms (under the Phase 4 ≤5 ms budget)
 
 ## Live Data State
 

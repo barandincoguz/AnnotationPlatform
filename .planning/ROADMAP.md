@@ -10,6 +10,7 @@
 | 2 | Atomic complete + skip cleanup | Complete | Single BEGIN IMMEDIATE for save+complete+draft-delete; skip clears caller draft |
 | 3 | Frontend simplify + workflow_state UI | Complete | Single-POST complete; workflow_state-based status branding; useDraft empty→DELETE; SSE annotation_completed listener |
 | 4 | Neon Postgres dual-write mirror | Executed | Async outbox + dispatcher; every SQLite write also lands in partner's Neon DB under `baran_<table>` prefix |
+| 5 | Pre-flight Hardening & Deploy Readiness | Complete | 12-dimension audit + 10 High fix sweep + D12 build (4 admin pages + backup restore route + dead-letter requeue + doc edits + dead-code) + restore runbook + 2 host appendices + GitHub Actions CI + wrk/Playwright/a11y validation. 27/32 gates met (4 partial waivers, 0 failed). Tag `phase-5`. |
 
 ## Phase Details
 
