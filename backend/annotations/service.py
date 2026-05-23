@@ -99,14 +99,6 @@ def _rebuild_denormalized(
         )
 
 
-def _count_unique_users(db: sqlite3.Connection, document_id: str) -> int:
-    row = db.execute(
-        "SELECT COUNT(DISTINCT user_id) AS c FROM annotation_versions WHERE document_id=?",
-        (document_id,),
-    ).fetchone()
-    return row["c"]
-
-
 def _apply_save_inside_txn(
     db: sqlite3.Connection,
     *,
@@ -140,6 +132,20 @@ def _apply_save_inside_txn(
     diff_zero = is_diff_zero(diff)
     action = action_override or ("create" if is_new else "edit")
 
+    # B-01: O(1) EXISTS check — does this user already have a version row
+    # for this document?  If not, they are a new contributor and the
+    # unique_users_count must be incremented by 1.  This query is O(index
+    # lookup) via idx_ver_doc_user(document_id, user_id) rather than the
+    # prior O(N) COUNT(DISTINCT user_id) full-chain scan.
+    #
+    # NOTE: the check runs BEFORE inserting the new version row so that
+    # the current user's own row is not counted as "already present".
+    prior_row = db.execute(
+        "SELECT 1 FROM annotation_versions WHERE document_id=? AND user_id=? LIMIT 1",
+        (document_id, user_id),
+    ).fetchone()
+    user_is_new_contributor = prior_row is None
+
     db.execute(
         """
         INSERT INTO annotation_versions(
@@ -153,17 +159,18 @@ def _apply_save_inside_txn(
         ),
     )
 
-    unique_users = _count_unique_users(db, document_id)
     if is_new:
+        # First annotation row for this document; unique_users_count starts
+        # at 1 (the creating user is always a new contributor here).
         db.execute(
             """
             INSERT INTO annotations(
                 document_id, references_json, is_completed,
                 last_editor_user_id, edit_count, unique_users_count,
                 created_at, updated_at
-            ) VALUES (?, ?, 0, ?, 1, ?, ?, ?)
+            ) VALUES (?, ?, 0, ?, 1, 1, ?, ?)
             """,
-            (document_id, json.dumps(cleaned), user_id, unique_users, now, now),
+            (document_id, json.dumps(cleaned), user_id, now, now),
         )
     else:
         db.execute(
@@ -172,11 +179,15 @@ def _apply_save_inside_txn(
                 references_json=?,
                 last_editor_user_id=?,
                 edit_count=edit_count+1,
-                unique_users_count=?,
+                unique_users_count=unique_users_count + ?,
                 updated_at=?
             WHERE document_id=?
             """,
-            (json.dumps(cleaned), user_id, unique_users, now, document_id),
+            (
+                json.dumps(cleaned), user_id,
+                1 if user_is_new_contributor else 0,
+                now, document_id,
+            ),
         )
 
     _rebuild_denormalized(db, document_id, cleaned)
