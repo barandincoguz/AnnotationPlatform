@@ -30,8 +30,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import sqlite3
-from typing import Awaitable, Callable, Optional
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Callable, Optional
 
 from backend import config
 from backend.mirror import config as mirror_config
@@ -42,12 +45,73 @@ from backend.shared.db import connect
 log = logging.getLogger(__name__)
 
 
+# ----- PID-file singleton guard (Phase 5 B-02) -----
+
+def _pid_is_alive(pid: int) -> bool:
+    """Return True if the process with *pid* is running on this host."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # PID exists but belongs to a different user; treat as alive.
+        return True
+    except OSError:
+        return False
+
+
+def _acquire_dispatcher_lock(data_dir: Path) -> bool:
+    """Atomic-ish PID-file lock. Returns True if we own the lock.
+
+    Race window: two dispatchers starting within the same OS scheduling
+    tick could both pass the liveness check and both overwrite. Acceptable
+    — backend.main.lifespan boots dispatcher exactly once per process
+    and the workers=1 SQLite constraint means no second backend process
+    is supposed to start against the same DATA_DIR. The PID file is a
+    second-line defence against accidental dual-boot, not a hard lock.
+    """
+    pid_file = data_dir / ".mirror-dispatcher.pid"
+    if pid_file.exists():
+        try:
+            existing_pid = int(pid_file.read_text().strip().split()[0])
+        except (ValueError, IndexError, OSError):
+            existing_pid = -1
+        if existing_pid > 0 and _pid_is_alive(existing_pid):
+            log.error(
+                "mirror dispatcher: refusing to start — another instance "
+                "is alive (PID %d) per %s. If this is wrong, remove the "
+                "file manually after confirming no other process is "
+                "draining the outbox.",
+                existing_pid, pid_file,
+            )
+            return False
+        # Stale PID — take over.
+        log.warning(
+            "mirror dispatcher: stale PID file (PID %d not alive); taking over.",
+            existing_pid,
+        )
+    pid_file.write_text(f"{os.getpid()} {datetime.now(timezone.utc).isoformat()}\n")
+    return True
+
+
+def _release_dispatcher_lock(data_dir: Path) -> None:
+    pid_file = data_dir / ".mirror-dispatcher.pid"
+    try:
+        pid_file.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        log.exception("mirror dispatcher: failed to release PID file")
+
+
 # ----- module-level handles (Task 10 + Task 12 read these) -----
 
 _task: Optional[asyncio.Task] = None
 _stop_event: Optional[asyncio.Event] = None
 _neon_client: Optional[NeonClient] = None
 _cold_start_emitted: bool = False  # so we only log "neon_mirror_connected" once
+_lock_data_dir: Optional[Path] = None  # set by start(); used by stop() to release PID file
 
 # Operational telemetry consumed by the admin health endpoint (Task 12).
 last_status: Optional[bool] = None  # True after a successful apply; False after failure
@@ -261,13 +325,43 @@ def start(
     sleep_empty: float | None = None,
     sleep_batch: float | None = None,
     max_retries: int | None = None,
+    data_dir: Path | None = None,
 ) -> asyncio.Task:
     """Schedule the dispatcher coroutine. Returns the task handle for stop().
 
     Mirrors backend/locks/sweep.py and backend/backup/loop.py — same
     start/stop shape so the lifespan code (Task 10) stays consistent.
+
+    Refuses to start if another dispatcher instance is alive for the same
+    DATA_DIR (B-02 singleton guard). On refusal, emits a system_events row
+    with severity=error / event_type=mirror_dispatcher_refused_dual_boot and
+    returns a no-op already-completed task so the lifespan await is safe.
     """
-    global _task, _stop_event, _neon_client, _cold_start_emitted, last_status, last_delivered_at
+    global _task, _stop_event, _neon_client, _cold_start_emitted, last_status, last_delivered_at, _lock_data_dir
+    _lock_data_dir = data_dir if data_dir is not None else config.DATA_DIR
+    if not _acquire_dispatcher_lock(_lock_data_dir):
+        # Emit a system_events row recording the refusal.
+        _cf = conn_factory if conn_factory is not None else (lambda: connect(config.DB_PATH))
+        try:
+            c = _cf()
+            try:
+                audit.log_system_event(
+                    c, "mirror_dispatcher_refused_dual_boot", "error",
+                    message=(
+                        "dispatcher refused to start: another instance is alive "
+                        f"per {_lock_data_dir / '.mirror-dispatcher.pid'}"
+                    ),
+                )
+            finally:
+                c.close()
+        except Exception:
+            log.exception("mirror dispatcher: failed to write refused_dual_boot event")
+        # Return a no-op completed task so the lifespan `await mirror_task` is safe.
+        async def _noop() -> None:
+            return
+        _task = asyncio.create_task(_noop())
+        return _task
+
     _stop_event = asyncio.Event()
     _cold_start_emitted = False
     last_status = None
@@ -291,11 +385,16 @@ def start(
 
 def stop() -> None:
     """Signal the dispatcher to exit at the next checkpoint."""
-    global _task, _stop_event
+    global _task, _stop_event, _lock_data_dir
     if _stop_event is not None:
         _stop_event.set()
     if _task is not None and not _task.done():
         _task.cancel()
+    # Release the PID-file lock so a subsequent start() in the same DATA_DIR
+    # (e.g. a process restart) is not refused as a dual-boot.
+    if _lock_data_dir is not None:
+        _release_dispatcher_lock(_lock_data_dir)
+        _lock_data_dir = None
     # Closing the Neon client happens after the task is awaited by the caller.
 
 
