@@ -1,7 +1,7 @@
 # Phase 5 — Pre-flight Hardening & Deploy Readiness — Design
 
 **Created:** 2026-05-23
-**Status:** Approved (sections 1-6) — awaiting user review of written spec
+**Status:** D12 added 2026-05-23 after parallel subagent audit; awaiting user review of full written spec
 **Predecessors:** Phase 1-4 (workflow_state, atomic complete, frontend simplify, Neon mirror)
 **Successor:** Phase 6 (SQLite → Neon primary cut-over, out of scope here)
 
@@ -17,7 +17,7 @@ Scope is an **11-dimension audit + fix sweep + host-agnostic operator runbook**.
 
 ### Non-goals
 
-- **No new product features.** Scope is correctness + ops + security only.
+- **No greenfield features.** New features outside the existing roadmap stay out. (Caveat: dimension D12 below completes a small set of *already-promised-but-unbuilt* features — this is closing gaps, not adding scope.)
 - **No Phase 4 architectural change.** Mirror semantics (async one-way SQLite → Neon, fail-silent, exponential backoff, dead-letter at N retries) stay as-is.
 - **No SQLite → Neon primary cut-over.** That is Phase 6 work.
 - **No HF Spaces auth migration** (cookie/iframe is a structural blocker — explicitly out).
@@ -33,6 +33,49 @@ Each dimension produces a severity-tagged finding file and feeds the consolidate
 
 - **Static (Wave 1, parallel subagents, read-only):** D1, D2, D3, D4, D6 — code/config inspection only.
 - **Interactive (Wave 3-4, run against the live container):** D5 (a11y needs browser + screen-reader), D7 (ops needs backup-loop execution), D8 (CI needs a PR), D9 (runbook needs dry-run), D10 (smoke needs built container), D11 (visual polish needs UI in browser).
+- **Build dimension (Wave 2.5):** D12 — items are already inventoried by the 2026-05-23 audit, so this is a build sweep, not a discovery sweep.
+
+---
+
+### 2.1 D12 Inventory — Completion gaps to close in Phase 5
+
+Discovered by 6 parallel audit subagents on 2026-05-23 (results in this commit's spec PR description). The Medium-severity items from that audit are explicitly deferred to Phase 6 (see §6).
+
+#### Build items (4 High — new code)
+
+| ID | Item | Surface | Effort |
+|----|------|---------|--------|
+| **U1** | **Backup restore HTTP route** — `restore_from_snapshot()` is fully implemented in `backend/backup/restore.py` but no route exposes it. Currently requires shell-in. | New `POST /api/admin/backup/restore` (file upload or repo-pull mode) + admin audit log entry + service-level WAL safety check (the "STOP" gate from `runbooks/restore-drill.md`) | 1 session |
+| **U4** | **Mirror health admin widget** (MIRROR-09 requirement) — backend `GET /api/admin/mirror/health` exists and returns queue depth + last-delivered-at + dead-letter count; no frontend surface | New admin page or topbar widget rendering the JSON; refetch interval; alert color thresholds | 3-4h |
+| **U5** | **Backup admin UI** — `POST /api/admin/backup/run-now` has no UI; operator must `curl` or shell-in | New admin route + page: "Run backup now" button, last-N backup history list (from `system_events`), backup repo URL display | 2-3h |
+| **U6** | **Retention admin UI** — `GET /api/admin/retention/preview` + `POST /api/admin/retention/run-now` have no UI | New admin route + page: preview deletions, confirm-and-run, history list | 2-3h |
+
+#### Doc-reality drift (3 — doc-only fixes)
+
+| ID | Item | Action |
+|----|------|--------|
+| **DR1** | README L62 + L346 claim "scrypt password hashing"; code uses bcrypt (`requirements.txt: bcrypt==4.2.0`; `backend/shared/auth.py`) | README edit |
+| **DR2** | README L39 + L57 claim "90-second document locks"; code default is 300s (`backend/locks/service.py` `DEFAULT_LOCK_EXPIRES_SECONDS = 300`, configurable via `lock.expires_seconds` site setting) | README edit (use the actual default, note configurability) |
+| **DR3** | `.planning/REQUIREMENTS.md` L41-51 still marks MIRROR-01..10 as `Pending`; all 10 shipped per `4-SUMMARY.md` | Set all 10 rows to `Complete` with commit references |
+
+#### Dead code cleanup (3 — verified-orphan removal)
+
+| ID | Item | Action |
+|----|------|--------|
+| **DC1** | `frontend/src/lib/env.ts` — `env` const exported with Zod schema; no import grep hits in `frontend/src/` | Verify with one more grep (including `import.meta.env`-style indirect refs); if truly dead, delete file |
+| **DC2** | Orphan table `user_badges` — created in v0001, never read or written; replaced by denormalized `badges_earned` | New migration `v0007_drop_user_badges.py`; pre-flight assertion that table is empty before drop |
+| **DC3** | Orphan table `user_quiz_answers` — created in v0001, never read or written; replaced by `training_attempts` | New migration `v0007_drop_user_quiz_answers.py` (or fold into single v0007); pre-flight assertion empty |
+
+#### Out of D12 — explicitly deferred to Phase 6 backlog
+
+These were audit-discovered but user-deferred:
+
+- **U2** — Admin notification broadcast (Medium)
+- **U3** — Gamification leaderboard endpoint (Medium)
+- **U7** — Export admin UI (Medium) — `GET /api/admin/export` lacks a UI
+- **U8** — Gold Doc "create new" admin UI (Medium)
+- **U9** — Quiz question "create new" admin UI (Medium)
+- **U10** — Active locks list UI + missing `GET /api/locks` backend endpoint (Medium)
 
 | # | Dimension | Surface | Output |
 |---|-----------|---------|--------|
@@ -47,6 +90,7 @@ Each dimension produces a severity-tagged finding file and feeds the consolidate
 | **D9** | Operator runbook | Host-agnostic deploy + first-admin seed + invite seeding + rollback + restore + Neon mirror enable. Hetzner + 1 alternative (Oracle or Fly) as appendix modules. | Updated `docs/deployment.md` |
 | **D10** | Smoke E2E + load | Built container → `wrk` 60s on hot endpoints + Playwright e2e 9/9 green | `audit/SMOKE.md` |
 | **D11** | Frontend visual polish | Final UI sweep: empty states, error toasts, loading states, mobile breakpoint sanity, dark mode (if any), copy/typography consistency | `audit/UI.md` |
+| **D12** | **Completion gaps + cleanup** | **Promised-but-unbuilt features (4 High), doc-reality drift (3), and dead code (3) discovered by 2026-05-23 audit subagents.** See §2.1 below. | `audit/COMPLETION.md` + new code |
 
 ---
 
@@ -78,6 +122,20 @@ Two tracks: read-only audit pass first, then severity-ordered fix waves. Each wa
 - Output: commits on `main` + `audit/FIX-LOG.md` (finding → commit crosswalk)
 - **Gate:** user reviews FIX-LOG.md before Wave 3
 
+### Wave 2.5 — D12 Completion Sweep (~1-2 sessions)
+
+- **Build items (U1, U4, U5, U6):** atomic commits, one feature per commit, full test coverage for new routes + frontend pages
+  - U1: write route handler + service-level WAL guard + admin audit row + tests (route + service); update `runbooks/restore-drill.md` to mention the new route as an option
+  - U4: frontend page reading `/api/admin/mirror/health`; design contract: refresh interval, alert thresholds (queue depth > 1000 = warn, > 10000 = critical; dead-letter > 0 = warn)
+  - U5: frontend page + history list query (from `system_events` filtered to `backup_*`)
+  - U6: frontend page + preview/confirm-modal flow
+- **Doc-drift items (DR1, DR2, DR3):** single doc-edit commit per file, no scope creep
+- **Dead-code items (DC1, DC2, DC3):**
+  - DC1: re-grep + delete file in single commit
+  - DC2 + DC3: single migration `v0007` that asserts emptiness then drops both orphan tables; full test that migration is idempotent + rollback-safe
+- Output: commits on `main` + `audit/COMPLETION.md` (item → commit crosswalk)
+- **Gate:** user reviews COMPLETION.md + does a manual click-through of the new admin pages before Wave 3
+
 ### Wave 3 — Polish + Ops (~1 session)
 
 - D7 ops readiness: execute restore drill on copy, set up log rotation (host-agnostic config in container)
@@ -95,7 +153,7 @@ Two tracks: read-only audit pass first, then severity-ordered fix waves. Each wa
 - Operator-runbook dry-run: clean host → deploy → bootstrap admin → seed 1 invite → restore drill → rollback drill
 - Output: `audit/SMOKE.md`, `audit/A11Y.md`, "ready" sign-off in `.planning/STATE.md`
 
-**Total:** 5-7 sessions. Wave-end gates allow user to redirect or stop.
+**Total:** 6-9 sessions (was 5-7 before D12 added). Wave-end gates allow user to redirect or stop.
 
 ---
 
@@ -118,6 +176,7 @@ Two tracks: read-only audit pass first, then severity-ordered fix waves. Each wa
 - `audit/DEPLOY.md` — D6 findings
 - `audit/OPS.md` — D7 findings
 - `audit/UI.md` — D11 findings
+- `audit/COMPLETION.md` — D12 inventory + per-item commit crosswalk
 - `audit/SMOKE.md` — Wave 4 smoke + load results
 - `audit/BACKLOG.md` — consolidated, severity + APPLY/DEFER verdict
 - `audit/FIX-LOG.md` — Wave 2 finding → commit crosswalk
@@ -141,7 +200,7 @@ Two tracks: read-only audit pass first, then severity-ordered fix waves. Each wa
 
 ## 5. Success Criteria
 
-All 26 binary gates must pass for Phase 5 "ready" sign-off.
+All 32 binary gates must pass for Phase 5 "ready" sign-off (26 base + 6 D12 gates).
 
 ### Correctness gates
 
@@ -184,6 +243,15 @@ All 26 binary gates must pass for Phase 5 "ready" sign-off.
 25. `axe-core` sweep on login + feed + AnnotateDoc + Admin: 0 `critical` + 0 `serious` violations
 26. Keyboard tour: tab order is logical, skip-link present and works, focus-visible ring on every interactive element
 
+### D12 completion gates
+
+27. `POST /api/admin/backup/restore` route exists, requires admin auth, refuses to act on a hot DB (returns 409 if WAL is open), writes an `admin_audit_log` row on success; backend + e2e tests cover both happy path and refuse path
+28. Admin "Mirror health" page renders queue depth + `last_delivered_at` + dead-letter count from `/api/admin/mirror/health`; alert thresholds (warn ≥ 1000 queue, critical ≥ 10000 queue, warn ≥ 1 dead-letter) are visually distinct; component test exists
+29. Admin "Backup" page calls `POST /api/admin/backup/run-now` and renders the last 20 `backup_*` `system_events`; component test exists
+30. Admin "Retention" page wraps `GET /preview` + `POST /run-now` with confirm-modal; component test exists
+31. README claims align with code: bcrypt (not scrypt), 300 s lock default (not 90 s), `.planning/REQUIREMENTS.md` MIRROR rows reflect Phase 4 completion
+32. Migration v0007 drops `user_badges` and `user_quiz_answers` after empty-assertion; full migration suite runs idempotently end-to-end; `frontend/src/lib/env.ts` removed if truly orphan
+
 ---
 
 ## 6. Risks, Mitigations, Out-of-scope
@@ -200,6 +268,8 @@ All 26 binary gates must pass for Phase 5 "ready" sign-off.
 | R6 | Host decision delayed → deploy slips | Spec is host-agnostic; final host can be chosen post-Wave-4 without rework |
 | R7 | Bootstrap admin password rotation forgotten | Runbook flags this as a required step; consider first-login forced-rotation check (audit item, not change) |
 | R8 | Backup repo PAT leak | Wave 3 audits PAT scope; recommends GitHub secret-scanning on backup repo |
+| R9 | D12 Wave 2.5 surfaces deeper unbuilt features once admin UIs touch the system | New findings during Wave 2.5 are triaged at the wave gate; not auto-built. Out-of-scope items become Phase 6 backlog. |
+| R10 | DC2/DC3 migration `v0007` drops a non-empty table because the empty-assertion check is incomplete | Migration must `SELECT COUNT(*) FROM <table>` and abort with a clear error before `DROP`; both tables verified empty in production data before deploy of v0007 |
 
 ### Out-of-scope (Phase 6 or later)
 
@@ -213,6 +283,12 @@ All 26 binary gates must pass for Phase 5 "ready" sign-off.
 - DocList full virtualization rewrite — already virtualized; only memo gap addressed
 - New gamification mechanics
 - Email-provider integration for invite delivery — manual delivery stays Phase 5
+- **U2 — Admin notification broadcast** (audit-discovered, user-deferred)
+- **U3 — Gamification leaderboard endpoint** (audit-discovered, user-deferred)
+- **U7 — Export admin UI** (audit-discovered, user-deferred)
+- **U8 — Gold Doc "create new" admin UI** (audit-discovered, user-deferred)
+- **U9 — Quiz question "create new" admin UI** (audit-discovered, user-deferred)
+- **U10 — Active locks list UI + `GET /api/locks` backend** (audit-discovered, user-deferred)
 
 ### Explicit DEFER carry-over (from 2026-05-17 polish DEFER list, re-evaluated but not applied here)
 
@@ -228,6 +304,7 @@ All 26 binary gates must pass for Phase 5 "ready" sign-off.
 ## 7. References
 
 - 2026-05-17 polish sprint: `POLISH_BACKLOG.md`, `POLISH_REPORT.md`
+- 2026-05-23 unbuilt-feature audit: §2.1 D12 inventory above (6 parallel subagents — backend, frontend, admin panel, docs-reality, orphan code paths, planning artifacts)
 - Phase 4 plan + summary: `.planning/phases/04-neon-postgres-dual-write-mirror/`
 - Operator runbook (current): `docs/deployment.md`
 - Mirror runbook (current): `docs/neon-mirror.md`
