@@ -145,21 +145,37 @@ def acquire(db: sqlite3.Connection, *, document_id: str, user_id: int) -> dict:
 
 
 def heartbeat(db: sqlite3.Connection, *, document_id: str, user_id: int) -> dict:
-    """Bump expires_at. Raises NotLockHolder if user doesn't hold the lock."""
-    row = db.execute(
-        "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
-    ).fetchone()
-    # No expires_at check: original holder may refresh during the 0–60s
-    # gap before the next sweep. Tradeoff for user-friendliness.
-    if row is None or row["user_id"] != user_id:
-        raise NotLockHolder(document_id)
+    """Bump expires_at. Raises NotLockHolder if user doesn't hold the lock.
 
-    now = _now()
-    expires = now + timedelta(seconds=_expires_seconds(db))
-    db.execute(
-        "UPDATE document_locks SET last_heartbeat=?, expires_at=? WHERE document_id=?",
-        (now.isoformat(), expires.isoformat(), document_id),
-    )
+    BE-1 fix: the SELECT-then-UPDATE is wrapped in BEGIN IMMEDIATE so a
+    concurrent acquire() on another connection cannot swap the owner between
+    the read and the write.  Ownership is re-verified inside the transaction
+    after acquiring the RESERVED lock.
+    """
+    cursor = db.cursor()
+    try:
+        cursor.execute("BEGIN IMMEDIATE")
+
+        row = db.execute(
+            "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
+        ).fetchone()
+        # No expires_at check: original holder may refresh during the 0–60s
+        # gap before the next sweep. Tradeoff for user-friendliness.
+        if row is None or row["user_id"] != user_id:
+            db.rollback()
+            raise NotLockHolder(document_id)
+
+        now = _now()
+        expires = now + timedelta(seconds=_expires_seconds(db))
+        cursor.execute(
+            "UPDATE document_locks SET last_heartbeat=?, expires_at=? WHERE document_id=?",
+            (now.isoformat(), expires.isoformat(), document_id),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     row = db.execute(
         "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
     ).fetchone()
@@ -184,12 +200,25 @@ def force_release(db: sqlite3.Connection, *, document_id: str) -> None:
 
 
 def sweep_expired(db: sqlite3.Connection) -> list[str]:
-    """Delete expired locks; return released document_ids."""
+    """Delete expired locks; return released document_ids.
+
+    BE-2 fix: the SELECT-then-DELETE is wrapped in BEGIN IMMEDIATE so a
+    heartbeat() on a concurrent connection cannot observe a lock between the
+    sweep's SELECT (which marks it for deletion) and the DELETE itself.
+    Both statements see the same snapshot and execute atomically.
+    """
     now_iso = _now().isoformat()
-    rows = db.execute(
-        "SELECT document_id FROM document_locks WHERE expires_at < ?", (now_iso,),
-    ).fetchall()
-    released = [r["document_id"] for r in rows]
-    if released:
-        db.execute("DELETE FROM document_locks WHERE expires_at < ?", (now_iso,))
+    cursor = db.cursor()
+    try:
+        cursor.execute("BEGIN IMMEDIATE")
+        rows = db.execute(
+            "SELECT document_id FROM document_locks WHERE expires_at < ?", (now_iso,),
+        ).fetchall()
+        released = [r["document_id"] for r in rows]
+        if released:
+            db.execute("DELETE FROM document_locks WHERE expires_at < ?", (now_iso,))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return released
