@@ -288,25 +288,36 @@ def submit_quiz(
     user_id: int,
     answers: dict[str, int],
 ) -> dict:
-    """Score the quiz portion. Idempotent: re-submit raises QuizAlreadySubmittedError."""
-    row = _verify_owner(db, attempt_id, user_id)
-    # Idempotency: we use a marker in annotation_details_json — but quiz also has
-    # a "submitted" flag. Since the schema lacks a dedicated column, we encode
-    # it as: a non-null annotation_details_json with `_quiz_submitted` key.
-    details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
-    if details.get("_quiz_submitted"):
-        raise QuizAlreadySubmittedError(attempt_id)
+    """Score the quiz portion. Idempotent: re-submit raises QuizAlreadySubmittedError.
 
-    questions = _select_questions_for_attempt(db, attempt_id)
-    score = matching.score_quiz(questions, answers)
+    The entire read-modify-write of annotation_details_json (and quiz_score) is
+    serialized inside a single BEGIN IMMEDIATE transaction so concurrent submits
+    cannot clobber each other's JSON blob.
+    """
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        row = _verify_owner(db, attempt_id, user_id)
+        # Idempotency: we use a marker in annotation_details_json — but quiz also has
+        # a "submitted" flag. Since the schema lacks a dedicated column, we encode
+        # it as: a non-null annotation_details_json with `_quiz_submitted` key.
+        details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
+        if details.get("_quiz_submitted"):
+            raise QuizAlreadySubmittedError(attempt_id)
 
-    details["_quiz_submitted"] = True
-    details["_quiz_score"] = score
-    db.execute(
-        "UPDATE training_attempts SET quiz_score=?, annotation_details_json=? WHERE id=?",
-        (score, json.dumps(details), attempt_id),
-    )
-    finalize_if_complete(db, attempt_id=attempt_id, user_id=user_id)
+        questions = _select_questions_for_attempt(db, attempt_id)
+        score = matching.score_quiz(questions, answers)
+
+        details["_quiz_submitted"] = True
+        details["_quiz_score"] = score
+        db.execute(
+            "UPDATE training_attempts SET quiz_score=?, annotation_details_json=? WHERE id=?",
+            (score, json.dumps(details), attempt_id),
+        )
+        finalize_if_complete(db, attempt_id=attempt_id, user_id=user_id, in_txn=True)
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
     return {"score": score, "total": 5}
 
 
@@ -319,37 +330,49 @@ def submit_annotation(
     references: list[dict],
 ) -> dict:
     """Score one gold doc. Idempotent: re-submit same gold_id raises
-    GoldDocAlreadySubmittedError. Auto-finalizes when 3rd distinct doc lands."""
-    row = _verify_owner(db, attempt_id, user_id)
-    selected_docs = _select_gold_docs_for_attempt(db, attempt_id)
-    by_id = {d["gold_id"]: d for d in selected_docs}
-    if gold_id not in by_id:
-        raise GoldDocNotInAttemptError(gold_id)
+    GoldDocAlreadySubmittedError. Auto-finalizes when 3rd distinct doc lands.
 
-    details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
-    if gold_id in details and isinstance(details[gold_id], dict):
-        raise GoldDocAlreadySubmittedError(gold_id)
+    The entire read-modify-write of annotation_details_json is serialized inside
+    a single BEGIN IMMEDIATE transaction.  Without this, two concurrent submits
+    for different gold_ids both read the same JSON blob, each appends its result,
+    and the last writer silently overwrites the first — losing one gold_id result.
+    """
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        row = _verify_owner(db, attempt_id, user_id)
+        selected_docs = _select_gold_docs_for_attempt(db, attempt_id)
+        by_id = {d["gold_id"]: d for d in selected_docs}
+        if gold_id not in by_id:
+            raise GoldDocNotInAttemptError(gold_id)
 
-    doc = by_id[gold_id]
-    summary = matching.match_gold_doc(doc["expected_concepts"], references)
-    passed = matching.is_doc_pass(summary, min_concept_count=doc["min_concept_count"])
-    details[gold_id] = {
-        "passed": passed,
-        "matched_count": summary["matched_count"],
-        "expected_count": summary["expected_count"],
-    }
+        details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
+        if gold_id in details and isinstance(details[gold_id], dict):
+            raise GoldDocAlreadySubmittedError(gold_id)
 
-    # Recompute annotation_pass_count from details
-    pass_count = sum(
-        1 for k, v in details.items()
-        if not k.startswith("_") and isinstance(v, dict) and v.get("passed")
-    )
+        doc = by_id[gold_id]
+        summary = matching.match_gold_doc(doc["expected_concepts"], references)
+        passed = matching.is_doc_pass(summary, min_concept_count=doc["min_concept_count"])
+        details[gold_id] = {
+            "passed": passed,
+            "matched_count": summary["matched_count"],
+            "expected_count": summary["expected_count"],
+        }
 
-    db.execute(
-        "UPDATE training_attempts SET annotation_pass_count=?, annotation_details_json=? WHERE id=?",
-        (pass_count, json.dumps(details), attempt_id),
-    )
-    finalize_if_complete(db, attempt_id=attempt_id, user_id=user_id)
+        # Recompute annotation_pass_count from details
+        pass_count = sum(
+            1 for k, v in details.items()
+            if not k.startswith("_") and isinstance(v, dict) and v.get("passed")
+        )
+
+        db.execute(
+            "UPDATE training_attempts SET annotation_pass_count=?, annotation_details_json=? WHERE id=?",
+            (pass_count, json.dumps(details), attempt_id),
+        )
+        finalize_if_complete(db, attempt_id=attempt_id, user_id=user_id, in_txn=True)
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
     return {
         "passed": passed,
         "matched_count": summary["matched_count"],
@@ -359,40 +382,68 @@ def submit_annotation(
 
 
 def finalize_if_complete(
-    db: sqlite3.Connection, *, attempt_id: int, user_id: int,
+    db: sqlite3.Connection, *, attempt_id: int, user_id: int, in_txn: bool = False,
 ) -> Optional[dict]:
     """Check if both quiz + 3 docs submitted; if so, compute pass and apply
     user/gamification/notification side-effects. Returns the finalize summary
     or None if not yet complete. Idempotent — finalize is a no-op if attempt
-    is already passed=1 or fail-final."""
-    row = _attempt_row(db, attempt_id)
-    if row is None:
-        return None
-    if row["passed"] == 1:
-        return None  # already finalized as pass
+    is already passed=1 or fail-final.
 
-    details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
-    if not details.get("_quiz_submitted"):
-        return None
-    doc_keys = [k for k in details if not k.startswith("_") and isinstance(details[k], dict)]
-    if len(doc_keys) < 3:
-        return None
-    if details.get("_finalized"):
-        return None  # already finalized as fail
+    in_txn=True: caller (submit_quiz / submit_annotation) already opened a
+    BEGIN IMMEDIATE — do not emit additional BEGIN/COMMIT so the finalize
+    mutations join the outer transaction.  in_txn=False (default, standalone
+    call): wrap in its own BEGIN IMMEDIATE.
+    """
+    if not in_txn:
+        db.execute("BEGIN IMMEDIATE")
+    try:
+        row = _attempt_row(db, attempt_id)
+        if row is None:
+            if not in_txn:
+                db.execute("COMMIT")
+            return None
+        if row["passed"] == 1:
+            if not in_txn:
+                db.execute("COMMIT")
+            return None  # already finalized as pass
 
-    quiz_threshold = S.get_int(db, "training.quiz_pass_threshold", default=4)
-    anno_threshold = S.get_int(db, "training.annotation_pass_threshold", default=2)
-    quiz_pass = row["quiz_score"] >= quiz_threshold
-    anno_pass = row["annotation_pass_count"] >= anno_threshold
-    overall_pass = quiz_pass and anno_pass
+        details = json.loads(row["annotation_details_json"]) if row["annotation_details_json"] else {}
+        if not details.get("_quiz_submitted"):
+            if not in_txn:
+                db.execute("COMMIT")
+            return None
+        doc_keys = [k for k in details if not k.startswith("_") and isinstance(details[k], dict)]
+        if len(doc_keys) < 3:
+            if not in_txn:
+                db.execute("COMMIT")
+            return None
+        if details.get("_finalized"):
+            if not in_txn:
+                db.execute("COMMIT")
+            return None  # already finalized as fail
 
-    now = _now_utc_iso()
-    details["_finalized"] = True
-    db.execute(
-        "UPDATE training_attempts SET passed=?, finished_at=?, annotation_details_json=? WHERE id=?",
-        (1 if overall_pass else 0, now, json.dumps(details), attempt_id),
-    )
+        quiz_threshold = S.get_int(db, "training.quiz_pass_threshold", default=4)
+        anno_threshold = S.get_int(db, "training.annotation_pass_threshold", default=2)
+        quiz_pass = row["quiz_score"] >= quiz_threshold
+        anno_pass = row["annotation_pass_count"] >= anno_threshold
+        overall_pass = quiz_pass and anno_pass
 
+        now = _now_utc_iso()
+        details["_finalized"] = True
+        db.execute(
+            "UPDATE training_attempts SET passed=?, finished_at=?, annotation_details_json=? WHERE id=?",
+            (1 if overall_pass else 0, now, json.dumps(details), attempt_id),
+        )
+        if not in_txn:
+            db.execute("COMMIT")
+    except Exception:
+        if not in_txn:
+            db.execute("ROLLBACK")
+        raise
+
+    # Side-effects run after the core state change commits (or joins the outer txn).
+    # Each is individually fault-isolated so XP/notification/audit failures
+    # never roll back the passed=1 update.
     if overall_pass:
         xp_delta = S.get_int(db, "gamification.xp_training_pass", default=50)
         try:
