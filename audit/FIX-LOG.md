@@ -18,3 +18,4 @@
 | DR1+DR2+DR3| Doc  | edcec56    | README scrypt→bcrypt(rounds=12) ×3 + 90s→300s ×3; REQUIREMENTS.md MIRROR-01..10 Pending→Complete with commit SHAs |
 | DC1 + lint | Dead | a875319    | Delete orphan frontend/src/lib/env.ts (zero importers) + fix 10 eslint errors in U4/U5/U6 (require-await, react/no-unescaped-entities) |
 | DC2+DC3    | Dead | (n/a)      | No action: `user_badges` + `user_quiz_answers` do NOT exist in current DB, migrations, or source. Audit hallucinated their presence (referenced as "created in v0001" but v0001_initial_schema.py contains neither). Live DB has 24 tables; orphan tables 0. Verified 2026-05-23 via `sqlite3 ... SELECT name FROM sqlite_master` + `grep` across `backend/` + migrations. |
+| W3-T1      | Doc  | TBD        | runbooks/restore-drill.md — copy-only drill with 2 STOP gates; references U1 POST /api/admin/backup/restore route |
