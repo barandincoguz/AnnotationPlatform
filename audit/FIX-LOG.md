@@ -10,3 +10,4 @@
 | BE-5+BE-6  | High | 7c168b4    | demote_admin + disable_user re-check count_active_admins inside BEGIN IMMEDIATE; rotate_invite_code wraps deactivate+insert in BEGIN IMMEDIATE; 5 new tests |
 | B-01       | High | 43b27f3    | Replace _count_unique_users() COUNT(DISTINCT) scan with EXISTS check + increment-by-1; new idx_ver_doc_user migration; 4 tests |
 | B-02       | High | 6240327    | PID-file singleton guard for dispatcher: refuse start if existing PID alive, take over stale PID, emit system_events row on refusal; release on stop(); 5 tests |
+| U-1        | Med  | TBD        | POST /api/admin/backup/restore: upload snapshot JSON, WAL-busy 409 refusal, admin audit row (admin_user_id=NULL post-restore, trace_id attribution), python-multipart added to requirements; 4 tests |
