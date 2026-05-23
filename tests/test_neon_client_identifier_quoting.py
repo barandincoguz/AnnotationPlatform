@@ -7,30 +7,9 @@ connection and are independent of dispatcher fixtures.
 """
 from __future__ import annotations
 
-import pytest
 from psycopg import sql as pg_sql
 
 from backend.mirror.neon_client import _build_delete, _build_upsert
-
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
-def _as_str(query) -> str:
-    """Return the SQL string representation of a Composed/Composable.
-
-    Works whether the object is already a str (pre-fix, expected to fail these
-    tests) or a psycopg.sql.Composed (post-fix).
-    """
-    if isinstance(query, str):
-        return query
-    # Composable.as_string() needs a connection for dialect; use a dummy
-    # placeholder-compatible dialect via mogrify is not available without a
-    # connection. Instead rely on str() which on psycopg3 Composed objects
-    # renders the template with placeholder tokens intact — enough for
-    # structural inspection.
-    return str(query)
 
 
 # ---------------------------------------------------------------------------
