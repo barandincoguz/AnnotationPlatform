@@ -7,4 +7,4 @@
 | BE-1+BE-2  | High | 43ac272    | locks heartbeat + sweep_expired now wrap read-then-write in BEGIN IMMEDIATE |
 | BE-3       | High | 350bc5b    | save_annotation + set_complete re-verify lock ownership inside BEGIN IMMEDIATE; 4 new TOCTOU tests |
 | BE-4       | High | 0acc20a    | submit_quiz + submit_annotation wrap read-modify-write of annotation_details_json in BEGIN IMMEDIATE; finalize_if_complete joins outer txn via in_txn param; 3 new concurrency tests |
-| BE-5+BE-6  | High | TBD        | demote_admin + disable_user re-check count_active_admins inside BEGIN IMMEDIATE; rotate_invite_code wraps deactivate+insert in BEGIN IMMEDIATE; 5 new tests |
+| BE-5+BE-6  | High | 7c168b4    | demote_admin + disable_user re-check count_active_admins inside BEGIN IMMEDIATE; rotate_invite_code wraps deactivate+insert in BEGIN IMMEDIATE; 5 new tests |
