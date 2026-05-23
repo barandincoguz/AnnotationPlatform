@@ -279,13 +279,24 @@ def demote_admin(
     ).fetchone()
     if target is None or target["role"] != "admin":
         raise UserNotFound(f"user {target_user_id} is not an admin")
-    # Last-admin guardrail
-    if count_active_admins(db) <= 1:
-        raise LastAdminCannotBeRemoved("cannot demote the last active admin")
-    db.execute(
-        "UPDATE users SET role='user', updated_at=? WHERE id=?",
-        (_now(), target_user_id),
-    )
+    # Last-admin guardrail: re-check INSIDE the write lock so two concurrent
+    # demotions of different admins cannot both pass when exactly two remain.
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        if count_active_admins(db) <= 1:
+            db.execute("ROLLBACK")
+            raise LastAdminCannotBeRemoved("cannot demote the last active admin")
+        db.execute(
+            "UPDATE users SET role='user', updated_at=? WHERE id=?",
+            (_now(), target_user_id),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        try:
+            db.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="demote_admin",
         target_kind="user", target_id=str(target_user_id),
@@ -303,12 +314,24 @@ def disable_user(
     ).fetchone()
     if target is None:
         raise UserNotFound(f"user {target_user_id} not found")
-    if target["role"] == "admin" and count_active_admins(db) <= 1:
-        raise LastAdminCannotBeRemoved("cannot disable the last active admin")
-    db.execute(
-        "UPDATE users SET is_active=0, updated_at=? WHERE id=?",
-        (_now(), target_user_id),
-    )
+    # Last-admin guardrail: re-check INSIDE the write lock so two concurrent
+    # disable calls on different admins cannot both pass when exactly two remain.
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        if target["role"] == "admin" and count_active_admins(db) <= 1:
+            db.execute("ROLLBACK")
+            raise LastAdminCannotBeRemoved("cannot disable the last active admin")
+        db.execute(
+            "UPDATE users SET is_active=0, updated_at=? WHERE id=?",
+            (_now(), target_user_id),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        try:
+            db.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="disable_user",
         target_kind="user", target_id=str(target_user_id),
@@ -343,17 +366,29 @@ def rotate_invite_code(
 ) -> str:
     _ensure_admin(db, admin_user_id)
     now = _now()
-    db.execute(
-        "UPDATE invite_codes SET is_active=0, rotated_at=? WHERE is_active=1",
-        (now,),
-    )
-    db.execute(
-        """
-        INSERT INTO invite_codes(code, is_active, created_by_admin_id, created_at)
-        VALUES (?, 1, ?, ?)
-        """,
-        (new_code, admin_user_id, now),
-    )
+    # Deactivate-all and insert-new run inside one BEGIN IMMEDIATE so a
+    # concurrent registration request cannot land in the gap between the two
+    # statements and see zero active codes.
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        db.execute(
+            "UPDATE invite_codes SET is_active=0, rotated_at=? WHERE is_active=1",
+            (now,),
+        )
+        db.execute(
+            """
+            INSERT INTO invite_codes(code, is_active, created_by_admin_id, created_at)
+            VALUES (?, 1, ?, ?)
+            """,
+            (new_code, admin_user_id, now),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        try:
+            db.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise
     audit.log_admin_action(
         db, admin_user_id=admin_user_id, action_type="rotate_invite_code",
         target_kind="invite", target_id=new_code,
