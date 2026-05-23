@@ -312,6 +312,60 @@ export function useDeleteQuizMutation() {
   })
 }
 
+// ---- Backup ----
+
+export interface BackupEvent {
+  id: number
+  event_type: string
+  severity: 'info' | 'warn' | 'error'
+  message: string
+  extra: string
+  created_at: string
+}
+
+export function useBackupHistory() {
+  return useQuery<{ items: BackupEvent[]; total: number; has_more: boolean }>({
+    queryKey: ['admin', 'system-events', 'backup_'],
+    queryFn: async () => {
+      const res = await fetch(
+        '/api/admin/system-events?event_type_prefix=backup_&limit=20',
+        { credentials: 'include' },
+      )
+      if (!res.ok) throw new Error(`system-events ${res.status}`)
+      return res.json() as Promise<{ items: BackupEvent[]; total: number; has_more: boolean }>
+    },
+  })
+}
+
+export function useBackupRunNow() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/backup/run-now', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        interface ErrorBody { detail?: { message?: string } }
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const body: ErrorBody = await res.json().catch(() => ({}))
+        throw new Error(body.detail?.message ?? `backup failed ${res.status}`)
+      }
+      return res.json() as Promise<{
+        ok: boolean
+        snapshot_path: string
+        committed_sha: string
+        pushed: boolean
+        rotated_count: number
+        trace_id: string
+      }>
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'system-events', 'backup_'] })
+    },
+  })
+}
+
 // ---- Mirror health ----
 
 export interface MirrorHealth {

@@ -116,6 +116,7 @@ def admin_system_events(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     event_type: Optional[str] = None,
+    event_type_prefix: Optional[str] = None,
     severity: Optional[str] = None,
     trace_id: Optional[str] = None,
     date_from: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -126,7 +127,8 @@ def admin_system_events(
     """Paginated + filtered system events log."""
     return admin_service.list_system_events(
         db, limit=limit, offset=offset,
-        event_type=event_type, severity=severity, trace_id=trace_id,
+        event_type=event_type, event_type_prefix=event_type_prefix,
+        severity=severity, trace_id=trace_id,
         date_from=date_from, date_to=date_to,
     )
 
