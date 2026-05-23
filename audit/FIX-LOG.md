@@ -12,4 +12,4 @@
 | B-02       | High | 6240327    | PID-file singleton guard for dispatcher: refuse start if existing PID alive, take over stale PID, emit system_events row on refusal; release on stop(); 5 tests |
 | U1         | High | 7991d3f    | POST /api/admin/backup/restore: upload snapshot JSON, WAL-busy 409 refusal, admin audit row (admin_user_id=NULL post-restore, trace_id attribution), python-multipart added to requirements; 4 tests |
 | U4         | High | ac22ceb    | /admin/mirror admin page with 10s refresh + threshold colors (warn ≥ 1000, critical ≥ 10000); 4 tests |
-| U5         | High | <sha>      | /admin/backup admin page with run-now button + last-20-backup-event history; event_type_prefix query param added to /api/admin/system-events; 3 tests |
+| U5         | High | 10de755    | /admin/backup admin page with run-now button + last-20-backup-event history; event_type_prefix query param added to /api/admin/system-events; 3 tests |
