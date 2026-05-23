@@ -37,18 +37,18 @@
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| MIRROR-01 | Phase 4 | Pending |
-| MIRROR-02 | Phase 4 | Pending |
-| MIRROR-03 | Phase 4 | Pending |
-| MIRROR-04 | Phase 4 | Pending |
-| MIRROR-05 | Phase 4 | Pending |
-| MIRROR-06 | Phase 4 | Pending |
-| MIRROR-07 | Phase 4 | Pending |
-| MIRROR-08 | Phase 4 | Pending |
-| MIRROR-09 | Phase 4 | Pending |
-| MIRROR-10 | Phase 4 | Pending |
+| Requirement | Phase | Status | Notes |
+|-------------|-------|--------|-------|
+| MIRROR-01 | Phase 4 | Complete | outbox schema `1f33a53` |
+| MIRROR-02 | Phase 4 | Complete | dispatcher core `d8be3c1`, lifespan wire `e5d6d8f` |
+| MIRROR-03 | Phase 4 | Complete | baran-init.sql `1c1e005`, triggers `e358f36` |
+| MIRROR-04 | Phase 4 | Complete | retry + backoff `b4cc384` |
+| MIRROR-05 | Phase 4 | Complete | dead-letter `b4cc384` (Phase 5 BE-10 adds operator requeue) |
+| MIRROR-06 | Phase 4 | Complete | backfill script `25d271b` |
+| MIRROR-07 | Phase 4 | Complete | latency guard test `3c765f4`, wrk smoke `9fb4a17` |
+| MIRROR-08 | Phase 4 | Complete | e2e + soft latency guard `3c765f4` |
+| MIRROR-09 | Phase 4 | Complete | admin health endpoint `abca27f`, Phase 5 admin UI `ac22ceb` |
+| MIRROR-10 | Phase 4 | Complete | lifespan integration + degraded boot `e5d6d8f` |
 
 **Coverage:**
 - v1 requirements: 10 total

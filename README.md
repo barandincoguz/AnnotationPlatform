@@ -36,7 +36,7 @@ change history.
 
 This platform does that:
 
-- **Multi-user concurrent editing** with 90-second document locks + lease renewal.
+- **Multi-user concurrent editing** with leased document locks + lease renewal (5-minute default, configurable via `lock.expires_seconds` site setting).
 - **Draft autosave** at 2 s debounce so a closed tab never loses work.
 - **Tab-based feed** (`Yeni` / `Devam Eden` / `Tamamlanan`) with deterministic
   per-user daily shuffle so the same operator gets the same order all day —
@@ -55,11 +55,11 @@ This platform does that:
 | Area | Highlights |
 |------|------------|
 | **Annotation** | Reference cards with `kanun_no` + `kanun_ad` validation, source-text quoting, set-semantic diff |
-| **Concurrency** | 90 s leased locks, heartbeat every 30 s, BEGIN IMMEDIATE for writers |
+| **Concurrency** | 300 s leased locks (configurable), heartbeat every 30 s, BEGIN IMMEDIATE for writers |
 | **Drafts** | Per-user, per-doc, autosaved with debounce + AbortController + rev counter |
 | **Feed** | 4-state canonical `workflow_state` (`new`/`draft`/`review`/`verified`), per-user mutual exclusion |
 | **Training** | Mandatory quiz → 3-doc training → pass / fail flow before live annotation |
-| **Auth** | Cookie session, scrypt password hashing, Origin/Referer CSRF middleware in prod |
+| **Auth** | Cookie session, bcrypt(rounds=12) password hashing, Origin/Referer CSRF middleware in prod |
 | **Rate limiting** | In-memory sliding-window per-IP, namespaced (login / register / save) |
 | **Backups** | SQLite snapshot → GitHub repo via fine-grained PAT; user_sessions excluded |
 | **Observability** | `activity_events`, `system_events`, `admin_audit_log` tables; SSE broker for live updates |
@@ -152,7 +152,7 @@ one round-trip with no intermediate-failure surface.
 - **Runtime:** Python 3.11+, FastAPI, uvicorn (1 worker)
 - **DB:** SQLite (`journal_mode=WAL`, foreign keys, busy_timeout)
 - **Validation:** Pydantic v2 + model_validator
-- **Auth:** Cookie session, scrypt, Origin/Referer middleware
+- **Auth:** Cookie session, bcrypt(rounds=12), Origin/Referer middleware
 - **Rate limiting:** in-memory sliding window
 - **Migrations:** Pure-SQL idempotent files in `backend/migrations/`
 - **SSE:** Per-user `asyncio.Queue` broker
@@ -298,7 +298,7 @@ Numbers drift; run the commands above for live truth.
 deneme/
 ├── backend/
 │   ├── annotations/          # save / complete / draft / version chain
-│   ├── locks/                # 90 s leased document locks + heartbeat
+│   ├── locks/                # 300 s leased document locks + heartbeat
 │   ├── shuffle/              # 3-tab feed + per-user daily shuffle
 │   ├── documents/            # ingest + metadata + storage
 │   ├── training/             # quiz + 3-doc training flow
@@ -342,7 +342,7 @@ deneme/
 
 - **CSRF:** Origin/Referer middleware, production-only enforcement, allowlist
   via `ALLOWED_ORIGINS`.
-- **Sessions:** Cookie + scrypt; `__Host-` prefix planned post-staging audit.
+- **Sessions:** Cookie + bcrypt(rounds=12); `__Host-` prefix planned post-staging audit.
 - **CSV exports:** Leading `=` / `+` / `-` / `@` quoted to defang spreadsheet
   injection.
 - **Markdown:** `rehype-sanitize` only — `rehype-raw` is forbidden (XSS bypass).
