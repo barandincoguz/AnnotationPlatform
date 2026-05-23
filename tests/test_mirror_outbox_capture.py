@@ -223,31 +223,43 @@ def test_neon_client_lazy_connect_with_no_dsn():
 
 def test_neon_client_upsert_sql_shape():
     """Confirm the upsert builder produces the expected SQL for both single and composite PKs."""
+    from psycopg.sql import Composed
     from backend.mirror.neon_client import _build_upsert
     # Single-column PK (users.id).
-    sql, args = _build_upsert("baran_users", ["id"], {"id": 1, "username": "a"})
-    assert "INSERT INTO baran_users" in sql
-    assert "ON CONFLICT (id) DO UPDATE" in sql
-    assert "username = EXCLUDED.username" in sql
+    query, args = _build_upsert("baran_users", ["id"], {"id": 1, "username": "a"})
+    assert isinstance(query, Composed)
+    rendered = query.as_string(None)
+    assert 'INSERT INTO "baran_users"' in rendered
+    assert 'ON CONFLICT ("id") DO UPDATE' in rendered
+    assert '"username" = EXCLUDED."username"' in rendered
     assert args == [1, "a"]
     # Composite PK (drafts).
-    sql2, args2 = _build_upsert(
+    query2, args2 = _build_upsert(
         "baran_drafts", ["document_id", "user_id"],
         {"document_id": "doc1", "user_id": 42, "references_json": "[]"},
     )
-    assert "ON CONFLICT (document_id, user_id) DO UPDATE" in sql2
-    assert "references_json = EXCLUDED.references_json" in sql2
+    assert isinstance(query2, Composed)
+    rendered2 = query2.as_string(None)
+    assert 'ON CONFLICT ("document_id", "user_id") DO UPDATE' in rendered2
+    assert '"references_json" = EXCLUDED."references_json"' in rendered2
 
 
 def test_neon_client_delete_sql_shape():
+    from psycopg.sql import Composed
     from backend.mirror.neon_client import _build_delete
     # Single PK.
-    sql, args = _build_delete("baran_users", ["id"], "42")
-    assert sql == "DELETE FROM baran_users WHERE id = %s"
+    query, args = _build_delete("baran_users", ["id"], "42")
+    assert isinstance(query, Composed)
+    rendered = query.as_string(None)
+    assert '"baran_users"' in rendered
+    assert '"id" = %s' in rendered
     assert args == ["42"]
     # Composite PK split on '::'.
-    sql2, args2 = _build_delete("baran_drafts", ["document_id", "user_id"], "doc-1::99")
-    assert "WHERE document_id = %s AND user_id = %s" in sql2
+    query2, args2 = _build_delete("baran_drafts", ["document_id", "user_id"], "doc-1::99")
+    assert isinstance(query2, Composed)
+    rendered2 = query2.as_string(None)
+    assert '"document_id" = %s' in rendered2
+    assert '"user_id" = %s' in rendered2
     assert args2 == ["doc-1", "99"]
 
 

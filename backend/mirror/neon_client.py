@@ -29,10 +29,12 @@ from typing import Any
 try:
     import psycopg
     from psycopg import errors as psycopg_errors
+    from psycopg import sql as pg_sql
     _PSYCOPG_AVAILABLE = True
 except ImportError:  # pragma: no cover — psycopg is a project dep
     psycopg = None  # type: ignore
     psycopg_errors = None  # type: ignore
+    pg_sql = None  # type: ignore
     _PSYCOPG_AVAILABLE = False
 
 log = logging.getLogger(__name__)
@@ -172,34 +174,68 @@ def _serialize_value(col_name: str, value: Any) -> Any:
     return value
 
 
-def _build_upsert(mirror_table: str, pk_cols: list[str], payload: dict) -> tuple[str, list]:
+def _build_upsert(mirror_table: str, pk_cols: list[str], payload: dict) -> tuple:
     """INSERT INTO baran_<t> (cols...) VALUES (%s, %s, ...)
     ON CONFLICT (<pk_cols>) DO UPDATE SET col1 = EXCLUDED.col1, ...
+
+    Returns a (psycopg.sql.Composed, list) tuple. All identifiers (table name,
+    column names) are wrapped in sql.Identifier to prevent SQL injection via
+    schema-derived names (SEC-1).
     """
+    from psycopg import sql as pg_sql  # always available — psycopg is a project dep
+
     cols = list(payload.keys())
-    placeholders = ", ".join(["%s"] * len(cols))
-    col_list = ", ".join(cols)
     non_pk_cols = [c for c in cols if c not in set(pk_cols)]
+
+    col_identifiers = pg_sql.SQL(", ").join(pg_sql.Identifier(c) for c in cols)
+    placeholders = pg_sql.SQL(", ").join(pg_sql.Placeholder() for _ in cols)
+    pk_identifiers = pg_sql.SQL(", ").join(pg_sql.Identifier(c) for c in pk_cols)
+
     if non_pk_cols:
-        set_clause = ", ".join(f"{c} = EXCLUDED.{c}" for c in non_pk_cols)
-        on_conflict = (
-            f"ON CONFLICT ({', '.join(pk_cols)}) DO UPDATE SET {set_clause}"
+        set_clause = pg_sql.SQL(", ").join(
+            pg_sql.SQL("{col} = EXCLUDED.{col}").format(col=pg_sql.Identifier(c))
+            for c in non_pk_cols
+        )
+        on_conflict = pg_sql.SQL("ON CONFLICT ({pk}) DO UPDATE SET {set}").format(
+            pk=pk_identifiers,
+            set=set_clause,
         )
     else:
         # PK-only table (rare) — fallback to DO NOTHING to remain idempotent.
-        on_conflict = f"ON CONFLICT ({', '.join(pk_cols)}) DO NOTHING"
-    sql = (
-        f"INSERT INTO {mirror_table} ({col_list}) "
-        f"VALUES ({placeholders}) "
-        f"{on_conflict}"
+        on_conflict = pg_sql.SQL("ON CONFLICT ({pk}) DO NOTHING").format(
+            pk=pk_identifiers,
+        )
+
+    query = pg_sql.SQL(
+        "INSERT INTO {table} ({cols}) VALUES ({placeholders}) {on_conflict}"
+    ).format(
+        table=pg_sql.Identifier(mirror_table),
+        cols=col_identifiers,
+        placeholders=placeholders,
+        on_conflict=on_conflict,
     )
     args = [_serialize_value(c, payload[c]) for c in cols]
-    return sql, args
+    return query, args
 
 
-def _build_delete(mirror_table: str, pk_cols: list[str], pk_value: str) -> tuple[str, list]:
-    """DELETE FROM baran_<t> WHERE col_a = %s [AND col_b = %s ...]"""
+def _build_delete(mirror_table: str, pk_cols: list[str], pk_value: str) -> tuple:
+    """DELETE FROM baran_<t> WHERE col_a = %s [AND col_b = %s ...]
+
+    Returns a (psycopg.sql.Composed, list) tuple. All identifiers are wrapped
+    in sql.Identifier (SEC-1).
+    """
+    from psycopg import sql as pg_sql  # always available — psycopg is a project dep
+
     parts = _split_pk_value(pk_value, pk_cols)
-    where = " AND ".join(f"{c} = %s" for c in pk_cols)
-    sql = f"DELETE FROM {mirror_table} WHERE {where}"
-    return sql, parts
+    where = pg_sql.SQL(" AND ").join(
+        pg_sql.SQL("{col} = {placeholder}").format(
+            col=pg_sql.Identifier(c),
+            placeholder=pg_sql.Placeholder(),
+        )
+        for c in pk_cols
+    )
+    query = pg_sql.SQL("DELETE FROM {table} WHERE {where}").format(
+        table=pg_sql.Identifier(mirror_table),
+        where=where,
+    )
+    return query, parts
