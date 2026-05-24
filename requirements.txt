@@ -2,3 +2,6 @@ fastapi==0.115.0
 uvicorn[standard]==0.32.0
 bcrypt==4.2.0
 python-multipart==0.0.12
+# Phase 6 cross-team mirror dispatcher uses psycopg to push baran_*
+# rows to the partner Neon instance. Runtime dep, not dev-only.
+psycopg[binary]==3.2.4
