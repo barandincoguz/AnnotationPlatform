@@ -4,6 +4,7 @@ import {
   ArrowDown,
   CalendarDays,
   Clock,
+  Hash,
   Tag,
   Type,
   Gauge,
@@ -40,6 +41,10 @@ interface SortOption {
  * then numeric/derived metadata, with shuffle as the explicit opt-out.
  */
 const SORT_OPTIONS: SortOption[] = [
+  // Phase 6 default — cross-team canonical key (= evrakOid). Listed
+  // first so a dev who pops the menu to verify state sees the active
+  // default at the top, then the legacy keys below.
+  { key: 'document_id', label: 'Özelge ID', Icon: Hash },
   { key: 'tarih', label: 'Tarih', Icon: CalendarDays },
   { key: 'updated_at', label: 'Son güncelleme', Icon: Clock },
   { key: 'created_at', label: 'Eklenme tarihi', Icon: Clock },

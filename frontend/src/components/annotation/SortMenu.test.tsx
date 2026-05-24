@@ -52,8 +52,11 @@ describe('SortMenu', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /sıralama/i }))
-    expect(await screen.findByText('Tarih')).toBeInTheDocument()
-    expect(screen.getByText('Konu')).toBeInTheDocument()
+    // Phase 6: document_id ("Özelge ID") is the cross-team canonical
+    // default key and must surface in the dev-flag menu so a developer
+    // can leave + return to it without a code change.
+    expect(await screen.findByText('Özelge ID')).toBeInTheDocument()
+    expect(screen.getByText('Tarih')).toBeInTheDocument()
     expect(screen.getByText('Konu')).toBeInTheDocument()
     expect(screen.getByText(/karıştır/i)).toBeInTheDocument()
   })
