@@ -16,7 +16,9 @@ Phase 6 closed the Codex-identified production blocker (P6-1) and 5 lower-severi
 | Wave B — Frontend test catch-up (P6-2 + P6-3) | e2e split: hidden-default assertion + dev-flag path; `document_id` ("Özelge ID") row added to `SortMenu` options + component test | `b9cfdf5` |
 | Wave C — Ops readiness (P6-4 + P6-7) | `docs/deployment.md` §3 NEON_MIRROR rows + §3a Cross-team coordination section; `runbooks/restore-drill.md` §8 Mirror Health Watch with concrete thresholds | `704497e` |
 | Wave D — Validation re-run (D1 + D3 + D4 mandatory; D2 optional, skipped per user) | `frontend/e2e/a11y.spec.ts` runtime axe-core sweep + 2 progressbar fixes; wrk refresh on the corrected feed URL appended to `audit/SMOKE.md`; count refresh in `audit/SIGNOFF.md` + `.planning/STATE.md` | `4338fdc` (D3) + `d61bec6` (D1) + `23dfaf6` (D4) |
-| Wave E — Sign-off + tag | This file + STATE.md → Complete + `phase-6` tag | (this commit) |
+| Wave E — Sign-off + tag | This file + STATE.md → Complete + `phase-6` tag | `810b8ea` |
+| Follow-up — P6-6 schema drift guard | Drift-detection pytest test + regenerated DDL (caught real pre-existing drift: missing `baran_idx_ver_doc_user` index from v0007 migration) | `8f9fb5c` |
+| Follow-up — P6-10 multi-user load test | `scripts/loadtest_multiuser.sh` + `scripts/wrk-multiuser.lua`; 60s run at 10 distinct sessions = 455 req/s, 0 errors | `c1c850f` |
 
 ## Phase 6 findings inventory — verdict
 
@@ -27,13 +29,13 @@ Phase 6 closed the Codex-identified production blocker (P6-1) and 5 lower-severi
 | **P6-3** | `SortMenu` SORT_OPTIONS omits `document_id` so dev-flag users cannot visually select the new default | **Medium** | **Fixed** at `b9cfdf5`. Row added; component test updated. Per D2 decision. |
 | **P6-4** | `NEON_MIRROR_URL` family absent from `docs/deployment.md` env reference | **Medium** (ops) | **Fixed** at `704497e`. 4 env rows added; silent-degraded-mode warning called out inline. |
 | **P6-5** | `audit/SIGNOFF.md` + `.planning/STATE.md` carry stale test counts | **Low** | **Fixed** at `23dfaf6`. Discrepancy made explicit; Phase 6 numbers documented. |
-| **P6-6** | Cross-team mirror has no automated Postgres-side schema drift check | **High** (ops) | **Deferred to Phase 7** per D3 decision. The R3 first-run-failure risk made Phase 6 closeout the wrong scope. |
+| **P6-6** | Cross-team mirror has no automated Postgres-side schema drift check | **High** (ops) | **Fixed** at `8f9fb5c`. New pytest `test_committed_neon_ddl_matches_regen` asserts byte-identity between live SQLite schema and committed `migrations/postgres/001-baran-init.sql`. Re-scoped back into Phase 6 from D3 deferral. First run caught real drift (missing `baran_idx_ver_doc_user` from v0007 migration), which was fixed in the same commit. |
 | **P6-7** | Dispatcher fail-silent on Neon outage; no documented alert procedure | **Medium** (ops) | **Fixed** at `704497e`. `runbooks/restore-drill.md` §8 documents thresholds, requeue procedure, and system_events query. |
 | **P6-8** | `localStorage.a11n.dev_sort=1` lets any browser silently break the cross-team contract; no server-side enforcement | **Medium** (policy) | **Documented** at `704497e` (`docs/deployment.md` §3a explicitly tells operators not to advertise or set the flag). Server-side enforcement deferred — the contract is operationally enforced, not architecturally. |
 | **P6-9** | Wave 4 wrk on `/api/feed` used the legacy URL without the Phase 6 sort param | **High** | **Fixed** at `d61bec6`. wrk re-run on `?sort=document_id&order=desc`; result is 437.25 req/s, p99 38.61 ms (faster than the legacy default — primary-key sort wins). |
-| **P6-10** | No multi-user live load test in Wave 4 | **Medium** | **Deferred to Phase 7** per D4 decision (optional for Phase 6 closeout). Single-user 10-connection load held in Wave D1. |
+| **P6-10** | No multi-user live load test in Wave 4 | **Medium** | **Fixed** at `c1c850f`. `scripts/loadtest_multiuser.sh` + `scripts/wrk-multiuser.lua` run a 10-distinct-session, 60s wrk against `/api/feed?sort=document_id&order=desc`. 455 req/s, p99 88 ms, 0 errors. Re-scoped back into Phase 6 from D4 deferral. Surfaced a real `user_sessions` UPDATE amplification finding now logged as a Phase 7 mirror-hardening item. |
 
-**Final tally:** 8 fixed / 2 deferred (P6-6 and P6-10, both with explicit user decisions).
+**Final tally:** 10 fixed / 0 deferred. Both P6-6 and P6-10, originally deferred per D3 and D4, were re-scoped into Phase 6 on follow-up.
 
 ## 32 success gates — refreshed status
 
@@ -100,7 +102,16 @@ Unchanged from Phase 5 (Phase 6 did not modify the D12 admin surfaces). All 6 re
 
 ## Bottom line
 
-**27 of 32 gates met, 4 partial (all carry-over from Phase 5, with documented progress on gate 25), 0 failed.** The Phase 6 production blocker (P6-1) is closed; the cross-team coordination contract is enforced and documented; the Wave 4 perf number is refreshed against the actual Phase 6 endpoint and is *faster* than the legacy default.
+**27 of 32 gates met, 4 partial (all carry-over from Phase 5, with documented progress on gate 25), 0 failed.** The Phase 6 production blocker (P6-1) is closed; the cross-team coordination contract is enforced and documented; the Wave 4 perf number is refreshed against the actual Phase 6 endpoint and is *faster* than the legacy default. The two originally-deferred items (P6-6 schema drift guard and P6-10 multi-user load) were re-scoped into Phase 6 on follow-up and are both now closed (`8f9fb5c`, `c1c850f`).
+
+## Refreshed test totals (post follow-up)
+
+| Suite | Final Phase 6 number | Notes |
+|-------|----------------------|-------|
+| Backend pytest | **1004 pass / 0 fail** | `+1` from P6-6 drift guard (was 1003 at Wave E sign-off) |
+| Frontend vitest | 527 / 527 | Unchanged |
+| Playwright e2e | 13 / 13 | Unchanged |
+| Multi-user wrk on `/api/feed` | 455 req/s, p99 88 ms, 0 errors | New evidence from `scripts/loadtest_multiuser.sh` (10 distinct sessions, 60s) |
 
 ## Phase 7 backlog (carried over + new from Phase 6)
 
@@ -114,11 +125,11 @@ From Phase 5 (unchanged):
 - `__Host-` cookie prefix
 - Password complexity dictionary
 
-New from Phase 6:
-- **P6-6** Postgres-side schema drift CI guard (`scripts/regen_neon_ddl.py` against committed `migrations/postgres/001-baran-init.sql`). Carried to a Phase 7 mirror-hardening pass per D3 decision.
-- **P6-10** Multi-user live load test on `/api/feed`. Carried per D4 decision. Should also exercise the Neon dispatcher under contention.
+New from Phase 6 (P6-6 and P6-10 were re-scoped into Phase 6 on follow-up — see findings inventory above):
 - **A11Y-P7-1** Color-contrast refresh on the Phase 6 design tokens — `text-muted-foreground` and the large display heading on `/login` both fall below WCAG AA contrast thresholds in the light theme.
 - **A11Y-P7-2** Re-enable `aria-valid-attr-value` in the e2e axe spec once axe-core handles Radix React 18 useId values natively (track upstream).
+- **MIRROR-P7-1** Coalesce `user_sessions.last_activity_at` UPDATEs. P6-10 surfaced that every authenticated request currently fires one `_outbox` row via the sliding-window session-touch trigger. At ~1× endpoint QPS the dispatcher would carry roughly that much pure session-bookkeeping traffic to Neon. Skip the UPDATE (or coalesce into a single tick per N seconds) when no other column on the row has changed. Could cut Neon write volume by 1-2 orders of magnitude on read-heavy workloads.
+- **MIRROR-P7-2** Re-run `scripts/loadtest_multiuser.sh` with `NEON_MIRROR_URL` pointed at a real Neon (or local Postgres) so the dispatcher actually drains during the load. P6-10 ran in degraded mode because that infrastructure isn't standardised for the test box yet.
 
 ## Cross-team coordination contract — single-source list
 
