@@ -83,6 +83,25 @@ def test_missing_allowed_origins_rejected(prod):
         enforce_production_secrets()
 
 
+def test_placeholder_session_secret_rejected(prod):
+    """An operator who copies `.env.example` verbatim leaves
+    SESSION_SECRET=<REPLACE_ME_run_openssl_rand_hex_32> — 38 chars, not
+    in DEV_SESSION_SECRETS — so length + identity gates pass silently.
+    The dedicated template-placeholder check catches it loudly."""
+    prod.setattr(config, "SESSION_SECRET", "<REPLACE_ME_run_openssl_rand_hex_32>")
+    with pytest.raises(ProductionConfigError, match="template.*placeholder"):
+        enforce_production_secrets()
+
+
+def test_placeholder_allowed_origins_rejected(prod):
+    """Same defense for ALLOWED_ORIGINS — a verbatim
+    <REPLACE_ME_https_your_public_host> would be a non-empty single-element
+    set that passes the truthy check, then 403s every browser request."""
+    prod.setattr(config, "ALLOWED_ORIGINS", {"<REPLACE_ME_https_your_public_host>"})
+    with pytest.raises(ProductionConfigError, match="template.*placeholder"):
+        enforce_production_secrets()
+
+
 def test_empty_bootstrap_password_passes(prod):
     """Operator may set ENVIRONMENT=production without bootstrap creds
     (e.g. they've already seeded and removed the vars)."""

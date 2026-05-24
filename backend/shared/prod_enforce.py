@@ -32,6 +32,15 @@ _PLACEHOLDER_PASSWORD_PATTERNS = (
     "qwerty",
 )
 
+# .env.example ships its REQUIRED rows as `<REPLACE_ME_*>` placeholders so
+# an operator who copies the file verbatim is forced to edit each one.
+# The placeholders happen to be ≥32 chars and absent from
+# DEV_SESSION_SECRETS, so SESSION_SECRET would otherwise sail past both
+# checks — leaving the deploy running on a publicly-known constant from
+# the repo. Reject any value containing this needle (case-insensitive) in
+# the env vars that are too long for a simple equality whitelist.
+_TEMPLATE_PLACEHOLDER_NEEDLE = "<replace_me"
+
 
 class ProductionConfigError(RuntimeError):
     """Raised when production mode is enabled but config is unsafe."""
@@ -51,6 +60,12 @@ def enforce_production_secrets() -> None:
         errors.append(
             "SESSION_SECRET must not be the default placeholder "
             "(set via env var; generate with `openssl rand -hex 32`)"
+        )
+    elif _TEMPLATE_PLACEHOLDER_NEEDLE in config.SESSION_SECRET.lower():
+        errors.append(
+            "SESSION_SECRET still contains the .env.example template "
+            f"placeholder ({_TEMPLATE_PLACEHOLDER_NEEDLE!r}); generate a "
+            "real value via `openssl rand -hex 32`"
         )
     elif len(config.SESSION_SECRET) < _MIN_SESSION_SECRET_LEN:
         errors.append(
@@ -83,6 +98,15 @@ def enforce_production_secrets() -> None:
             "ALLOWED_ORIGINS must be set in production (comma-separated "
             "full origins; see backend/shared/csrf.py). Without it every "
             "state-changing request is rejected."
+        )
+    elif any(
+        _TEMPLATE_PLACEHOLDER_NEEDLE in origin.lower()
+        for origin in config.ALLOWED_ORIGINS
+    ):
+        errors.append(
+            "ALLOWED_ORIGINS still contains the .env.example template "
+            f"placeholder ({_TEMPLATE_PLACEHOLDER_NEEDLE!r}); set the real "
+            "public origin (e.g. https://anotasyon.example.com)"
         )
 
     if errors:
