@@ -98,6 +98,7 @@ export function StatCards({ profile }: StatCardsProps) {
               </div>
               <div
                 role="progressbar"
+                aria-label={`Günlük hedef: ${today.save} / ${today.daily_target}`}
                 aria-valuenow={today.save}
                 aria-valuemax={today.daily_target}
                 aria-valuemin={0}
