@@ -55,6 +55,44 @@ admin panel.
 | `GITHUB_PAT` | no | required if above set | `<fine-grained PAT, contents:write>` | Inject into `BACKUP_REPO_URL` clone URL at runtime |
 | `DATA_DIR` | no | no | `/data` | Container default; override only for non-Docker dev |
 | `DISABLE_SPA_MOUNT` | no | no | `1` | Set in tests only; do not set in prod |
+| `NEON_MIRROR_URL` | no | **yes for cross-team** | `postgresql://baran_writer:...@ep-xxx.neon.tech/neondb?sslmode=require` | **If unset, the Neon dispatcher boots in degraded mode and the partner team sees stale rows for an unbounded window.** Full setup: `docs/neon-mirror.md`. |
+| `NEON_MIRROR_BATCH_SIZE` | no | no | `100` | Rows per dispatcher tick. Default `100`. |
+| `NEON_MIRROR_MAX_RETRIES` | no | no | `5` | Per-row retry budget before dead-letter. Default `5`. |
+| `NEON_MIRROR_EMPTY_SLEEP` | no | no | `5` | Dispatcher idle wait (seconds) when the outbox is empty. Default `5.0`. |
+
+## 3a. Cross-team coordination (Phase 6 ordering contract)
+
+This deploy participates in a cross-team annotation contract with the
+partner team's deploy (Zeynep). Both teams annotate the same Maliye
+Bakanlığı özelge corpus from a shared source DB; the contract is that
+every annotator on both sides processes documents in the **same**
+`document_id` DESC order. The platform enforces this in two ways:
+
+1. **Backend default sort.** `/api/feed` defaults to
+   `sort=document_id&order=desc` on every tab (`new`, `review`,
+   `verified`) — see `backend/shuffle/service.py::DEFAULT_SORT_FOR`.
+2. **Frontend default sort.** The annotate store seeds the same
+   default per tab — see `frontend/src/stores/annotateStore.ts::DEFAULT_SORT`.
+
+**Operator implications:**
+
+- **Do not advertise the dev SortMenu to users.** The trigger button
+  is gated behind `localStorage.a11n.dev_sort=1` and is intended for
+  the platform developer only. Setting it on an annotator's browser
+  silently breaks the cross-team contract — that annotator will work
+  documents in a different order than the partner team and downstream
+  joins on `document_id` will drift.
+- **The Neon mirror is one-way.** This deploy pushes rows under the
+  `baran_*` prefix into the partner Neon instance. The partner team
+  reads from their own Neon DB; this deploy never reads back. A long
+  mirror outage (e.g. `NEON_MIRROR_URL` unset, partner Neon
+  unreachable) does not block local annotation but makes the partner
+  view stale. Monitor `/api/admin/mirror/health` and act on the
+  thresholds documented in `runbooks/restore-drill.md`.
+- **Partner-side ordering.** The partner team's UI reads
+  `zeynepDB.public.documents ORDER BY evrak_id DESC`; `evrak_id` on
+  their side equals `document_id` here. If you change the canonical
+  sort key locally, coordinate with the partner team before deploy.
 
 ## 4. First admin walkthrough
 
