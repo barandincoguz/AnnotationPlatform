@@ -46,3 +46,7 @@ data/import-neon/
 .ruff_cache
 .claude 
 .planning
+
+# Load-test scratch artifacts (regenerated per run; see scripts/loadtest_multiuser.sh)
+.tmp-uvicorn.log
+.tmp-wrk-output.txt

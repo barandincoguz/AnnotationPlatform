@@ -201,3 +201,110 @@ budget was about the polish-phase changes adding overhead on top of an
 existing endpoint, not a fresh ceiling on feed latency. Feed latency is
 dominated by DB I/O (LEFT JOIN over annotations/drafts) and is in line
 with the Wave 4 numbers for the same underlying query path.
+
+# Phase 6 D2 — multi-user authenticated load — 2026-05-24
+
+Multi-user load test driven by `scripts/loadtest_multiuser.sh` against an
+isolated uvicorn instance on port 18001. Closes Phase 6 D2 / P6-10 (the
+optional follow-up to the D1 single-user run above).
+
+## Setup
+
+| Knob | Value |
+|---|---|
+| Distinct authenticated sessions | 10 (alice, bob, admin, load\_user\_1…7) |
+| Auth construction | `seed-e2e --reset` seeds 3 users; sqlite `INSERT … SELECT` clones alice's bcrypt hash 7× (password rate-limit makes API path impractical for 10 users) |
+| Login | POST `/api/auth/login` per user → captured `anotasyon_session` cookie |
+| URL | `http://127.0.0.1:18001/api/feed?tab=new&limit=50&sort=document_id&order=desc` |
+| wrk topology | `-t4 -c20 -d60s --latency`, Lua picks a random cookie per request |
+| Duration | 60 s |
+| DB | SQLite at `/tmp/anotasyon-e2e-data/db/annotations.db` (isolated from prod) |
+| Mirror | **Degraded** — NEON\_MIRROR\_URL unset, dispatcher writes dead-letter `system_events` rows in the background |
+| Backend process | uvicorn at `--log-level warning`, no proxy / TLS |
+
+## wrk output (verbatim)
+
+```
+Running 1m test @ http://127.0.0.1:18001/api/feed?tab=new&limit=50&sort=document_id&order=desc
+  4 threads and 20 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    44.14ms   12.58ms 289.72ms   79.94%
+    Req/Sec   114.15     13.01   202.00     58.40%
+  Latency Distribution
+     50%   41.94ms
+     75%   49.02ms
+     90%   57.97ms
+     99%   88.15ms
+  27344 requests in 1.00m, 33.74MB read
+Requests/sec:    455.00
+Transfer/sec:    574.97KB
+```
+
+**Throughput:** 455.00 req/s
+**Latency:** p50 41.94 ms, p75 49.02 ms, p90 57.97 ms, p99 88.15 ms
+**Errors:** 0 / 27 344 (no Non-2xx line, no Socket errors line)
+
+## Queue depth (sanity)
+
+| Snapshot | Filtered (excl. `system_events` + `user_sessions` UPDATEs) | Raw | `user_sessions` UPDATE rows |
+|---|---|---|---|
+| Pre-load  | 25 | 27 | 0 |
+| Post-load (after 30 s drain) | **25** | 38 220 | 27 363 |
+| Δ | **0** | 38 193 | 27 363 |
+
+The filtered Δ is **0**, confirming no NEW user-data rows were enqueued
+by feed traffic. The two excluded streams are inevitable bookkeeping, not
+feed side-effects:
+
+- **`user_sessions` UPDATE × 27 363** — every authenticated request bumps
+  `last_activity_at` (sliding-window session expiry, see
+  `backend/users/service.py:232`). Ratio is ~1.00 row/request as expected.
+- **`system_events` × ~10 830** — `neon_mirror_dead_letter` audit rows
+  emitted by the mirror dispatcher while it drains rows past `max_retries`
+  in degraded mode. Pure dispatcher chatter, unrelated to load traffic.
+
+## Acceptance
+
+**0 errors, queue delta (excl. session-touch and dispatcher chatter) = 0 → PASS**
+
+## Delta vs Phase 6 D1 single-user run
+
+| Metric | D1 single-user (`-t2 -c10 -d60s`) | D2 10-session (`-t4 -c20 -d60s`) | Delta |
+|--------|--------|--------|--------|
+| Throughput | 437.25 req/s | 455.00 req/s | +4.1% |
+| p50 latency | 22.20 ms | 41.94 ms | +88.9% |
+| p99 latency | 38.61 ms | 88.15 ms | +128.3% |
+| Errors | 0 / 26 236 | 0 / 27 344 | 0 / 0 |
+
+Throughput is comparable because both runs saturate against the same
+single-writer SQLite WAL. With 2× the connections in D2, each request's
+queueing time at the DB roughly doubles → latency percentiles roughly
+double. There were no 5xxs, no socket errors, no WAL contention failures
+under 10 concurrent authenticated sessions sharing the loopback uvicorn.
+
+## Side-effect surfaced by this test
+
+D2 confirms `/api/feed` enqueues exactly **1** `user_sessions` UPDATE per
+authenticated request via the `_outbox_user_sessions_upd` trigger. That's
+by design — sliding-window session expiry needs it — but it means the
+mirror dispatcher in normal mode would carry roughly **1× endpoint QPS**
+worth of `user_sessions` UPDATE traffic to Neon. Phase 7 mirror-hardening
+should size the dispatcher batch interval against this baseline; a
+coalescing strategy (skip if no other column changed within N seconds)
+could cut Neon write volume by 1-2 orders of magnitude.
+
+## What this run did NOT cover
+
+- **Real Neon mirror exercise** — dispatcher was in degraded mode the
+  whole time (no NEON\_MIRROR\_URL). The 38 193 raw outbox growth is the
+  ceiling that a live dispatcher would have to drain. **Phase 7
+  mirror-hardening** should re-run this script with `NEON_MIRROR_URL`
+  pointed at a real Neon DB (or a local Postgres stand-in) so we can
+  measure dispatcher throughput, end-to-end delivery latency, and any
+  WAL contention between the dispatcher and the HTTP path.
+- **Mixed read/write traffic** — wrk only fires GETs against `/api/feed`.
+  A realistic write mix (POST `/api/draft`, PUT `/api/annotations/...`)
+  would touch user-data tables and stress the mirror dispatcher's write
+  path differently. Carried to Phase 7 backlog.
+- **Network transport** — loopback only; no proxy, no TLS, no realistic
+  RTT. Production deployment numbers will differ.
