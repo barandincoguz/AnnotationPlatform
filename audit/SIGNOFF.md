@@ -112,3 +112,60 @@ From `audit/BACKLOG.md` user-deferred:
 ```bash
 git tag -a phase-5 -m "Phase 5 — Pre-flight Hardening & Deploy Readiness — 27/32 gates met, 0 failed"
 ```
+
+---
+
+# Phase 6 update — 2026-05-24
+
+The sign-off above is the historical Phase 5 closeout (tag `phase-5` at
+`237614d`). Phase 6 ("Cross-team coordination ordering") subsequently
+landed and is itself sealed in `audit/PHASE-6-SIGNOFF.md`. This section
+records the post-Phase-6 deltas that supersede a few numbers above.
+
+## Refreshed test counts (post Phase 6)
+
+| Suite | Phase 5 number | Phase 6 number | Delta |
+|-------|----------------|----------------|-------|
+| Backend pytest | 987 pass / 0 fail (table row above; the "27/32 gates" line said 989, a count drift Codex flagged as P6-5) | **1003 pass / 0 fail** | +14 Wave A HTTP-layer + invariant tests, +2 from installing `pytest-asyncio==0.24.0` locally (already in `requirements-dev.txt`) |
+| Frontend vitest | 525 / 525 | **527 / 527** | +2 Wave A frontend store tests (already shipped at `08026a9`, were missing from Phase 5 final count) |
+| Playwright e2e | 9 / 9 | **13 / 13** | +1 Wave B (SortMenu hidden-default + dev-flag rewrite split into two), +3 Wave D3 (`a11y.spec.ts` runtime axe scan over /login, /, /admin/mirror) |
+| tsc / eslint / ruff | clean / clean / 64 deferred | clean / clean / 64 deferred (unchanged) | no Phase 6 regression |
+| wrk on `/api/feed` | 296.04 req/s on legacy `?tab=new` default sort | **437.25 req/s** on Phase 6 `?sort=document_id&order=desc` default | +47.7% throughput; p99 down -65.3% (primary-key sort wins) |
+
+## Gate 25 (a11y) — Phase 6 update
+
+Status remains **partial** but the partial composition changes:
+
+- **Phase 5 partial reason:** "1 of 3 serious findings deferred (Radix
+  Dialog migration for `MirrorHealthPage` + `RetentionPage` raw
+  modals — A11Y-S3)."
+- **Phase 6 progress:**
+  - Runtime axe-core sweep is now in the e2e suite
+    (`frontend/e2e/a11y.spec.ts`), so the gate evidence is no longer
+    static-audit-only.
+  - 2 previously-undetected progressbar accessibility findings
+    (DailyProgress + StatCards lacked `aria-label`) were surfaced by
+    the new runtime scan and fixed inline.
+- **Phase 6 newly-deferred to Phase 7:**
+  - A11Y-S3 (Radix Dialog migration for two raw modals) — still open.
+  - Color-contrast on Phase 6 design tokens (`text-muted-foreground`
+    and the large display heading on /login) — newly surfaced by
+    runtime axe, real WCAG AA finding, scoped out of the spec until
+    a Phase 7 design refresh adjusts the muted palette.
+
+## Cross-team coordination contract (new, Phase 6)
+
+Documented at `docs/deployment.md` §3a and enforced by:
+
+- Backend default sort: `backend/shuffle/service.py::DEFAULT_SORT_FOR`
+  (all 3 tabs → `document_id DESC`).
+- Backend route whitelist: `backend/shuffle/routes.py::_SORT_PATTERN`
+  (now contains `document_id`; the omission was the Phase 6 P6-1
+  production blocker that Codex identified and Wave A fixed at
+  `ae96c82`).
+- Frontend default sort: `frontend/src/stores/annotateStore.ts::DEFAULT_SORT`.
+- Frontend UI: `SortMenu` rendered only when `localStorage.a11n.dev_sort=1`
+  (dev escape hatch).
+- Route ↔ service invariant test:
+  `tests/test_shuffle_routes.py::test_route_regex_contains_every_service_sort_column`
+  (parametrised across every `SORT_COLUMNS` key — catches future drift).

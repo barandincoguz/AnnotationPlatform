@@ -1,8 +1,14 @@
 # State
 
-**Updated:** 2026-05-23
+**Updated:** 2026-05-24
 
 ## Current Phase
+
+**Phase 6** — Cross-team coordination ordering — `In progress, Wave E pending`.
+Waves A (route regex blocker fix), B (e2e + SortMenu document_id row),
+C (deployment docs + mirror watchdog runbook), and D (axe-core runtime
+spec + wrk re-run on corrected URL + count refresh) are all sealed on
+`main`. Wave E will compose `audit/PHASE-6-SIGNOFF.md` and tag `phase-6`.
 
 **Phase 5** — Pre-flight Hardening & Deploy Readiness — `Complete`. 27 of 32 success gates fully met, 4 partial (waivers / operator-side), 0 failed.
 See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit/FIX-LOG.md](../audit/FIX-LOG.md) for the commit crosswalk.
@@ -20,17 +26,19 @@ See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit
 | 3 | Complete | `ca5555f` |
 | 4 | Executed | `1f33a53 .. 66f0986` (14 commits) — wrk smoke verified in Phase 5 W4-T1 (`audit/SMOKE.md`) |
 | 5 | Complete | Wave 0..4 across ~25 commits; tagged `phase-5` |
-| 6 | In progress | Cross-team coordination ordering. `4d750c7` backend default = document_id DESC across all 3 tabs; `08026a9` frontend store v4 + SortMenu hidden behind `a11n.dev_sort` localStorage flag. Matches partner team (Zeynep) DB ordering `evrak_id DESC`. |
+| 6 | In progress (Wave E pending) | Cross-team coordination ordering across all 3 feed tabs. Commits: `4d750c7` backend default = document_id DESC; `08026a9` frontend store v4 + SortMenu hidden behind `a11n.dev_sort` flag; `ad639d2` state note; `ca4328e` plan; `ae96c82` Wave A route regex blocker fix (P6-1); `b9cfdf5` Wave B e2e catch-up + document_id row in SortMenu (P6-2 + P6-3); `704497e` Wave C ops docs (P6-4 + P6-7); `4338fdc` Wave D3 runtime axe-core; `d61bec6` Wave D1 wrk on corrected URL. Wave E remains: PHASE-6-SIGNOFF.md + tag `phase-6`. Matches partner team (Zeynep) DB ordering `evrak_id DESC`. |
 
-## Test Baseline (post Phase 5)
+## Test Baseline (post Phase 6 Wave D)
 
-- Backend pytest: **987 pass** (was 946 + 3 skip entering Phase 5; +41 new tests across Wave 2 + Wave 2.5)
-- Frontend vitest: **525 pass / 525** (was 477 / 511 entering Phase 5; FE-1 unblocked 34 + 14 new admin-page tests)
+- Backend pytest: **1003 pass / 0 fail** (was 987 entering Phase 6; +14 Wave A HTTP-layer + invariant tests, +2 from installing the already-declared `pytest-asyncio==0.24.0` dev dep)
+- Frontend vitest: **527 pass / 527** (was 525 entering Phase 6; +2 frontend store tests shipped with `08026a9`)
 - Frontend typecheck: clean
 - Frontend lint: clean
-- e2e Playwright: 9 / 9 against built container (`audit/SMOKE.md`)
-- ruff: 64 pre-existing errors (Phase 6 backlog; CI workflow gate is `continue-on-error: true` per W3-T3 design)
-- wrk `/api/health` baseline: 5098 req/s, p99 4.14 ms (under the Phase 4 ≤5 ms budget)
+- e2e Playwright: **13 / 13** against auto-launched isolated backend + Vite (was 9 / 9 in Phase 5; +1 SortMenu hidden-default + dev-flag rewrite split, +3 a11y axe-core scans)
+- a11y: runtime axe-core sweep over /login, /, /admin/mirror integrated in e2e (`frontend/e2e/a11y.spec.ts`); 2 scoped-out rules with documented Phase 7 deferrals (color-contrast design refresh; aria-valid-attr-value Radix React 18 useId false positive)
+- ruff: 64 pre-existing errors (Phase 7 backlog; CI workflow gate is `continue-on-error: true` per W3-T3 design)
+- wrk `/api/health` baseline: 5098 req/s, p99 4.14 ms (Phase 5 W4-T1; unchanged)
+- wrk `/api/feed?tab=new&sort=document_id&order=desc` (Phase 6 default): **437.25 req/s**, p99 38.61 ms (+47.7% throughput vs Wave 4's legacy-default 296.04 — primary-key sort wins)
 
 ## Live Data State
 
