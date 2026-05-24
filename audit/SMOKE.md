@@ -114,3 +114,90 @@ regression from the Phase 4 baseline.
   users, not mocked). The ~35 ms p50 is expected for a DB-backed list
   endpoint with 3 documents; latency would be higher at scale.
 - No wrk errors on either endpoint (0/306038 on health, 0/17790 on feed).
+
+---
+
+# Phase 6 D1 — wrk on the corrected feed URL — 2026-05-24
+
+The Wave 4 `/api/feed` numbers above (296.04 req/s on `?tab=new`) were
+measured against a now-defunct request signature — Phase 6 changed the
+default sort to `document_id DESC`, and Codex's review noted that the
+Wave 4 wrk run never exercised the new query path. This section
+refreshes the load result on the actual Phase 6 endpoint.
+
+## Setup
+
+| Detail | Value |
+|--------|-------|
+| Commit | `704497e` (Phase 6 Wave C; Wave A + B already merged) |
+| Host | macOS 25.2.0 (Darwin arm64), Python 3.13.3, no Docker — uvicorn run directly out of the project venv |
+| Boot | `DATA_DIR=/tmp/anotasyon-e2e-data SESSION_SECRET=… uvicorn backend.main:app --host 127.0.0.1 --port 18000 --log-level warning` |
+| DB | Fresh seed via `python -m backend.cli seed-e2e --reset` — 3 documents (alpha/bravo/charlie), 3 users (alice/bob/admin) — same shape as the Wave 4 run, so the throughput delta is **endpoint vs endpoint**, not data shape. |
+| Session | POST /api/auth/login (alice / e2e-pass-123!) → cookie captured to `/tmp/wrk-cookie.txt`. wrk Lua script (`/tmp/wrk-auth.lua`) reads the cookie from the `WRK_SESSION` env var and injects `Cookie: anotasyon_session=…` + `Accept: application/json` on every request. |
+
+## wrk on `/api/feed?tab=new&limit=50&sort=document_id&order=desc`
+
+```
+Running 1m test @ http://127.0.0.1:18000/api/feed?tab=new&limit=50&sort=document_id&order=desc
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    22.90ms    4.10ms  93.23ms   84.42%
+    Req/Sec   219.57     19.53   262.00     64.72%
+  Latency Distribution
+     50%   22.20ms
+     75%   24.07ms
+     90%   26.83ms
+     99%   38.61ms
+  26236 requests in 1.00m, 32.38MB read
+Requests/sec:    437.25
+Transfer/sec:    552.54KB
+```
+
+**Throughput:** 437.25 req/s
+**Latency:** p50 22.20 ms, p75 24.07 ms, p90 26.83 ms, p99 38.61 ms
+**Errors:** 0 / 26 236
+
+## Delta vs Wave 4
+
+| Metric | Wave 4 (`?tab=new`, legacy default `tarih DESC`) | Phase 6 D1 (`?tab=new&sort=document_id&order=desc`) | Delta |
+|--------|--------|--------|--------|
+| Throughput | 296.04 req/s | 437.25 req/s | **+47.7%** |
+| p50 latency | 34.93 ms | 22.20 ms | -36.4% |
+| p99 latency | 111.13 ms | 38.61 ms | -65.3% |
+| Errors | 0 / 17 790 | 0 / 26 236 | 0 / 0 |
+
+The Phase 6 default sort is **measurably faster than the legacy default**.
+`document_id` is the PRIMARY KEY of `documents_meta`, so the ORDER BY uses
+the table's native B-tree index directly — no temp sort, no extra index
+lookup. The legacy `tarih DESC` default was an indexed column but not the
+primary key, so SQLite had to traverse a secondary index and join back.
+
+The throughput is also bounded by the wrk client (2 threads / 10
+connections) rather than the server — Req/Sec stddev is small (19.5 on
+mean 219.6) which says the server has more headroom.
+
+## What this rerun did NOT cover
+
+- **Multi-user load** (Phase 6 plan §3 D2, marked optional per the user's
+  decision matrix) — single-user 10-connection load is still single-user
+  from SQLite's perspective. Concurrent **distinct** authenticated
+  sessions could surface WAL contention; carried to Phase 7 backlog if
+  needed.
+- **Network transport overhead** — wrk and uvicorn ran on the same loopback
+  interface, so the numbers above are CPU + DB-bound, not network-bound.
+  Production deploy behind a reverse proxy with TLS termination will see
+  somewhat lower numbers.
+- **Mirror dispatcher under load** — the dispatcher was not running during
+  this benchmark (NEON_MIRROR_URL unset, degraded mode). A loaded
+  dispatcher contending for the same SQLite WAL would change the picture;
+  Phase 7 mirror-hardening should re-measure.
+
+## Phase 5 budget check
+
+The Phase 4 latency budget (≤ 5 ms p95 added on top of baseline) was met by
+Phase 5's `/api/health` p99 of 4.14 ms. The Phase 6 `/api/feed` p99 of
+38.61 ms is the **endpoint absolute latency**, not the Phase 4 budget —
+budget was about the polish-phase changes adding overhead on top of an
+existing endpoint, not a fresh ceiling on feed latency. Feed latency is
+dominated by DB I/O (LEFT JOIN over annotations/drafts) and is in line
+with the Wave 4 numbers for the same underlying query path.
