@@ -140,6 +140,8 @@ CREATE TABLE IF NOT EXISTS baran_annotation_versions (
     created_at text NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS baran_idx_ver_doc_user ON baran_annotation_versions(document_id, user_id);
+
 CREATE INDEX IF NOT EXISTS baran_idx_ver_diff_zero ON baran_annotation_versions(is_diff_zero);
 
 CREATE INDEX IF NOT EXISTS baran_idx_ver_user_time ON baran_annotation_versions(user_id, created_at);

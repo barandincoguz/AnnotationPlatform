@@ -247,3 +247,41 @@ def test_pg_ddl_full_script_contains_23_create_table_statements():
     count = full.count("CREATE TABLE IF NOT EXISTS baran_")
     assert count == 23, count
     conn.close()
+
+
+def test_committed_neon_ddl_matches_regen():
+    """Phase 6 P6-6 schema drift guard.
+
+    Asserts the committed `migrations/postgres/001-baran-init.sql` is
+    byte-identical to what `build_all_pg_ddl` emits against a freshly-migrated
+    SQLite schema. If this fails, the operator must regenerate the committed
+    file via `python -m scripts.regen_neon_ddl` and commit the result.
+    """
+    from pathlib import Path
+
+    # Walk up from this test file to the repo root (marker: pyproject.toml).
+    repo_root = None
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pyproject.toml").is_file():
+            repo_root = parent
+            break
+    assert repo_root is not None, "could not locate repo root (pyproject.toml marker)"
+
+    committed_path = repo_root / "migrations" / "postgres" / "001-baran-init.sql"
+    assert committed_path.is_file(), f"missing committed DDL at {committed_path}"
+
+    conn = _migrated_conn()
+    try:
+        generated = build_all_pg_ddl(conn)
+    finally:
+        conn.close()
+
+    committed = committed_path.read_text(encoding="utf-8")
+
+    assert generated == committed, (
+        "Postgres DDL drift detected: the committed "
+        "`migrations/postgres/001-baran-init.sql` no longer matches the "
+        "live SQLite schema. Regenerate and re-commit:\n"
+        "    python -m scripts.regen_neon_ddl\n"
+        "then `git add migrations/postgres/001-baran-init.sql` and commit."
+    )
