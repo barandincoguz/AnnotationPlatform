@@ -1,3 +1,11 @@
+import re
+
+import pytest
+
+from backend.shuffle import service as shuffle_service
+from backend.shuffle.routes import _SORT_PATTERN
+
+
 def test_feed_requires_auth(client):
     r = client.get("/api/feed?tab=new")
     assert r.status_code == 401
@@ -135,3 +143,58 @@ def test_feed_pdf_text_never_in_response(passed_user, ingest_doc):
     body = passed_user["client"].get("/api/feed?tab=new").json()
     for item in body["items"]:
         assert "pdf_text" not in item
+
+
+# --- Phase 6: cross-team document_id DESC ordering ---------------------------
+# Frontend store v4 sends sort=document_id&order=desc on every feed call.
+# Before Wave A, the route regex omitted document_id → every load 422.
+# These tests exercise the regex on the HTTP edge (service-layer tests
+# bypass FastAPI Query validation and could not have caught the drift).
+
+def test_feed_sort_document_id_desc_new_tab(passed_user, ingest_doc):
+    c = passed_user["client"]
+    for did in ("doc_a", "doc_b", "doc_c"):
+        ingest_doc(did)
+    r = c.get("/api/feed?tab=new&sort=document_id&order=desc")
+    assert r.status_code == 200, r.text
+    ids = [i["document_id"] for i in r.json()["items"]]
+    assert ids == ["doc_c", "doc_b", "doc_a"]
+
+
+def test_feed_sort_document_id_desc_review_tab(passed_user, ingest_doc):
+    c = passed_user["client"]
+    for did in ("doc_a", "doc_b", "doc_c"):
+        ingest_doc(did)
+        c.post("/api/annotations", json={"document_id": did, "references": []})
+    r = c.get("/api/feed?tab=review&sort=document_id&order=desc")
+    assert r.status_code == 200, r.text
+    ids = [i["document_id"] for i in r.json()["items"]]
+    assert ids == ["doc_c", "doc_b", "doc_a"]
+
+
+def test_feed_sort_document_id_desc_verified_tab(passed_user, ingest_doc):
+    c = passed_user["client"]
+    for did in ("doc_a", "doc_b", "doc_c"):
+        ingest_doc(did)
+        c.post("/api/annotations", json={"document_id": did, "references": []})
+        c.post(f"/api/annotations/{did}/complete", json={"completed": True})
+    r = c.get("/api/feed?tab=verified&sort=document_id&order=desc")
+    assert r.status_code == 200, r.text
+    ids = [i["document_id"] for i in r.json()["items"]]
+    assert ids == ["doc_c", "doc_b", "doc_a"]
+
+
+def test_feed_invalid_sort_returns_422(passed_user):
+    """Regression guard: unknown sort key still rejected by FastAPI Query."""
+    r = passed_user["client"].get("/api/feed?tab=new&sort=zzzzz")
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize("sort_key", sorted(shuffle_service.SORT_COLUMNS.keys()))
+def test_route_regex_contains_every_service_sort_column(sort_key):
+    # Invariant: every service.SORT_COLUMNS key must match route _SORT_PATTERN,
+    # else legal sort keys 422 in production despite passing service tests.
+    assert re.fullmatch(_SORT_PATTERN, sort_key), (
+        f"SORT_COLUMNS key {sort_key!r} not matched by _SORT_PATTERN "
+        f"{_SORT_PATTERN!r}; contract drift between route and service."
+    )
