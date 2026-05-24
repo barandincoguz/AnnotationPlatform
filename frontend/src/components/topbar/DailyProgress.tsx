@@ -18,6 +18,7 @@ export function DailyProgress({ today, target }: DailyProgressProps) {
       )}
       <div
         role="progressbar"
+        aria-label={`Günlük ilerleme: ${today} / ${target} özelge`}
         aria-valuenow={today}
         aria-valuemax={target}
         aria-valuemin={0}
