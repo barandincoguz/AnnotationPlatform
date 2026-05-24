@@ -41,11 +41,29 @@ test.describe('Annotation flow', () => {
     })
   })
 
-  test('sort menu surfaces every key with a colored direction marker', async ({ page }) => {
+  test('sort menu is hidden from end users by default (phase 6 contract)', async ({ page }) => {
+    // Phase 6 cross-team coordination contract: every annotator on
+    // this deploy AND on the partner-team deploy must see the same
+    // document_id DESC feed sequence. The SortMenu is therefore not
+    // rendered to end users — exposing a user-controlled sort would
+    // silently break the contract.
     await loginAs(page, 'alice')
+    // Trigger must be absent in the DOM, not just hidden.
+    await expect(page.getByRole('button', { name: /sıralama/i })).toHaveCount(0)
+  })
+
+  test('sort menu surfaces every key + document_id when dev flag is set', async ({ page }) => {
+    // Developer escape hatch: localStorage.a11n.dev_sort=1 re-enables
+    // the menu without a code change. This test exercises that path
+    // end-to-end and asserts the Phase 6 canonical key (Özelge ID =
+    // document_id) appears alongside the legacy keys.
+    await loginAs(page, 'alice')
+    // Set the flag against the SPA origin, then reload so the
+    // SortMenu re-evaluates isDevSortEnabled() during mount.
+    await page.evaluate(() => window.localStorage.setItem('a11n.dev_sort', '1'))
+    await page.reload()
     await page.getByRole('button', { name: /sıralama/i }).click()
-    // Tarih is the default for the "new" tab; opening the menu
-    // should expose the full option set.
+    await expect(page.getByRole('menuitem', { name: 'Özelge ID' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: /tarih/i }).first()).toBeVisible()
     await expect(page.getByRole('menuitem', { name: /karıştır/i })).toBeVisible()
     // SortMenu intentionally calls e.preventDefault() in onSelect so
