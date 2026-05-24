@@ -306,3 +306,65 @@ The uploaded file is not valid JSON. Verify the snapshot was written correctly:
 ```bash
 python3 -m json.tool "$SNAPSHOT" > /dev/null && echo "valid JSON" || echo "corrupt"
 ```
+
+---
+
+## Section 8 — Mirror Health Watch (Phase 6 cross-team)
+
+Distinct from the restore drill above: this section covers ongoing
+day-to-day monitoring of the SQLite → Neon dispatcher that feeds the
+partner team's view of our annotations. Outages here do not block
+local annotation — they let the partner team drift onto stale data.
+
+### Health surface
+
+The admin app exposes `/admin/mirror` (UI) backed by
+`GET /api/admin/mirror/health` (JSON). Both report:
+
+- `queue_depth` — rows in the outbox waiting to dispatch.
+- `dead_letter_count` — rows that exceeded `NEON_MIRROR_MAX_RETRIES`
+  and need manual requeue.
+- `oldest_undelivered_age_seconds` — wall-clock lag of the oldest
+  pending row.
+- `last_success_at` / `last_failure_at` — recent dispatcher outcomes.
+- `dispatcher_running` — boolean; false ⇒ degraded mode (usually
+  `NEON_MIRROR_URL` unset, see deployment.md §3).
+
+### Alert thresholds
+
+| Signal | Warn | Critical | Operator action |
+|--------|------|----------|-----------------|
+| `dead_letter_count` | ≥ 1 | ≥ 1 sustained > 30 min | Investigate via the admin UI Dead-Letter table; identify the failure mode (column mismatch, FK violation, Neon outage). Once the root cause is resolved, click **Requeue dead-letter rows** (BE-10) to push them back into the outbox. |
+| `queue_depth` | ≥ 1 000 | ≥ 10 000 | A backlog this size means the dispatcher cannot keep up. Check `last_failure_at`; if it's recent, follow the Neon outage runbook. If failures are absent, increase `NEON_MIRROR_BATCH_SIZE` (e.g. `100` → `500`) and restart. |
+| `oldest_undelivered_age_seconds` | ≥ 600 (10 min) | ≥ 3 600 (1 hour) | Partner team is reading stale rows. If `dispatcher_running=false`, fix `NEON_MIRROR_URL` (see deployment.md §3). Otherwise inspect `system_events WHERE event_type LIKE 'mirror%' ORDER BY id DESC LIMIT 20`. |
+| `dispatcher_running` | false at any point | false sustained > 5 min | Degraded mode — see deployment.md §3a. Confirm `NEON_MIRROR_URL` is set and reachable: `psql "$NEON_MIRROR_URL" -c 'select 1;'`. If reachable but the dispatcher is still off, check `system_events` for `mirror_dispatcher_failed`. |
+
+### Requeue procedure
+
+```bash
+# From the running container (or wherever the app is hosted):
+curl -X POST -b "$ADMIN_COOKIE" \
+  http://127.0.0.1:8000/api/admin/mirror/dead-letter/requeue
+```
+
+Or click **Requeue all** in `/admin/mirror`. The action moves every
+dead-letter row back into the outbox with the retry counter reset to
+zero. The dispatcher picks them up on its next tick.
+
+### Reading dispatcher events
+
+Mirror activity is also written to `system_events`:
+
+```bash
+sqlite3 /data/db/annotations.db \
+  "SELECT created_at, event_type, message FROM system_events \
+   WHERE event_type LIKE 'mirror%' ORDER BY id DESC LIMIT 20;"
+```
+
+Look for `mirror_dispatcher_started`, `mirror_batch_delivered`,
+`mirror_batch_failed`, `mirror_dead_letter_added`.
+
+### Cross-reference
+
+- Full mirror lifecycle + setup: `docs/neon-mirror.md`.
+- Ordering contract this mirror serves: `docs/deployment.md` §3a.
