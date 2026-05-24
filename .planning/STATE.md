@@ -4,11 +4,7 @@
 
 ## Current Phase
 
-**Phase 6** — Cross-team coordination ordering — `In progress, Wave E pending`.
-Waves A (route regex blocker fix), B (e2e + SortMenu document_id row),
-C (deployment docs + mirror watchdog runbook), and D (axe-core runtime
-spec + wrk re-run on corrected URL + count refresh) are all sealed on
-`main`. Wave E will compose `audit/PHASE-6-SIGNOFF.md` and tag `phase-6`.
+**Phase 6** — Cross-team coordination ordering — `Complete`. 27 of 32 success gates met, 4 partial (carry-over from Phase 5, with documented Wave D progress on gate 25), 0 failed. P6-1 production blocker fixed at `ae96c82`; cross-team `document_id DESC` contract documented and enforced end-to-end. Tagged `phase-6`. See [audit/PHASE-6-SIGNOFF.md](../audit/PHASE-6-SIGNOFF.md) for the per-finding verdict and gate evidence.
 
 **Phase 5** — Pre-flight Hardening & Deploy Readiness — `Complete`. 27 of 32 success gates fully met, 4 partial (waivers / operator-side), 0 failed.
 See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit/FIX-LOG.md](../audit/FIX-LOG.md) for the commit crosswalk.
@@ -26,7 +22,7 @@ See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit
 | 3 | Complete | `ca5555f` |
 | 4 | Executed | `1f33a53 .. 66f0986` (14 commits) — wrk smoke verified in Phase 5 W4-T1 (`audit/SMOKE.md`) |
 | 5 | Complete | Wave 0..4 across ~25 commits; tagged `phase-5` |
-| 6 | In progress (Wave E pending) | Cross-team coordination ordering across all 3 feed tabs. Commits: `4d750c7` backend default = document_id DESC; `08026a9` frontend store v4 + SortMenu hidden behind `a11n.dev_sort` flag; `ad639d2` state note; `ca4328e` plan; `ae96c82` Wave A route regex blocker fix (P6-1); `b9cfdf5` Wave B e2e catch-up + document_id row in SortMenu (P6-2 + P6-3); `704497e` Wave C ops docs (P6-4 + P6-7); `4338fdc` Wave D3 runtime axe-core; `d61bec6` Wave D1 wrk on corrected URL. Wave E remains: PHASE-6-SIGNOFF.md + tag `phase-6`. Matches partner team (Zeynep) DB ordering `evrak_id DESC`. |
+| 6 | Complete | Cross-team coordination ordering across all 3 feed tabs; tagged `phase-6`. Waves: pre-plan `4d750c7` + `08026a9` + `ad639d2`; plan `ca4328e`; Wave A `ae96c82` (P6-1 blocker fix); Wave B `b9cfdf5` (P6-2 + P6-3); Wave C `704497e` (P6-4 + P6-7); Wave D `4338fdc` + `d61bec6` + `23dfaf6` (D3 axe-core + D1 wrk + D4 counts). Wave E sign-off + tag this commit. Matches partner team (Zeynep) DB ordering `evrak_id DESC`. 8 of 10 Codex findings fixed; P6-6 and P6-10 deferred to Phase 7 per user decisions D3 + D4. |
 
 ## Test Baseline (post Phase 6 Wave D)
 
