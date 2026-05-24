@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api", tags=["shuffle"])
 
 # Sort whitelist exposed as a regex pattern so FastAPI's Query validation
 # rejects unknown keys at the edge (422) before they reach the service.
-_SORT_PATTERN = "^(shuffle|tarih|created_at|sayi|vergi_turu|konu|difficulty|word_count|updated_at|editors_count)$"
+_SORT_PATTERN = "^(document_id|shuffle|tarih|created_at|sayi|vergi_turu|konu|difficulty|word_count|updated_at|editors_count)$"
 _ORDER_PATTERN = "^(asc|desc)$"
 
 
