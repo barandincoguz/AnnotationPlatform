@@ -82,6 +82,14 @@ async def lifespan(_app: FastAPI):
                 message="Local documents database is empty. Starting automatic sync from Neon Postgres...",
             )
             print("Local documents database is empty. Starting automatic sync from Neon Postgres...")
+            
+            # Drop all outbox triggers temporarily to avoid generating useless queue writes (59,000+ rows)
+            triggers = [row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE '_outbox_%'"
+            ).fetchall()]
+            for t in triggers:
+                conn.execute(f"DROP TRIGGER IF EXISTS {t}")
+                
             try:
                 with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
                     with pg_conn.cursor(name="startup_docs_sync") as pg_cur:
@@ -132,6 +140,12 @@ async def lifespan(_app: FastAPI):
                     message=f"Failed to auto-sync documents from Neon: {e}",
                 )
                 print(f"Failed to auto-sync documents from Neon: {e}")
+            finally:
+                # Re-create all outbox triggers (always run to ensure DB is never left unprotected)
+                from backend.migrations.helpers.trigger_generator import build_triggers_for_table, _collect_schemas
+                for s in _collect_schemas(conn):
+                    for trigger_sql in build_triggers_for_table(s):
+                        conn.execute(trigger_sql)
 
         audit.log_system_event(
             conn, "startup", "info",
