@@ -38,7 +38,7 @@ docker-compose*.yml
 .dockerignore
 
 # Dev artefacts
-annotations.db
+/annotations.db
 sensitive/
 .planning/
 *.log

@@ -57,6 +57,81 @@ async def lifespan(_app: FastAPI):
             username=config.BOOTSTRAP_ADMIN_USERNAME,
             password=config.BOOTSTRAP_ADMIN_PASSWORD,
         )
+        # Ensure BURSIYER-2026 is seeded as the active invite code
+        from datetime import datetime, timezone
+        active_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
+        if active_code is None or active_code["code"] != "BURSIYER-2026":
+            conn.execute("UPDATE invite_codes SET is_active=0, rotated_at=? WHERE is_active=1", (datetime.now(timezone.utc).isoformat(),))
+            conn.execute(
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
+                ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
+            )
+
+        # Automatic document replication from Neon Postgres on first boot (Phase 6, auto-sync)
+        count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
+        from backend.mirror import config as mirror_config
+        mirror_config.reload_from_env()
+        if count == 0 and mirror_config.NEON_MIRROR_URL:
+            import psycopg
+            from backend.documents.parser import parse_document, ParseError
+            from backend.documents.service import _upsert_meta, _replace_kanun_refs, _replace_bkk_refs
+            
+            audit.log_system_event(
+                conn, "neon_sync_start", "info",
+                message="Local documents database is empty. Starting automatic sync from Neon Postgres...",
+            )
+            print("Local documents database is empty. Starting automatic sync from Neon Postgres...")
+            try:
+                with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
+                    with pg_conn.cursor(name="startup_docs_sync") as pg_cur:
+                        pg_cur.itersize = 1000
+                        pg_cur.execute("SELECT evrak_id, display_text, raw_metadata_json FROM documents ORDER BY id")
+                        
+                        synced_count = 0
+                        skipped_count = 0
+                        conn.execute("BEGIN IMMEDIATE")
+                        try:
+                            for evrak_id, display_text, raw_meta in pg_cur:
+                                if not evrak_id or not display_text:
+                                    skipped_count += 1
+                                    continue
+                                
+                                PARSER_KEYS = {
+                                    "evrakOid", "pdfText", "htmlText", "sayi", "tarih", "basvuruTarihi",
+                                    "vergiTuru", "vergiDonemi", "konu", "mukellefiyetTuru", "kanunBilgileri",
+                                    "bkkTebligSirkuBilgileri",
+                                }
+                                meta_doc = {k: v for k, v in (raw_meta or {}).items() if k in PARSER_KEYS}
+                                meta_doc["evrakOid"] = evrak_id
+                                meta_doc["pdfText"] = display_text
+                                
+                                try:
+                                    parsed = parse_document(meta_doc, file_path="neon_postgres")
+                                    meta = parsed["meta"]
+                                    _upsert_meta(conn, meta)
+                                    _replace_kanun_refs(conn, meta["document_id"], parsed["kanun_refs"])
+                                    _replace_bkk_refs(conn, meta["document_id"], parsed["bkk_refs"])
+                                    synced_count += 1
+                                except ParseError:
+                                    skipped_count += 1
+                                    continue
+                            conn.commit()
+                        except Exception:
+                            conn.rollback()
+                            raise
+                            
+                audit.log_system_event(
+                    conn, "neon_sync_success", "info",
+                    message=f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})",
+                )
+                print(f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})")
+            except Exception as e:
+                audit.log_system_event(
+                    conn, "neon_sync_failed", "error",
+                    message=f"Failed to auto-sync documents from Neon: {e}",
+                )
+                print(f"Failed to auto-sync documents from Neon: {e}")
+
         audit.log_system_event(
             conn, "startup", "info",
             message=f"app v{VERSION} started; migrations applied: {applied}",
