@@ -152,3 +152,16 @@ def test_container_runs_as_non_root(running_container):
     cid, _port = running_container
     out = _run([DOCKER, "exec", cid, "id", "-u"]).stdout.strip()
     assert out == "1000", f"container ran as UID {out}, expected 1000 (appuser)"
+
+
+def test_spa_login_route_is_served_from_image(running_container):
+    """Clean image includes the Vite build; client-side /login route gets index.html."""
+    _cid, port = running_container
+    _wait_healthy(port, timeout_s=45)
+    with urllib.request.urlopen(
+        f"http://127.0.0.1:{port}/login", timeout=3,
+    ) as r:
+        body = r.read().decode("utf-8")
+    assert r.status == 200
+    assert '<div id="root"></div>' in body
+    assert "/assets/" in body

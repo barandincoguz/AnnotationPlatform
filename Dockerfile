@@ -1,10 +1,27 @@
 # ============================================================
-# Stage 1 — builder
+# Stage 1 — frontend-builder
+# Builds the Vite SPA into backend/static inside the image build. This keeps
+# clean-checkout Docker deploys independent from ignored local build output.
+# ============================================================
+FROM node:22-slim AS frontend-builder
+
+ENV NPM_CONFIG_LOGLEVEL=warn
+
+WORKDIR /build
+
+COPY frontend/.npmrc frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci
+
+COPY frontend/ ./frontend/
+RUN mkdir -p backend && cd frontend && npm run build
+
+# ============================================================
+# Stage 2 — python-builder
 # Installs Python deps into an isolated target dir we can copy from.
 # build-essential is here as a fallback for any wheel that needs to
 # compile from source; it never reaches the runtime image.
 # ============================================================
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim AS python-builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -35,7 +52,7 @@ COPY backend/ ./backend/
 RUN pip install --no-cache-dir --target=/install --no-deps .
 
 # ============================================================
-# Stage 2 — runtime
+# Stage 3 — runtime
 # Lean image, non-root, git for backup_loop's optional GitHub push,
 # app code only.
 # ============================================================
@@ -60,8 +77,9 @@ RUN groupadd --gid 1000 appuser && \
 
 WORKDIR /app
 
-COPY --from=builder --chown=appuser:appuser /install /app/site-packages
+COPY --from=python-builder --chown=appuser:appuser /install /app/site-packages
 COPY --chown=appuser:appuser backend/ /app/backend/
+COPY --from=frontend-builder --chown=appuser:appuser /build/backend/static/ /app/backend/static/
 
 RUN mkdir -p /data && chown appuser:appuser /data
 VOLUME ["/data"]
@@ -69,15 +87,15 @@ ENV DATA_DIR=/data
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 7860
 
 # Apply migrations (idempotent via schema_migrations), then exec uvicorn so
 # it becomes PID 1 and receives SIGTERM directly. workers=1 is explicit:
 # SQLite write contention makes multi-worker counter-productive.
-CMD ["sh", "-c", "python -m backend.cli migrate && exec uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1"]
+CMD ["sh", "-c", "python -m backend.cli migrate && exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]
 
 # Liveness probe: app process up. DB issues surface via /api/health/db
 # (manual/readiness use) and via system_events log rows — coupling liveness
 # to DB risks transient-lock restart loops.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)" || exit 1
+    CMD python -c "import urllib.request,sys,os; port = os.environ.get('PORT', '7860'); sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{port}/api/health', timeout=3).status == 200 else 1)" || exit 1

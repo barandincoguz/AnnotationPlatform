@@ -35,6 +35,7 @@ def test_prod_accepts_strong_secret(monkeypatch):
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
     monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
     monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://example.com/repo.git")
+    monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"https://anotasyon.example"})
     enforce_production_secrets()  # no raise
 
 
@@ -60,6 +61,7 @@ def test_prod_warns_no_backup_url(monkeypatch, capsys):
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
     monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
     monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"https://anotasyon.example"})
     enforce_production_secrets()  # warn-only, no raise
     captured = capsys.readouterr()
     assert "no backup configured" in captured.err.lower()

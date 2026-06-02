@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
+.DS_Store
 
 # Virtualenvs and tooling caches
 .venv/
@@ -21,9 +22,13 @@ venv/
 data/
 deneme-dev/
 
-# Docs and tests do not belong in the production image
+# Docs, tests, and generated assets do not belong in the production image.
+# The Dockerfile builds the SPA from frontend/ and copies that fresh output
+# from the frontend-builder stage.
 docs/
 tests/
+backend/tests/
+backend/static/
 *.md
 README.md
 
@@ -37,3 +42,9 @@ annotations.db
 sensitive/
 .planning/
 *.log
+frontend/node_modules/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
