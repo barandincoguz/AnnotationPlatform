@@ -104,7 +104,7 @@ def login(
         key=config.SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        samesite="lax",
+        samesite="none" if config.is_production() else "lax",
         max_age=30 * 24 * 60 * 60,  # 30 days
         secure=config.is_production(),
         path="/",
