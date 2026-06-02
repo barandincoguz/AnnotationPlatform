@@ -67,6 +67,11 @@ async def lifespan(_app: FastAPI):
                     "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
                     ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
                 )
+            
+            # One-off outbox cleanup to purge redundant document sync outbox entries from previous boots
+            conn.execute(
+                "DELETE FROM _outbox WHERE table_name IN ('documents_meta', 'document_kanun_refs', 'document_bkk_refs') AND delivered_at IS NULL"
+            )
 
         # Automatic document replication from Neon Postgres on first boot (Phase 6, auto-sync)
         count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
