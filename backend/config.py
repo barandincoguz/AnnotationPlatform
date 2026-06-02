@@ -48,12 +48,28 @@ ALLOWED_ORIGINS: set[str] = _parse_allowed_origins(
     os.environ.get("ALLOWED_ORIGINS", "")
 )
 
+# Auto-detect Hugging Face Spaces and whitelist their domains
+_space_id = os.environ.get("SPACE_ID")
+if _space_id:
+    try:
+        # e.g. "barandncgz72/anotasyon-platform" -> author="barandncgz72", name="anotasyon-platform"
+        if "/" in _space_id:
+            author, name = _space_id.split("/", 1)
+            # HF normalizes subdomains: replace underscores and dots with hyphens
+            subdomain = f"{author.lower()}-{name.lower()}".replace("_", "-").replace(".", "-")
+            ALLOWED_ORIGINS.add(f"https://{subdomain}.hf.space")
+            # Also whitelist direct domain variants and huggingface.co for iframe embeds
+            ALLOWED_ORIGINS.add("https://huggingface.co")
+            ALLOWED_ORIGINS.add(f"https://huggingface.co/spaces/{_space_id}")
+    except Exception:
+        pass
+
 _VALID_ENVIRONMENTS = {"development", "test", "production"}
 
 
 def is_production() -> bool:
-    """True iff ENVIRONMENT env var is exactly 'production' (case-insensitive)."""
-    return ENVIRONMENT == "production"
+    """True iff ENVIRONMENT env var is exactly 'production' (case-insensitive) or running on Hugging Face Spaces."""
+    return ENVIRONMENT == "production" or os.environ.get("SPACE_ID") is not None
 
 
 def validate_environment() -> None:
