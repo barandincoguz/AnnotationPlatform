@@ -91,6 +91,7 @@ def passed_user(client):
 
     conn = connect(config.DB_PATH)
     try:
+        conn.execute("UPDATE invite_codes SET is_active=0")
         conn.execute(
             "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
             ("BURSIYER-2026",),
@@ -170,8 +171,9 @@ def bootstrap_admin(client):
         from backend import config
         conn = connect(config.DB_PATH)
         try:
+            conn.execute("UPDATE invite_codes SET is_active=0")
             conn.execute(
-                "INSERT OR IGNORE INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
                 ("BURSIYER-2026",),
             )
         finally:

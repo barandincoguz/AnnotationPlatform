@@ -30,6 +30,7 @@ def test_user_without_training_blocked_from_paket5_endpoints(client):
     """
     conn = connect(config.DB_PATH)
     try:
+        conn.execute("UPDATE invite_codes SET is_active=0")
         conn.execute(
             "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
             ("INVITE-AUDIT",),
@@ -91,6 +92,7 @@ def test_user_without_seen_manual_blocked_too(client):
     """
     conn = connect(config.DB_PATH)
     try:
+        conn.execute("UPDATE invite_codes SET is_active=0")
         conn.execute(
             "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
             ("INVITE-AUDIT2",),

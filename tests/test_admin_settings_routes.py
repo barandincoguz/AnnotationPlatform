@@ -9,6 +9,7 @@ def _make_admin(client):
     """Register a user, promote to admin, log them in, return the user dict."""
     conn = connect(config.DB_PATH)
     try:
+        conn.execute("UPDATE invite_codes SET is_active=0")
         conn.execute(
             "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
             ("ADMIN-INV",),
