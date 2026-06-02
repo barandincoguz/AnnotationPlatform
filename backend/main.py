@@ -72,6 +72,7 @@ async def lifespan(_app: FastAPI):
             conn.execute(
                 "DELETE FROM _outbox WHERE table_name IN ('documents_meta', 'document_kanun_refs', 'document_bkk_refs') AND delivered_at IS NULL"
             )
+            conn.commit()
 
         # Automatic document replication from Neon Postgres on first boot (Phase 6, auto-sync)
         count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
