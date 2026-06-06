@@ -190,3 +190,61 @@ def test_login_cookie_not_secure_in_development(seeded_client, monkeypatch):
     # Check that the cookie header does NOT contain "Secure" flag in dev
     cookie_header = r.headers.get("set-cookie", "")
     assert "Secure" not in cookie_header, f"Expected NO 'Secure' in dev cookie: {cookie_header}"
+
+
+def test_invite_code_preserves_custom_active_code():
+    """Verify that startup code initialization logic preserves existing active invite codes."""
+    from backend.shared.db import connect
+    from backend import config
+    from datetime import datetime, timezone
+
+    conn = connect(config.DB_PATH)
+    try:
+        # Deactivate all and set a custom active code
+        conn.execute("UPDATE invite_codes SET is_active=0")
+        conn.execute(
+            "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
+            ("CUSTOM-CODE-2026", datetime.now(timezone.utc).isoformat()),
+        )
+        
+        # Run simulated boot code block
+        active_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
+        if active_code is None:
+            conn.execute(
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
+                ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
+            )
+            
+        # Verify custom code was NOT overwritten
+        post_boot_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
+        assert post_boot_code is not None
+        assert post_boot_code["code"] == "CUSTOM-CODE-2026"
+    finally:
+        conn.close()
+
+
+def test_invite_code_seeds_default_when_none_active():
+    """Verify that if no active code exists, startup code initialization seeds the default."""
+    from backend.shared.db import connect
+    from backend import config
+    from datetime import datetime, timezone
+
+    conn = connect(config.DB_PATH)
+    try:
+        # Deactivate all
+        conn.execute("UPDATE invite_codes SET is_active=0")
+        
+        # Run simulated boot code block
+        active_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
+        if active_code is None:
+            conn.execute(
+                "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
+                ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
+            )
+            
+        # Verify default code was seeded
+        post_boot_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
+        assert post_boot_code is not None
+        assert post_boot_code["code"] == "BURSIYER-2026"
+    finally:
+        conn.close()

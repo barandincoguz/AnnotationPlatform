@@ -31,7 +31,8 @@ BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "")
 # in any direct-to-uvicorn deployment, and the IP is used for audit
 # (user_sessions.ip_hash). Operators behind a trusted reverse proxy
 # (Caddy, nginx, Cloudflare) flip this to "1" so XFF can be honored.
-TRUST_FORWARDED_FOR = os.environ.get("TRUST_FORWARDED_FOR", "0") == "1"
+_trust_fwd = os.environ.get("TRUST_FORWARDED_FOR", "0") == "1"
+TRUST_FORWARDED_FOR = _trust_fwd or os.environ.get("SPACE_ID") is not None
 
 
 def _parse_allowed_origins(raw: str) -> set[str]:
@@ -58,6 +59,7 @@ if _space_id:
             # HF normalizes subdomains: replace underscores and dots with hyphens
             subdomain = f"{author.lower()}-{name.lower()}".replace("_", "-").replace(".", "-")
             ALLOWED_ORIGINS.add(f"https://{subdomain}.hf.space")
+            ALLOWED_ORIGINS.add(f"https://{subdomain}.static.hf.space")
             # Also whitelist direct domain variants and huggingface.co for iframe embeds
             ALLOWED_ORIGINS.add("https://huggingface.co")
             ALLOWED_ORIGINS.add(f"https://huggingface.co/spaces/{_space_id}")

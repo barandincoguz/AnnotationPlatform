@@ -57,12 +57,11 @@ async def lifespan(_app: FastAPI):
             username=config.BOOTSTRAP_ADMIN_USERNAME,
             password=config.BOOTSTRAP_ADMIN_PASSWORD,
         )
-        # Ensure BURSIYER-2026 is seeded as the active invite code (skip in test environment)
+        # Ensure BURSIYER-2026 is seeded as the active invite code if no active invite code exists (skip in test environment)
         if config.ENVIRONMENT != "test":
             from datetime import datetime, timezone
             active_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
-            if active_code is None or active_code["code"] != "BURSIYER-2026":
-                conn.execute("UPDATE invite_codes SET is_active=0, rotated_at=? WHERE is_active=1", (datetime.now(timezone.utc).isoformat(),))
+            if active_code is None:
                 conn.execute(
                     "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
                     ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
@@ -74,20 +73,13 @@ async def lifespan(_app: FastAPI):
             )
             conn.commit()
 
-        # Automatic document replication from Neon Postgres on first boot (Phase 6, auto-sync)
-        count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
+        # Automatic document replication and full user state sync from Neon Postgres on first boot (Phase 6 + Ephemeral Sync)
+        user_count = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
+        doc_count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
         from backend.mirror import config as mirror_config
         mirror_config.reload_from_env()
-        if config.ENVIRONMENT != "test" and count == 0 and mirror_config.NEON_MIRROR_URL:
+        if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL and (user_count == 0 or doc_count == 0):
             import psycopg
-            from backend.documents.parser import parse_document, ParseError
-            from backend.documents.service import _upsert_meta, _replace_kanun_refs, _replace_bkk_refs
-            
-            audit.log_system_event(
-                conn, "neon_sync_start", "info",
-                message="Local documents database is empty. Starting automatic sync from Neon Postgres...",
-            )
-            print("Local documents database is empty. Starting automatic sync from Neon Postgres...")
             
             # Drop all outbox triggers temporarily to avoid generating useless queue writes (59,000+ rows)
             triggers = [row[0] for row in conn.execute(
@@ -97,55 +89,158 @@ async def lifespan(_app: FastAPI):
                 conn.execute(f"DROP TRIGGER IF EXISTS {t}")
                 
             try:
-                with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
-                    with pg_conn.cursor(name="startup_docs_sync") as pg_cur:
-                        pg_cur.itersize = 1000
-                        pg_cur.execute("SELECT evrak_id, display_text, raw_metadata_json FROM documents ORDER BY id")
-                        
-                        synced_count = 0
-                        skipped_count = 0
-                        conn.execute("BEGIN IMMEDIATE")
-                        try:
-                            for evrak_id, display_text, raw_meta in pg_cur:
-                                if not evrak_id or not display_text:
-                                    skipped_count += 1
-                                    continue
+                # 1. Replicate documents from Neon partner DB
+                if doc_count == 0:
+                    from backend.documents.parser import parse_document, ParseError
+                    from backend.documents.service import _upsert_meta, _replace_kanun_refs, _replace_bkk_refs
+                    
+                    audit.log_system_event(
+                        conn, "neon_sync_start", "info",
+                        message="Local documents database is empty. Starting automatic sync from Neon Postgres...",
+                    )
+                    print("Local documents database is empty. Starting automatic sync from Neon Postgres...")
+                    
+                    try:
+                        with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
+                            with pg_conn.cursor(name="startup_docs_sync") as pg_cur:
+                                pg_cur.itersize = 1000
+                                pg_cur.execute("SELECT evrak_id, display_text, raw_metadata_json FROM documents ORDER BY id")
                                 
-                                PARSER_KEYS = {
-                                    "evrakOid", "pdfText", "htmlText", "sayi", "tarih", "basvuruTarihi",
-                                    "vergiTuru", "vergiDonemi", "konu", "mukellefiyetTuru", "kanunBilgileri",
-                                    "bkkTebligSirkuBilgileri",
-                                }
-                                meta_doc = {k: v for k, v in (raw_meta or {}).items() if k in PARSER_KEYS}
-                                meta_doc["evrakOid"] = evrak_id
-                                meta_doc["pdfText"] = display_text
-                                
+                                synced_count = 0
+                                skipped_count = 0
+                                conn.execute("BEGIN IMMEDIATE")
                                 try:
-                                    parsed = parse_document(meta_doc, file_path="neon_postgres")
-                                    meta = parsed["meta"]
-                                    _upsert_meta(conn, meta)
-                                    _replace_kanun_refs(conn, meta["document_id"], parsed["kanun_refs"])
-                                    _replace_bkk_refs(conn, meta["document_id"], parsed["bkk_refs"])
-                                    synced_count += 1
-                                except ParseError:
-                                    skipped_count += 1
-                                    continue
-                            conn.commit()
-                        except Exception:
-                            conn.rollback()
-                            raise
+                                    for evrak_id, display_text, raw_meta in pg_cur:
+                                        if not evrak_id or not display_text:
+                                            skipped_count += 1
+                                            continue
+                                        
+                                        PARSER_KEYS = {
+                                            "evrakOid", "pdfText", "htmlText", "sayi", "tarih", "basvuruTarihi",
+                                            "vergiTuru", "vergiDonemi", "konu", "mukellefiyetTuru", "kanunBilgileri",
+                                            "bkkTebligSirkuBilgileri",
+                                        }
+                                        meta_doc = {k: v for k, v in (raw_meta or {}).items() if k in PARSER_KEYS}
+                                        meta_doc["evrakOid"] = evrak_id
+                                        meta_doc["pdfText"] = display_text
+                                        
+                                        try:
+                                            parsed = parse_document(meta_doc, file_path="neon_postgres")
+                                            meta = parsed["meta"]
+                                            _upsert_meta(conn, meta)
+                                            _replace_kanun_refs(conn, meta["document_id"], parsed["kanun_refs"])
+                                            _replace_bkk_refs(conn, meta["document_id"], parsed["bkk_refs"])
+                                            synced_count += 1
+                                        except ParseError:
+                                            skipped_count += 1
+                                            continue
+                                    conn.commit()
+                                except Exception:
+                                    conn.rollback()
+                                    raise
+                                    
+                        audit.log_system_event(
+                            conn, "neon_sync_success", "info",
+                            message=f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})",
+                        )
+                        print(f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})")
+                    except Exception as e:
+                        audit.log_system_event(
+                            conn, "neon_sync_failed", "error",
+                            message=f"Failed to auto-sync documents from Neon: {e}",
+                        )
+                        print(f"Failed to auto-sync documents from Neon: {e}")
+
+                # 2. Sync all users and activity state if users are empty (solves ephemeral storage completely)
+                if user_count == 0:
+                    from psycopg.rows import dict_row
+                    import json
+                    from datetime import datetime
+                    
+                    USER_AND_ACTIVITY_TABLES = [
+                        "users",
+                        "invite_codes",
+                        "site_settings",
+                        "user_sessions",
+                        "gamification_state",
+                        "gamification_ledger",
+                        "badges_earned",
+                        "training_attempts",
+                        "notifications",
+                        "training_gold_doc_overrides",
+                        "annotations",
+                        "annotation_versions",
+                        "annotation_references",
+                        "drafts",
+                        "activity_events",
+                        "behavioral_events",
+                        "admin_audit_log",
+                        "system_events",
+                        "document_locks",
+                    ]
+                    
+                    def _translate_value(val):
+                        if isinstance(val, (dict, list)):
+                            return json.dumps(val, ensure_ascii=False)
+                        if isinstance(val, datetime):
+                            return val.isoformat()
+                        return val
+                        
+                    try:
+                        with psycopg.connect(mirror_config.NEON_MIRROR_URL, row_factory=dict_row) as pg_conn:
+                            audit.log_system_event(
+                                conn, "neon_user_sync_start", "info",
+                                message="Local users database is empty. Starting automatic state restoration from Neon Postgres...",
+                            )
+                            print("Local users database is empty. Starting automatic state restoration from Neon Postgres...")
                             
-                audit.log_system_event(
-                    conn, "neon_sync_success", "info",
-                    message=f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})",
-                )
-                print(f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})")
-            except Exception as e:
-                audit.log_system_event(
-                    conn, "neon_sync_failed", "error",
-                    message=f"Failed to auto-sync documents from Neon: {e}",
-                )
-                print(f"Failed to auto-sync documents from Neon: {e}")
+                            conn.execute("BEGIN IMMEDIATE")
+                            conn.execute("PRAGMA foreign_keys=OFF")
+                            try:
+                                for table in USER_AND_ACTIVITY_TABLES:
+                                    pg_cur = pg_conn.cursor()
+                                    try:
+                                        pg_cur.execute(f"SELECT * FROM baran_{table}")
+                                        rows = pg_cur.fetchall()
+                                    except Exception as e:
+                                        print(f"Skipping restore for table {table} (not found or error on Neon: {e})")
+                                        continue
+                                    finally:
+                                        pg_cur.close()
+                                        
+                                    if not rows:
+                                        continue
+                                        
+                                    # Delete existing rows if any to ensure clean state
+                                    conn.execute(f"DELETE FROM {table}")
+                                    
+                                    columns = list(rows[0].keys())
+                                    placeholders = ",".join("?" for _ in columns)
+                                    sql = f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders})"
+                                    
+                                    for row in rows:
+                                        values = [_translate_value(row[col]) for col in columns]
+                                        conn.execute(sql, values)
+                                        
+                                    print(f"Successfully restored {len(rows)} rows to table {table}")
+                                conn.commit()
+                            except Exception:
+                                conn.rollback()
+                                raise
+                            finally:
+                                conn.execute("PRAGMA foreign_keys=ON")
+                                
+                        audit.log_system_event(
+                            conn, "neon_user_sync_success", "info",
+                            message="Successfully restored all users, sessions, annotations, and system state from Neon Postgres!",
+                        )
+                        print("Successfully restored all users, sessions, annotations, and system state from Neon Postgres!")
+                    except Exception as e:
+                        audit.log_system_event(
+                            conn, "neon_user_sync_failed", "error",
+                            message=f"Failed to auto-restore state from Neon: {e}",
+                        )
+                        print(f"Failed to auto-restore state from Neon: {e}")
             finally:
                 # Re-create all outbox triggers (always run to ensure DB is never left unprotected)
                 from backend.migrations.helpers.trigger_generator import build_triggers_for_table, _collect_schemas
