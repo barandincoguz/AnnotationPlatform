@@ -203,10 +203,23 @@ def login(
 
 
 def logout(db: sqlite3.Connection, *, session_token: str) -> None:
+    # Find user_id associated with this session token to release any held locks
+    row = db.execute(
+        "SELECT user_id FROM user_sessions WHERE session_token=? AND ended_at IS NULL",
+        (session_token,),
+    ).fetchone()
+
     db.execute(
         "UPDATE user_sessions SET ended_at=? WHERE session_token=? AND ended_at IS NULL",
         (_now(), session_token),
     )
+
+    if row:
+        user_id = row["user_id"]
+        db.execute(
+            "DELETE FROM document_locks WHERE user_id=?",
+            (user_id,),
+        )
 
 
 def get_user_by_session(

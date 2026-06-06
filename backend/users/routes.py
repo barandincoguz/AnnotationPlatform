@@ -113,14 +113,47 @@ def login(
 
 
 @router.post("/auth/logout")
-def logout(
+async def logout(
     request: Request,
     response: Response,
     db: sqlite3.Connection = Depends(get_db),
 ):
     token = request.cookies.get(config.SESSION_COOKIE_NAME)
     if token:
-        service.logout(db, session_token=token)
+        # Find user_id and active locks before logging out
+        session = db.execute(
+            "SELECT user_id FROM user_sessions WHERE session_token=? AND ended_at IS NULL",
+            (token,),
+        ).fetchone()
+        
+        if session:
+            user_id = session["user_id"]
+            # Find active locks held by this user
+            locks = db.execute(
+                "SELECT document_id FROM document_locks WHERE user_id=?",
+                (user_id,),
+            ).fetchall()
+            
+            # Perform logout (ends session + deletes locks)
+            service.logout(db, session_token=token)
+            
+            # Publish lock_released for each released lock so the UI instantly updates
+            from backend.shared.sse import broker as sse_broker
+            for lock in locks:
+                doc_id = lock["document_id"]
+                try:
+                    await sse_broker.publish_broadcast(
+                        "lock_released",
+                        {
+                            "document_id": doc_id,
+                            "by_user_id": user_id,
+                            "reason": "user_logout",
+                        },
+                    )
+                except Exception:
+                    log.exception("publish lock_released failed during logout for %s", doc_id)
+        else:
+            service.logout(db, session_token=token)
     response.delete_cookie(config.SESSION_COOKIE_NAME, path="/")
     return {"ok": True}
 

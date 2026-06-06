@@ -123,6 +123,63 @@ def test_logout_clears_session(seeded_client):
     assert r2.status_code == 401
 
 
+def test_logout_releases_user_locks(seeded_client):
+    """Verify that logging out immediately releases any document locks held by the user."""
+    from backend.shared.db import connect
+    from backend import config
+    
+    # 1. Register and login
+    seeded_client.post("/api/auth/register", json={
+        "username": "alice", "password": "password123",
+        "invite_code": "BURSIYER-2026",
+    })
+    seeded_client.post("/api/auth/login", json={
+        "username": "alice", "password": "password123",
+    })
+    
+    # Get user ID
+    conn = connect(config.DB_PATH)
+    try:
+        user = conn.execute("SELECT id FROM users WHERE username='alice'").fetchone()
+        user_id = user["id"]
+        
+        # 2. Manually insert a document lock or acquire it
+        doc = conn.execute("SELECT document_id FROM documents_meta LIMIT 1").fetchone()
+        if not doc:
+            conn.execute(
+                "INSERT INTO documents_meta(document_id, file_path, pdf_text, word_count, sentence_count, text_density, estimated_difficulty, created_at) "
+                "VALUES ('doc1', 'path', 'text', 100, 10, 0.5, 'Kolay', datetime('now'))"
+            )
+            doc_id = "doc1"
+        else:
+            doc_id = doc["document_id"]
+            
+        # Insert a lock
+        conn.execute(
+            "INSERT INTO document_locks(document_id, user_id, acquired_at, last_heartbeat, expires_at) "
+            "VALUES (?, ?, datetime('now'), datetime('now'), datetime('now', '+5 minutes'))",
+            (doc_id, user_id),
+        )
+        
+        # Verify lock is present
+        lock = conn.execute("SELECT 1 FROM document_locks WHERE document_id=? AND user_id=?", (doc_id, user_id)).fetchone()
+        assert lock is not None
+    finally:
+        conn.close()
+        
+    # 3. Log out
+    r = seeded_client.post("/api/auth/logout")
+    assert r.status_code == 200
+    
+    # 4. Verify lock is immediately released in the database!
+    conn = connect(config.DB_PATH)
+    try:
+        lock = conn.execute("SELECT 1 FROM document_locks WHERE document_id=? AND user_id=?", (doc_id, user_id)).fetchone()
+        assert lock is None, "Expected document lock to be released on logout!"
+    finally:
+        conn.close()
+
+
 def test_seen_manual_endpoint_sets_flag(seeded_client):
     seeded_client.post("/api/auth/register", json={
         "username": "alice", "password": "password123",
