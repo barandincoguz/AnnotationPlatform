@@ -45,12 +45,12 @@ function MetaField({
 }) {
   if (value === null || value === undefined || value === '' || value === '—') return null
   return (
-    <div className="flex items-baseline gap-2">
-      <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80 translate-y-[2px]" />
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
+    <div className="flex items-center gap-1.5 min-w-0">
+      <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
+      <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 shrink-0">
+        {label}:
       </span>
-      <span className="font-medium tabular-nums text-foreground">{value}</span>
+      <span className="font-medium text-[11px] tabular-nums text-foreground truncate">{value}</span>
     </div>
   )
 }
@@ -68,23 +68,23 @@ function RefList({
 }) {
   if (refs.length === 0) return null
   return (
-    <section className="space-y-2">
-      <div className="flex items-baseline gap-2">
-        <Icon aria-hidden="true" className="h-4 w-4 text-accent" />
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+    <section className="space-y-1.5">
+      <div className="flex items-baseline gap-1.5">
+        <Icon aria-hidden="true" className="h-3.5 w-3.5 text-accent" />
+        <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
           {title}
         </span>
-        <span className="font-mono text-[11px] font-bold tabular-nums text-foreground/80">
-          {refs.length}
+        <span className="font-mono text-[10px] font-bold tabular-nums text-foreground/70">
+          ({refs.length})
         </span>
       </div>
-      <ol className="space-y-1.5 pl-1">
+      <ol className="space-y-1 pl-1">
         {refs.map((ref) => (
           <li
             key={ref.seq}
-            className="flex items-baseline gap-2.5 rounded-md border border-border/50 bg-card/60 px-3 py-2 text-[14px]"
+            className="flex items-baseline gap-2 rounded-md border border-border/40 bg-card/45 px-2.5 py-1 text-[13px]"
           >
-            <span className="font-mono text-[11px] font-bold tabular-nums text-accent">
+            <span className="font-mono text-[10px] font-bold tabular-nums text-accent">
               {String(ref.seq + 1).padStart(2, '0')}.
             </span>
             <span className="flex-1 text-foreground/90 leading-snug">
@@ -143,35 +143,24 @@ function renderBkkRef(ref: KanunRef | BkkRef) {
 
 function Header({ d }: { d: DocumentDetail }) {
   return (
-    <header className="space-y-3 border-b border-border/60 bg-card/60 px-5 py-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div className="flex items-baseline gap-3 min-w-0">
-          {/* The "ID" cap is the editorial moment — Fraunces display
-              weight makes it read as a label-title. The id value itself
-              is the operational artifact: monospace so distinct chars
-              line up, smaller so the long string doesn't fight the
-              cap for attention. */}
-          <span className="font-display text-[2.5rem] font-bold leading-[0.9] tracking-tight text-foreground">
-            ID
-          </span>
-          <span
-            aria-hidden
-            className="font-display text-[2.5rem] font-bold leading-[0.9] text-muted-foreground/60"
-          >
-            :
+    <header className="space-y-1.5 border-b border-border/60 bg-card/60 px-5 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-display text-[1.125rem] font-bold tracking-tight text-foreground shrink-0">
+            ID:
           </span>
           <span
             title="Doküman kimliği (evrakOid)"
-            className="font-mono text-[18px] font-bold tracking-tight text-foreground select-all break-all"
+            className="font-mono text-[13px] font-bold tracking-tight text-foreground select-all break-all"
           >
             {d.document_id}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {d.estimated_difficulty && (
             <span
               className={cn(
-                'inline-flex items-center rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em]',
+                'inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]',
                 difficultyTint(d.estimated_difficulty),
               )}
             >
@@ -179,15 +168,15 @@ function Header({ d }: { d: DocumentDetail }) {
             </span>
           )}
           {d.word_count > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              <AlignLeft className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <AlignLeft className="h-2.5 w-2.5" />
               {TR_FORMATTER.format(d.word_count)} kelime
             </span>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         <MetaField icon={CalendarDays} label="Tarih" value={formatYmd(d.tarih)} />
         <MetaField
           icon={ClipboardCheck}
@@ -201,11 +190,11 @@ function Header({ d }: { d: DocumentDetail }) {
       </div>
 
       {d.konu && (
-        <div className="space-y-1 border-t border-border/40 pt-3">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Konu
-          </div>
-          <p className="text-[15px] font-semibold leading-snug text-foreground">
+        <div className="border-t border-border/40 pt-1.5 flex gap-1.5 items-baseline text-[12px]">
+          <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground shrink-0">
+            Konu:
+          </span>
+          <p className="font-medium leading-normal text-foreground/90">
             {d.konu}
           </p>
         </div>
@@ -247,7 +236,7 @@ export function DocViewer({ docId }: DocViewerProps) {
 
       <div className="flex-1 overflow-auto">
         {hasRefs && (
-          <section className="space-y-4 border-b border-border/40 bg-secondary/30 px-5 py-4">
+          <section className="space-y-3 border-b border-border/40 bg-secondary/30 px-5 py-3">
             {/* The whole point of this annotation platform is that the
                 kanun/bkk references shipped with the source data are
                 known to be INCOMPLETE and UNRELIABLE — the project
@@ -258,14 +247,12 @@ export function DocViewer({ docId }: DocViewerProps) {
             <div
               role="note"
               data-testid="refs-source-warning"
-              className="flex items-start gap-2.5 rounded-md border border-destructive/40 bg-destructive/[0.07] px-3 py-2.5 text-[13px] font-medium leading-snug text-destructive"
+              className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/[0.04] px-2.5 py-1.5 text-[12px] font-medium leading-normal text-destructive"
             >
-              <AlertTriangle aria-hidden="true" className="h-4 w-4 shrink-0 translate-y-[1px]" />
+              <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 shrink-0 translate-y-[2px]" />
               <span>
-                <span className="font-semibold">Kaynak veriden geliyor.</span>{' '}
-                Bu referanslar eksik ve güvenilir değildir — doğrulamanız
-                gerekir. Anotasyon platformunun varlık sebebi tam olarak
-                bu listeyi insan eliyle düzeltmektir.
+                <span className="font-semibold">Kaynak veriden geliyor (Eksik/Güvensiz).</span>{' '}
+                Doğrulamanız gerekir; amacımız bu listeyi insan eliyle düzeltmektir.
               </span>
             </div>
             <RefList
