@@ -52,6 +52,8 @@ async def lifespan(_app: FastAPI):
     conn = connect(config.DB_PATH)
     try:
         applied = apply_migrations(conn, discover_migrations())
+        user_count_before = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
+        is_fresh_db = (user_count_before == 0)
         seed_bootstrap_admin(
             conn,
             username=config.BOOTSTRAP_ADMIN_USERNAME,
@@ -78,7 +80,7 @@ async def lifespan(_app: FastAPI):
         doc_count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
         from backend.mirror import config as mirror_config
         mirror_config.reload_from_env()
-        if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL and (user_count == 0 or doc_count == 0):
+        if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL and (is_fresh_db or doc_count == 0):
             import psycopg
             
             # Drop all outbox triggers temporarily to avoid generating useless queue writes (59,000+ rows)
