@@ -18,29 +18,32 @@ export function AnnotateLayout() {
 
   return (
     // TopBar is h-16 (64px) post-4b, so the editor pane is viewport
-    // minus 4rem rather than the pre-4b 3.5rem. Without this the bottom
-    // 8px of the editor gets clipped on small displays.
-    <div className="flex h-[calc(100vh-4rem)] flex-col bg-background">
-      <div className="space-y-2.5 border-b border-border/70 bg-card/40 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <DocSearch className="flex-1" />
-          <SortMenu
-            tab={tab}
-            sort={sort}
-            onChange={(next) => setSort(tab, next)}
-          />
+    // minus 4rem. Moving filters and tabs into the sidebar removes the
+    // full-width top header completely, giving the reading & annotation
+    // pane maximum possible dikey height (full remaining viewport).
+    <div className="flex h-[calc(100vh-4rem)] bg-background overflow-hidden">
+      <div className="grid w-full grid-cols-[30%_1fr] overflow-hidden">
+        <div className="border-r border-border/70 overflow-hidden bg-card/30 flex flex-col h-full">
+          <div className="space-y-2 border-b border-border/70 bg-card/45 px-3 py-2.5 shrink-0">
+            <DocSearch className="w-full" />
+            <div className="flex items-center gap-1.5 justify-between">
+              <TabStrip tab={tab} onChange={setTab} />
+              <SortMenu
+                tab={tab}
+                sort={sort}
+                onChange={(next) => setSort(tab, next)}
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <DocList
+              tab={tab}
+              selectedId={docId ?? null}
+              onSelectDoc={(id) => navigate(`/docs/${id}`)}
+            />
+          </div>
         </div>
-        <TabStrip tab={tab} onChange={setTab} />
-      </div>
-      <div className="grid h-full grid-cols-[30%_1fr] overflow-hidden">
-        <div className="border-r border-border/70 overflow-hidden bg-card/30">
-          <DocList
-            tab={tab}
-            selectedId={docId ?? null}
-            onSelectDoc={(id) => navigate(`/docs/${id}`)}
-          />
-        </div>
-        <div className="overflow-hidden">
+        <div className="overflow-hidden h-full">
           <Outlet />
         </div>
       </div>

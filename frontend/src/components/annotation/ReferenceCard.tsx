@@ -1,4 +1,4 @@
-import { X, Quote, AlertCircle } from 'lucide-react'
+import { X, Quote, AlertCircle, ChevronUp } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -127,18 +127,26 @@ export function ReferenceCard({
         )}
       />
       <CardContent className="space-y-5 p-5 pl-6">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between gap-2 border-b border-border/30 pb-3">
+          <button
+            type="button"
+            onClick={onExpand}
+            className="flex items-center gap-2.5 cursor-pointer select-none group/hdr flex-1 min-w-0 text-left focus-visible:outline-none"
+            title="Daraltmak için tıklayın"
+          >
             <span className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-[12px] font-bold tabular-nums',
-              isCardInvalid ? 'bg-destructive/15 text-destructive' : 'bg-accent2/15 text-accent2'
+              'inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-[12px] font-bold tabular-nums transition-colors',
+              isCardInvalid 
+                ? 'bg-destructive/15 text-destructive group-hover/hdr:bg-destructive/25' 
+                : 'bg-accent2/15 text-accent2 group-hover/hdr:bg-accent2/25'
             )}>
               {index + 1}
             </span>
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground group-hover/hdr:text-foreground transition-colors truncate">
               Referans
             </span>
-          </div>
+            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/60 group-hover/hdr:text-foreground transition-colors shrink-0" />
+          </button>
           <Button
             type="button"
             variant="ghost"

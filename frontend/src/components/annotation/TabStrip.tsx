@@ -43,16 +43,16 @@ const TABS: TabDef[] = [
 
 export function TabStrip({ tab, onChange }: TabStripProps) {
   return (
-    <Tabs value={tab} onValueChange={(v) => onChange(v as FeedTab)}>
-      <TabsList className="h-11 gap-1 bg-muted/70 p-1">
+    <Tabs value={tab} onValueChange={(v) => onChange(v as FeedTab)} className="w-full">
+      <TabsList className="grid grid-cols-3 w-full h-9 bg-muted/70 p-1 gap-0.5">
         {TABS.map(({ value, label, Icon, activeRing, iconClass }) => (
           <TabsTrigger
             key={value}
             value={value}
-            className={`gap-2 px-4 py-2 text-[15px] font-semibold transition-all ${activeRing}`}
+            className={`gap-1.5 px-2 py-1 text-[11px] font-bold transition-all truncate ${activeRing}`}
           >
-            <Icon aria-hidden="true" className={`h-4 w-4 ${iconClass}`} />
-            {label}
+            <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${iconClass}`} />
+            <span className="truncate">{label}</span>
           </TabsTrigger>
         ))}
       </TabsList>
