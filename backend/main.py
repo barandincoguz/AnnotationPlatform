@@ -154,7 +154,7 @@ async def lifespan(_app: FastAPI):
                         print(f"Failed to auto-sync documents from Neon: {e}")
 
                 # 2. Sync all users and activity state if users are empty (solves ephemeral storage completely)
-                if user_count == 0:
+                if is_fresh_db:
                     from psycopg.rows import dict_row
                     import json
                     from datetime import datetime
