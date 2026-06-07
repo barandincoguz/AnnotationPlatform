@@ -105,6 +105,6 @@ describe('useMarkAllReadMutation', () => {
     await act(async () => {
       await result.current.mutateAsync().catch(() => null)
     })
-    expect(result.current.isError).toBe(true)
+    await waitFor(() => expect(result.current.isError).toBe(true))
   })
 })

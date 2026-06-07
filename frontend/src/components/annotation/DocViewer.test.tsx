@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/test/msw-server'
 import { renderWithProviders } from '@/test/render'
@@ -80,6 +80,8 @@ describe('DocViewer', () => {
       ),
     )
     renderWithProviders(<DocViewer docId="doc-r" />)
+    await waitFor(() => expect(screen.getByText(/Kaynak Veri Referansları/i)).toBeInTheDocument())
+    fireEvent.click(screen.getByText(/Kaynak Veri Referansları/i))
     await waitFor(() => expect(screen.getByText(/kanun bilgileri/i)).toBeInTheDocument())
     // Multiple kanun rows share the kodu string; assert both maddeler appear.
     expect(screen.getByText(/Madde 37/)).toBeInTheDocument()
@@ -103,6 +105,8 @@ describe('DocViewer', () => {
       ),
     )
     renderWithProviders(<DocViewer docId="doc-b" />)
+    await waitFor(() => expect(screen.getByText(/Kaynak Veri Referansları/i)).toBeInTheDocument())
+    fireEvent.click(screen.getByText(/Kaynak Veri Referansları/i))
     await waitFor(() => expect(screen.getByText(/BKK \/ Tebliğ \/ Sirküler/i)).toBeInTheDocument())
     expect(screen.getByText('TEBLİĞ')).toBeInTheDocument()
     expect(screen.getByText(/Madde 325/)).toBeInTheDocument()
@@ -125,9 +129,11 @@ describe('DocViewer', () => {
       ),
     )
     renderWithProviders(<DocViewer docId="doc-warn" />)
+    await waitFor(() => expect(screen.getByText(/Kaynak Veri Referansları/i)).toBeInTheDocument())
+    fireEvent.click(screen.getByText(/Kaynak Veri Referansları/i))
     const warning = await screen.findByTestId('refs-source-warning')
     expect(warning).toBeInTheDocument()
-    expect(warning.textContent).toMatch(/güvenilir değil/i)
+    expect(warning.textContent).toMatch(/güvensiz/i)
     expect(warning.className).toMatch(/destructive/)
   })
 

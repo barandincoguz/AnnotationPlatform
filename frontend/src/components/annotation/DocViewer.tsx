@@ -261,7 +261,7 @@ export function DocViewer({ docId }: DocViewerProps) {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-                <span className="text-[11px] font-medium">{showRawRefs ? 'Göster' : 'Gizle'}</span>
+                <span className="text-[11px] font-medium">{showRawRefs ? 'Gizle' : 'Göster'}</span>
                 {showRawRefs ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </div>
             </button>

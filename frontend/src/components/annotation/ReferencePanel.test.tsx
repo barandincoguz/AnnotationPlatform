@@ -32,9 +32,15 @@ describe('ReferencePanel', () => {
         refs={[makeReferenceItem({ madde: '1' }), makeReferenceItem({ madde: '2' })]}
       />,
     )
-    // 4d: card title shifted from "Referans #N" to a numbered badge + mono
-    // "Referans" kicker. Match the kicker which is rendered once per card.
-    expect(screen.getAllByText('Referans')).toHaveLength(2)
+    // The first card is expanded by default, so it renders "Referans"
+    expect(screen.getAllByText('Referans')).toHaveLength(1)
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getAllByText('2')).toHaveLength(2) // One in header, one in card badge
+
+    // Click the second card to expand it
+    fireEvent.click(screen.getAllByText('2')[1])
+    // Now the second card is expanded, so it renders "Referans"
+    expect(screen.getAllByText('Referans')).toHaveLength(1)
   })
 
   it('shows empty state with hint when no refs', () => {
