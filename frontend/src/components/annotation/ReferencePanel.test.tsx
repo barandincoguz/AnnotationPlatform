@@ -38,7 +38,7 @@ describe('ReferencePanel', () => {
     expect(screen.getAllByText('2')).toHaveLength(2) // One in header, one in card badge
 
     // Click the second card to expand it
-    fireEvent.click(screen.getAllByText('2')[1])
+    fireEvent.click(screen.getAllByText('2')[1]!)
     // Now the second card is expanded, so it renders "Referans"
     expect(screen.getAllByText('Referans')).toHaveLength(1)
   })
