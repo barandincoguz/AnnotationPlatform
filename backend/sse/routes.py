@@ -56,7 +56,7 @@ def _build_online_payload(db: sqlite3.Connection, user_id: int) -> dict:
 
 
 async def _stream_for_user(
-    user_id: int, db: sqlite3.Connection,
+    user_id: int, db: Optional[sqlite3.Connection] = None,
 ) -> AsyncIterator[str]:
     """Subscribe to broker; yield SSE messages until cancelled.
 
@@ -68,7 +68,17 @@ async def _stream_for_user(
     try:
         # Fire user_online to everyone EXCEPT the subscriber.
         try:
-            payload = _build_online_payload(db, user_id)
+            if db is not None:
+                payload = _build_online_payload(db, user_id)
+            else:
+                from backend.shared.db import connect
+                from backend import config
+                conn = connect(config.DB_PATH)
+                try:
+                    payload = _build_online_payload(conn, user_id)
+                finally:
+                    conn.close()
+
             await broker.publish_to_others(
                 except_user_id=user_id,
                 event_type="user_online",
@@ -108,11 +118,10 @@ async def _stream_for_user(
 
 @router.get("/events")
 async def events(
-    db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_passed_training),
 ):
     return StreamingResponse(
-        _stream_for_user(user["id"], db),
+        _stream_for_user(user["id"]),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
