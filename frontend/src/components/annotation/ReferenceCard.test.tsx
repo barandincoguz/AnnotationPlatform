@@ -20,6 +20,8 @@ describe('ReferenceCard', () => {
         onChange={vi.fn()}
         onRemove={vi.fn()}
         disabled={false}
+        isExpanded={true}
+        onExpand={vi.fn()}
       />,
     )
     expect(screen.getByLabelText(/^kanun no$/i)).toHaveValue('213')
@@ -37,6 +39,8 @@ describe('ReferenceCard', () => {
         onChange={onChange}
         onRemove={vi.fn()}
         disabled={false}
+        isExpanded={true}
+        onExpand={vi.fn()}
       />,
     )
     await user.type(screen.getByLabelText(/^madde$/i), '5')
@@ -52,6 +56,8 @@ describe('ReferenceCard', () => {
         onChange={vi.fn()}
         onRemove={onRemove}
         disabled={false}
+        isExpanded={true}
+        onExpand={vi.fn()}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /sil/i }))
@@ -66,6 +72,8 @@ describe('ReferenceCard', () => {
         onChange={vi.fn()}
         onRemove={vi.fn()}
         disabled={true}
+        isExpanded={true}
+        onExpand={vi.fn()}
       />,
     )
     expect(screen.getByLabelText(/^metinden alıntı$/i)).toBeDisabled()

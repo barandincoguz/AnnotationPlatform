@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import { Plus, Loader2, Check, AlertCircle, Undo2, BookMarked } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -70,6 +71,21 @@ export function ReferencePanel({
   hasAnnotation,
   isCompleted,
 }: ReferencePanelProps) {
+  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(0)
+  const prevLengthRef = useRef(refs.length)
+
+  // Auto-expand newly added reference cards (Bug prevention: UX streamlining)
+  useEffect(() => {
+    if (refs.length > prevLengthRef.current) {
+      setActiveCardIndex(refs.length - 1)
+    }
+    prevLengthRef.current = refs.length
+  }, [refs.length])
+
+  const handleExpand = (index: number) => {
+    setActiveCardIndex((prev) => (prev === index ? null : index))
+  }
+
   const completeDisabled =
     !canEdit ||
     isSaving ||
@@ -107,7 +123,7 @@ export function ReferencePanel({
           </span>
         )}
       </header>
-      <div className="flex-1 space-y-4 overflow-auto p-5">
+      <div className="flex-1 space-y-3 overflow-auto p-5">
         {refs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/70 bg-card/40 px-6 py-10 text-center">
             <span aria-hidden className="font-display text-5xl leading-none text-accent/30">
@@ -129,6 +145,8 @@ export function ReferencePanel({
               onChange={(next) => onUpdate(i, next)}
               onRemove={() => onRemove(i)}
               disabled={!canEdit}
+              isExpanded={activeCardIndex === i}
+              onExpand={() => handleExpand(i)}
             />
           ))
         )}

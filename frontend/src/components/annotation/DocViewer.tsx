@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   BookMarked,
   BookOpen,
@@ -9,6 +9,8 @@ import {
   Users,
   AlignLeft,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { useDoc } from '@/hooks/useDoc'
 import { formatYmd } from '@/lib/formatters'
@@ -205,6 +207,16 @@ function Header({ d }: { d: DocumentDetail }) {
 
 export function DocViewer({ docId }: DocViewerProps) {
   const q = useDoc(docId)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [showRawRefs, setShowRawRefs] = useState(false)
+
+  // Scroll to top on docId change (Bug prevention: prevents sticking to previous scroll)
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0
+    }
+  }, [docId])
+
   // 3-pass regex over multi-KB pdf_text. Memoized so any unrelated
   // parent re-render (zustand tick, child query refetch, typing in
   // the right-pane ReferenceCards if they ever bubble state up) does
@@ -234,40 +246,61 @@ export function DocViewer({ docId }: DocViewerProps) {
     <div className="flex h-full flex-col overflow-hidden">
       <Header d={d} />
 
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         {hasRefs && (
-          <section className="space-y-3 border-b border-border/40 bg-secondary/30 px-5 py-3">
-            {/* The whole point of this annotation platform is that the
-                kanun/bkk references shipped with the source data are
-                known to be INCOMPLETE and UNRELIABLE — the project
-                exists to produce a corrected, human-verified set. We
-                surface the upstream values here only as a starting
-                point; this banner makes sure no annotator mistakes
-                them for ground truth. */}
-            <div
-              role="note"
-              data-testid="refs-source-warning"
-              className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/[0.04] px-2.5 py-1.5 text-[12px] font-medium leading-normal text-destructive"
+          <div className="border-b border-border/40 bg-secondary/15">
+            <button
+              type="button"
+              onClick={() => setShowRawRefs(!showRawRefs)}
+              className="flex w-full items-center justify-between px-5 py-2 text-left hover:bg-secondary/30 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 shrink-0 translate-y-[2px]" />
-              <span>
-                <span className="font-semibold">Kaynak veriden geliyor (Eksik/Güvensiz).</span>{' '}
-                Doğrulamanız gerekir; amacımız bu listeyi insan eliyle düzeltmektir.
-              </span>
-            </div>
-            <RefList
-              refs={d.kanun_refs}
-              icon={BookMarked}
-              title="Kanun Bilgileri"
-              renderItem={renderKanunRef}
-            />
-            <RefList
-              refs={d.bkk_refs}
-              icon={BookOpen}
-              title="BKK / Tebliğ / Sirküler"
-              renderItem={renderBkkRef}
-            />
-          </section>
+              <div className="flex items-center gap-2">
+                <BookMarked className="h-4 w-4 text-accent/80" />
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                  Kaynak Veri Referansları ({d.kanun_refs.length + d.bkk_refs.length} Atıf)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                <span className="text-[11px] font-medium">{showRawRefs ? 'Göster' : 'Gizle'}</span>
+                {showRawRefs ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </div>
+            </button>
+
+            {showRawRefs && (
+              <section className="space-y-3 border-t border-border/30 bg-secondary/30 px-5 py-3 transition-all">
+                {/* The whole point of this annotation platform is that the
+                    kanun/bkk references shipped with the source data are
+                    known to be INCOMPLETE and UNRELIABLE — the project
+                    exists to produce a corrected, human-verified set. We
+                    surface the upstream values here only as a starting
+                    point; this banner makes sure no annotator mistakes
+                    them for ground truth. */}
+                <div
+                  role="note"
+                  data-testid="refs-source-warning"
+                  className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/[0.04] px-2.5 py-1.5 text-[12px] font-medium leading-normal text-destructive"
+                >
+                  <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 shrink-0 translate-y-[2px]" />
+                  <span>
+                    <span className="font-semibold">Kaynak veriden geliyor (Eksik/Güvensiz).</span>{' '}
+                    Doğrulamanız gerekir; amacımız bu listeyi insan eliyle düzeltmektir.
+                  </span>
+                </div>
+                <RefList
+                  refs={d.kanun_refs}
+                  icon={BookMarked}
+                  title="Kanun Bilgileri"
+                  renderItem={renderKanunRef}
+                />
+                <RefList
+                  refs={d.bkk_refs}
+                  icon={BookOpen}
+                  title="BKK / Tebliğ / Sirküler"
+                  renderItem={renderBkkRef}
+                />
+              </section>
+            )}
+          </div>
         )}
 
         <article className="whitespace-pre-wrap px-5 py-5 text-[15px] leading-[1.7] text-foreground/95 font-serif">

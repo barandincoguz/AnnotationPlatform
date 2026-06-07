@@ -37,10 +37,26 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
   const [revealOpen, setRevealOpen] = useState(false)
   useEffect(() => { setRevealOpen(false) }, [currentDoc?.gold_id])
 
+  const refs = currentDoc ? (docRefs[currentDoc.gold_id] ?? []) : []
+  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(0)
+  const prevLengthRef = useRef(refs.length)
+
+  // Auto-expand newly added reference cards
+  useEffect(() => {
+    if (refs.length > prevLengthRef.current) {
+      setActiveCardIndex(refs.length - 1)
+    }
+    prevLengthRef.current = refs.length
+  }, [refs.length])
+
+  const handleExpand = (index: number) => {
+    setActiveCardIndex((prev) => (prev === index ? null : index))
+  }
+
   if (!currentDoc) {
     return <p className="text-sm text-muted-foreground">Doküman bulunamadı.</p>
   }
-  const refs = docRefs[currentDoc.gold_id] ?? []
+
   const allValid = areAllTrainingReferencesValid(refs)
   const expectedConcepts = (currentDoc as { expected_concepts?: Record<string, string | null | undefined>[] }).expected_concepts ?? []
   const minConceptCount = (currentDoc as { min_concept_count?: number }).min_concept_count ?? 1
@@ -108,6 +124,8 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
             onChange={(next) => updateRef(i, next)}
             onRemove={() => removeRef(i)}
             disabled={isSubmitting}
+            isExpanded={activeCardIndex === i}
+            onExpand={() => handleExpand(i)}
           />
         ))}
         <Button onClick={addRef} variant="outline" size="sm" disabled={isSubmitting}>
