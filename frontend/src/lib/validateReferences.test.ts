@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   isValidReference, areAllReferencesValid,
   isValidTrainingReference, areAllTrainingReferencesValid,
+  parseComplexMadde, cleanBent,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -97,5 +98,74 @@ describe('areAllTrainingReferencesValid', () => {
       ref({ kanun_no: '5520', source_text: '' }),
       ref({ madde: '5', source_text: '' }), // no kanun_*
     ])).toBe(false)
+  })
+})
+
+describe('parseComplexMadde', () => {
+  it('parses full complex reference correctly', () => {
+    expect(parseComplexMadde('5/1-a')).toEqual({
+      madde: '5',
+      fikra: '1',
+      bent: 'a',
+    })
+  })
+
+  it('parses Roman numerals correctly', () => {
+    expect(parseComplexMadde('V/1-a')).toEqual({
+      madde: 'V',
+      fikra: '1',
+      bent: 'a',
+    })
+  })
+
+  it('parses madde and fikra only', () => {
+    expect(parseComplexMadde('5/1')).toEqual({
+      madde: '5',
+      fikra: '1',
+      bent: null,
+    })
+  })
+
+  it('parses madde and bent only', () => {
+    expect(parseComplexMadde('5-a')).toEqual({
+      madde: '5',
+      fikra: null,
+      bent: 'a',
+    })
+  })
+
+  it('returns null for simple madde', () => {
+    expect(parseComplexMadde('5')).toBeNull()
+  })
+
+  it('returns null for invalid format', () => {
+    expect(parseComplexMadde('5/1/a-b')).toBeNull()
+  })
+})
+
+describe('cleanBent', () => {
+  it('strips parentheses and dots', () => {
+    expect(cleanBent('(a)')).toBe('a')
+    expect(cleanBent('a.')).toBe('a')
+    expect(cleanBent('(a).')).toBe('a')
+    expect(cleanBent('\"a\"')).toBe('a')
+  })
+
+  it('converts to lowercase', () => {
+    expect(cleanBent('A')).toBe('a')
+    expect(cleanBent('(B).')).toBe('b')
+  })
+})
+
+describe('isValidReference with complex madde', () => {
+  it('rejects unparsed complex madde', () => {
+    const ref = {
+      kanun_no: '5520',
+      source_text: 'metin',
+      madde: '5/1-a',
+      fikra: null,
+      bent: null,
+    }
+    expect(isValidReference(ref)).toBe(false)
   })
 })

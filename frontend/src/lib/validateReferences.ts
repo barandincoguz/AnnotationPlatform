@@ -2,11 +2,44 @@ import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
 
+export interface ParsedReference {
+  madde: string | null
+  fikra: string | null
+  bent: string | null
+}
+
 /**
- * Canonical empty-row factory. Two earlier sites built this literal by
- * hand (useReferencesState's `empty()` and training's `emptyRef()`);
- * consolidated here so adding a new optional field touches one place.
+ * Parses a complex madde input (e.g., "5/1-a") into separate fields.
  */
+export function parseComplexMadde(input: string): ParsedReference | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  
+  if (!trimmed.includes('/') && !trimmed.includes('-')) {
+    return null
+  }
+  
+  const match = trimmed.match(/^([0-9a-zA-Z]+)(?:\/([0-9a-zA-Z]+))?(?:-([a-zA-ZçğıöşüÇĞİÖŞÜ]+))?$/)
+  if (!match) {
+    return null
+  }
+  
+  return {
+    madde: match[1] || null,
+    fikra: match[2] || null,
+    bent: match[3] || null,
+  }
+}
+
+/**
+ * Cleans the bent field by stripping parentheses, dots, quotes, and converting to lowercase.
+ */
+export function cleanBent(val: string | null): string | null {
+  if (!val) return null
+  const cleaned = val.replace(/^[().'"\s]+|[().'"\s]+$/g, '').toLowerCase()
+  return cleaned || null
+}
+
 export function emptyReferenceItem(): ReferenceItem {
   return {
     kanun_no: null,
@@ -18,47 +51,24 @@ export function emptyReferenceItem(): ReferenceItem {
   }
 }
 
-/**
- * True iff the reference has SOME kanun signal (kanun_no or kanun_ad).
- * Shared helper that both validators below call — the same three lines
- * were duplicated in `isValidReference` and `isValidTrainingReference`.
- */
 function hasAtLeastOneKanunField(r: ReferenceItem): boolean {
   const hasKanunNo = (r.kanun_no?.trim() ?? '') !== ''
   const hasKanunAd = (r.kanun_ad?.trim() ?? '') !== ''
   return hasKanunNo || hasKanunAd
 }
 
-/**
- * A reference is valid iff source_text is non-empty AND at least one of
- * {kanun_no, kanun_ad} is present.
- *
- * Backend Pydantic shape only requires source_text — kanun_no, kanun_ad,
- * madde, fikra, bent are all optional. This client-side rule prevents
- * users from saving useless empty references (no kanun_* → not findable
- * via concept matching, no value for downstream search).
- */
 export function isValidReference(r: ReferenceItem): boolean {
   if (!r.source_text || r.source_text.trim().length === 0) return false
+  if (r.madde && (r.madde.includes('/') || r.madde.includes('-'))) {
+    return false
+  }
   return hasAtLeastOneKanunField(r)
 }
 
-/**
- * The full references list is valid iff every reference is individually
- * valid. An empty list passes (zero-ref is the legal "no law citations
- * apply" case — backend handles it).
- */
 export function areAllReferencesValid(refs: ReferenceItem[]): boolean {
   return refs.every(isValidReference)
 }
 
-/**
- * 16c.1 training-variant validator: source_text is optional because the
- * backend matcher ignores it anyway. Still requires at least one of
- * {kanun_no, kanun_ad} so the reference is meaningful for concept
- * matching. The strict isValidReference above stays in force for 16b
- * main annotation save — do NOT swap it.
- */
 export function isValidTrainingReference(r: ReferenceItem): boolean {
   return hasAtLeastOneKanunField(r)
 }
