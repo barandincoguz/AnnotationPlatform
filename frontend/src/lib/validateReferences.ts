@@ -8,36 +8,148 @@ export interface ParsedReference {
   bent: string | null
 }
 
-/**
- * Parses a complex madde input (e.g., "5/1-a") into separate fields.
- */
+const ORDINAL_MAP: Record<string, string> = {
+  birinci: '1',
+  ikinci: '2',
+  ucuncu: '3',
+  dorduncu: '4',
+  besinci: '5',
+  altinci: '6',
+  yedinci: '7',
+  sekizinci: '8',
+  dokuzuncu: '9',
+  onuncu: '10',
+}
+
+const LAW_ABBREVIATIONS: Record<string, string> = {
+  VUK: 'Vergi Usul Kanunu',
+  GVK: 'Gelir Vergisi Kanunu',
+  KDVK: 'Katma Değer Vergisi Kanunu',
+  KDV: 'Katma Değer Vergisi Kanunu',
+  KVK: 'Kurumlar Vergisi Kanunu',
+  OTVK: 'Özel Tüketim Vergisi Kanunu',
+  OTV: 'Özel Tüketim Vergisi Kanunu',
+  DVK: 'Damga Vergisi Kanunu',
+}
+
+const LAW_NAME_ALIASES: Record<string, string> = {
+  VERGIUSULKANUNU: 'Vergi Usul Kanunu',
+  GELIRVERGISIKANUNU: 'Gelir Vergisi Kanunu',
+  KURUMLARVERGISIKANUNU: 'Kurumlar Vergisi Kanunu',
+  KATMADEGERVERGISIKANUNU: 'Katma Değer Vergisi Kanunu',
+  KATMADEGERVERGISIKDVKANUNU: 'Katma Değer Vergisi Kanunu',
+  KDVKANUNU: 'Katma Değer Vergisi Kanunu',
+  OZELTUKETIMVERGISIKANUNU: 'Özel Tüketim Vergisi Kanunu',
+  OTVKANUNU: 'Özel Tüketim Vergisi Kanunu',
+  DAMGAVERGISIKANUNU: 'Damga Vergisi Kanunu',
+  HARCLARKANUNU: 'Harçlar Kanunu',
+}
+
+export function normalizeTurkishKey(text: string): string {
+  const lower = text.toLowerCase()
+  const replaced = lower
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+  
+  return replaced
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+}
+
+export function normalizeKanunAdi(text: string | null): string | null {
+  if (!text) return null
+  const trimmed = text.trim()
+  const upperKey = normalizeTurkishKey(trimmed)
+  if (LAW_ABBREVIATIONS[upperKey]) {
+    return LAW_ABBREVIATIONS[upperKey]
+  }
+  if (LAW_NAME_ALIASES[upperKey]) {
+    return LAW_NAME_ALIASES[upperKey]
+  }
+  return trimmed || null
+}
+
+export function normalizeIdentifier(val: string | null): string | null {
+  if (!val) return null
+  const cleaned = val.replace(/^[()[\]{}.\s,]+|[()[\]{}.\s,]+$/g, '')
+  const key = normalizeTurkishKey(cleaned).toLowerCase()
+  return ORDINAL_MAP[key] || cleaned || null
+}
+
+export function normalizeMadde(val: string | null): string | null {
+  if (!val) return null
+  let cleaned = val.trim()
+  cleaned = cleaned.replace(/^madd\w*\s+/i, '')
+  cleaned = cleaned.replace(/\s*madd\w*$/i, '')
+  cleaned = cleaned.replace(/(?:[iıuü]nc[iıuü]|nc[iıuü])$/i, '')
+  return cleaned.trim() || null
+}
+
+export function cleanBent(val: string | null): string | null {
+  return normalizeIdentifier(val)
+}
+
 export function parseComplexMadde(input: string): ParsedReference | null {
   const trimmed = input.trim()
   if (!trimmed) return null
-  
   if (!trimmed.includes('/') && !trimmed.includes('-')) {
     return null
   }
-  
-  const match = trimmed.match(/^([0-9a-zA-Z]+)(?:\/([0-9a-zA-Z]+))?(?:-([a-zA-ZçğıöşüÇĞİÖŞÜ]+))?$/)
-  if (!match) {
-    return null
-  }
-  
-  return {
-    madde: match[1] || null,
-    fikra: match[2] || null,
-    bent: match[3] || null,
-  }
-}
 
-/**
- * Cleans the bent field by stripping parentheses, dots, quotes, and converting to lowercase.
- */
-export function cleanBent(val: string | null): string | null {
-  if (!val) return null
-  const cleaned = val.replace(/^[().'"\s]+|[().'"\s]+$/g, '').toLowerCase()
-  return cleaned || null
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/')
+    if (parts.length > 2) {
+      return null
+    }
+    const madde = normalizeMadde(parts[0])
+    const remainder = parts[1] ? parts[1].trim() : ''
+    if (remainder.includes('-')) {
+      const subParts = remainder.split('-')
+      const first = subParts[0].trim()
+      const second = subParts[1].trim()
+      if (/^\d+$/.test(first)) {
+        return {
+          madde: madde,
+          fikra: first,
+          bent: normalizeIdentifier(second),
+        }
+      } else {
+        return {
+          madde: madde,
+          fikra: null,
+          bent: normalizeIdentifier(remainder),
+        }
+      }
+    } else if (/^\d+$/.test(remainder)) {
+      return {
+        madde: madde,
+        fikra: remainder,
+        bent: null,
+      }
+    } else {
+      return {
+        madde: madde,
+        fikra: null,
+        bent: normalizeIdentifier(remainder),
+      }
+    }
+  } else {
+    const parts = trimmed.split('-')
+    if (parts.length > 2) {
+      return null
+    }
+    return {
+      madde: normalizeMadde(parts[0]),
+      fikra: null,
+      bent: normalizeIdentifier(parts[1]),
+    }
+  }
 }
 
 export function emptyReferenceItem(): ReferenceItem {

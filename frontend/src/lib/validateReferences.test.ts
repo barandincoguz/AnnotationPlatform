@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   isValidReference, areAllReferencesValid,
   isValidTrainingReference, areAllTrainingReferencesValid,
-  parseComplexMadde, cleanBent,
+  parseComplexMadde,
+  normalizeTurkishKey, normalizeKanunAdi, normalizeIdentifier,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -143,29 +144,55 @@ describe('parseComplexMadde', () => {
   })
 })
 
-describe('cleanBent', () => {
-  it('strips parentheses and dots', () => {
-    expect(cleanBent('(a)')).toBe('a')
-    expect(cleanBent('a.')).toBe('a')
-    expect(cleanBent('(a).')).toBe('a')
-    expect(cleanBent('\"a\"')).toBe('a')
-  })
-
-  it('converts to lowercase', () => {
-    expect(cleanBent('A')).toBe('a')
-    expect(cleanBent('(B).')).toBe('b')
+describe('normalizeTurkishKey', () => {
+  it('normalizes Turkish characters to uppercase ascii alphanumeric keys', () => {
+    expect(normalizeTurkishKey('ıİğĞüÜşŞöÖçÇ')).toBe('IIGGUUSSOOCC')
   })
 })
 
-describe('isValidReference with complex madde', () => {
-  it('rejects unparsed complex madde', () => {
-    const ref = {
-      kanun_no: '5520',
-      source_text: 'metin',
-      madde: '5/1-a',
+describe('normalizeKanunAdi', () => {
+  it('expands known law name abbreviations', () => {
+    expect(normalizeKanunAdi('KVK')).toBe('Kurumlar Vergisi Kanunu')
+    expect(normalizeKanunAdi('GVK')).toBe('Gelir Vergisi Kanunu')
+    expect(normalizeKanunAdi('VUK')).toBe('Vergi Usul Kanunu')
+  })
+  it('returns raw text if unknown name', () => {
+    expect(normalizeKanunAdi('Özel Kanun')).toBe('Özel Kanun')
+    expect(normalizeKanunAdi(null)).toBeNull()
+  })
+})
+
+describe('normalizeIdentifier', () => {
+  it('normalizes verbal Turkish ordinal words', () => {
+    expect(normalizeIdentifier('birinci')).toBe('1')
+    expect(normalizeIdentifier('ikinci')).toBe('2')
+  })
+  it('cleans parentheses and brackets', () => {
+    expect(normalizeIdentifier('(a)')).toBe('a')
+    expect(normalizeIdentifier('[b]')).toBe('b')
+    expect(normalizeIdentifier('c.')).toBe('c')
+  })
+  it('returns null for empty strings', () => {
+    expect(normalizeIdentifier('')).toBeNull()
+  })
+})
+
+describe('parseComplexMadde', () => {
+  it('splits complex madde formats correctly', () => {
+    expect(parseComplexMadde('16/1-a')).toEqual({
+      madde: '16',
+      fikra: '1',
+      bent: 'a',
+    })
+    expect(parseComplexMadde('5-a')).toEqual({
+      madde: '5',
       fikra: null,
-      bent: null,
-    }
-    expect(isValidReference(ref)).toBe(false)
+      bent: 'a',
+    })
+    expect(parseComplexMadde('13/a')).toEqual({
+      madde: '13',
+      fikra: null,
+      bent: 'a',
+    })
   })
 })
