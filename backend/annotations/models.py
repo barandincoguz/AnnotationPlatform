@@ -1,9 +1,13 @@
 """Pydantic request/response models for annotation routes."""
-from typing import Optional
+
+from typing import Any, Optional
 from pydantic import BaseModel, Field, model_validator
 
 
 class ReferenceItem(BaseModel):
+    # Per-field caps prevent multi-MB payloads from ballooning the
+    # annotations + version-history rows. Lengths are generous (Turkish
+    # law identifiers + free-text source quotes typical of özelge work).
     kanun_no: Optional[str] = Field(default=None, max_length=64)
     kanun_ad: Optional[str] = Field(default=None, max_length=512)
     madde: Optional[str] = Field(default=None, max_length=64)
@@ -11,14 +15,18 @@ class ReferenceItem(BaseModel):
     bent: Optional[str] = Field(default=None, max_length=64)
     source_text: str = Field(min_length=1, max_length=4_000)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
-    def pre_normalize(cls, data: any) -> any:
+    def pre_normalize(cls, data: Any) -> Any:
         if isinstance(data, dict):
             from backend.annotations.diff import (
-                parse_madde_token, normalize_kanun_no, normalize_kanun_adi,
-                normalize_identifier, normalize_madde
+                parse_madde_token,
+                normalize_kanun_no,
+                normalize_kanun_adi,
+                normalize_identifier,
+                normalize_madde,
             )
+
             src = data.get("source_text")
             if src is not None:
                 data["source_text"] = str(src).strip()
@@ -45,7 +53,9 @@ class ReferenceItem(BaseModel):
             if data.get("kanun_no"):
                 data["kanun_no"] = normalize_kanun_no(data["kanun_no"])
             if data.get("kanun_ad"):
-                data["kanun_ad"] = normalize_kanun_adi(data["kanun_ad"], kanun_no=data.get("kanun_no") or "")
+                data["kanun_ad"] = normalize_kanun_adi(
+                    data["kanun_ad"], kanun_no=data.get("kanun_no") or ""
+                )
             if data.get("fikra"):
                 data["fikra"] = normalize_identifier(data["fikra"])
             if data.get("bent"):
@@ -53,10 +63,12 @@ class ReferenceItem(BaseModel):
 
         return data
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_madde_format(self) -> "ReferenceItem":
         if self.madde and ("/" in self.madde or "-" in self.madde):
-            raise ValueError("madde format is invalid. Complex formats like 5/1-a must be split.")
+            raise ValueError(
+                "madde format is invalid. Complex formats like 5/1-a must be split."
+            )
         return self
 
 

@@ -1,22 +1,37 @@
+import pydantic
+import pytest
+
+
 def _ref_payload(**kwargs):
-    base = {"kanun_no": None, "kanun_ad": None, "madde": None,
-            "fikra": None, "bent": None, "source_text": "default"}
+    base = {
+        "kanun_no": None,
+        "kanun_ad": None,
+        "madde": None,
+        "fikra": None,
+        "bent": None,
+        "source_text": "default",
+    }
     base.update(kwargs)
     return base
 
 
 def test_save_requires_auth(client):
-    r = client.post("/api/annotations", json={"document_id": "doc_test", "references": []})
+    r = client.post(
+        "/api/annotations", json={"document_id": "doc_test", "references": []}
+    )
     assert r.status_code == 401
 
 
 def test_save_creates_annotation(passed_user, ingest_doc):
     c = passed_user["client"]
     ingest_doc("doc_test")
-    r = c.post("/api/annotations", json={
-        "document_id": "doc_test",
-        "references": [_ref_payload(kanun_no="193", source_text="atif")],
-    })
+    r = c.post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(kanun_no="193", source_text="atif")],
+        },
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["is_new"] is True
@@ -25,31 +40,40 @@ def test_save_creates_annotation(passed_user, ingest_doc):
 
 
 def test_save_unknown_document_returns_404(passed_user):
-    r = passed_user["client"].post("/api/annotations", json={
-        "document_id": "doc_unknown",
-        "references": [],
-    })
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_unknown",
+            "references": [],
+        },
+    )
     assert r.status_code == 404
 
 
 def test_save_rejects_empty_source_text(passed_user, ingest_doc):
     ingest_doc("doc_test")
-    r = passed_user["client"].post("/api/annotations", json={
-        "document_id": "doc_test",
-        "references": [_ref_payload(source_text="")],
-    })
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(source_text="")],
+        },
+    )
     assert r.status_code == 422
 
 
 def test_save_rejects_duplicate(passed_user, ingest_doc):
     ingest_doc("doc_test")
-    r = passed_user["client"].post("/api/annotations", json={
-        "document_id": "doc_test",
-        "references": [
-            _ref_payload(kanun_no="193", source_text="x"),
-            _ref_payload(kanun_no="193", source_text="x"),
-        ],
-    })
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [
+                _ref_payload(kanun_no="193", source_text="x"),
+                _ref_payload(kanun_no="193", source_text="x"),
+            ],
+        },
+    )
     assert r.status_code == 422
 
 
@@ -78,11 +102,14 @@ def test_complete_toggles(passed_user, ingest_doc):
 
 def test_complete_without_annotation_404(passed_user, ingest_doc):
     ingest_doc("doc_test")
-    r = passed_user["client"].post("/api/annotations/doc_test/complete", json={"completed": True})
+    r = passed_user["client"].post(
+        "/api/annotations/doc_test/complete", json={"completed": True}
+    )
     assert r.status_code == 404
 
 
 # === Phase 2: atomic complete-with-refs at the HTTP layer ===
+
 
 def test_complete_with_refs_atomic_endpoint(passed_user, ingest_doc):
     """POST /complete with references + completed=True must persist refs
@@ -152,16 +179,22 @@ def test_get_chain_includes_attribution(second_passed_user, ingest_doc):
     ingest_doc("doc_test")
 
     ctx["login"]("alice")
-    c.post("/api/annotations", json={
-        "document_id": "doc_test",
-        "references": [_ref_payload(kanun_no="193", source_text="v1")],
-    })
+    c.post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(kanun_no="193", source_text="v1")],
+        },
+    )
 
     ctx["login"]("bob")
-    c.post("/api/annotations", json={
-        "document_id": "doc_test",
-        "references": [_ref_payload(kanun_no="5520", source_text="v2")],
-    })
+    c.post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(kanun_no="5520", source_text="v2")],
+        },
+    )
 
     r = c.get("/api/documents/doc_test/annotation")
     assert r.status_code == 200
@@ -197,8 +230,8 @@ def test_get_chain_unknown_doc_404(passed_user):
 
 
 def test_pydantic_reference_item_pre_normalization():
-    import pytest
     from backend.annotations.models import ReferenceItem
+
     # Test auto-splitting on instantiation
     item = ReferenceItem(source_text="lorem", madde="16/1-a")
     assert item.madde == "16"
@@ -211,7 +244,5 @@ def test_pydantic_reference_item_pre_normalization():
     assert item2.bent == "a"
 
     # Test invalid complex format rejection
-    import pydantic
     with pytest.raises(pydantic.ValidationError):
         ReferenceItem(source_text="lorem", madde="16/1/a-b")
-
