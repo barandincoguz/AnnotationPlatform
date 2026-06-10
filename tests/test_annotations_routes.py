@@ -194,3 +194,24 @@ def test_chain_diff_zero_for_identical_resave(second_passed_user, ingest_doc):
 def test_get_chain_unknown_doc_404(passed_user):
     r = passed_user["client"].get("/api/documents/nonexistent/annotation")
     assert r.status_code == 404
+
+
+def test_pydantic_reference_item_pre_normalization():
+    import pytest
+    from backend.annotations.models import ReferenceItem
+    # Test auto-splitting on instantiation
+    item = ReferenceItem(source_text="lorem", madde="16/1-a")
+    assert item.madde == "16"
+    assert item.fikra == "1"
+    assert item.bent == "a"
+
+    # Test ordinal mapping
+    item2 = ReferenceItem(source_text="lorem", fikra="birinci", bent="(a)")
+    assert item2.fikra == "1"
+    assert item2.bent == "a"
+
+    # Test invalid complex format rejection
+    import pydantic
+    with pytest.raises(pydantic.ValidationError):
+        ReferenceItem(source_text="lorem", madde="16/1/a-b")
+
