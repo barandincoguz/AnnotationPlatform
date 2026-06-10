@@ -4,6 +4,7 @@ import {
   isValidTrainingReference, areAllTrainingReferencesValid,
   parseComplexMadde,
   normalizeTurkishKey, normalizeKanunAdi, normalizeIdentifier,
+  normalizeMadde,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -196,3 +197,13 @@ describe('parseComplexMadde', () => {
     })
   })
 })
+
+describe('normalizeMadde', () => {
+  it('strips madde keywords and ordinals', () => {
+    expect(normalizeMadde('madde 15')).toBe('15')
+    expect(normalizeMadde('15. madde')).toBe('15')
+    expect(normalizeMadde('15.')).toBe('15')
+    expect(normalizeMadde('(15)')).toBe('15')
+  })
+})
+

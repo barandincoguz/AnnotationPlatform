@@ -34,14 +34,18 @@ const LAW_ABBREVIATIONS: Record<string, string> = {
 
 const LAW_NAME_ALIASES: Record<string, string> = {
   VERGIUSULKANUNU: 'Vergi Usul Kanunu',
+  VUKKANUNU: 'Vergi Usul Kanunu',
   GELIRVERGISIKANUNU: 'Gelir Vergisi Kanunu',
+  GVKKANUNU: 'Gelir Vergisi Kanunu',
   KURUMLARVERGISIKANUNU: 'Kurumlar Vergisi Kanunu',
+  KVKKANUNU: 'Kurumlar Vergisi Kanunu',
   KATMADEGERVERGISIKANUNU: 'Katma Değer Vergisi Kanunu',
   KATMADEGERVERGISIKDVKANUNU: 'Katma Değer Vergisi Kanunu',
   KDVKANUNU: 'Katma Değer Vergisi Kanunu',
   OZELTUKETIMVERGISIKANUNU: 'Özel Tüketim Vergisi Kanunu',
   OTVKANUNU: 'Özel Tüketim Vergisi Kanunu',
   DAMGAVERGISIKANUNU: 'Damga Vergisi Kanunu',
+  DVKKANUNU: 'Damga Vergisi Kanunu',
   HARCLARKANUNU: 'Harçlar Kanunu',
 }
 
@@ -88,6 +92,7 @@ export function normalizeMadde(val: string | null): string | null {
   cleaned = cleaned.replace(/^madd\w*\s+/i, '')
   cleaned = cleaned.replace(/\s*madd\w*$/i, '')
   cleaned = cleaned.replace(/(?:[iıuü]nc[iıuü]|nc[iıuü])$/i, '')
+  cleaned = cleaned.replace(/^[.()\s]+|[.()\s]+$/g, '')
   return cleaned.trim() || null
 }
 
@@ -96,23 +101,27 @@ export function cleanBent(val: string | null): string | null {
 }
 
 export function parseComplexMadde(input: string): ParsedReference | null {
-  const trimmed = input.trim()
-  if (!trimmed) return null
-  if (!trimmed.includes('/') && !trimmed.includes('-')) {
+  const cleaned = normalizeMadde(input)
+  if (!cleaned) return null
+  if (!cleaned.includes('/') && !cleaned.includes('-')) {
+    return null
+  }
+  if ((cleaned.match(/\//g) || []).length > 1 || (cleaned.match(/-/g) || []).length > 1) {
     return null
   }
 
-  if (trimmed.includes('/')) {
-    const parts = trimmed.split('/')
-    if (parts.length > 2) {
-      return null
-    }
-    const madde = normalizeMadde(parts[0])
-    const remainder = parts[1] ? parts[1].trim() : ''
+  if (cleaned.includes('/')) {
+    // Split once at '/'
+    const idxSlash = cleaned.indexOf('/')
+    const madde = normalizeMadde(cleaned.substring(0, idxSlash))
+    const remainder = cleaned.substring(idxSlash + 1).trim()
+    
     if (remainder.includes('-')) {
-      const subParts = remainder.split('-')
-      const first = subParts[0].trim()
-      const second = subParts[1].trim()
+      // Split once at '-'
+      const idxDash = remainder.indexOf('-')
+      const first = remainder.substring(0, idxDash).trim()
+      const second = remainder.substring(idxDash + 1).trim()
+      
       if (/^\d+$/.test(first)) {
         return {
           madde: madde,
@@ -140,14 +149,12 @@ export function parseComplexMadde(input: string): ParsedReference | null {
       }
     }
   } else {
-    const parts = trimmed.split('-')
-    if (parts.length > 2) {
-      return null
-    }
+    // Split once at '-'
+    const idxDash = cleaned.indexOf('-')
     return {
-      madde: normalizeMadde(parts[0]),
+      madde: normalizeMadde(cleaned.substring(0, idxDash)),
       fikra: null,
-      bent: normalizeIdentifier(parts[1]),
+      bent: normalizeIdentifier(cleaned.substring(idxDash + 1)),
     }
   }
 }
