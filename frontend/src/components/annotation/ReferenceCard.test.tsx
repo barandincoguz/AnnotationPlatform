@@ -5,6 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { ReferenceCard } from './ReferenceCard'
 import { makeReferenceItem } from '@/test/msw-handlers'
 import { emptyReferenceItem } from '@/lib/validateReferences'
+import type { components } from '@/api/types'
+
+type ReferenceItem = components['schemas']['ReferenceItem']
 
 describe('ReferenceCard', () => {
   it('renders all 6 fields with their current values', () => {
@@ -87,7 +90,7 @@ describe('ReferenceCard', () => {
       const onChange = vi.fn()
       
       function TestWrapper() {
-        const [val, setVal] = useState(emptyReferenceItem())
+        const [val, setVal] = useState<ReferenceItem>(emptyReferenceItem())
         return (
           <ReferenceCard
             index={0}
@@ -123,7 +126,7 @@ describe('ReferenceCard', () => {
       const onChange = vi.fn()
 
       function TestWrapper() {
-        const [val, setVal] = useState(emptyReferenceItem())
+        const [val, setVal] = useState<ReferenceItem>(emptyReferenceItem())
         return (
           <ReferenceCard
             index={0}
@@ -149,6 +152,47 @@ describe('ReferenceCard', () => {
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({
           kanun_ad: 'Kurumlar Vergisi Kanunu',
+        })
+      )
+    })
+
+    it('preserves existing fikra and bent when entering a plain madde on blur', () => {
+      const onChange = vi.fn()
+      const initialItem = {
+        ...emptyReferenceItem(),
+        fikra: '2',
+        bent: 'b',
+      }
+
+      function TestWrapper() {
+        const [val, setVal] = useState<ReferenceItem>(initialItem)
+        return (
+          <ReferenceCard
+            index={0}
+            value={val}
+            onChange={(next) => {
+              setVal(next)
+              onChange(next)
+            }}
+            onRemove={() => {}}
+            disabled={false}
+            isExpanded={true}
+            onExpand={() => {}}
+          />
+        )
+      }
+
+      render(<TestWrapper />)
+
+      const maddeInput = screen.getByLabelText('Madde')
+      fireEvent.change(maddeInput, { target: { value: '16' } })
+      fireEvent.blur(maddeInput)
+
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          madde: '16',
+          fikra: '2',
+          bent: 'b',
         })
       )
     })

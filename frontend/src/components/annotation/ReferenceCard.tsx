@@ -196,8 +196,8 @@ export function ReferenceCard({
                   onChange({
                     ...value,
                     madde: parsed.madde,
-                    fikra: parsed.fikra || value.fikra,
-                    bent: parsed.bent || value.bent,
+                    fikra: parsed.fikra || value.fikra || null,
+                    bent: parsed.bent || value.bent || null,
                   })
                 } else {
                   onChange(set(value, 'madde', normalizeMadde(val) || ''))
