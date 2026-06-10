@@ -19,7 +19,13 @@ describe('SummaryStep', () => {
       attemptId: 100,
       step: 'summary',
       goldDocs,
-      quizResult: { score: 4, total: 5 },
+      quizResult: { score: 4, total: 5, results: [
+        { question_id: 'q01', user_choice: 0, correct_choice: 0, is_correct: true },
+        { question_id: 'q02', user_choice: 1, correct_choice: 1, is_correct: true },
+        { question_id: 'q03', user_choice: 0, correct_choice: 2, is_correct: false },
+        { question_id: 'q04', user_choice: 3, correct_choice: 3, is_correct: true },
+        { question_id: 'q05', user_choice: 1, correct_choice: 1, is_correct: true },
+      ] },
       docResults: {
         gold_a: { passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 },
         gold_b: { passed: true, matched_count: 1, expected_count: 1, min_concept_count: 1 },

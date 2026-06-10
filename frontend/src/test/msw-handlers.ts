@@ -285,7 +285,16 @@ export function makeStartResponse(overrides: Partial<{ attempt_id: number; attem
 
 const TRAINING_DEFAULT_HANDLERS = [
   http.get(`${API}/api/training/start`, () => HttpResponse.json(makeStartResponse())),
-  http.post(`${API}/api/training/quiz/submit`, () => HttpResponse.json({ score: 4, total: 5 })),
+  http.post(`${API}/api/training/quiz/submit`, () => HttpResponse.json({
+    score: 4, total: 5,
+    results: [
+      { question_id: 'q01', user_choice: 0, correct_choice: 0, is_correct: true },
+      { question_id: 'q02', user_choice: 1, correct_choice: 1, is_correct: true },
+      { question_id: 'q03', user_choice: 0, correct_choice: 2, is_correct: false },
+      { question_id: 'q04', user_choice: 3, correct_choice: 3, is_correct: true },
+      { question_id: 'q05', user_choice: 1, correct_choice: 1, is_correct: true },
+    ],
+  })),
   http.post(`${API}/api/training/annotate/submit`, () =>
     HttpResponse.json({ passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 }),
   ),

@@ -305,7 +305,7 @@ def submit_quiz(
             raise QuizAlreadySubmittedError(attempt_id)
 
         questions = _select_questions_for_attempt(db, attempt_id)
-        score = matching.score_quiz(questions, answers)
+        score, results = matching.score_quiz_detailed(questions, answers)
 
         details["_quiz_submitted"] = True
         details["_quiz_score"] = score
@@ -318,7 +318,7 @@ def submit_quiz(
     except Exception:
         db.execute("ROLLBACK")
         raise
-    return {"score": score, "total": 5}
+    return {"score": score, "total": 5, "results": results}
 
 
 def submit_annotation(

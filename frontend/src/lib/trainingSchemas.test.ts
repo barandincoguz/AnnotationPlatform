@@ -72,7 +72,7 @@ describe('Zod schemas', () => {
 
   describe('quizSubmitResponseSchema', () => {
     it('accepts {score, total}', () => {
-      expect(() => quizSubmitResponseSchema.parse({ score: 3, total: 5 })).not.toThrow()
+      expect(() => quizSubmitResponseSchema.parse({ score: 3, total: 5, results: [] })).not.toThrow()
     })
     it('rejects floats', () => {
       expect(() => quizSubmitResponseSchema.parse({ score: 3.5, total: 5 })).toThrow()

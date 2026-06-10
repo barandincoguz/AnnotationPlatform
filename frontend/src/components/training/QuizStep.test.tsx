@@ -54,7 +54,13 @@ describe('QuizStep', () => {
   })
 
   it('shows result card with role=status when resultShown=quiz', () => {
-    useTrainingStore.setState({ quizResult: { score: 3, total: 5 }, resultShown: { kind: 'quiz' } })
+    useTrainingStore.setState({ quizResult: { score: 3, total: 5, results: [
+      { question_id: 'q01', user_choice: 0, correct_choice: 0, is_correct: true },
+      { question_id: 'q02', user_choice: 1, correct_choice: 1, is_correct: true },
+      { question_id: 'q03', user_choice: 2, correct_choice: 2, is_correct: true },
+      { question_id: 'q04', user_choice: 0, correct_choice: 3, is_correct: false },
+      { question_id: 'q05', user_choice: 0, correct_choice: 1, is_correct: false },
+    ] }, resultShown: { kind: 'quiz' } })
     render(<QuizStep onSubmit={vi.fn()} isSubmitting={false} />)
     expect(screen.getByText(/3 \/ 5/)).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
@@ -62,7 +68,13 @@ describe('QuizStep', () => {
 
   it('Sonraki advances to doc step', async () => {
     const user = userEvent.setup()
-    useTrainingStore.setState({ quizResult: { score: 4, total: 5 }, resultShown: { kind: 'quiz' } })
+    useTrainingStore.setState({ quizResult: { score: 4, total: 5, results: [
+      { question_id: 'q01', user_choice: 0, correct_choice: 0, is_correct: true },
+      { question_id: 'q02', user_choice: 1, correct_choice: 1, is_correct: true },
+      { question_id: 'q03', user_choice: 0, correct_choice: 2, is_correct: false },
+      { question_id: 'q04', user_choice: 3, correct_choice: 3, is_correct: true },
+      { question_id: 'q05', user_choice: 1, correct_choice: 1, is_correct: true },
+    ] }, resultShown: { kind: 'quiz' } })
     render(<QuizStep onSubmit={vi.fn()} isSubmitting={false} />)
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 1/i }))
     expect(useTrainingStore.getState().step).toBe('doc')

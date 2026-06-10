@@ -27,9 +27,17 @@ class QuizSubmitRequest(BaseModel):
     answers: dict[str, int]
 
 
+class QuizResultItem(BaseModel):
+    question_id: str
+    user_choice: int | None
+    correct_choice: int
+    is_correct: bool
+
+
 class QuizSubmitResponse(BaseModel):
     score: int
     total: int
+    results: list[QuizResultItem]
 
 
 class AnnotateSubmitRequest(BaseModel):

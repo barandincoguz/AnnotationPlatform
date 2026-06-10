@@ -47,6 +47,44 @@ export function QuizStep({ onSubmit, isSubmitting }: QuizStepProps) {
           Skor: <strong>{quizResult.score} / {quizResult.total}</strong>
           <p className="mt-1 text-xs text-muted-foreground">(Geçmek için ≥4 gerekir)</p>
         </div>
+
+        {quizResult.results && (
+          <div className="mt-4 space-y-3">
+            {quizResult.results.map((r, idx) => {
+              const q = questions[idx]
+              return (
+                <div
+                  key={r.question_id}
+                  className={cn(
+                    'rounded-md border p-3 text-sm',
+                    r.is_correct
+                      ? 'bg-success/5 border-success/30'
+                      : 'bg-destructive/5 border-destructive/30',
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className={cn(
+                      'mt-0.5 shrink-0 font-medium',
+                      r.is_correct ? 'text-success' : 'text-destructive',
+                    )}>
+                      {r.is_correct ? '✓' : '✗'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-medium">{q?.text ?? `Soru ${idx + 1}`}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Senin cevabın: <strong>{r.user_choice !== null ? q?.choices[r.user_choice] ?? r.user_choice : '(boş)'}</strong>
+                        {!r.is_correct && (
+                          <> · Doğru cevap: <strong className="text-success">{q?.choices[r.correct_choice] ?? r.correct_choice}</strong></>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         <div className="mt-6">
           <Button onClick={() => setStep('doc')}>Sonraki: Doküman 1 ▸</Button>
         </div>

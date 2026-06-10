@@ -71,7 +71,9 @@ describe('useQuizSubmitMutation', () => {
   it('returns parsed result on success', async () => {
     const { result } = renderHook(() => useQuizSubmitMutation(), { wrapper: createWrapper() })
     const data = await result.current.mutateAsync({ attempt_id: 1, answers: { q01: 0 } })
-    expect(data).toEqual({ score: 4, total: 5 })
+    expect(data.score).toBe(4)
+    expect(data.total).toBe(5)
+    expect(data.results).toHaveLength(5)
   })
 
   it('throws ApiError on 409', async () => {

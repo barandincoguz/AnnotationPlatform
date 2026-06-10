@@ -14,22 +14,22 @@ describe('submitWithRecovery', () => {
   it('passes through 200 result unchanged', async () => {
     const qc = makeQc()
     const result = await submitWithRecovery({
-      submit: () => Promise.resolve({ score: 3, total: 5 }),
+      submit: () => Promise.resolve({ score: 3, total: 5, results: [] }),
       key: { kind: 'quiz' },
       qc,
     })
-    expect(result).toEqual({ score: 3, total: 5 })
+    expect(result).toEqual({ score: 3, total: 5, results: [] })
   })
 
   it('on 409 quiz with cached prior result, returns the cache', async () => {
     const qc = makeQc()
-    useTrainingStore.setState({ quizResult: { score: 4, total: 5 } })
+    useTrainingStore.setState({ quizResult: { score: 4, total: 5, results: [] } })
     const result = await submitWithRecovery({
       submit: () => Promise.reject(new ApiError(409, 'quiz_already_submitted', 'dup')),
       key: { kind: 'quiz' },
       qc,
     })
-    expect(result).toEqual({ score: 4, total: 5 })
+    expect(result).toEqual({ score: 4, total: 5, results: [] })
   })
 
   it('on 409 quiz WITHOUT cached prior, throws AbortAdvance + DEGRADED', async () => {

@@ -43,6 +43,32 @@ def score_quiz(
     return score
 
 
+def score_quiz_detailed(
+    questions: Iterable[dict],
+    answers: dict[str, int],
+) -> tuple[int, list[dict]]:
+    """Like score_quiz but returns per-question results alongside the score.
+
+    Returns (score, results) where each result dict has:
+      question_id, user_choice (int|None), correct_choice (int), is_correct (bool).
+    """
+    score = 0
+    results: list[dict] = []
+    for q in questions:
+        chosen = answers.get(q["id"])
+        correct = q["correct_choice_idx"]
+        is_correct = chosen is not None and chosen == correct
+        if is_correct:
+            score += 1
+        results.append({
+            "question_id": q["id"],
+            "user_choice": chosen,
+            "correct_choice": correct,
+            "is_correct": is_correct,
+        })
+    return score, results
+
+
 def _concept_constraints(concept: dict) -> dict:
     """Return only the (key, value) pairs in concept that are active match
     constraints — i.e. exclude empty values and the source_text key."""

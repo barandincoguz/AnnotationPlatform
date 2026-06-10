@@ -34,9 +34,17 @@ export const startResponseSchema = z.object({
   gold_docs: z.array(goldDocSchema).length(3),
 })
 
+export const quizResultItemSchema = z.object({
+  question_id: z.string(),
+  user_choice: z.number().int().nullable(),
+  correct_choice: z.number().int(),
+  is_correct: z.boolean(),
+})
+
 export const quizSubmitResponseSchema = z.object({
   score: z.number().int(),
   total: z.number().int(),
+  results: z.array(quizResultItemSchema),
 })
 
 export const annotateSubmitResponseSchema = z.object({
@@ -51,5 +59,6 @@ export type HelpResponse = z.infer<typeof helpResponseSchema>
 export type Question = z.infer<typeof questionSchema>
 export type GoldDoc = z.infer<typeof goldDocSchema>
 export type StartResponse = z.infer<typeof startResponseSchema>
+export type QuizResultItem = z.infer<typeof quizResultItemSchema>
 export type QuizSubmitResponse = z.infer<typeof quizSubmitResponseSchema>
 export type AnnotateSubmitResponse = z.infer<typeof annotateSubmitResponseSchema>

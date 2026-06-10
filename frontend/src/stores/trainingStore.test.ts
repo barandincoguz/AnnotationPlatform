@@ -50,9 +50,17 @@ describe('trainingStore', () => {
 
   it('recordQuizResult sets resultShown to quiz', () => {
     useTrainingStore.getState().hydrate(makeStart())
-    useTrainingStore.getState().recordQuizResult({ score: 4, total: 5 })
+    useTrainingStore.getState().recordQuizResult({ score: 4, total: 5, results: [
+      { question_id: 'q1', user_choice: 0, correct_choice: 0, is_correct: true },
+      { question_id: 'q2', user_choice: 1, correct_choice: 1, is_correct: true },
+      { question_id: 'q3', user_choice: 0, correct_choice: 2, is_correct: false },
+      { question_id: 'q4', user_choice: 3, correct_choice: 3, is_correct: true },
+      { question_id: 'q5', user_choice: 1, correct_choice: 1, is_correct: true },
+    ] })
     const s = useTrainingStore.getState()
-    expect(s.quizResult).toEqual({ score: 4, total: 5 })
+    expect(s.quizResult?.score).toBe(4)
+    expect(s.quizResult?.total).toBe(5)
+    expect(s.quizResult?.results).toHaveLength(5)
     expect(s.resultShown).toEqual({ kind: 'quiz' })
   })
 
