@@ -145,6 +145,8 @@ def test_normalize_identifier():
     assert normalize_identifier("(a)") == "a"
     assert normalize_identifier("[b]") == "b"
     assert normalize_identifier("a.") == "a"
+    assert normalize_identifier("altıncı") == "6"
+    assert normalize_identifier("üçüncü") == "3"
     assert normalize_identifier(None) is None
 
 

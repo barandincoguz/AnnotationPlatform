@@ -70,7 +70,9 @@ def normalize_kanun_no(value: Optional[str]) -> Optional[str]:
     return cleaned if cleaned else None
 
 def _normalize_turkish_key(text: str) -> str:
-    value = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    # Lowercase and replace Turkish dotless ı and capital İ first
+    t = text.lower().replace("ı", "i").replace("ş", "s").replace("ğ", "g").replace("ü", "u").replace("ö", "o").replace("ç", "c")
+    value = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^A-Za-z0-9]+", "", value).upper()
     return value
 
