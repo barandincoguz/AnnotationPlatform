@@ -1,23 +1,29 @@
 """Pure-function reference normalization, deduping, and set-semantic diff."""
+
 import re
 import unicodedata
 from typing import Optional
 
 REFERENCE_FIELDS = (
-    "kanun_no", "kanun_ad", "madde", "fikra", "bent", "source_text",
+    "kanun_no",
+    "kanun_ad",
+    "madde",
+    "fikra",
+    "bent",
+    "source_text",
 )
 
 ORDINAL_MAP = {
-    "birinci": "1",
-    "ikinci": "2",
-    "ucuncu": "3",
-    "dorduncu": "4",
-    "besinci": "5",
-    "altinci": "6",
-    "yedinci": "7",
-    "sekizinci": "8",
-    "dokuzuncu": "9",
-    "onuncu": "10",
+    "BIRINCI": "1",
+    "IKINCI": "2",
+    "UCUNCU": "3",
+    "DORDUNCU": "4",
+    "BESINCI": "5",
+    "ALTINCI": "6",
+    "YEDINCI": "7",
+    "SEKIZINCI": "8",
+    "DOKUZUNCU": "9",
+    "ONUNCU": "10",
 }
 
 LAW_ABBREVIATIONS = {
@@ -33,25 +39,32 @@ LAW_ABBREVIATIONS = {
 
 LAW_NAME_ALIASES = {
     "VERGIUSULKANUNU": "Vergi Usul Kanunu",
+    "VUKKANUNU": "Vergi Usul Kanunu",
     "GELIRVERGISIKANUNU": "Gelir Vergisi Kanunu",
+    "GVKKANUNU": "Gelir Vergisi Kanunu",
     "KURUMLARVERGISIKANUNU": "Kurumlar Vergisi Kanunu",
+    "KVKKANUNU": "Kurumlar Vergisi Kanunu",
     "KATMADEGERVERGISIKANUNU": "Katma Değer Vergisi Kanunu",
     "KATMADEGERVERGISIKDVKANUNU": "Katma Değer Vergisi Kanunu",
     "KDVKANUNU": "Katma Değer Vergisi Kanunu",
     "OZELTUKETIMVERGISIKANUNU": "Özel Tüketim Vergisi Kanunu",
     "OTVKANUNU": "Özel Tüketim Vergisi Kanunu",
     "DAMGAVERGISIKANUNU": "Damga Vergisi Kanunu",
+    "DVKKANUNU": "Damga Vergisi Kanunu",
     "HARCLARKANUNU": "Harçlar Kanunu",
 }
 
 RE_NON_NO_CHARS = re.compile(r"[^0-9A-Za-z/-]+")
 RE_MULTI_SPACE = re.compile(r"\s+")
 
+
 class InvalidReference(ValueError):
     """source_text missing or empty."""
 
+
 class DuplicateReference(ValueError):
     """Two refs in the same list have identical canonical keys."""
+
 
 def _clean(value: Optional[object]) -> Optional[str]:
     if value is None:
@@ -59,8 +72,10 @@ def _clean(value: Optional[object]) -> Optional[str]:
     s = str(value).strip()
     return s if s else None
 
+
 def collapse_ws(text: str) -> str:
     return RE_MULTI_SPACE.sub(" ", text).strip()
+
 
 def normalize_kanun_no(value: Optional[str]) -> Optional[str]:
     if not value:
@@ -69,12 +84,22 @@ def normalize_kanun_no(value: Optional[str]) -> Optional[str]:
     cleaned = cleaned.strip("/-")
     return cleaned if cleaned else None
 
+
 def _normalize_turkish_key(text: str) -> str:
     # Lowercase and replace Turkish dotless ı and capital İ first
-    t = text.lower().replace("ı", "i").replace("ş", "s").replace("ğ", "g").replace("ü", "u").replace("ö", "o").replace("ç", "c")
+    t = (
+        text.lower()
+        .replace("ı", "i")
+        .replace("ş", "s")
+        .replace("ğ", "g")
+        .replace("ü", "u")
+        .replace("ö", "o")
+        .replace("ç", "c")
+    )
     value = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^A-Za-z0-9]+", "", value).upper()
     return value
+
 
 def normalize_kanun_adi(text: Optional[str], kanun_no: str = "") -> Optional[str]:
     if not text:
@@ -87,12 +112,14 @@ def normalize_kanun_adi(text: Optional[str], kanun_no: str = "") -> Optional[str
         return LAW_NAME_ALIASES[upper_key]
     return raw
 
+
 def normalize_identifier(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
     raw = collapse_ws(str(value)).strip("()[]{}., ")
-    lowered = _normalize_turkish_key(raw).lower()
-    return ORDINAL_MAP.get(lowered, raw)
+    key = _normalize_turkish_key(raw)
+    return ORDINAL_MAP.get(key, raw)
+
 
 def normalize_madde(value: Optional[str]) -> Optional[str]:
     if not value:
@@ -100,8 +127,10 @@ def normalize_madde(value: Optional[str]) -> Optional[str]:
     raw = collapse_ws(str(value))
     raw = re.sub(r"^madd\w*\s+", "", raw, flags=re.IGNORECASE)
     raw = re.sub(r"\s*madd\w*$", "", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"(?:[iıuü]nc[iıuü]|nc[iıuü])$", "", raw, flags=re.IGNORECASE)
     raw = raw.strip(" .()")
     return raw if raw else None
+
 
 def parse_madde_token(token: Optional[str]) -> tuple[str, str, str]:
     cleaned = normalize_madde(token)
@@ -133,6 +162,7 @@ def parse_madde_token(token: Optional[str]) -> tuple[str, str, str]:
 
     return head, fikra, bent
 
+
 def normalize_reference(ref: dict) -> dict:
     source_text = _clean(ref.get("source_text"))
     if not source_text:
@@ -162,8 +192,10 @@ def normalize_reference(ref: dict) -> dict:
         "source_text": source_text,
     }
 
+
 def canonical_key(ref: dict) -> tuple:
     return tuple(ref.get(f) for f in REFERENCE_FIELDS)
+
 
 def normalize_references(refs: list[dict]) -> list[dict]:
     seen: set[tuple] = set()
@@ -214,6 +246,7 @@ def normalize_references(refs: list[dict]) -> list[dict]:
     final_keys = {canonical_key(r) for r in final_list}
     return [r for r in normalized_list if canonical_key(r) in final_keys]
 
+
 def references_diff(prev: list[dict], curr: list[dict]) -> dict:
     prev_map = {canonical_key(r): r for r in prev}
     curr_map = {canonical_key(r): r for r in curr}
@@ -223,6 +256,7 @@ def references_diff(prev: list[dict], curr: list[dict]) -> dict:
         "added": [curr_map[k] for k in added_keys],
         "removed": [prev_map[k] for k in removed_keys],
     }
+
 
 def is_diff_zero(diff: dict) -> bool:
     return not diff["added"] and not diff["removed"]

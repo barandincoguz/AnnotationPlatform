@@ -1,21 +1,30 @@
 import pytest
 from backend.annotations.diff import (
-    normalize_reference, normalize_references, canonical_key,
-    references_diff, is_diff_zero,
-    InvalidReference, DuplicateReference,
+    normalize_reference,
+    normalize_references,
+    canonical_key,
+    references_diff,
+    is_diff_zero,
+    InvalidReference,
+    DuplicateReference,
 )
 
 
 def _ref(**kwargs):
     base = {
-        "kanun_no": None, "kanun_ad": None, "madde": None,
-        "fikra": None, "bent": None, "source_text": "x",
+        "kanun_no": None,
+        "kanun_ad": None,
+        "madde": None,
+        "fikra": None,
+        "bent": None,
+        "source_text": "x",
     }
     base.update(kwargs)
     return base
 
 
 # --- normalize_reference ---
+
 
 def test_normalize_strips_whitespace():
     r = normalize_reference({"source_text": "  hello  ", "kanun_no": "  193 "})
@@ -56,6 +65,7 @@ def test_normalize_preserves_madde_format():
 
 # --- normalize_references (list) ---
 
+
 def test_normalize_list_empty():
     assert normalize_references([]) == []
 
@@ -91,6 +101,7 @@ def test_normalize_list_normalizes_then_dedupes():
 
 # --- canonical_key + diff ---
 
+
 def test_canonical_key_is_deterministic():
     a = _ref(kanun_no="193", madde="37", source_text="x")
     b = _ref(kanun_no="193", madde="37", source_text="x")
@@ -115,7 +126,10 @@ def test_diff_removed_only():
 
 
 def test_diff_zero_when_same_content():
-    refs = [_ref(kanun_no="193", source_text="x"), _ref(kanun_no="5520", source_text="y")]
+    refs = [
+        _ref(kanun_no="193", source_text="x"),
+        _ref(kanun_no="5520", source_text="y"),
+    ]
     assert is_diff_zero(references_diff(refs, refs))
 
 
@@ -140,6 +154,7 @@ def test_diff_detects_modified_as_remove_plus_add():
 
 def test_normalize_identifier():
     from backend.annotations.diff import normalize_identifier
+
     assert normalize_identifier("birinci") == "1"
     assert normalize_identifier("ikinci") == "2"
     assert normalize_identifier("üçüncü") == "3"
@@ -158,15 +173,21 @@ def test_normalize_identifier():
 
 def test_normalize_kanun_adi():
     from backend.annotations.diff import normalize_kanun_adi
+
     assert normalize_kanun_adi("KVK") == "Kurumlar Vergisi Kanunu"
     assert normalize_kanun_adi("GVK") == "Gelir Vergisi Kanunu"
     assert normalize_kanun_adi("VUK") == "Vergi Usul Kanunu"
+    assert normalize_kanun_adi("VUKKANUNU") == "Vergi Usul Kanunu"
+    assert normalize_kanun_adi("GVKKANUNU") == "Gelir Vergisi Kanunu"
+    assert normalize_kanun_adi("KVKKANUNU") == "Kurumlar Vergisi Kanunu"
+    assert normalize_kanun_adi("DVKKANUNU") == "Damga Vergisi Kanunu"
     assert normalize_kanun_adi("Kanun") == "Kanun"
     assert normalize_kanun_adi(None) is None
 
 
 def test_parse_madde_token():
     from backend.annotations.diff import parse_madde_token
+
     assert parse_madde_token("16/1-a") == ("16", "1", "a")
     assert parse_madde_token("5-a") == ("5", "", "a")
     assert parse_madde_token("13/a") == ("13", "", "a")  # No 13/a special exception
@@ -177,6 +198,7 @@ def test_parse_madde_token():
 
 def test_normalize_reference_with_complex_madde():
     from backend.annotations.diff import normalize_reference
+
     ref = {"source_text": "x", "madde": "16/1-a"}
     normalized = normalize_reference(ref)
     assert normalized["madde"] == "16"
@@ -186,6 +208,7 @@ def test_normalize_reference_with_complex_madde():
 
 def test_generic_reference_suppression():
     from backend.annotations.diff import normalize_references
+
     refs = [
         {"source_text": "general text", "kanun_no": "5520"},
         {"source_text": "specific text", "kanun_no": "5520", "madde": "5"},
@@ -195,3 +218,11 @@ def test_generic_reference_suppression():
     assert len(normalized) == 1
     assert normalized[0]["madde"] == "5"
 
+
+def test_normalize_madde():
+    from backend.annotations.diff import normalize_madde
+
+    assert normalize_madde("15inci") == "15"
+    assert normalize_madde("madd 15") == "15"
+    assert normalize_madde("15. madde") == "15"
+    assert normalize_madde(None) is None
