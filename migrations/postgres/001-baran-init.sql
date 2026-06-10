@@ -120,8 +120,12 @@ CREATE TABLE IF NOT EXISTS baran_admin_audit_log (
     target_id text,
     metadata_json jsonb,
     created_at text NOT NULL,
-    trace_id text
+    trace_id text,
+    hash text,
+    prev_hash text
 );
+
+CREATE INDEX IF NOT EXISTS baran_idx_audit_hash ON baran_admin_audit_log(hash) WHERE hash IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS baran_idx_audit_trace ON baran_admin_audit_log(trace_id) WHERE trace_id IS NOT NULL;
 
