@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReferenceCard } from './ReferenceCard'
 import { makeReferenceItem } from '@/test/msw-handlers'
+import { emptyReferenceItem } from '@/lib/validateReferences'
 
 describe('ReferenceCard', () => {
   it('renders all 6 fields with their current values', () => {
@@ -78,5 +80,77 @@ describe('ReferenceCard', () => {
     )
     expect(screen.getByLabelText(/^metinden alıntı$/i)).toBeDisabled()
     expect(screen.getByLabelText(/^kanun no$/i)).toBeDisabled()
+  })
+
+  describe('ReferenceCard blur auto-splitting and normalization', () => {
+    it('splits complex madde value on blur and triggers onChange', () => {
+      const onChange = vi.fn()
+      
+      function TestWrapper() {
+        const [val, setVal] = useState(emptyReferenceItem())
+        return (
+          <ReferenceCard
+            index={0}
+            value={val}
+            onChange={(next) => {
+              setVal(next)
+              onChange(next)
+            }}
+            onRemove={() => {}}
+            disabled={false}
+            isExpanded={true}
+            onExpand={() => {}}
+          />
+        )
+      }
+
+      render(<TestWrapper />)
+
+      const maddeInput = screen.getByLabelText('Madde')
+      fireEvent.change(maddeInput, { target: { value: '16/1-a' } })
+      fireEvent.blur(maddeInput)
+
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          madde: '16',
+          fikra: '1',
+          bent: 'a',
+        })
+      )
+    })
+
+    it('expands abbreviation for kanun_ad on blur', () => {
+      const onChange = vi.fn()
+
+      function TestWrapper() {
+        const [val, setVal] = useState(emptyReferenceItem())
+        return (
+          <ReferenceCard
+            index={0}
+            value={val}
+            onChange={(next) => {
+              setVal(next)
+              onChange(next)
+            }}
+            onRemove={() => {}}
+            disabled={false}
+            isExpanded={true}
+            onExpand={() => {}}
+          />
+        )
+      }
+
+      render(<TestWrapper />)
+
+      const kanunAdInput = screen.getByLabelText('Kanun Adı')
+      fireEvent.change(kanunAdInput, { target: { value: 'KVK' } })
+      fireEvent.blur(kanunAdInput)
+
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          kanun_ad: 'Kurumlar Vergisi Kanunu',
+        })
+      )
+    })
   })
 })

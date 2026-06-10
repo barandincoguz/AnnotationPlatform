@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { components } from '@/api/types'
+import { parseComplexMadde, normalizeMadde, normalizeIdentifier, normalizeKanunAdi } from '@/lib/validateReferences'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
 
@@ -175,6 +176,10 @@ export function ReferenceCard({
               id={id('kanun_ad')}
               value={value.kanun_ad ?? ''}
               onChange={(e) => onChange(set(value, 'kanun_ad', e.target.value))}
+              onBlur={(e) => {
+                const cleaned = normalizeKanunAdi(e.target.value)
+                onChange(set(value, 'kanun_ad', cleaned || ''))
+              }}
               disabled={disabled}
             />
           </div>
@@ -184,6 +189,20 @@ export function ReferenceCard({
               id={id('madde')}
               value={value.madde ?? ''}
               onChange={(e) => onChange(set(value, 'madde', e.target.value))}
+              onBlur={(e) => {
+                const val = e.target.value
+                const parsed = parseComplexMadde(val)
+                if (parsed) {
+                  onChange({
+                    ...value,
+                    madde: parsed.madde,
+                    fikra: parsed.fikra || value.fikra,
+                    bent: parsed.bent || value.bent,
+                  })
+                } else {
+                  onChange(set(value, 'madde', normalizeMadde(val) || ''))
+                }
+              }}
               disabled={disabled}
             />
           </div>
@@ -193,6 +212,10 @@ export function ReferenceCard({
               id={id('fikra')}
               value={value.fikra ?? ''}
               onChange={(e) => onChange(set(value, 'fikra', e.target.value))}
+              onBlur={(e) => {
+                const cleaned = normalizeIdentifier(e.target.value)
+                onChange(set(value, 'fikra', cleaned || ''))
+              }}
               disabled={disabled}
             />
           </div>
@@ -202,6 +225,10 @@ export function ReferenceCard({
               id={id('bent')}
               value={value.bent ?? ''}
               onChange={(e) => onChange(set(value, 'bent', e.target.value))}
+              onBlur={(e) => {
+                const cleaned = normalizeIdentifier(e.target.value)
+                onChange(set(value, 'bent', cleaned || ''))
+              }}
               disabled={disabled}
             />
           </div>
