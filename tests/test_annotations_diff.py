@@ -142,11 +142,17 @@ def test_normalize_identifier():
     from backend.annotations.diff import normalize_identifier
     assert normalize_identifier("birinci") == "1"
     assert normalize_identifier("ikinci") == "2"
+    assert normalize_identifier("üçüncü") == "3"
+    assert normalize_identifier("dördüncü") == "4"
+    assert normalize_identifier("beşinci") == "5"
+    assert normalize_identifier("altıncı") == "6"
+    assert normalize_identifier("yedinci") == "7"
+    assert normalize_identifier("sekizinci") == "8"
+    assert normalize_identifier("dokuzuncu") == "9"
+    assert normalize_identifier("onuncu") == "10"
     assert normalize_identifier("(a)") == "a"
     assert normalize_identifier("[b]") == "b"
     assert normalize_identifier("a.") == "a"
-    assert normalize_identifier("altıncı") == "6"
-    assert normalize_identifier("üçüncü") == "3"
     assert normalize_identifier(None) is None
 
 
