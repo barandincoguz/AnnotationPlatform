@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { components } from '@/api/types'
-import { parseComplexMadde, normalizeMadde, normalizeIdentifier, normalizeKanunAdi } from '@/lib/validateReferences'
+import {
+  parseComplexMadde,
+  normalizeMadde,
+  normalizeIdentifier,
+  normalizeKanunAdi,
+} from '@/lib/validateReferences'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
 
@@ -35,7 +40,8 @@ export function ReferenceCard({
 }: ReferenceCardProps) {
   const id = (k: string) => `ref-${index}-${k}`
 
-  const isCardInvalid = !value.source_text?.trim() || (!value.kanun_no?.trim() && !value.kanun_ad?.trim())
+  const isCardInvalid =
+    !value.source_text?.trim() || (!value.kanun_no?.trim() && !value.kanun_ad?.trim())
 
   if (!isExpanded) {
     const summaryParts = []
@@ -46,8 +52,8 @@ export function ReferenceCard({
     if (value.bent) summaryParts.push(`Bnt: ${value.bent}`)
 
     const summaryText = summaryParts.join(' · ') || 'Yeni Boş Referans'
-    const quoteSnippet = value.source_text 
-      ? value.source_text.length > 45 
+    const quoteSnippet = value.source_text
+      ? value.source_text.length > 45
         ? `"${value.source_text.substring(0, 45)}..."`
         : `"${value.source_text}"`
       : 'Metinden alıntı girilmedi'
@@ -57,41 +63,48 @@ export function ReferenceCard({
         onClick={onExpand}
         className={cn(
           'relative overflow-hidden cursor-pointer transition-all hover:bg-secondary/15 shadow-sm border',
-          isCardInvalid 
-            ? 'border-destructive/30 bg-destructive/[0.01] hover:border-destructive/50' 
-            : 'border-border/60 hover:border-border/80'
+          isCardInvalid
+            ? 'border-destructive/30 bg-destructive/[0.01] hover:border-destructive/50'
+            : 'border-border/60 hover:border-border/80',
         )}
       >
         <span
           aria-hidden
           className={cn(
             'absolute inset-y-0 left-0 w-1',
-            isCardInvalid ? 'bg-destructive/50' : 'bg-accent2/50'
+            isCardInvalid ? 'bg-destructive/50' : 'bg-accent2/50',
           )}
         />
         <div className="flex items-center justify-between gap-3 px-3 py-2 pl-5">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className={cn(
-              'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold tabular-nums',
-              isCardInvalid ? 'bg-destructive/10 text-destructive' : 'bg-accent2/10 text-accent2'
-            )}>
+            <span
+              className={cn(
+                'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold tabular-nums',
+                isCardInvalid ? 'bg-destructive/10 text-destructive' : 'bg-accent2/10 text-accent2',
+              )}
+            >
               {index + 1}
             </span>
             <div className="flex flex-col min-w-0 flex-1 leading-tight">
               <span className="font-mono text-[11px] font-bold text-foreground/90 truncate">
                 {summaryText}
               </span>
-              <span className={cn(
-                'font-serif text-[11px] italic truncate',
-                isCardInvalid ? 'text-destructive/80' : 'text-muted-foreground'
-              )}>
+              <span
+                className={cn(
+                  'font-serif text-[11px] italic truncate',
+                  isCardInvalid ? 'text-destructive/80' : 'text-muted-foreground',
+                )}
+              >
                 {quoteSnippet}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {isCardInvalid && (
-              <AlertCircle className="h-4 w-4 text-destructive shrink-0" aria-label="Geçersiz alanlar var" />
+              <AlertCircle
+                className="h-4 w-4 text-destructive shrink-0"
+                aria-label="Geçersiz alanlar var"
+              />
             )}
             <Button
               type="button"
@@ -114,17 +127,19 @@ export function ReferenceCard({
   }
 
   return (
-    <Card className={cn(
-      'relative overflow-hidden transition-shadow hover:shadow-md border',
-      isCardInvalid ? 'border-destructive/30 bg-destructive/[0.005]' : 'border-border/70'
-    )}>
+    <Card
+      className={cn(
+        'relative overflow-hidden transition-shadow hover:shadow-md border',
+        isCardInvalid ? 'border-destructive/30 bg-destructive/[0.005]' : 'border-border/70',
+      )}
+    >
       {/* Left accent ribbon — a small color seal making the card feel
           like a numbered citation rather than a generic form. */}
       <span
         aria-hidden
         className={cn(
           'absolute inset-y-0 left-0 w-1',
-          isCardInvalid ? 'bg-destructive/70' : 'bg-accent2/70'
+          isCardInvalid ? 'bg-destructive/70' : 'bg-accent2/70',
         )}
       />
       <CardContent className="space-y-5 p-5 pl-6">
@@ -135,12 +150,14 @@ export function ReferenceCard({
             className="flex items-center gap-2.5 cursor-pointer select-none group/hdr flex-1 min-w-0 text-left focus-visible:outline-none"
             title="Daraltmak için tıklayın"
           >
-            <span className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-[12px] font-bold tabular-nums transition-colors',
-              isCardInvalid 
-                ? 'bg-destructive/15 text-destructive group-hover/hdr:bg-destructive/25' 
-                : 'bg-accent2/15 text-accent2 group-hover/hdr:bg-accent2/25'
-            )}>
+            <span
+              className={cn(
+                'inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-[12px] font-bold tabular-nums transition-colors',
+                isCardInvalid
+                  ? 'bg-destructive/15 text-destructive group-hover/hdr:bg-destructive/25'
+                  : 'bg-accent2/15 text-accent2 group-hover/hdr:bg-accent2/25',
+              )}
+            >
               {index + 1}
             </span>
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground group-hover/hdr:text-foreground transition-colors truncate">
@@ -178,7 +195,7 @@ export function ReferenceCard({
               onChange={(e) => onChange(set(value, 'kanun_ad', e.target.value))}
               onBlur={(e) => {
                 const cleaned = normalizeKanunAdi(e.target.value)
-                onChange(set(value, 'kanun_ad', cleaned || ''))
+                onChange(set(value, 'kanun_ad', cleaned ?? ''))
               }}
               disabled={disabled}
             />
@@ -196,11 +213,11 @@ export function ReferenceCard({
                   onChange({
                     ...value,
                     madde: parsed.madde,
-                    fikra: parsed.fikra || value.fikra || null,
-                    bent: parsed.bent || value.bent || null,
+                    fikra: parsed.fikra ?? value.fikra ?? null,
+                    bent: parsed.bent ?? value.bent ?? null,
                   })
                 } else {
-                  onChange(set(value, 'madde', normalizeMadde(val) || ''))
+                  onChange(set(value, 'madde', normalizeMadde(val) ?? ''))
                 }
               }}
               disabled={disabled}
@@ -214,7 +231,7 @@ export function ReferenceCard({
               onChange={(e) => onChange(set(value, 'fikra', e.target.value))}
               onBlur={(e) => {
                 const cleaned = normalizeIdentifier(e.target.value)
-                onChange(set(value, 'fikra', cleaned || ''))
+                onChange(set(value, 'fikra', cleaned ?? ''))
               }}
               disabled={disabled}
             />
@@ -227,20 +244,27 @@ export function ReferenceCard({
               onChange={(e) => onChange(set(value, 'bent', e.target.value))}
               onBlur={(e) => {
                 const cleaned = normalizeIdentifier(e.target.value)
-                onChange(set(value, 'bent', cleaned || ''))
+                onChange(set(value, 'bent', cleaned ?? ''))
               }}
               disabled={disabled}
             />
           </div>
         </div>
-        <div className={cn(
-          'space-y-1.5 rounded-md border p-3',
-          isCardInvalid ? 'border-destructive/20 bg-destructive/[0.02]' : 'border-accent/20 bg-accent/[0.04]'
-        )}>
-          <Label htmlFor={id('source')} className={cn(
-            'flex items-center gap-1.5',
-            isCardInvalid ? 'text-destructive' : 'text-accent'
-          )}>
+        <div
+          className={cn(
+            'space-y-1.5 rounded-md border p-3',
+            isCardInvalid
+              ? 'border-destructive/20 bg-destructive/[0.02]'
+              : 'border-accent/20 bg-accent/[0.04]',
+          )}
+        >
+          <Label
+            htmlFor={id('source')}
+            className={cn(
+              'flex items-center gap-1.5',
+              isCardInvalid ? 'text-destructive' : 'text-accent',
+            )}
+          >
             <Quote aria-hidden="true" className="h-3 w-3" />
             Metinden Alıntı
           </Label>
@@ -253,9 +277,9 @@ export function ReferenceCard({
             required
             className={cn(
               'bg-card focus-visible:ring-1 focus-visible:ring-offset-0',
-              isCardInvalid 
-                ? 'border-destructive/30 focus-visible:border-destructive focus-visible:ring-destructive' 
-                : 'border-accent/30 focus-visible:border-accent focus-visible:ring-accent'
+              isCardInvalid
+                ? 'border-destructive/30 focus-visible:border-destructive focus-visible:ring-destructive'
+                : 'border-accent/30 focus-visible:border-accent focus-visible:ring-accent',
             )}
           />
         </div>

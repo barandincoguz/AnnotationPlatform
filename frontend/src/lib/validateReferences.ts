@@ -83,7 +83,8 @@ export function normalizeIdentifier(val: string | null): string | null {
   if (!val) return null
   const cleaned = val.replace(/^[()[\]{}.\s,]+|[()[\]{}.\s,]+$/g, '')
   const key = normalizeTurkishKey(cleaned).toLowerCase()
-  return ORDINAL_MAP[key] || cleaned || null
+  const result = ORDINAL_MAP[key] ?? cleaned
+  return result === '' ? null : result
 }
 
 export function normalizeMadde(val: string | null): string | null {
@@ -106,7 +107,7 @@ export function parseComplexMadde(input: string): ParsedReference | null {
   if (!cleaned.includes('/') && !cleaned.includes('-')) {
     return null
   }
-  if ((cleaned.match(/\//g) || []).length > 1 || (cleaned.match(/-/g) || []).length > 1) {
+  if ((cleaned.match(/\//g) ?? []).length > 1 || (cleaned.match(/-/g) ?? []).length > 1) {
     return null
   }
 

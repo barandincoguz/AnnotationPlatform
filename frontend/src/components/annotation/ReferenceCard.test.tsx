@@ -88,7 +88,7 @@ describe('ReferenceCard', () => {
   describe('ReferenceCard blur auto-splitting and normalization', () => {
     it('splits complex madde value on blur and triggers onChange', () => {
       const onChange = vi.fn()
-      
+
       function TestWrapper() {
         const [val, setVal] = useState<ReferenceItem>(emptyReferenceItem())
         return (
@@ -99,10 +99,10 @@ describe('ReferenceCard', () => {
               setVal(next)
               onChange(next)
             }}
-            onRemove={() => {}}
+            onRemove={() => undefined}
             disabled={false}
             isExpanded={true}
-            onExpand={() => {}}
+            onExpand={() => undefined}
           />
         )
       }
@@ -118,7 +118,7 @@ describe('ReferenceCard', () => {
           madde: '16',
           fikra: '1',
           bent: 'a',
-        })
+        }),
       )
     })
 
@@ -135,10 +135,10 @@ describe('ReferenceCard', () => {
               setVal(next)
               onChange(next)
             }}
-            onRemove={() => {}}
+            onRemove={() => undefined}
             disabled={false}
             isExpanded={true}
-            onExpand={() => {}}
+            onExpand={() => undefined}
           />
         )
       }
@@ -152,7 +152,7 @@ describe('ReferenceCard', () => {
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({
           kanun_ad: 'Kurumlar Vergisi Kanunu',
-        })
+        }),
       )
     })
 
@@ -174,10 +174,10 @@ describe('ReferenceCard', () => {
               setVal(next)
               onChange(next)
             }}
-            onRemove={() => {}}
+            onRemove={() => undefined}
             disabled={false}
             isExpanded={true}
-            onExpand={() => {}}
+            onExpand={() => undefined}
           />
         )
       }
@@ -193,7 +193,7 @@ describe('ReferenceCard', () => {
           madde: '16',
           fikra: '2',
           bent: 'b',
-        })
+        }),
       )
     })
   })

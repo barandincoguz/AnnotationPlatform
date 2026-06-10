@@ -110,6 +110,11 @@ describe('parseComplexMadde', () => {
       fikra: '1',
       bent: 'a',
     })
+    expect(parseComplexMadde('16/1-a')).toEqual({
+      madde: '16',
+      fikra: '1',
+      bent: 'a',
+    })
   })
 
   it('parses Roman numerals correctly', () => {
@@ -131,6 +136,11 @@ describe('parseComplexMadde', () => {
   it('parses madde and bent only', () => {
     expect(parseComplexMadde('5-a')).toEqual({
       madde: '5',
+      fikra: null,
+      bent: 'a',
+    })
+    expect(parseComplexMadde('13/a')).toEqual({
+      madde: '13',
       fikra: null,
       bent: 'a',
     })
@@ -178,25 +188,7 @@ describe('normalizeIdentifier', () => {
   })
 })
 
-describe('parseComplexMadde', () => {
-  it('splits complex madde formats correctly', () => {
-    expect(parseComplexMadde('16/1-a')).toEqual({
-      madde: '16',
-      fikra: '1',
-      bent: 'a',
-    })
-    expect(parseComplexMadde('5-a')).toEqual({
-      madde: '5',
-      fikra: null,
-      bent: 'a',
-    })
-    expect(parseComplexMadde('13/a')).toEqual({
-      madde: '13',
-      fikra: null,
-      bent: 'a',
-    })
-  })
-})
+
 
 describe('normalizeMadde', () => {
   it('strips madde keywords and ordinals', () => {
