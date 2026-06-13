@@ -1,7 +1,7 @@
 import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
-type ReferenceLike = {
+interface ReferenceLike {
   kanun_no?: string | null | undefined
   kanun_ad?: string | null | undefined
   madde?: string | null | undefined
@@ -97,7 +97,7 @@ export function normalizeKanunAdi(text: string | null): string | null {
 export function normalizeKanunNo(value: string | null): string | null {
   if (!value) return null
   const collapsed = value.replace(/\s+/g, ' ').trim()
-  const cleaned = collapsed.replace(/[^0-9A-Za-z/-]+/g, '').replace(/^[\/-]+|[\/-]+$/g, '')
+  const cleaned = collapsed.replace(/[^0-9A-Za-z/_-]+/g, '').replace(/^[/_-]+|[/_-]+$/g, '')
   return cleaned || null
 }
 

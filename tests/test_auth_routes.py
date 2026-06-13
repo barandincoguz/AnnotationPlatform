@@ -249,7 +249,7 @@ def test_login_cookie_not_secure_in_development(seeded_client, monkeypatch):
     assert "Secure" not in cookie_header, f"Expected NO 'Secure' in dev cookie: {cookie_header}"
 
 
-def test_invite_code_preserves_custom_active_code():
+def test_invite_code_preserves_custom_active_code(client):
     """Verify that startup code initialization logic preserves existing active invite codes."""
     from backend.shared.db import connect
     from backend import config
@@ -280,7 +280,7 @@ def test_invite_code_preserves_custom_active_code():
         conn.close()
 
 
-def test_invite_code_seeds_default_when_none_active():
+def test_invite_code_seeds_default_when_none_active(client):
     """Verify that if no active code exists, startup code initialization seeds the default."""
     from backend.shared.db import connect
     from backend import config
