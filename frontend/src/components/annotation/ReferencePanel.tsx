@@ -11,6 +11,7 @@ type ReferenceItem = components['schemas']['ReferenceItem']
 
 interface ReferencePanelProps {
   refs: ReferenceItem[]
+  docText?: string
   onAdd: () => void
   onUpdate: (index: number, ref: ReferenceItem) => void
   onRemove: (index: number) => void
@@ -56,6 +57,7 @@ function DraftStatusBadge({ status }: { status: DraftSaveStatus }) {
 
 export function ReferencePanel({
   refs,
+  docText = '',
   onAdd,
   onUpdate,
   onRemove,
@@ -142,6 +144,7 @@ export function ReferencePanel({
               key={i}
               index={i}
               value={r}
+              docText={docText}
               onChange={(next) => onUpdate(i, next)}
               onRemove={() => onRemove(i)}
               disabled={!canEdit}

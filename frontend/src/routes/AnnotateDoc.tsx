@@ -6,6 +6,7 @@ import { DocViewer } from '@/components/annotation/DocViewer'
 import { ReferencePanel } from '@/components/annotation/ReferencePanel'
 import { LockConflictModal } from '@/components/modals/LockConflictModal'
 import { useLock } from '@/hooks/useLock'
+import { useDoc } from '@/hooks/useDoc'
 import {
   useAnnotation,
   useSaveAnnotationMutation,
@@ -47,6 +48,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const lock = useLock(docId)
   const annotation = useAnnotation(docId)
   const draft = useDraft(docId)
+  const docQuery = useDoc(docId)
 
   const onChangeRefs = useCallback(
     (next: ReferenceItem[]) => {
@@ -282,6 +284,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       <div className="overflow-hidden">
         <ReferencePanel
           refs={refs.list}
+          docText={docQuery.data?.pdf_text ?? ''}
           onAdd={refs.add}
           onUpdate={refs.update}
           onRemove={refs.remove}

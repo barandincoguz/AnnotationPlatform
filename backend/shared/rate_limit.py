@@ -19,7 +19,11 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
+
+if TYPE_CHECKING:
+    from fastapi import Request
+
 
 
 
@@ -75,6 +79,9 @@ def rate_limit(
           dependency raises HTTPException(429) with the remaining
           window in `Retry-After`.
     """
+    global Request
+    from fastapi import Request
+
     from backend.users.deps import get_request_ip  # local import: avoid cycle
 
     def _key_default(req: Request) -> str:

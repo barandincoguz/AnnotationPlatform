@@ -14,6 +14,7 @@ import {
   normalizeMadde,
   normalizeIdentifier,
   normalizeKanunAdi,
+  isSourceTextInDoc,
   type ReferenceField,
 } from '@/lib/validateReferences'
 
@@ -22,6 +23,7 @@ type ReferenceItem = components['schemas']['ReferenceItem']
 interface ReferenceCardProps {
   index: number
   value: ReferenceItem
+  docText?: string
   onChange: (next: ReferenceItem) => void
   onRemove: () => void
   disabled: boolean
@@ -36,6 +38,7 @@ function set<K extends keyof ReferenceItem>(prev: ReferenceItem, key: K, v: stri
 export function ReferenceCard({
   index,
   value,
+  docText = '',
   onChange,
   onRemove,
   disabled,
@@ -43,6 +46,7 @@ export function ReferenceCard({
   onExpand,
 }: ReferenceCardProps) {
   const id = (k: string) => `ref-${index}-${k}`
+  const isSourceInDoc = isSourceTextInDoc(value.source_text, docText)
   const diagnostics: Record<ReferenceField, ReturnType<typeof getReferenceFieldDiagnostic>> = {
     kanun_no: getReferenceFieldDiagnostic('kanun_no', value.kanun_no, value),
     kanun_ad: getReferenceFieldDiagnostic('kanun_ad', value.kanun_ad, value),
@@ -336,6 +340,12 @@ export function ReferenceCard({
                 : 'border-accent/30 focus-visible:border-accent focus-visible:ring-accent',
             )}
           />
+          {!isSourceInDoc && value.source_text && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-warning" role="status" aria-live="polite">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              Alıntı metni özelge gövdesinde bulunamadı. Lütfen kopyalamanın doğru yapıldığından emin olun.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

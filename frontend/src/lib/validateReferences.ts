@@ -306,3 +306,49 @@ export function isValidTrainingReference(r: ReferenceLike): boolean {
 export function areAllTrainingReferencesValid(refs: ReferenceItem[]): boolean {
   return refs.every(isValidTrainingReference)
 }
+
+export function cleanForFuzzyMatch(text: string): string {
+  if (!text) return ''
+  return text
+    .toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+export function isSourceTextInDoc(
+  sourceText: string | null | undefined,
+  docText: string | null | undefined,
+): boolean {
+  if (!sourceText || !sourceText.trim()) return true
+  if (!docText) return false
+
+  const cleanSource = cleanForFuzzyMatch(sourceText)
+  const cleanDoc = cleanForFuzzyMatch(docText)
+
+  // Level 1: Substring match on fully cleaned text
+  if (cleanDoc.includes(cleanSource)) return true
+
+  // Level 2: Word-level presence check (loose fallback)
+  const words = sourceText
+    .split(/\s+/)
+    .map((w) => cleanForFuzzyMatch(w))
+    .filter((w) => w.length >= 3)
+
+  if (words.length === 0) return true
+
+  let matchedWords = 0
+  for (const word of words) {
+    if (cleanDoc.includes(word)) {
+      matchedWords++
+    }
+  }
+
+  const ratio = matchedWords / words.length
+  return ratio >= 0.8
+}
+

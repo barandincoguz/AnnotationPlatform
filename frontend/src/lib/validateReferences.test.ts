@@ -7,6 +7,8 @@ import {
   normalizeKanunNo, normalizeMadde,
   isInvalidComplexMadde,
   getReferenceFieldDiagnostic,
+  cleanForFuzzyMatch,
+  isSourceTextInDoc,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -255,3 +257,46 @@ describe('getReferenceFieldDiagnostic', () => {
     expect(getReferenceFieldDiagnostic('kanun_no', '213.')?.message).toBe('Kaydedilirken 213 olarak düzeltilecek.')
   })
 })
+
+describe('cleanForFuzzyMatch', () => {
+  it('downcases, removes punctuation/spaces, and maps Turkish characters', () => {
+    expect(cleanForFuzzyMatch('Gelir Vergisi Kanunu')).toBe('gelirvergisikanunu')
+    expect(cleanForFuzzyMatch('ıİğĞüÜşŞöÖçÇ')).toBe('iigguussoocc')
+    expect(cleanForFuzzyMatch('Madde: 15/A-2')).toBe('madde15a2')
+  })
+})
+
+describe('isSourceTextInDoc', () => {
+  const docText = 'Kurumlar Vergisi Kanununun 5 inci maddesinin birinci fıkrasının (e) bendinde yer alan istisna hükmü.'
+
+  it('returns true if sourceText is empty or blank', () => {
+    expect(isSourceTextInDoc('', docText)).toBe(true)
+    expect(isSourceTextInDoc('   ', docText)).toBe(true)
+    expect(isSourceTextInDoc(null, docText)).toBe(true)
+  })
+
+  it('returns false if docText is empty but sourceText is present', () => {
+    expect(isSourceTextInDoc('istisna', '')).toBe(false)
+    expect(isSourceTextInDoc('istisna', null)).toBe(false)
+  })
+
+  it('returns true on exact or normalized substring match', () => {
+    expect(isSourceTextInDoc('5 inci maddesinin birinci fıkrasının', docText)).toBe(true)
+    // Ignore case and Turkish characters
+    expect(isSourceTextInDoc('5 İNCİ MADDESININ BIRINCI FIKRASININ', docText)).toBe(true)
+    // Ignore punctuation and spacing
+    expect(isSourceTextInDoc('5. maddesinin, birinci fıkrasının (e) bendinde', docText)).toBe(true)
+  })
+
+  it('returns true if at least 80% of words exist in the document (loose matching fallback)', () => {
+    // 8 out of 9 words match (one typo word "yanlisword")
+    const source = '5 inci maddesinin birinci fıkrasının yanlisword bendinde yer alan'
+    expect(isSourceTextInDoc(source, docText)).toBe(true)
+  })
+
+  it('returns false if less than 80% of words exist in the document', () => {
+    const source = 'bu cümle tamamen uydurulmuş bir cümledir hiçbir şekilde eşleşmez'
+    expect(isSourceTextInDoc(source, docText)).toBe(false)
+  })
+})
+
