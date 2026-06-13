@@ -8,10 +8,17 @@ On startup:
 Domain routers (users, documents, ...) are mounted in their respective packages.
 """
 import os
+import mimetypes
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
+# Explicitly register common MIME types to prevent python-slim images
+# from serving CSS/JS assets as text/plain under strict MIME sniffing policies.
+mimetypes.init()
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("application/javascript", ".js")
 
 from backend import config
 from backend.shared.db import connect
