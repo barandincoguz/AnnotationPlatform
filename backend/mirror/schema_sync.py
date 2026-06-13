@@ -33,7 +33,7 @@ def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
                 pg_cols = pg_cur.fetchall()
                 pg_schema: dict[str, set[str]] = {}
                 for table, col in pg_cols:
-                    pg_schema.setdefault(table, set()).add(col)
+                    pg_schema.setdefault(table.lower(), set()).add(col.lower())
 
                 # Fetch all existing indexes on Postgres to avoid duplicate index errors
                 pg_cur.execute(
@@ -43,13 +43,13 @@ def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
                     WHERE schemaname = 'public' AND tablename LIKE 'baran_%'
                     """
                 )
-                pg_indexes = {row[0] for row in pg_cur.fetchall()}
+                pg_indexes = {row[0].lower() for row in pg_cur.fetchall()}
 
                 # 2. Introspect SQLite project tables and compare
                 tables = list_project_tables(sqlite_conn)
                 for t in tables:
                     sqlite_schema = introspect_table(sqlite_conn, t)
-                    pg_table_name = f"baran_{t}"
+                    pg_table_name = f"baran_{t}".lower()
 
                     if pg_table_name not in pg_schema:
                         # Table does not exist on Postgres. Create it!
@@ -64,7 +64,7 @@ def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
                         statements = build_pg_ddl_for_table(sqlite_schema)
                         
                         for col in sqlite_schema.columns:
-                            if col.name not in existing_cols:
+                            if col.name.lower() not in existing_cols:
                                 pg_type = _pg_type_for(col)
                                 alter_stmt = f"ALTER TABLE {pg_table_name} ADD COLUMN {col.name} {pg_type}"
                                 if col.default is not None and not col.is_autoincrement:
@@ -78,7 +78,7 @@ def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
                         for stmt in statements[1:]:
                             match = re.search(r"INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_]+)\s+ON", stmt, re.IGNORECASE)
                             if match:
-                                idx_name = match.group(1)
+                                idx_name = match.group(1).lower()
                                 if idx_name not in pg_indexes:
                                     log.info("Postgres schema sync: index %s is missing. Creating...", idx_name)
                                     pg_cur.execute(stmt)
