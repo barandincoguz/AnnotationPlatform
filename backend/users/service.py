@@ -439,20 +439,60 @@ def seed_bootstrap_admin(
     if not username or not password:
         return
 
-    # Pre-check outside transaction (cheap early-exit; avoids BEGIN if no work).
+    # Check if a user with this username already exists
+    existing = db.execute(
+        "SELECT id, role, password_hash, is_active FROM users WHERE username=?", (username,)
+    ).fetchone()
+
+    if existing is not None:
+        if existing["role"] != "admin":
+            raise RuntimeError(
+                f"BOOTSTRAP_ADMIN_USERNAME={username!r} conflicts with "
+                f"existing non-admin user"
+            )
+        
+        # It is an admin. Check if we need to update password hash or activation status.
+        from backend.shared import auth as auth_mod
+        if auth_mod.verify_password(password, existing["password_hash"]) and existing["is_active"] == 1:
+            # Already active and password matches. Idempotent early exit.
+            return
+
+        new_hash = auth_mod.hash_password(password)
+        trace_id = audit.gen_trace_id()
+        now = _now()
+
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            db.execute(
+                "UPDATE users SET password_hash=?, is_active=1, updated_at=? WHERE id=?",
+                (new_hash, now, existing["id"]),
+            )
+            audit.log_admin_action(
+                db,
+                admin_user_id=existing["id"],
+                action_type="bootstrap_admin_update",
+                target_kind="user",
+                target_id=str(existing["id"]),
+                metadata={"source": "lifespan_update"},
+                trace_id=trace_id,
+            )
+            db.execute("COMMIT")
+        except Exception:
+            db.execute("ROLLBACK")
+            raise
+
+        print(
+            f"Bootstrap admin {username!r} password/status updated (trace_id={trace_id})",
+            file=sys.stderr,
+        )
+        return
+
+    # No user with this username exists. Proceed with original logic.
+    # Cheap pre-check: if any other active admin exists, skip seeding new one.
     if db.execute(
         "SELECT 1 FROM users WHERE role='admin' AND is_active=1 LIMIT 1"
     ).fetchone() is not None:
         return
-
-    existing = db.execute(
-        "SELECT id, role FROM users WHERE username=?", (username,)
-    ).fetchone()
-    if existing is not None and existing["role"] != "admin":
-        raise RuntimeError(
-            f"BOOTSTRAP_ADMIN_USERNAME={username!r} conflicts with "
-            f"existing non-admin user"
-        )
 
     trace_id = audit.gen_trace_id()
     now = _now()
@@ -520,3 +560,4 @@ def seed_bootstrap_admin(
         f"Bootstrap admin {username!r} created (id={user_id}, trace_id={trace_id})",
         file=sys.stderr,
     )
+

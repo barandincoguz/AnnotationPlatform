@@ -75,11 +75,16 @@ async def lifespan(_app: FastAPI):
             )
             conn.commit()
 
+        # Automatic Neon Postgres schema migration (auto-sync schema) before sync starts
+        from backend.mirror import config as mirror_config
+        mirror_config.reload_from_env()
+        if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL:
+            from backend.mirror.schema_sync import sync_postgres_schema
+            sync_postgres_schema(conn, mirror_config.NEON_MIRROR_URL)
+
         # Automatic document replication and full user state sync from Neon Postgres on first boot (Phase 6 + Ephemeral Sync)
         user_count = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
         doc_count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
-        from backend.mirror import config as mirror_config
-        mirror_config.reload_from_env()
         if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL and (is_fresh_db or doc_count == 0):
             import psycopg
             
@@ -250,6 +255,13 @@ async def lifespan(_app: FastAPI):
                     for trigger_sql in build_triggers_for_table(s):
                         conn.execute(trigger_sql)
 
+        # Enforce admin credentials *after* Neon restore to ensure they match BOOTSTRAP_ADMIN_PASSWORD
+        seed_bootstrap_admin(
+            conn,
+            username=config.BOOTSTRAP_ADMIN_USERNAME,
+            password=config.BOOTSTRAP_ADMIN_PASSWORD,
+        )
+
         audit.log_system_event(
             conn, "startup", "info",
             message=f"app v{VERSION} started; migrations applied: {applied}",
@@ -263,6 +275,7 @@ async def lifespan(_app: FastAPI):
             )
     finally:
         conn.close()
+
 
     sweep_task     = locks_sweep.start(interval_seconds=60)
     backup_task    = backup_loop.start()

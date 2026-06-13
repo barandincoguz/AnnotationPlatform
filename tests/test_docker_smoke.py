@@ -76,6 +76,7 @@ def running_container(built_image):
         DOCKER, "run", "-d", "--rm",
         "-p", "0:8000",
         "-e", "SESSION_SECRET=test-secret-smoke",
+        "-e", "PORT=8000",
         built_image,
     ])
     cid = result.stdout.strip()
@@ -143,7 +144,7 @@ def test_health_db_endpoint_reports_migrations(running_container):
     ) as r:
         body = json.loads(r.read().decode("utf-8"))
     assert body["status"] == "ok"
-    assert body["migrations_applied"] == 7  # v0001..v0007
+    assert body["migrations_applied"] == 8  # v0001..v0008
     assert body["table_count"] >= 23
 
 
