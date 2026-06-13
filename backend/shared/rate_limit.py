@@ -21,7 +21,6 @@ import time
 from collections import deque
 from typing import Callable, Optional
 
-from fastapi import HTTPException, Request
 
 
 # Per-namespace state. Each value is {ip: deque[float_ts]}.
@@ -86,6 +85,8 @@ def rate_limit(
     bucket = _bucket(namespace)
 
     def dependency(request: Request) -> None:
+        from fastapi import HTTPException
+
         now = time.monotonic()
         cutoff = now - window_seconds
         key = extract_key(request)
