@@ -324,7 +324,7 @@ export function isSourceTextInDoc(
   sourceText: string | null | undefined,
   docText: string | null | undefined,
 ): boolean {
-  if (!sourceText || !sourceText.trim()) return true
+  if (!sourceText?.trim()) return true
   if (!docText) return false
 
   const cleanSource = cleanForFuzzyMatch(sourceText)
