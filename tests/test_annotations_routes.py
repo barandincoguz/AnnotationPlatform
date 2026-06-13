@@ -229,6 +229,178 @@ def test_get_chain_unknown_doc_404(passed_user):
     assert r.status_code == 404
 
 
+def test_save_normalizes_parseable_reference_fields_without_blur(passed_user, ingest_doc):
+    c = passed_user["client"]
+    ingest_doc("doc_test")
+
+    r = c.post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [
+                _ref_payload(
+                    kanun_ad="VUK",
+                    kanun_no=" 213. ",
+                    madde="17/5-a",
+                    bent="(A)",
+                    source_text=" atif ",
+                )
+            ],
+        },
+    )
+
+    assert r.status_code == 200, r.text
+    ref = r.json()["current_references"][0]
+    assert ref["kanun_no"] == "213"
+    assert ref["kanun_ad"] == "Vergi Usul Kanunu"
+    assert ref["madde"] == "17"
+    assert ref["fikra"] == "5"
+    assert ref["bent"] == "a"
+    assert ref["source_text"] == "atif"
+
+
+def test_save_rejects_ambiguous_complex_madde(passed_user, ingest_doc):
+    ingest_doc("doc_test")
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(kanun_no="213", madde="17--a")],
+        },
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("madde", "expected"),
+    [
+        ("17/5-a", {"madde": "17", "fikra": "5", "bent": "a"}),
+        ("17/5", {"madde": "17", "fikra": "5", "bent": None}),
+        ("17-a", {"madde": "17", "fikra": None, "bent": "a"}),
+        ("13/a", {"madde": "13", "fikra": None, "bent": "a"}),
+    ],
+)
+def test_save_normalizes_all_supported_complex_madde_shapes(
+    passed_user, ingest_doc, madde, expected
+):
+    ingest_doc("doc_test")
+
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(kanun_no="213", madde=madde)],
+        },
+    )
+
+    assert r.status_code == 200, r.text
+    ref = r.json()["current_references"][0]
+    assert ref["madde"] == expected["madde"]
+    assert ref["fikra"] == expected["fikra"]
+    assert ref["bent"] == expected["bent"]
+
+
+@pytest.mark.parametrize("madde", ["17/5/a-b", "17--a", "/5-a", "17/-a", "17/"])
+def test_save_rejects_all_ambiguous_complex_madde_shapes(
+    passed_user, ingest_doc, madde
+):
+    ingest_doc("doc_test")
+
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [_ref_payload(kanun_no="213", madde=madde)],
+        },
+    )
+
+    assert r.status_code == 422
+
+
+def test_save_rejects_duplicates_after_backend_normalization(passed_user, ingest_doc):
+    ingest_doc("doc_test")
+
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [
+                _ref_payload(
+                    kanun_no="213",
+                    madde="17/5-a",
+                    source_text="same source",
+                ),
+                _ref_payload(
+                    kanun_no="213",
+                    madde="17",
+                    fikra="5",
+                    bent="(A).",
+                    source_text="same source",
+                ),
+            ],
+        },
+    )
+
+    assert r.status_code == 422
+
+
+def test_save_suppresses_generic_known_law_name_rows_at_api_boundary(
+    passed_user, ingest_doc
+):
+    ingest_doc("doc_test")
+
+    r = passed_user["client"].post(
+        "/api/annotations",
+        json={
+            "document_id": "doc_test",
+            "references": [
+                _ref_payload(kanun_ad="VUK", source_text="general"),
+                _ref_payload(kanun_no="213", madde="5", source_text="specific"),
+                _ref_payload(kanun_ad="KVK", source_text="kvk general"),
+                _ref_payload(kanun_no="5520", madde="6", source_text="kvk specific"),
+            ],
+        },
+    )
+
+    assert r.status_code == 200, r.text
+    refs = r.json()["current_references"]
+    assert [ref["source_text"] for ref in refs] == ["specific", "kvk specific"]
+    assert refs[0]["kanun_no"] == "213"
+    assert refs[1]["kanun_no"] == "5520"
+
+
+def test_complete_with_refs_normalizes_reference_fields(passed_user, ingest_doc):
+    c = passed_user["client"]
+    ingest_doc("doc_test")
+
+    r = c.post(
+        "/api/annotations/doc_test/complete",
+        json={
+            "completed": True,
+            "references": [
+                _ref_payload(
+                    kanun_no=" 213. ",
+                    kanun_ad="VUK",
+                    madde="17/5-a",
+                    fikra="ikinci",
+                    bent="(A).",
+                    source_text=" atomic atif ",
+                )
+            ],
+        },
+    )
+
+    assert r.status_code == 200, r.text
+    g = c.get("/api/documents/doc_test/annotation")
+    ref = g.json()["annotation"]["references"][0]
+    assert ref["kanun_no"] == "213"
+    assert ref["kanun_ad"] == "Vergi Usul Kanunu"
+    assert ref["madde"] == "17"
+    assert ref["fikra"] == "5"
+    assert ref["bent"] == "a"
+    assert ref["source_text"] == "atomic atif"
+
+
 def test_pydantic_reference_item_pre_normalization():
     from backend.annotations.models import ReferenceItem
 

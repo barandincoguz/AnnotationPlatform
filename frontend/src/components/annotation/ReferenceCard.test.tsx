@@ -122,6 +122,90 @@ describe('ReferenceCard', () => {
       )
     })
 
+    it('shows a live split warning while typing parseable complex madde', async () => {
+      const user = userEvent.setup()
+
+      function TestWrapper() {
+        const [val, setVal] = useState<ReferenceItem>(emptyReferenceItem())
+        return (
+          <ReferenceCard
+            index={0}
+            value={val}
+            onChange={setVal}
+            onRemove={() => undefined}
+            disabled={false}
+            isExpanded={true}
+            onExpand={() => undefined}
+          />
+        )
+      }
+
+      render(<TestWrapper />)
+
+      const maddeInput = screen.getByLabelText('Madde')
+      await user.type(maddeInput, '17/5-a')
+
+      expect(screen.getByText('Kaydedilirken Madde 17, Fıkra 5, Bent a olarak ayrılacak.')).toBeInTheDocument()
+      expect(maddeInput).toHaveAccessibleDescription('Kaydedilirken Madde 17, Fıkra 5, Bent a olarak ayrılacak.')
+    })
+
+    it('keeps ambiguous madde unchanged after blur and keeps showing the error', async () => {
+      const user = userEvent.setup()
+
+      function TestWrapper() {
+        const [val, setVal] = useState<ReferenceItem>(emptyReferenceItem())
+        return (
+          <ReferenceCard
+            index={0}
+            value={val}
+            onChange={setVal}
+            onRemove={() => undefined}
+            disabled={false}
+            isExpanded={true}
+            onExpand={() => undefined}
+          />
+        )
+      }
+
+      render(<TestWrapper />)
+
+      const maddeInput = screen.getByLabelText('Madde')
+      await user.type(maddeInput, '17--a')
+      fireEvent.blur(maddeInput)
+
+      expect(maddeInput).toHaveValue('17--a')
+      expect(maddeInput).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByText('Madde formatı belirsiz. Örn: 17/5-a.')).toBeInTheDocument()
+    })
+
+    it('shows a bent cleanup warning and normalizes bent on blur', async () => {
+      const user = userEvent.setup()
+
+      function TestWrapper() {
+        const [val, setVal] = useState<ReferenceItem>(emptyReferenceItem())
+        return (
+          <ReferenceCard
+            index={0}
+            value={val}
+            onChange={setVal}
+            onRemove={() => undefined}
+            disabled={false}
+            isExpanded={true}
+            onExpand={() => undefined}
+          />
+        )
+      }
+
+      render(<TestWrapper />)
+
+      const bentInput = screen.getByLabelText('Bent')
+      await user.type(bentInput, '(A)')
+      expect(screen.getByText('Kaydedilirken a olarak düzeltilecek.')).toBeInTheDocument()
+
+      fireEvent.blur(bentInput)
+      expect(bentInput).toHaveValue('a')
+    })
+
     it('expands abbreviation for kanun_ad on blur', () => {
       const onChange = vi.fn()
 

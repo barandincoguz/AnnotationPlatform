@@ -8,6 +8,7 @@ import { DiffPreviewDialog } from '@/components/admin/DiffPreviewDialog'
 import { TypedConfirmDialog } from '@/components/admin/TypedConfirmDialog'
 import { useUpsertGoldDocMutation, useDeleteGoldDocMutation } from '@/api/queries/admin'
 import type { Concept, GoldDocResolved } from '@/lib/adminSchemas'
+import { isValidTrainingReference } from '@/lib/validateReferences'
 
 interface Props {
   doc: GoldDocResolved
@@ -26,7 +27,7 @@ export function GoldDocEditor({ doc }: Props) {
     setContent(doc.content); setConcepts(doc.expected_concepts); setMcc(doc.min_concept_count)
   }, [doc])
 
-  const canSave = concepts.every((c) => c.kanun_no.trim() !== '')
+  const canSave = concepts.every((c) => c.kanun_no.trim() !== '' && isValidTrainingReference(c))
 
   const onSubmit = () => {
     upsert.mutate(

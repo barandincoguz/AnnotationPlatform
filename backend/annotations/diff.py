@@ -37,6 +37,16 @@ LAW_ABBREVIATIONS = {
     "DVK": "Damga Vergisi Kanunu",
 }
 
+LAW_NUMBER_BY_NAME = {
+    "Vergi Usul Kanunu": "213",
+    "Gelir Vergisi Kanunu": "193",
+    "Kurumlar Vergisi Kanunu": "5520",
+    "Katma Değer Vergisi Kanunu": "3065",
+    "Özel Tüketim Vergisi Kanunu": "4760",
+    "Damga Vergisi Kanunu": "488",
+    "Harçlar Kanunu": "492",
+}
+
 LAW_NAME_ALIASES = {
     "VERGIUSULKANUNU": "Vergi Usul Kanunu",
     "VUKKANUNU": "Vergi Usul Kanunu",
@@ -116,9 +126,15 @@ def normalize_kanun_adi(text: Optional[str], kanun_no: str = "") -> Optional[str
 def normalize_identifier(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
-    raw = collapse_ws(str(value)).strip("()[]{}., ")
+    raw = collapse_ws(str(value)).strip("()[]{}., '\"`")
     key = _normalize_turkish_key(raw)
-    return ORDINAL_MAP.get(key, raw)
+    if not raw:
+        return None
+    if key in ORDINAL_MAP:
+        return ORDINAL_MAP[key]
+    if any(ch.isalpha() for ch in raw):
+        return raw.lower()
+    return raw
 
 
 def normalize_madde(value: Optional[str]) -> Optional[str]:
@@ -132,35 +148,53 @@ def normalize_madde(value: Optional[str]) -> Optional[str]:
     return raw if raw else None
 
 
+def _clean_identifier_part(part: str) -> str:
+    value = normalize_identifier(part)
+    if not value or "/" in value or "-" in value:
+        raise InvalidReference(
+            "madde format is invalid. Use formats like 17/5-a, 17/5, or 17-a."
+        )
+    return value
+
+
+def _reject_invalid_madde_format() -> None:
+    raise InvalidReference(
+        "madde format is invalid. Use formats like 17/5-a, 17/5, or 17-a."
+    )
+
+
 def parse_madde_token(token: Optional[str]) -> tuple[str, str, str]:
     cleaned = normalize_madde(token)
     if not cleaned:
         return "", "", ""
-    head = cleaned
-    fikra = ""
-    bent = ""
+
+    slash_count = cleaned.count("/")
+    dash_count = cleaned.count("-")
+    if slash_count > 1 or dash_count > 1:
+        _reject_invalid_madde_format()
+
+    if slash_count == 0 and dash_count == 0:
+        return cleaned, "", ""
 
     if "/" in cleaned:
-        left, right = cleaned.split("/", 1)
-        head = left.strip()
-        right = right.strip()
-        if "-" in right:
-            first, second = right.split("-", 1)
-            if first.isdigit():
-                fikra = first
-                bent = normalize_identifier(second)
-            else:
-                bent = normalize_identifier(right)
-        elif right.isdigit():
-            fikra = right
-        else:
-            bent = normalize_identifier(right)
-    elif "-" in cleaned:
-        left, right = cleaned.split("-", 1)
-        head = left.strip()
-        bent = normalize_identifier(right)
+        left, right = (part.strip() for part in cleaned.split("/", 1))
+        if not left or not right or "-" in left:
+            _reject_invalid_madde_format()
 
-    return head, fikra, bent
+        if "-" in right:
+            first, second = (part.strip() for part in right.split("-", 1))
+            if not first or not second or not first.isdigit():
+                _reject_invalid_madde_format()
+            return left, first, _clean_identifier_part(second)
+
+        if right.isdigit():
+            return left, right, ""
+        return left, "", _clean_identifier_part(right)
+
+    left, right = (part.strip() for part in cleaned.split("-", 1))
+    if not left or not right:
+        _reject_invalid_madde_format()
+    return left, "", _clean_identifier_part(right)
 
 
 def normalize_reference(ref: dict) -> dict:
@@ -197,6 +231,21 @@ def canonical_key(ref: dict) -> tuple:
     return tuple(ref.get(f) for f in REFERENCE_FIELDS)
 
 
+def law_family_key(ref: dict) -> str:
+    k_no = ref.get("kanun_no")
+    k_ad = ref.get("kanun_ad")
+    if k_no:
+        return f"no:{k_no}"
+    if k_ad:
+        canonical_name = normalize_kanun_adi(k_ad) or k_ad
+        mapped_no = LAW_NUMBER_BY_NAME.get(canonical_name)
+        if mapped_no:
+            return f"no:{mapped_no}"
+        val = _normalize_turkish_key(canonical_name)
+        return f"name:{val}"
+    return ""
+
+
 def normalize_references(refs: list[dict]) -> list[dict]:
     seen: set[tuple] = set()
     normalized_list: list[dict] = []
@@ -209,16 +258,6 @@ def normalize_references(refs: list[dict]) -> list[dict]:
             )
         seen.add(key)
         normalized_list.append(n)
-
-    def law_family_key(ref: dict) -> str:
-        k_no = ref.get("kanun_no")
-        k_ad = ref.get("kanun_ad")
-        if k_no:
-            return f"no:{k_no}"
-        if k_ad:
-            val = _normalize_turkish_key(k_ad)
-            return f"name:{val}"
-        return ""
 
     def is_specific(ref: dict) -> bool:
         return bool(ref.get("madde") or ref.get("fikra") or ref.get("bent"))

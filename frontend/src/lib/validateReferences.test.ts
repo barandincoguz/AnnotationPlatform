@@ -4,7 +4,9 @@ import {
   isValidTrainingReference, areAllTrainingReferencesValid,
   parseComplexMadde,
   normalizeTurkishKey, normalizeKanunAdi, normalizeIdentifier,
-  normalizeMadde,
+  normalizeKanunNo, normalizeMadde,
+  isInvalidComplexMadde,
+  getReferenceFieldDiagnostic,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -41,6 +43,11 @@ describe('isValidReference', () => {
 
   it('accepts when both kanun_no and kanun_ad are present', () => {
     expect(isValidReference(ref({ kanun_no: '5520', kanun_ad: 'KVK', source_text: 'metin' }))).toBe(true)
+  })
+
+  it('accepts parseable complex madde but rejects ambiguous complex madde', () => {
+    expect(isValidReference(ref({ kanun_no: '5520', madde: '17/5-a', source_text: 'metin' }))).toBe(true)
+    expect(isValidReference(ref({ kanun_no: '5520', madde: '17--a', source_text: 'metin' }))).toBe(false)
   })
 })
 
@@ -86,6 +93,15 @@ describe('isValidTrainingReference (16c.1)', () => {
   it('rejects whitespace-only kanun_no AND kanun_ad', () => {
     expect(isValidTrainingReference(ref({
       kanun_no: '   ', kanun_ad: '\t', source_text: '',
+    }))).toBe(false)
+  })
+
+  it('accepts parseable complex madde but rejects ambiguous complex madde', () => {
+    expect(isValidTrainingReference(ref({
+      kanun_no: '5520', madde: '17/5-a', source_text: '',
+    }))).toBe(true)
+    expect(isValidTrainingReference(ref({
+      kanun_no: '5520', madde: '17--a', source_text: '',
     }))).toBe(false)
   })
 })
@@ -152,6 +168,11 @@ describe('parseComplexMadde', () => {
 
   it('returns null for invalid format', () => {
     expect(parseComplexMadde('5/1/a-b')).toBeNull()
+    expect(parseComplexMadde('17--a')).toBeNull()
+    expect(parseComplexMadde('/5-a')).toBeNull()
+    expect(parseComplexMadde('17/-a')).toBeNull()
+    expect(isInvalidComplexMadde('17--a')).toBe(true)
+    expect(isInvalidComplexMadde('17/5-a')).toBe(false)
   })
 })
 
@@ -173,6 +194,14 @@ describe('normalizeKanunAdi', () => {
   })
 })
 
+describe('normalizeKanunNo', () => {
+  it('removes non identifier punctuation and trims edge separators', () => {
+    expect(normalizeKanunNo(' 213. ')).toBe('213')
+    expect(normalizeKanunNo('/5520-')).toBe('5520')
+    expect(normalizeKanunNo(null)).toBeNull()
+  })
+})
+
 describe('normalizeIdentifier', () => {
   it('normalizes verbal Turkish ordinal words', () => {
     expect(normalizeIdentifier('birinci')).toBe('1')
@@ -180,6 +209,10 @@ describe('normalizeIdentifier', () => {
   })
   it('cleans parentheses and brackets', () => {
     expect(normalizeIdentifier('(a)')).toBe('a')
+    expect(normalizeIdentifier('(A).')).toBe('a')
+    expect(normalizeIdentifier('"A"')).toBe('a')
+    expect(normalizeIdentifier("'a'")).toBe('a')
+    expect(normalizeIdentifier('`A`')).toBe('a')
     expect(normalizeIdentifier('[b]')).toBe('b')
     expect(normalizeIdentifier('c.')).toBe('c')
   })
@@ -199,3 +232,26 @@ describe('normalizeMadde', () => {
   })
 })
 
+describe('getReferenceFieldDiagnostic', () => {
+  it('returns a split preview for parseable complex madde', () => {
+    expect(getReferenceFieldDiagnostic('madde', '17/5-a')).toEqual({
+      level: 'warning',
+      message: 'Kaydedilirken Madde 17, Fıkra 5, Bent a olarak ayrılacak.',
+      normalizedPreview: 'Madde 17, Fıkra 5, Bent a',
+    })
+  })
+
+  it('returns an error for ambiguous complex madde', () => {
+    expect(getReferenceFieldDiagnostic('madde', '17--a')).toEqual({
+      level: 'error',
+      message: 'Madde formatı belirsiz. Örn: 17/5-a.',
+    })
+  })
+
+  it('returns correction previews for identifiers and law fields', () => {
+    expect(getReferenceFieldDiagnostic('bent', '(A)')?.message).toBe('Kaydedilirken a olarak düzeltilecek.')
+    expect(getReferenceFieldDiagnostic('fikra', 'birinci')?.message).toBe('Kaydedilirken 1 olarak düzeltilecek.')
+    expect(getReferenceFieldDiagnostic('kanun_ad', 'VUK')?.message).toBe('Kaydedilirken Vergi Usul Kanunu olarak düzeltilecek.')
+    expect(getReferenceFieldDiagnostic('kanun_no', '213.')?.message).toBe('Kaydedilirken 213 olarak düzeltilecek.')
+  })
+})

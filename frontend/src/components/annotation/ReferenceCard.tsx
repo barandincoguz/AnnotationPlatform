@@ -7,10 +7,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { components } from '@/api/types'
 import {
+  getReferenceFieldDiagnostic,
+  isInvalidComplexMadde,
   parseComplexMadde,
+  normalizeKanunNo,
   normalizeMadde,
   normalizeIdentifier,
   normalizeKanunAdi,
+  type ReferenceField,
 } from '@/lib/validateReferences'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
@@ -39,9 +43,40 @@ export function ReferenceCard({
   onExpand,
 }: ReferenceCardProps) {
   const id = (k: string) => `ref-${index}-${k}`
+  const diagnostics: Record<ReferenceField, ReturnType<typeof getReferenceFieldDiagnostic>> = {
+    kanun_no: getReferenceFieldDiagnostic('kanun_no', value.kanun_no, value),
+    kanun_ad: getReferenceFieldDiagnostic('kanun_ad', value.kanun_ad, value),
+    madde: getReferenceFieldDiagnostic('madde', value.madde, value),
+    fikra: getReferenceFieldDiagnostic('fikra', value.fikra, value),
+    bent: getReferenceFieldDiagnostic('bent', value.bent, value),
+  }
+  const diagnosticFor = (field: ReferenceField) => diagnostics[field]
+  const diagnosticId = (field: ReferenceField) => `${id(field)}-diagnostic`
+  const describedBy = (field: ReferenceField) =>
+    diagnosticFor(field) ? diagnosticId(field) : undefined
+  const invalidFor = (field: ReferenceField) =>
+    diagnosticFor(field)?.level === 'error' ? true : undefined
+  const renderDiagnostic = (field: ReferenceField) => {
+    const diagnostic = diagnosticFor(field)
+    if (!diagnostic) return null
+    return (
+      <p
+        id={diagnosticId(field)}
+        aria-live="polite"
+        className="text-xs text-destructive"
+      >
+        {diagnostic.message}
+      </p>
+    )
+  }
 
+  const hasFieldError = Object.values(diagnostics).some(
+    (diagnostic) => diagnostic?.level === 'error',
+  )
   const isCardInvalid =
-    !value.source_text?.trim() || (!value.kanun_no?.trim() && !value.kanun_ad?.trim())
+    hasFieldError ||
+    !value.source_text?.trim() ||
+    (!value.kanun_no?.trim() && !value.kanun_ad?.trim())
 
   if (!isExpanded) {
     const summaryParts = []
@@ -184,8 +219,15 @@ export function ReferenceCard({
               id={id('kanun_no')}
               value={value.kanun_no ?? ''}
               onChange={(e) => onChange(set(value, 'kanun_no', e.target.value))}
+              onBlur={(e) => {
+                const cleaned = normalizeKanunNo(e.target.value)
+                onChange(set(value, 'kanun_no', cleaned ?? ''))
+              }}
+              aria-describedby={describedBy('kanun_no')}
+              aria-invalid={invalidFor('kanun_no')}
               disabled={disabled}
             />
+            {renderDiagnostic('kanun_no')}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={id('kanun_ad')}>Kanun Adı</Label>
@@ -197,8 +239,11 @@ export function ReferenceCard({
                 const cleaned = normalizeKanunAdi(e.target.value)
                 onChange(set(value, 'kanun_ad', cleaned ?? ''))
               }}
+              aria-describedby={describedBy('kanun_ad')}
+              aria-invalid={invalidFor('kanun_ad')}
               disabled={disabled}
             />
+            {renderDiagnostic('kanun_ad')}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={id('madde')}>Madde</Label>
@@ -216,12 +261,15 @@ export function ReferenceCard({
                     fikra: parsed.fikra ?? value.fikra ?? null,
                     bent: parsed.bent ?? value.bent ?? null,
                   })
-                } else {
+                } else if (!isInvalidComplexMadde(val)) {
                   onChange(set(value, 'madde', normalizeMadde(val) ?? ''))
                 }
               }}
+              aria-describedby={describedBy('madde')}
+              aria-invalid={invalidFor('madde')}
               disabled={disabled}
             />
+            {renderDiagnostic('madde')}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={id('fikra')}>Fıkra</Label>
@@ -233,8 +281,11 @@ export function ReferenceCard({
                 const cleaned = normalizeIdentifier(e.target.value)
                 onChange(set(value, 'fikra', cleaned ?? ''))
               }}
+              aria-describedby={describedBy('fikra')}
+              aria-invalid={invalidFor('fikra')}
               disabled={disabled}
             />
+            {renderDiagnostic('fikra')}
           </div>
           <div className="space-y-1.5 col-span-2">
             <Label htmlFor={id('bent')}>Bent</Label>
@@ -246,8 +297,11 @@ export function ReferenceCard({
                 const cleaned = normalizeIdentifier(e.target.value)
                 onChange(set(value, 'bent', cleaned ?? ''))
               }}
+              aria-describedby={describedBy('bent')}
+              aria-invalid={invalidFor('bent')}
               disabled={disabled}
             />
+            {renderDiagnostic('bent')}
           </div>
         </div>
         <div

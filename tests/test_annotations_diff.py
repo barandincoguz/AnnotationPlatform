@@ -166,7 +166,12 @@ def test_normalize_identifier():
     assert normalize_identifier("dokuzuncu") == "9"
     assert normalize_identifier("onuncu") == "10"
     assert normalize_identifier("(a)") == "a"
+    assert normalize_identifier("(A).") == "a"
+    assert normalize_identifier('"A"') == "a"
+    assert normalize_identifier("'a'") == "a"
+    assert normalize_identifier("`A`") == "a"
     assert normalize_identifier("[b]") == "b"
+    assert normalize_identifier("{C},") == "c"
     assert normalize_identifier("a.") == "a"
     assert normalize_identifier(None) is None
 
@@ -189,11 +194,22 @@ def test_parse_madde_token():
     from backend.annotations.diff import parse_madde_token
 
     assert parse_madde_token("16/1-a") == ("16", "1", "a")
+    assert parse_madde_token("17/5-a") == ("17", "5", "a")
     assert parse_madde_token("5-a") == ("5", "", "a")
+    assert parse_madde_token("17-a") == ("17", "", "a")
     assert parse_madde_token("13/a") == ("13", "", "a")  # No 13/a special exception
     assert parse_madde_token("16/1") == ("16", "1", "")
+    assert parse_madde_token("17/5") == ("17", "5", "")
     assert parse_madde_token("5") == ("5", "", "")
     assert parse_madde_token(None) == ("", "", "")
+
+
+def test_parse_madde_token_rejects_ambiguous_complex_values():
+    from backend.annotations.diff import parse_madde_token
+
+    for value in ("17/5/a-b", "17--a", "/5-a", "17/-a", "17/"):
+        with pytest.raises(InvalidReference):
+            parse_madde_token(value)
 
 
 def test_normalize_reference_with_complex_madde():
@@ -204,6 +220,15 @@ def test_normalize_reference_with_complex_madde():
     assert normalized["madde"] == "16"
     assert normalized["fikra"] == "1"
     assert normalized["bent"] == "a"
+
+
+def test_normalize_list_dedupes_identifier_case_after_cleaning():
+    refs = [
+        _ref(kanun_no="193", madde="37", bent="A", source_text="text"),
+        _ref(kanun_no="193", madde="37", bent="a", source_text="text"),
+    ]
+    with pytest.raises(DuplicateReference):
+        normalize_references(refs)
 
 
 def test_generic_reference_suppression():
@@ -217,6 +242,43 @@ def test_generic_reference_suppression():
     # The generic reference should be suppressed, leaving only the specific one
     assert len(normalized) == 1
     assert normalized[0]["madde"] == "5"
+
+
+def test_generic_reference_suppression_groups_known_law_name_and_number():
+    refs = [
+        {"source_text": "general text", "kanun_ad": "VUK"},
+        {"source_text": "specific text", "kanun_no": "213", "madde": "5"},
+        {"source_text": "kvk general", "kanun_ad": "KVK"},
+        {"source_text": "kvk specific", "kanun_no": "5520", "madde": "6"},
+    ]
+    normalized = normalize_references(refs)
+
+    assert len(normalized) == 2
+    assert [r["source_text"] for r in normalized] == ["specific text", "kvk specific"]
+    assert normalized[0]["kanun_no"] == "213"
+    assert normalized[1]["kanun_no"] == "5520"
+
+
+def test_law_family_key_keeps_kanun_no_authoritative_over_known_name():
+    refs = [
+        {"source_text": "number wins general", "kanun_no": "999", "kanun_ad": "VUK"},
+        {"source_text": "real vuk specific", "kanun_no": "213", "madde": "5"},
+    ]
+    normalized = normalize_references(refs)
+
+    assert len(normalized) == 2
+    assert normalized[0]["kanun_no"] == "999"
+    assert normalized[0]["kanun_ad"] == "Vergi Usul Kanunu"
+    assert normalized[1]["kanun_no"] == "213"
+
+
+def test_law_name_family_mapping_does_not_fill_missing_kanun_no():
+    normalized = normalize_references([
+        {"source_text": "name only", "kanun_ad": "Harçlar Kanunu", "madde": "1"},
+    ])
+
+    assert normalized[0]["kanun_ad"] == "Harçlar Kanunu"
+    assert normalized[0]["kanun_no"] is None
 
 
 def test_normalize_madde():
