@@ -13,11 +13,15 @@ import sqlite3
 from dataclasses import dataclass, field
 
 
-# Tables that are never mirrored (D-06 + operator-discretion exclusion).
+# Tables that are never mirrored (D-06 + security/operational exclusions).
 _NON_PROJECT_TABLES = frozenset({
     "_outbox",
     "schema_migrations",
     "sqlite_sequence",
+    # Session tokens are bearer credentials. Mirroring them would copy
+    # plaintext credentials to a second database and make stale sessions
+    # recoverable after an ephemeral-disk restore.
+    "user_sessions",
 })
 
 
@@ -63,8 +67,7 @@ def list_project_tables(conn: sqlite3.Connection) -> list[str]:
     """Return the names of in-scope tables, sorted.
 
     Excludes `_outbox` (D-06), `schema_migrations` (operational metadata),
-    and any SQLite internal tables. The result is the 23 in-scope tables
-    for Phase 4 once the prior migrations have run.
+    `user_sessions` (bearer credentials), and SQLite internal tables.
     """
     rows = conn.execute(
         "SELECT name FROM sqlite_master "
@@ -74,6 +77,11 @@ def list_project_tables(conn: sqlite3.Connection) -> list[str]:
     return [r["name"] if isinstance(r, sqlite3.Row) else r[0]
             for r in rows
             if (r["name"] if isinstance(r, sqlite3.Row) else r[0]) not in _NON_PROJECT_TABLES]
+
+
+def is_mirrored_table(table_name: str) -> bool:
+    """Return whether a SQLite table is eligible for the Neon mirror."""
+    return table_name not in _NON_PROJECT_TABLES and not table_name.startswith("sqlite_")
 
 
 def _extract_checks(create_sql: str) -> list[str]:

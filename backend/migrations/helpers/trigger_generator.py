@@ -1,7 +1,7 @@
 """SQLite trigger generator for the Phase 4 outbox capture (MIRROR-01).
 
 Produces one `CREATE TRIGGER IF NOT EXISTS` per (in-scope table, op) pair —
-23 tables × 3 ops = **69 triggers**. Each trigger body INSERTs a single
+22 tables × 3 ops = **66 triggers**. Each trigger body INSERTs a single
 `_outbox` row carrying the JSON-encoded payload, the pk_value string per
 D-03, and the operation type.
 
@@ -66,7 +66,13 @@ def _payload_expr(schema: TableSchema, ref: str) -> str:
     parts: list[str] = []
     for col in schema.columns:
         parts.append(f"'{col.name}'")
-        parts.append(f"{ref}.{col.name}")
+        # Session rows are local-only bearer credentials. Nulling this
+        # reference keeps activity events mirrorable during rolling upgrades
+        # without requiring a remote session row.
+        if schema.name == "activity_events" and col.name == "session_id":
+            parts.append("NULL")
+        else:
+            parts.append(f"{ref}.{col.name}")
     return f"json_object({', '.join(parts)})"
 
 
@@ -94,7 +100,7 @@ def build_triggers_for_table(schema: TableSchema) -> list[str]:
     return out
 
 
-# ----- Aggregate over all 23 in-scope tables -------------------------------
+# ----- Aggregate over all in-scope tables ----------------------------------
 
 def _collect_schemas(conn: sqlite3.Connection) -> list[TableSchema]:
     return [introspect_table(conn, t) for t in list_project_tables(conn)]
@@ -103,7 +109,7 @@ def _collect_schemas(conn: sqlite3.Connection) -> list[TableSchema]:
 def build_all_triggers(conn: sqlite3.Connection) -> list[str]:
     """Return the full ordered list of trigger CREATE statements.
 
-    Result length is exactly **69** (23 tables × 3 ops) under the
+    Result length is exactly **66** (22 tables × 3 ops) under the
     canonical project schema.
     """
     out: list[str] = []
@@ -130,7 +136,7 @@ def pk_columns_manifest_for(conn: sqlite3.Connection) -> dict[str, list[str]]:
     """Cached variant: compute once per process, keyed off the conn's DB path.
 
     The dispatcher / backfill / NeonClient call this on the hot path; we
-    don't want to re-introspect 23 tables per outbox row. Cache lives at
+    don't want to re-introspect every table per outbox row. Cache lives at
     module scope; resets via `_reset_manifest_cache()` for tests.
     """
     global _MANIFEST_CACHE

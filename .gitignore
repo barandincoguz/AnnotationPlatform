@@ -14,6 +14,7 @@ data/backup/
 data/documents/*
 !data/documents/.gitkeep
 data/exports/
+data/.mirror-dispatcher.pid
 .DS_Store
 AGENTS.md
 deneme-dev/

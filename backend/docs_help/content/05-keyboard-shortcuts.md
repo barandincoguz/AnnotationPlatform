@@ -1,17 +1,13 @@
-# Klavye Kısayolları
+# Klavye ile kullanım
 
-| Kısayol | İşlev |
+| Tuş | İşlev |
 |---|---|
-| `Ctrl+Enter` | Sakla & sıradakine geç |
-| `Ctrl+K` | Atla & sıradakine geç |
-| `Ctrl+→` | Sonraki özelge |
-| `Ctrl+←` | Önceki özelge |
-| `Ctrl+/` | Arama kutusuna odaklan |
-| `Tab` | Bir sonraki alana geç (kart içi: Kanun No → Kanun Adı → Madde → ...) |
-| `Shift+Tab` | Bir önceki alana geç |
-| `Esc` | Modali kapat / odağı bırak |
+| `Tab` | Bir sonraki düğme veya alana geç |
+| `Shift+Tab` | Bir önceki düğme veya alana dön |
+| `Enter` / `Boşluk` | Odaktaki düğmeyi çalıştır |
+| `Esc` | Açık menü veya iletişim penceresini kapat |
 
-Mac'te `Ctrl` yerine `Cmd` kullanabilirsin — sistem otomatik tanır.
+Kaydet, Atla ve Tamamla işlemleri için ekranda görünen düğmeleri kullan.
 
 ## Verim ipucu
 
@@ -19,4 +15,5 @@ Klavyede kalmaya çalış. Bir kanun atfı 5-6 küçük alandan oluşur ve hepsi
 
 ## "Yeni referans" eklerken
 
-`+ Yeni Referans` butonu mouse ile tıklanır (klavye kısayolu yok). Karttaki ilk alana (Kanun No) otomatik odak gelir, oradan `Tab` ile diğer alanlara geçebilirsin.
+`+ Yeni Referans` düğmesine klavyeyle odaklanıp `Enter` tuşuna basabilirsin.
+Ardından `Tab` ile kart alanları arasında ilerleyebilirsin.

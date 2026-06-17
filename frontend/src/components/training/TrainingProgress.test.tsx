@@ -5,23 +5,23 @@ import { TrainingProgress } from './TrainingProgress'
 describe('TrainingProgress', () => {
   it('renders 5 labeled pills', () => {
     render(<TrainingProgress step="quiz" docIndex={0} />)
-    expect(screen.getByText(/quiz/i)).toBeInTheDocument()
-    expect(screen.getByText(/doc 1/i)).toBeInTheDocument()
-    expect(screen.getByText(/doc 2/i)).toBeInTheDocument()
-    expect(screen.getByText(/doc 3/i)).toBeInTheDocument()
+    expect(screen.getByText(/bilgi/i)).toBeInTheDocument()
+    expect(screen.getByText(/belge 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/belge 2/i)).toBeInTheDocument()
+    expect(screen.getByText(/belge 3/i)).toBeInTheDocument()
     expect(screen.getByText(/sonuç/i)).toBeInTheDocument()
   })
 
-  it('quiz step → aria-current on Quiz pill', () => {
+  it('quiz step -> aria-current on Bilgi pill', () => {
     const { container } = render(<TrainingProgress step="quiz" docIndex={0} />)
     const current = container.querySelector('[aria-current="step"]')
-    expect(current?.textContent).toMatch(/quiz/i)
+    expect(current?.textContent).toMatch(/bilgi/i)
   })
 
-  it('doc step docIndex=1 → aria-current on Doc 2 pill', () => {
+  it('doc step docIndex=1 -> aria-current on Belge 2 pill', () => {
     const { container } = render(<TrainingProgress step="doc" docIndex={1} />)
     const current = container.querySelector('[aria-current="step"]')
-    expect(current?.textContent).toMatch(/doc 2/i)
+    expect(current?.textContent).toMatch(/belge 2/i)
   })
 
   it('summary step → aria-current on Sonuç pill', () => {

@@ -17,7 +17,7 @@ Senin işin, bu cümleyi okuyup şu yapılandırılmış kaydı oluşturmak:
 | Madde | `5` |
 | Fıkra | `1` |
 | Bent | `a` |
-| Metinden alıntı (opsiyonel) | "5520 sayılı Kurumlar Vergisi Kanunu'nun 5'inci maddesinin birinci fıkrasının (a) bendi" |
+| Metinden alıntı (zorunlu) | "5520 sayılı Kurumlar Vergisi Kanunu'nun 5'inci maddesinin birinci fıkrasının (a) bendi" |
 
 Her özelge **bir veya daha fazla** kanun atfı içerebilir. Bazıları sıfır atıf da içerebilir — o zaman boş kaydederek "burada atıf yok" demek de geçerli bir cevaptır.
 
@@ -28,7 +28,7 @@ Her özelge **bir veya daha fazla** kanun atfı içerebilir. Bazıları sıfır 
 ## Senin rolün
 
 - Özelge metnindeki kanun atıflarını **eksiksiz** çıkarmak (her atıf ayrı bir referans kaydı)
-- Başka bursiyer arkadaşlarının yaptığı annotation'ları gözden geçirmek
+- Başka bursiyer arkadaşlarının yaptığı anotasyonları gözden geçirmek
 - Belirsiz/parse edilememiş dokümanları **Atla** ile geçmek (yanlış kayıt yapmaktan çok daha iyidir)
 - Yorgunken durmak — kalite hızdan **çok daha** önemli
 

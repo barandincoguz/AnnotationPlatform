@@ -33,27 +33,27 @@ describe('SkipConfirmDialog', () => {
       <SkipConfirmDialog open={true} onClose={vi.fn()} />,
       { wrapper: wrap() },
     )
-    expect(screen.getByText(/asla önerilmez/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('SKIP')).toBeInTheDocument()
+    expect(screen.getByText(/atlamak önerilmez/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('ATLA')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Vazgeç/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Eğitimi Atla/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Eğitimi atla/ })).toBeInTheDocument()
   })
 
-  it('"Eğitimi Atla" is disabled until user types exactly "SKIP"', async () => {
+  it('"Eğitimi atla" is disabled until user types exactly "ATLA"', async () => {
     const user = userEvent.setup()
     render(
       <SkipConfirmDialog open={true} onClose={vi.fn()} />,
       { wrapper: wrap() },
     )
-    const submit = screen.getByRole('button', { name: /Eğitimi Atla/ })
+    const submit = screen.getByRole('button', { name: /Eğitimi atla/ })
     expect(submit).toBeDisabled()
 
-    const input = screen.getByPlaceholderText('SKIP')
-    await user.type(input, 'skip')  // lowercase
+    const input = screen.getByPlaceholderText('ATLA')
+    await user.type(input, 'atla')  // lowercase
     expect(submit).toBeDisabled()
 
     await user.clear(input)
-    await user.type(input, 'SKIP')
+    await user.type(input, 'ATLA')
     expect(submit).not.toBeDisabled()
   })
 
@@ -68,7 +68,7 @@ describe('SkipConfirmDialog', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('clicking "Eğitimi Atla" with valid input fires the skip mutation', async () => {
+  it('clicking "Eğitimi atla" with valid input fires the skip mutation', async () => {
     let posted = false
     server.use(
       http.post('http://localhost/api/training/skip', () => {
@@ -87,8 +87,8 @@ describe('SkipConfirmDialog', () => {
       <SkipConfirmDialog open={true} onClose={vi.fn()} />,
       { wrapper: wrap() },
     )
-    await user.type(screen.getByPlaceholderText('SKIP'), 'SKIP')
-    await user.click(screen.getByRole('button', { name: /Eğitimi Atla/ }))
+    await user.type(screen.getByPlaceholderText('ATLA'), 'ATLA')
+    await user.click(screen.getByRole('button', { name: /Eğitimi atla/ }))
     await waitFor(() => expect(posted).toBe(true))
   })
 })

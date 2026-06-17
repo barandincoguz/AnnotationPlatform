@@ -4,18 +4,21 @@
 
 | Aksiyon | XP |
 |---|---|
-| Sakla | +1 |
+| Kaydet | +1 |
 | Atla | 0 |
 | Tamamlandı işaretle | +5 |
-| Mevcut annotation'ı düzenleyerek Sakla (review) | +2 |
+| Mevcut anotasyonu düzenleyerek Kaydet (inceleme) | +2 |
 | Sonraki bursiyer senin yazdığını korudu (diff=0) | +3 (gecikmeli) |
 | Training pass (tek seferlik) | +50 |
 
-XP, doldurduğun referans sayısına göre değil **Sakla aksiyonuna** verilir. Bir özelgede 5 referans çıkardıysan da 0 referans çıkarıp boş kaydettiysen de `Sakla` puanı aynı: +1. Kalitenin metriği XP değil, **review zincirinde değiştirilmeden kalmak** (yani +3 gecikmeli XP).
+XP, doldurduğun referans sayısına göre değil **Kaydet işlemine** verilir. Bir
+özelgede 5 referans çıkardıysan da 0 referans çıkarıp boş kaydettiysen de puan
+aynıdır: +1. Kalitenin metriği XP değil, inceleme zincirinde değiştirilmeden
+kalmaktır.
 
 ## Streak
 
-- Her gün **en az 1 Sakla** → 🔥 streak +1
+- Her gün **en az 1 Kaydet** → streak +1
 - Bir gün geçirme → streak 0'a düşer (azat dakikası yok, dikkat)
 - Streak yarın kırılacaksa sistem akşam **uyarı toast'u** gönderir
 
@@ -27,10 +30,10 @@ XP, doldurduğun referans sayısına göre değil **Sakla aksiyonuna** verilir. 
 
 | Rozet | Kriter |
 |---|---|
-| 🌱 İlk Annotation | İlk Sakla |
-| 🔟 10 Annotation | 10 Sakla |
-| 💯 100 Annotation | 100 Sakla |
-| 🏅 1000 Annotation | 1000 Sakla |
+| İlk Anotasyon | İlk Kaydet |
+| 10 Anotasyon | 10 Kaydet |
+| 100 Anotasyon | 100 Kaydet |
+| 1000 Anotasyon | 1000 Kaydet |
 | ✨ İlk Tamamlama | İlk `is_completed` toggle |
 | 🔥 Maratoncu | 7 gün üst üste streak |
 | 🎯 Good Reviewer | 20 review yapmış VE bunların 15'inde referansların sonraki bursiyer tarafından korunmuş olması |

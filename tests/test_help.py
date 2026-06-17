@@ -122,3 +122,18 @@ def test_help_works_for_user_without_seen_manual(client):
 
     r = client.get("/api/help")
     assert r.status_code == 200
+
+
+def test_help_content_matches_current_annotation_ui():
+    from backend.docs_help.service import list_help_sections
+
+    content = "\n".join(section["body"] for section in list_help_sections())
+
+    assert "Sakla" not in content
+    assert "Ctrl+Enter" not in content
+    assert "Ctrl+K" not in content
+    assert "Doğruladıklarım" not in content
+    assert "**Yeni**" in content
+    assert "**Devam Eden**" in content
+    assert "**Tamamlanan**" in content
+    assert "Metinden alıntı (zorunlu)" in content

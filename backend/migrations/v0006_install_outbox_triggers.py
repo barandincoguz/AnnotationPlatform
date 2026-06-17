@@ -1,4 +1,4 @@
-"""v0006 — install the 69 outbox-capture triggers across all 23 in-scope tables.
+"""v0006 — install outbox-capture triggers across all in-scope tables.
 
 Triggers fire AFTER INSERT/UPDATE/DELETE on each project table and write a
 single `_outbox` row inside the same SQLite transaction as the originating

@@ -38,7 +38,7 @@ describe('SummaryStep', () => {
     useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
     render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
     expect(screen.getByText(/tebrikler/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /anotasyona başla/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /etiketlemeye başla/i })).toBeInTheDocument()
   })
 
   it('FAIL variant when has_passed_training=false', () => {
@@ -56,11 +56,11 @@ describe('SummaryStep', () => {
     expect(screen.queryByText(/quiz: 4/i)).not.toBeInTheDocument()
   })
 
-  it('DEGRADED + passed → Anotasyona Başla', () => {
+  it('DEGRADED + passed -> Etiketlemeye başla', () => {
     useTrainingStore.setState({ degraded: true })
     useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
     render(<SummaryStep onAnnotate={vi.fn()} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
-    expect(screen.getByRole('button', { name: /anotasyona başla/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /etiketlemeye başla/i })).toBeInTheDocument()
   })
 
   it('DEGRADED + not passed → Tekrar Dene', () => {
@@ -70,12 +70,12 @@ describe('SummaryStep', () => {
     expect(screen.getByRole('button', { name: /tekrar dene/i })).toBeInTheDocument()
   })
 
-  it('Anotasyona Başla → onAnnotate', async () => {
+  it('Etiketlemeye başla -> onAnnotate', async () => {
     const user = userEvent.setup()
     const onAnnotate = vi.fn()
     useAuthStore.setState({ status: 'authed', user: makeUser({ has_passed_training: true }), error: null })
     render(<SummaryStep onAnnotate={onAnnotate} onRetry={vi.fn()} onBackToHelp={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: /anotasyona başla/i }))
+    await user.click(screen.getByRole('button', { name: /etiketlemeye başla/i }))
     expect(onAnnotate).toHaveBeenCalledOnce()
   })
 

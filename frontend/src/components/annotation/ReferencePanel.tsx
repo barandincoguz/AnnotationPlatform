@@ -187,7 +187,7 @@ export function ReferencePanel({
             Atla
           </Button>
           <Button type="button" onClick={onSave} disabled={!canEdit || isSaving || !isValid}>
-            {isSaving ? 'Kaydediliyor…' : 'Sakla'}
+            {isSaving ? 'Kaydediliyor…' : 'Kaydet'}
           </Button>
           {/* The Phase 2 backend now supports first-time atomic
               complete (no prior annotation row required), so the

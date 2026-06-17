@@ -86,13 +86,14 @@ def test_introspect_annotations_foreign_keys():
 
 
 def test_list_project_tables_count_and_exclusions():
-    """`list_project_tables` returns the 23 in-scope tables (no _outbox, no schema_migrations)."""
+    """Operational tables and bearer credentials are excluded from the mirror."""
     conn = _migrated_conn()
     tables = list_project_tables(conn)
     assert "_outbox" not in tables, "_outbox must be excluded"
     assert "schema_migrations" not in tables, "schema_migrations must be excluded"
     assert "sqlite_sequence" not in tables, "sqlite_sequence must be excluded"
-    assert len(tables) == 23, f"expected 23 in-scope tables, got {len(tables)}: {tables}"
+    assert "user_sessions" not in tables, "bearer sessions must be excluded"
+    assert len(tables) == 22, f"expected 22 in-scope tables, got {len(tables)}: {tables}"
     # A few sentinel checks
     assert "users" in tables
     assert "annotations" in tables
@@ -202,6 +203,7 @@ def test_pg_ddl_excludes_outbox_and_schema_migrations():
     full = build_all_pg_ddl(conn)
     assert "baran__outbox" not in full
     assert "baran_schema_migrations" not in full
+    assert "baran_user_sessions" not in full
     conn.close()
 
 
@@ -210,12 +212,12 @@ def test_pg_ddl_every_create_table_is_idempotent():
     full = build_all_pg_ddl(conn)
     create_count = full.count("CREATE TABLE ")
     idempotent_count = full.count("CREATE TABLE IF NOT EXISTS ")
-    assert create_count == idempotent_count == 23, (create_count, idempotent_count)
+    assert create_count == idempotent_count == 22, (create_count, idempotent_count)
     conn.close()
 
 
 def test_pg_ddl_every_underscore_json_column_maps_to_jsonb():
-    """Heuristic guard: every column ending in `_json` across all 23 in-scope
+    """Heuristic guard: every column ending in `_json` across all in-scope
     tables must surface as `jsonb` in the generated DDL.
     """
     conn = _migrated_conn()
@@ -241,11 +243,21 @@ def test_pg_ddl_every_underscore_json_column_maps_to_jsonb():
     conn.close()
 
 
-def test_pg_ddl_full_script_contains_23_create_table_statements():
+def test_pg_ddl_full_script_contains_22_create_table_statements():
     conn = _migrated_conn()
     full = build_all_pg_ddl(conn)
     count = full.count("CREATE TABLE IF NOT EXISTS baran_")
-    assert count == 23, count
+    assert count == 22, count
+    conn.close()
+
+
+def test_pg_ddl_omits_fk_to_local_only_session_table():
+    conn = _migrated_conn()
+    sql = "\n".join(
+        build_pg_ddl_for_table(introspect_table(conn, "activity_events"))
+    )
+    assert "session_id bigint" in sql
+    assert "baran_user_sessions" not in sql
     conn.close()
 
 

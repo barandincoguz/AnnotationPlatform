@@ -3,7 +3,7 @@
 Boots the FastAPI app via TestClient with NEON_MIRROR_URL unset and
 asserts:
   - startup succeeds (no exceptions),
-  - _outbox + 69 triggers exist after migrations applied,
+  - _outbox + 66 triggers exist after migrations applied,
   - a system_events 'neon_mirror_unreachable' row is emitted on warn,
   - the dispatcher task is alive,
   - on shutdown the dispatcher stops cleanly.
@@ -44,12 +44,12 @@ def test_lifespan_starts_with_no_neon_url(client, monkeypatch):
             "SELECT name FROM sqlite_master WHERE type='table' AND name='_outbox'"
         ).fetchone()
         assert row is not None
-        # 69 triggers
+        # 66 triggers
         trig = conn.execute(
             "SELECT count(*) AS c FROM sqlite_master "
             "WHERE type='trigger' AND name LIKE '_outbox_%'"
         ).fetchone()
-        assert trig["c"] == 69
+        assert trig["c"] == 66
         # warn event recorded
         events = conn.execute(
             "SELECT * FROM system_events WHERE event_type='neon_mirror_unreachable'"

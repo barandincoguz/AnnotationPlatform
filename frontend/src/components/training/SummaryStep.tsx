@@ -24,7 +24,7 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
         <p className="text-sm">Genel durum: <strong>{passed ? 'Geçti' : 'Geçemedi'}</strong></p>
         <div className="flex gap-2">
           {passed
-            ? <Button onClick={onAnnotate}>Anotasyona Başla ▸</Button>
+            ? <Button onClick={onAnnotate}>Etiketlemeye başla</Button>
             : <Button onClick={onRetry}>Tekrar Dene</Button>}
         </div>
       </section>
@@ -51,10 +51,10 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
         <div className="rounded-md border bg-card divide-y divide-border text-sm">
           {quizResult && (
             <div className="flex items-center justify-between px-4 py-3">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Quiz</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Bilgi soruları</span>
               <span>
                 <strong className="font-display text-base">
-                  № {quizResult.score}/{quizResult.total}
+                  {quizResult.score}/{quizResult.total}
                 </strong>
                 {' '}
                 <span className={quizResult.score >= 4 ? 'text-success' : 'text-destructive'}>
@@ -72,7 +72,7 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
                 </span>
                 <span>
                   <strong className="font-display text-base">
-                    № {r ? `${r.matched_count}/${r.expected_count}` : '—'}
+                    {r ? `${r.matched_count}/${r.expected_count}` : '-'}
                   </strong>
                   {' '}
                   <span className={r?.passed ? 'text-success' : 'text-destructive'}>
@@ -83,16 +83,16 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
             )
           })}
           <div className="flex items-center justify-between px-4 py-3">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Anot. geçen</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Geçen doküman</span>
             <span className="text-sm">{passedDocs} / 3 (gerekli: 2)</span>
           </div>
           <div className="flex items-center justify-between px-4 py-3 bg-success/5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Overall</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Genel sonuç</span>
             <span className="font-semibold text-success">GEÇTİ</span>
           </div>
         </div>
 
-        <Button onClick={onAnnotate} size="lg">Anotasyona Başla ▸</Button>
+        <Button onClick={onAnnotate} size="lg">Etiketlemeye başla</Button>
       </section>
     )
   }
@@ -116,10 +116,10 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
       <div className="rounded-md border bg-card divide-y divide-border text-sm">
         {quizResult && (
           <div className="flex items-center justify-between px-4 py-3">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Quiz</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Bilgi soruları</span>
             <span>
               <strong className="font-display text-base">
-                № {quizResult.score}/{quizResult.total}
+                {quizResult.score}/{quizResult.total}
               </strong>
               {' '}
               <span className={quizResult.score >= 4 ? 'text-success' : 'text-destructive'}>
@@ -137,7 +137,7 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
               </span>
               <span>
                 <strong className="font-display text-base">
-                  № {r ? `${r.matched_count}/${r.expected_count}` : '—'}
+                  {r ? `${r.matched_count}/${r.expected_count}` : '-'}
                 </strong>
                 {' '}
                 <span className={r?.passed ? 'text-success' : 'text-destructive'}>
@@ -148,18 +148,18 @@ export function SummaryStep({ onAnnotate, onRetry, onBackToHelp }: SummaryStepPr
           )
         })}
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Anot. geçen</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Geçen doküman</span>
           <span className="text-sm">{passedDocs} / 3 (gerekli: 2)</span>
         </div>
         <div className="flex items-center justify-between px-4 py-3 bg-destructive/5">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Overall</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Genel sonuç</span>
           <span className="font-semibold text-destructive">GEÇEMEDİ</span>
         </div>
       </div>
 
       <div className="flex gap-2">
         <Button onClick={onRetry}>Tekrar Dene</Button>
-        <Button onClick={onBackToHelp} variant="ghost">← Kılavuza dön</Button>
+        <Button onClick={onBackToHelp} variant="ghost">Kılavuza dön</Button>
       </div>
     </section>
   )

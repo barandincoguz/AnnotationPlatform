@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 interface Props {
   open: boolean
   title: string
+  description?: string
   body: ReactNode
   confirmWord: string
   confirmLabel?: string
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export function TypedConfirmDialog({
-  open, title, body, confirmWord,
+  open, title, description, body, confirmWord,
   confirmLabel = 'Onayla', pendingLabel = 'Çalışıyor...',
   variant = 'destructive', isPending = false,
   onConfirm, onClose,
@@ -54,6 +55,9 @@ export function TypedConfirmDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {description ?? 'Bu işlem için yazılı onay gerekiyor.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-3 text-sm">

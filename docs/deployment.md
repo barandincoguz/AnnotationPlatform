@@ -60,6 +60,11 @@ admin panel.
 | `NEON_MIRROR_MAX_RETRIES` | no | no | `5` | Per-row retry budget before dead-letter. Default `5`. |
 | `NEON_MIRROR_EMPTY_SLEEP` | no | no | `5` | Dispatcher idle wait (seconds) when the outbox is empty. Default `5.0`. |
 
+For deployments created before SQLite migration `v0009`, apply
+`migrations/postgres/002-remove-user-sessions.sql` once after the application
+deploy. This removes legacy mirrored bearer tokens; see
+`docs/neon-mirror.md`.
+
 ## 3a. Cross-team coordination (Phase 6 ordering contract)
 
 This deploy participates in a cross-team annotation contract with the
@@ -251,6 +256,15 @@ server {
   }
 }
 ```
+
+### Security Note: IP Forwarding and `TRUST_FORWARDED_FOR`
+
+When the application is deployed behind a reverse proxy, you should set `TRUST_FORWARDED_FOR=1` in your environment so that the backend can resolve client IP addresses correctly (which are recorded in `user_sessions.ip_hash` and used by rate limiters).
+
+Because the application extracts the client IP address from the **first** element in the `X-Forwarded-For` header:
+- **Operators must configure their reverse proxy to sanitize or strip any client-supplied `X-Forwarded-For` header** before forwarding the request to the application.
+- In **nginx**, ensure you use `proxy_set_header X-Forwarded-For $remote_addr;` (which overwrites client-supplied values) rather than appending them via `$proxy_add_x_forwarded_for`, unless you are running behind another trusted layer (like Cloudflare) that sanitizes the header.
+- In **Caddy**, the default proxy behavior is to append client IPs. For security-sensitive deployments, ensure Caddy is configured to strip incoming downstream `X-Forwarded-For` headers.
 
 ## 9. Logs and observability
 

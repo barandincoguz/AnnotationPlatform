@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -81,6 +81,37 @@ describe('AnnotateDoc integration', () => {
     renderDoc('/docs/doc-1')
     await waitFor(() => expect(screen.getByText(/ahmet/i)).toBeInTheDocument(), { timeout: 5000 })
     expect(screen.getByText(/düzenliyor/i)).toBeInTheDocument()
+  })
+
+  it('shows a recoverable error when lock acquisition fails', async () => {
+    let attempts = 0
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () => {
+        attempts++
+        if (attempts === 1) {
+          return HttpResponse.json({ detail: 'temporary failure' }, { status: 503 })
+        }
+        return HttpResponse.json({
+          document_id: 'doc-1',
+          user_id: 1,
+          by_username: 'tester',
+          acquired_at: '2026-05-11T10:00:00+00:00',
+          expires_at: '2026-05-11T10:01:30+00:00',
+        })
+      }),
+    )
+    const user = userEvent.setup()
+    renderDoc('/docs/doc-1')
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /düzenleme kilidi alınamadı/i })).toBeInTheDocument(),
+    )
+    await user.click(screen.getByRole('button', { name: /yeniden dene/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /yeni referans/i })).not.toBeDisabled()
+    })
+    expect(attempts).toBe(2)
   })
 
   it('Skip button calls POST /skip', async () => {
@@ -241,5 +272,54 @@ describe('AnnotateDoc integration', () => {
     expect(completeBody).toEqual({ completed: false })
     // No `references` key in the uncomplete payload.
     expect(completeBody).not.toHaveProperty('references')
+  })
+
+  it('shows lost lock screen and allows retry', async () => {
+    let acquireAttempts = 0
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () => {
+        acquireAttempts++
+        return HttpResponse.json({
+          document_id: 'doc-1',
+          user_id: 1,
+          by_username: 'tester',
+          acquired_at: '2026-05-11T10:00:00+00:00',
+          expires_at: '2026-05-11T10:01:30+00:00',
+        })
+      }),
+      http.post('http://localhost/api/locks/doc-1/heartbeat', () => {
+        return HttpResponse.json({ detail: 'not lock holder' }, { status: 404 })
+      }),
+    )
+
+    const user = userEvent.setup()
+    
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    
+    try {
+      renderDoc('/docs/doc-1')
+      
+      await waitFor(() => expect(screen.getByRole('button', { name: /yeni referans/i })).toBeInTheDocument())
+      
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(35_000)
+      })
+
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: /düzenleme kilidi kaybedildi/i })).toBeInTheDocument()
+      )
+
+      vi.useRealTimers()
+
+      await user.click(screen.getByRole('button', { name: /yeniden kilitle/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /yeni referans/i })).not.toBeDisabled()
+      })
+      
+      expect(acquireAttempts).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

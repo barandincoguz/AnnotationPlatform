@@ -28,6 +28,7 @@ from backend.migrations.helpers.schema_introspect import (
     ColumnInfo,
     TableSchema,
     introspect_table,
+    is_mirrored_table,
     list_project_tables,
 )
 
@@ -112,6 +113,11 @@ def build_pg_ddl_for_table(schema: TableSchema) -> list[str]:
         # after; FK columns can still be inline because PK/FK live in
         # separate slots).
         for fk in fk_by_col.get(col.name, []):
+            # A mirrored table may reference local-only operational data.
+            # Omitting that FK keeps the mirror schema self-contained while
+            # preserving the scalar value for analytics.
+            if not is_mirrored_table(fk.ref_table):
+                continue
             ref_pg = f"baran_{fk.ref_table}"
             fk_parts = [f"REFERENCES {ref_pg}({fk.ref_column})"]
             if fk.on_delete:
@@ -196,7 +202,7 @@ def _topological_sort(schemas: dict[str, TableSchema]) -> list[str]:
 
 
 def build_all_pg_ddl(conn: sqlite3.Connection) -> str:
-    """Generate the full idempotent Postgres DDL script for all 23 in-scope tables.
+    """Generate the full idempotent Postgres DDL script for all in-scope tables.
 
     Output begins with a deterministic comment block (no timestamp — kept
     stable so re-running the regen script produces byte-identical output
@@ -212,7 +218,7 @@ def build_all_pg_ddl(conn: sqlite3.Connection) -> str:
     header = (
         "-- ============================================================\n"
         "-- baran_* mirror DDL — Phase 4 generated artifact.\n"
-        "-- Source: SQLite project schema (23 in-scope tables).\n"
+        f"-- Source: SQLite project schema ({len(table_names)} in-scope tables).\n"
         "-- Regenerate with: python -m scripts.regen_neon_ddl\n"
         "-- Idempotent: every CREATE uses IF NOT EXISTS.\n"
         "-- ============================================================\n"

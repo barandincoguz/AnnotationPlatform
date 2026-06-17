@@ -2,10 +2,8 @@
 `GET /api/admin/mirror/health` route.
 
 The health computation is a pure function over a SQLite connection, so
-most tests drive `collect_health(conn)` directly — exercising the HTTP
-path on every assertion would mix in session-middleware writes
-(`user_sessions.last_activity_at` UPDATE → outbox trigger fires), which
-makes "empty queue" inherently impossible to assert via the test client.
+most tests drive `collect_health(conn)` directly so HTTP authentication and
+unrelated application writes do not affect queue assertions.
 The HTTP layer is covered separately by an auth gate test and a shape
 test.
 """

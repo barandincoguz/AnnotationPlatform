@@ -26,7 +26,7 @@ describe('QuizStep', () => {
 
   it('shows info banner', () => {
     render(<QuizStep onSubmit={vi.fn()} isSubmitting={false} />)
-    expect(screen.getByText(/skorunu hepsini birden öğreneceksin/i)).toBeInTheDocument()
+    expect(screen.getByText(/skorunu hepsini birden göreceksin/i)).toBeInTheDocument()
   })
 
   it('submit disabled until 5 answered', async () => {

@@ -6,20 +6,21 @@ A bursiyer bir özelgeyi annotate ederse, B bursiyer aynı özelgeyi açtığın
 
 B ne yapabilir:
 
-- A'nın referanslarını **olduğu gibi kabul edip** Sakla → diff = 0 (değişiklik yok)
-- A'nın bir referansındaki alanları **düzenleyip** Sakla → diff > 0 (sistem hangi alanın değiştiğini loglar: örn. Madde alanı `5` iken `5/1` olduysa)
-- A'nın kartlarını **silip kendi referanslarını** yazıp Sakla → diff = referans sayısı
-- A'nın eksik bıraktığı bir atıfı fark edip **yeni bir kart ekleyip** Sakla → diff = 1
+- A'nın referanslarını **olduğu gibi kabul edip** Kaydet → diff = 0 (değişiklik yok)
+- A'nın bir referansındaki alanları **düzenleyip** Kaydet → diff > 0 (sistem hangi alanın değiştiğini kaydeder)
+- A'nın kartlarını **silip kendi referanslarını** yazıp Kaydet → değişiklikler sürüm geçmişine yazılır
+- A'nın eksik bıraktığı bir atfı fark edip **yeni bir kart ekleyip** Kaydet → yeni referans kaydedilir
 
 Sonra C gelir, B'nin son halini görür ve aynı şekilde devam eder. Zincir böyle uzar; her gözden geçirme bir önceki katmanın üstüne yazılır.
 
 ## "Tamamlandı" tag'i
 
-`diff = 0` olduğunda (yani sen veya başka biri öncekinin üzerinde değişiklik yapmadıysa), arayüzde **"Bu özelgeyi tamamlandı olarak işaretle"** butonu çıkar. Tıklarsan ✓ rozeti özelgeye eklenir, listede görünür.
+Referansların geçerliyse **Tamamla** düğmesiyle özelgeyi tamamlandı olarak
+işaretleyebilirsin. Doküman daha sonra **Tamamlanan** sekmesinde görünür.
 
 Bu **kilit değil** — sonraki bursiyer hâlâ düzenleyebilir, ama tamamlandı işareti referansların güvenilir olduğunu gösteren bir rehber niteliğindedir.
 
-Tamamlandı tag'i kazandığın **+5 XP** demek (normal Sakla +1).
+Tamamlama işlemi **+5 XP** kazandırır (normal Kaydet +1).
 
 ## Ne zaman değiştirir, ne zaman koruyun?
 

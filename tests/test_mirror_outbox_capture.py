@@ -58,13 +58,13 @@ def _seed_user(conn: sqlite3.Connection, **overrides) -> int:
 # === Task 5: end-to-end trigger capture ===
 
 
-def test_69_triggers_installed_after_v0006():
+def test_66_triggers_installed_after_migrations():
     conn = _migrated_conn()
     row = conn.execute(
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 69
+    assert row["c"] == 66
     conn.close()
 
 
@@ -152,7 +152,59 @@ def test_migration_v0006_is_idempotent():
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 69
+    assert row["c"] == 66
+    conn.close()
+
+
+def test_user_sessions_never_write_bearer_tokens_to_outbox():
+    conn = _migrated_conn()
+    user_id = _seed_user(conn, username="session-owner")
+    conn.execute("DELETE FROM _outbox")
+    conn.execute(
+        "INSERT INTO user_sessions("
+        "user_id, session_token, started_at, last_activity_at"
+        ") VALUES (?, ?, ?, ?)",
+        (user_id, "plaintext-bearer-token", "2026-05-18T00:00:00Z", "2026-05-18T00:00:00Z"),
+    )
+    conn.execute(
+        "UPDATE user_sessions SET last_activity_at=? WHERE session_token=?",
+        ("2026-05-18T00:01:00Z", "plaintext-bearer-token"),
+    )
+    conn.execute(
+        "DELETE FROM user_sessions WHERE session_token=?",
+        ("plaintext-bearer-token",),
+    )
+    leaked = conn.execute(
+        "SELECT COUNT(*) AS c FROM _outbox WHERE table_name='user_sessions'"
+    ).fetchone()["c"]
+    assert leaked == 0
+    conn.close()
+
+
+def test_activity_event_outbox_payload_does_not_export_session_id():
+    conn = _migrated_conn()
+    user_id = _seed_user(conn, username="activity-owner")
+    session_id = conn.execute(
+        "INSERT INTO user_sessions("
+        "user_id, session_token, started_at, last_activity_at"
+        ") VALUES (?, ?, ?, ?)",
+        (user_id, "local-only", "2026-05-18T00:00:00Z", "2026-05-18T00:00:00Z"),
+    ).lastrowid
+    conn.execute("DELETE FROM _outbox")
+    conn.execute(
+        "INSERT INTO activity_events("
+        "user_id, session_id, event_type, created_at"
+        ") VALUES (?, ?, 'login', ?)",
+        (user_id, session_id, "2026-05-18T00:00:00Z"),
+    )
+
+    row = conn.execute(
+        "SELECT payload_json FROM _outbox WHERE table_name='activity_events'"
+    ).fetchone()
+    assert json.loads(row["payload_json"])["session_id"] is None
+    assert conn.execute(
+        "SELECT session_id FROM activity_events"
+    ).fetchone()["session_id"] == session_id
     conn.close()
 
 

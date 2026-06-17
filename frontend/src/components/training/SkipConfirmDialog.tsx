@@ -12,19 +12,20 @@ export function SkipConfirmDialog({ open, onClose }: SkipConfirmDialogProps) {
   return (
     <TypedConfirmDialog
       open={open}
-      title="⚠ Eğitimi atlamak asla önerilmez"
+      title="Eğitimi atlamak önerilmez"
+      description="Eğitimi atlamak kalite ve inceleme yükü açısından risklidir; devam etmek için onay kelimesi istenir."
       body={
         <>
           <p>Eğitimi atlamak şu riskleri taşır:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Annotation kaliten düşer; düzeltme zamanı maliyetli.</li>
-            <li>Diğer bursiyerlerin review yükü artar.</li>
-            <li>Bu karar <strong>kalıcıdır</strong> — geri dönüş yok.</li>
+            <li>Etiketleme kaliten düşebilir ve sonradan düzeltme maliyeti artar.</li>
+            <li>Diğer kullanıcıların inceleme yükü artar.</li>
+            <li>Bu karar <strong>kalıcıdır</strong>; geri dönüş yok.</li>
           </ul>
         </>
       }
-      confirmWord="SKIP"
-      confirmLabel="Eğitimi Atla"
+      confirmWord="ATLA"
+      confirmLabel="Eğitimi atla"
       pendingLabel="Atlanıyor..."
       isPending={skip.isPending}
       onConfirm={() => skip.mutate()}

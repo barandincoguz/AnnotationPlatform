@@ -1,6 +1,6 @@
 """One-shot SQLite → Neon Postgres backfill for Phase 4 (MIRROR-06).
 
-Reads every row from every in-scope SQLite table (23 tables) in FK
+Reads every row from every in-scope SQLite table in FK
 topological order (parents first; reuses the postgres_ddl sort), and
 INSERTs each into the corresponding baran_<table> via
 `INSERT ... ON CONFLICT (<pk_cols>) DO UPDATE SET <non-pk-cols> = EXCLUDED.<col>`.

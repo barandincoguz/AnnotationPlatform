@@ -16,7 +16,7 @@ function HelpFrame({ children }: { children: React.ReactNode }) {
         role="banner"
         className="sticky top-0 z-30 h-14 border-b border-border/70 bg-background/85 backdrop-blur-md px-5 flex items-center justify-between"
       >
-        <BrandMark subtitle="Yardım · Help" />
+        <BrandMark subtitle="Yardım kılavuzu" />
         <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80 hidden sm:block">
           Kılavuz
         </div>
@@ -76,8 +76,7 @@ export function Help() {
             {helpQuery.error instanceof Error ? helpQuery.error.message : 'Bilinmeyen hata.'}
           </p>
           <Button onClick={() => void helpQuery.refetch()} className="mt-2">
-            Tekrar Dene
-            <span aria-hidden className="ml-2 text-primary-foreground/60">↻</span>
+            Tekrar dene
           </Button>
         </div>
       </HelpFrame>
@@ -90,7 +89,7 @@ export function Help() {
     <HelpFrame>
       <div className="mx-auto max-w-3xl px-6 py-10 lg:py-14">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-          {firstTime ? 'Onboarding · Step 01' : 'Kılavuz'}
+          {firstTime ? 'Kılavuz · 1. adım' : 'Kılavuz'}
         </p>
         <h1
           ref={h1Ref}
@@ -117,7 +116,7 @@ export function Help() {
               disabled={seenManualMut.isPending}
               className="h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-medium tracking-wide"
             >
-              {seenManualMut.isPending ? 'Kaydediliyor...' : 'Anladım, eğitime geç →'}
+              {seenManualMut.isPending ? 'Kaydediliyor...' : 'Anladım, eğitime geç'}
             </Button>
           </div>
         )}

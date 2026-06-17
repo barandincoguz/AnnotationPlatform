@@ -1,6 +1,6 @@
 """Tests for the Phase 4 trigger generator (Task 4).
 
-Covers per-table trigger SQL shape, the full 69-trigger count,
+Covers per-table trigger SQL shape, the full trigger count,
 end-to-end install + capture behavior, and the pk_columns_manifest export.
 """
 from __future__ import annotations
@@ -80,15 +80,25 @@ def test_drafts_composite_pk_concat():
     conn.close()
 
 
-def test_build_all_triggers_returns_69_statements():
+def test_activity_event_payload_redacts_local_session_reference():
     conn = _migrated_conn()
-    all_t = build_all_triggers(conn)
-    assert len(all_t) == 69, f"expected 69 triggers, got {len(all_t)}"
+    schema = introspect_table(conn, "activity_events")
+    insert_sql = build_triggers_for_table(schema)[0]
+    assert "'session_id', NULL" in insert_sql
+    assert "'session_id', NEW.session_id" not in insert_sql
     conn.close()
 
 
-def test_install_all_triggers_produces_69_in_sqlite_master():
-    """Run the generated trigger SQL against a freshly migrated DB and confirm 69 rows."""
+def test_build_all_triggers_returns_66_statements():
+    conn = _migrated_conn()
+    all_t = build_all_triggers(conn)
+    assert len(all_t) == 66, f"expected 66 triggers, got {len(all_t)}"
+    assert all("user_sessions" not in stmt for stmt in all_t)
+    conn.close()
+
+
+def test_install_all_triggers_produces_66_in_sqlite_master():
+    """Run the generated trigger SQL against a freshly migrated DB and confirm 66 rows."""
     conn = _migrated_conn()
     triggers = build_all_triggers(conn)
     # Wrap in explicit BEGIN IMMEDIATE / COMMIT to mirror the runner.
@@ -103,7 +113,7 @@ def test_install_all_triggers_produces_69_in_sqlite_master():
     row = conn.execute(
         "SELECT count(*) AS c FROM sqlite_master WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 69, f"expected 69 triggers, got {row['c']}"
+    assert row["c"] == 66, f"expected 66 triggers, got {row['c']}"
     conn.close()
 
 
@@ -116,10 +126,10 @@ def test_trigger_sql_has_no_line_comments():
     conn.close()
 
 
-def test_pk_columns_manifest_has_23_keys_with_expected_pks():
+def test_pk_columns_manifest_has_22_keys_with_expected_pks():
     conn = _migrated_conn()
     manifest = build_pk_columns_manifest(conn)
-    assert len(manifest) == 23, f"expected 23 manifest entries, got {len(manifest)}"
+    assert len(manifest) == 22, f"expected 22 manifest entries, got {len(manifest)}"
     assert manifest["users"] == ["id"]
     assert manifest["drafts"] == ["document_id", "user_id"]
     assert manifest["annotations"] == ["document_id"]
@@ -129,4 +139,5 @@ def test_pk_columns_manifest_has_23_keys_with_expected_pks():
     # Excluded operational tables must not appear.
     assert "_outbox" not in manifest
     assert "schema_migrations" not in manifest
+    assert "user_sessions" not in manifest
     conn.close()

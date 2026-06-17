@@ -18,8 +18,8 @@ interface Step {
 const STEPS: Step[] = [
   { num: '01.', label: 'Davet kodu doğrulanır.', tint: 'text-accent2' },
   { num: '02.', label: 'Kullanım kılavuzu okunur.', tint: 'text-accent' },
-  { num: '03.', label: 'Eğitim quizi tamamlanır.', tint: 'text-warning' },
-  { num: '04.', label: 'Anotasyona başlanır.', tint: 'text-success' },
+  { num: '03.', label: 'Bilgi soruları ve örnek belgeler tamamlanır.', tint: 'text-warning' },
+  { num: '04.', label: 'Etiketlemeye başlanır.', tint: 'text-success' },
 ]
 
 export function Register() {
@@ -27,11 +27,15 @@ export function Register() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
-  const disabled = !username || !password || !inviteCode
+  const disabled = username.trim().length === 0 || password.length === 0 || inviteCode.trim().length === 0
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    registerMutation.mutate({ username, password, invite_code: inviteCode })
+    registerMutation.mutate({
+      username: username.trim(),
+      password,
+      invite_code: inviteCode.trim().toUpperCase(),
+    })
   }
 
   const errorMessage =
@@ -63,13 +67,13 @@ export function Register() {
             </span>
           </div>
           <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            № 002
+            002
           </span>
         </div>
 
         <div className="relative z-10 max-w-xl space-y-8">
           <p className="rise-in rise-1 font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-accent2">
-            ↳ Yeni bursiyer kaydı
+            Yeni bursiyer kaydı
           </p>
           <h1 className="rise-in rise-2 font-display text-[3.5rem] xl:text-[4.25rem] font-bold leading-[0.95] tracking-tight text-foreground">
             Anotasyon ekibine
@@ -77,8 +81,8 @@ export function Register() {
             <em className="font-medium italic text-accent2">katılma vakti.</em>
           </h1>
           <p className="rise-in rise-3 max-w-md text-[17px] leading-relaxed text-foreground/75">
-            Davet kodunla başla — eğitim adımları seni hazırlayacak, sonra ilk
-            özelgenle birlikte gerçek anotasyona geçeceksin.
+            Davet kodunla başla. Kılavuz ve eğitim adımları seni hazırlayacak,
+            sonra ilk özelgenle birlikte gerçek etiketlemeye geçeceksin.
           </p>
           <ol className="rise-in rise-4 space-y-3 pt-2 text-[16px] text-foreground/80">
             {STEPS.map(({ num, label, tint }) => (
@@ -106,7 +110,7 @@ export function Register() {
         <div className="w-full max-w-sm space-y-10">
           <header className="rise-in rise-1 space-y-3">
             <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Kayıt · Register
+              Kayıt
             </p>
             <h2 className="font-display text-5xl font-bold leading-[1.05] tracking-tight">
               Yeni hesap
@@ -144,9 +148,15 @@ export function Register() {
               <Input
                 id="invite"
                 value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                autoComplete="off"
+                spellCheck={false}
+                aria-describedby="invite-hint"
                 className="h-12 bg-card font-mono text-base tracking-[0.16em]"
               />
+              <p id="invite-hint" className="text-xs text-muted-foreground">
+                Boşluklar temizlenir, küçük harfler otomatik büyük harfe çevrilir.
+              </p>
             </div>
 
             {errorMessage && (
@@ -164,7 +174,7 @@ export function Register() {
               size="lg"
               className="w-full text-base tracking-wide"
             >
-              {registerMutation.isPending ? 'Gönderiliyor…' : 'Kayıt ol'}
+              {registerMutation.isPending ? 'Gönderiliyor...' : 'Kayıt ol'}
               <ArrowRight aria-hidden="true" className="ml-1 opacity-80" />
             </Button>
           </form>

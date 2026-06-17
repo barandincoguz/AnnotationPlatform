@@ -12,22 +12,22 @@ from backend.shared import settings as S
 
 BADGE_DEFS: dict[str, dict[str, str]] = {
     "first_annotation": {
-        "name": "İlk Annotation",
+        "name": "İlk Anotasyon",
         "description": "İlk kayıt başarıyla yapıldı.",
         "criterion": "İlk anotasyon kaydını yap.",
     },
     "annotations_10": {
-        "name": "10 Annotation",
+        "name": "10 Anotasyon",
         "description": "10 kayıt biriktirdin.",
         "criterion": "10 anotasyon kaydı biriktir.",
     },
     "annotations_100": {
-        "name": "100 Annotation",
+        "name": "100 Anotasyon",
         "description": "100 kayıt — istikrarlı çalışıyorsun.",
         "criterion": "100 anotasyon kaydı biriktir.",
     },
     "annotations_1000": {
-        "name": "1000 Annotation",
+        "name": "1000 Anotasyon",
         "description": "Bin kayıt: ekibin omurgası oldun.",
         "criterion": "1000 anotasyon kaydı biriktir.",
     },
@@ -42,9 +42,9 @@ BADGE_DEFS: dict[str, dict[str, str]] = {
         "criterion": "7 gün üst üste çalış.",
     },
     "good_reviewer": {
-        "name": "Good Reviewer",
-        "description": "Yaptığın review'lerin çoğu sonraki kullanıcılar tarafından korundu.",
-        "criterion": "Review'lerinin çoğunluğu korunsun (en az 20 review, 15+ kept).",
+        "name": "Güvenilir İncelemeci",
+        "description": "Yaptığın incelemelerin çoğu sonraki kullanıcılar tarafından korundu.",
+        "criterion": "İncelemelerinin çoğunluğu korunsun (en az 20 inceleme, 15 korunan).",
     },
 }
 

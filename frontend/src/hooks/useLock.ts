@@ -6,7 +6,14 @@ import type { LockInfo, LockConflictDetail } from '@/api/queries/locks'
 const HEARTBEAT_MS = 30_000
 const HEARTBEAT_RETRY_LIMIT = 2
 
-export type LockStatus = 'idle' | 'acquiring' | 'held' | 'conflict' | 'lost' | 'released'
+export type LockStatus =
+  | 'idle'
+  | 'acquiring'
+  | 'held'
+  | 'conflict'
+  | 'lost'
+  | 'error'
+  | 'released'
 
 export interface LockSnapshot {
   status: LockStatus
@@ -26,7 +33,9 @@ const INITIAL: LockSnapshot = {
 
 export function useLock(docId: string) {
   const [snapshot, setSnapshot] = useState<LockSnapshot>(INITIAL)
+  const [acquireAttempt, setAcquireAttempt] = useState(0)
   const cancelledRef = useRef(false)
+  const heldRef = useRef(false)
   const heartbeatTimerRef = useRef<number | null>(null)
   const heartbeatFailuresRef = useRef(0)
   const acquireAbortRef = useRef<AbortController | null>(null)
@@ -34,6 +43,7 @@ export function useLock(docId: string) {
 
   useEffect(() => {
     cancelledRef.current = false
+    heldRef.current = false
     heartbeatFailuresRef.current = 0
     const acquireCtrl = new AbortController()
     acquireAbortRef.current = acquireCtrl
@@ -45,7 +55,14 @@ export function useLock(docId: string) {
           params: { path: { document_id: docId } },
           signal: acquireCtrl.signal,
         })
-        if (cancelledRef.current) return
+        if (cancelledRef.current) {
+          if (result.error === undefined) {
+            void client.POST('/api/locks/{document_id}/release', {
+              params: { path: { document_id: docId } },
+            })
+          }
+          return
+        }
 
         if (result.error !== undefined) {
           if (result.response.status === 409) {
@@ -68,7 +85,7 @@ export function useLock(docId: string) {
           )
         }
 
-        if (cancelledRef.current) return
+        heldRef.current = true
         setSnapshot({
           status: 'held',
           info: result.data,
@@ -102,6 +119,7 @@ export function useLock(docId: string) {
                 window.clearInterval(heartbeatTimerRef.current)
                 heartbeatTimerRef.current = null
               }
+              heldRef.current = false
               setSnapshot((s) => ({ ...s, status: 'lost' }))
             }
           })()
@@ -109,7 +127,7 @@ export function useLock(docId: string) {
       } catch (e) {
         if (cancelledRef.current) return
         if ((e as { name?: string })?.name === 'AbortError') return
-        setSnapshot((s) => ({ ...s, status: 'idle' }))
+        setSnapshot((s) => ({ ...s, status: 'error' }))
       }
     })()
 
@@ -120,6 +138,8 @@ export function useLock(docId: string) {
         window.clearInterval(heartbeatTimerRef.current)
         heartbeatTimerRef.current = null
       }
+      if (!heldRef.current) return
+      heldRef.current = false
       try {
         // Best-effort fire-and-forget release on cleanup (page close, route
         // change). Uses keepalive so the browser will deliver it even if the
@@ -148,20 +168,29 @@ export function useLock(docId: string) {
         // no-op
       }
     }
-  }, [docId, myUserId])
+  }, [docId, myUserId, acquireAttempt])
 
   const release = useCallback(async () => {
+    try {
+      const result = await client.POST('/api/locks/{document_id}/release', {
+        params: { path: { document_id: docId } },
+      })
+      if (result.error !== undefined) {
+        throw new ApiError(
+          result.response.status,
+          String(result.response.status),
+          'Kilit serbest bırakılamadı',
+          result.error,
+        )
+      }
+    } catch {
+      throw new Error('release_failed')
+    }
     if (heartbeatTimerRef.current !== null) {
       window.clearInterval(heartbeatTimerRef.current)
       heartbeatTimerRef.current = null
     }
-    try {
-      await client.POST('/api/locks/{document_id}/release', {
-        params: { path: { document_id: docId } },
-      })
-    } catch {
-      throw new Error('release_failed')
-    }
+    heldRef.current = false
     setSnapshot({
       status: 'released',
       info: null,
@@ -171,5 +200,9 @@ export function useLock(docId: string) {
     })
   }, [docId])
 
-  return { ...snapshot, release }
+  const retry = useCallback(() => {
+    setAcquireAttempt((attempt) => attempt + 1)
+  }, [])
+
+  return { ...snapshot, release, retry }
 }

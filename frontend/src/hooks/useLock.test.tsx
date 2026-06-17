@@ -90,6 +90,64 @@ describe('useLock', () => {
     expect(result.current.conflictIsSameUser).toBe(true)
   })
 
+  it('non-conflict acquire error exposes retry and can recover', async () => {
+    seedUser()
+    let attempts = 0
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () => {
+        attempts++
+        if (attempts === 1) {
+          return HttpResponse.json({ detail: 'temporary failure' }, { status: 503 })
+        }
+        return HttpResponse.json({
+          document_id: 'doc-1',
+          user_id: 1,
+          by_username: 'tester',
+          acquired_at: '2026-05-11T10:00:00+00:00',
+          expires_at: '2026-05-11T10:01:30+00:00',
+        })
+      }),
+    )
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('error'))
+
+    act(() => result.current.retry())
+
+    await waitFor(() => expect(result.current.status).toBe('held'))
+    expect(attempts).toBe(2)
+  })
+
+  it('does not release a lock this hook never acquired', async () => {
+    seedUser({ id: 1 })
+    const releaseSpy = vi.fn(() => HttpResponse.json({ ok: true }))
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () =>
+        HttpResponse.json(
+          {
+            detail: {
+              error: 'lock_held_by_other',
+              by_user_id: 1,
+              by_username: 'tester',
+              acquired_at: '2026-05-11T10:00:00+00:00',
+              expires_at: '2026-05-11T10:01:30+00:00',
+            },
+          },
+          { status: 409 },
+        ),
+      ),
+      http.post('http://localhost/api/locks/doc-1/release', releaseSpy),
+    )
+    const { result, unmount } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('conflict'))
+
+    unmount()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(releaseSpy).not.toHaveBeenCalled()
+  })
+
   it('heartbeat 404 → status="lost" (B6)', async () => {
     seedUser()
     let heartbeats = 0
@@ -116,6 +174,20 @@ describe('useLock', () => {
       await result.current.release()
     })
     expect(result.current.status).toBe('released')
+  })
+
+  it('explicit release rejects on an HTTP error and keeps the held state', async () => {
+    seedUser()
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/release', () =>
+        HttpResponse.json({ detail: 'not lock holder' }, { status: 404 }),
+      ),
+    )
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+
+    await expect(result.current.release()).rejects.toThrow('release_failed')
+    expect(result.current.status).toBe('held')
   })
 
   it('unmount clears heartbeat interval (B2)', async () => {

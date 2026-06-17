@@ -63,6 +63,22 @@ schema changes; the partner team must re-apply the DDL diff manually
 You can also apply the DDL through the Neon Console SQL editor if
 `psql` isn't installed locally.
 
+### Existing deployments: remove mirrored sessions
+
+`user_sessions.session_token` is a bearer credential and is no longer
+part of the mirror. After deploying SQLite migration `v0009`, run the
+one-time destructive Neon migration:
+
+```bash
+psql "$NEON_MIRROR_URL" -f migrations/postgres/002-remove-user-sessions.sql
+```
+
+This removes the legacy FK from `baran_activity_events` and drops
+`baran_user_sessions`. Coordinate the maintenance window with every
+consumer of the partner database. Rotate the Neon credential if session
+tokens were previously mirrored to a role or environment that should not
+have held them.
+
 ---
 
 ## 3. One-time backfill
@@ -98,10 +114,12 @@ runner:
 | File | What it does |
 |------|--------------|
 | `backend/migrations/v0005_outbox_schema.py` | Creates the `_outbox` table + its two supporting indexes. |
-| `backend/migrations/v0006_install_outbox_triggers.py` | Installs **69 triggers** across the 23 in-scope project tables (23 × 3 ops). `schema_migrations` is excluded as operational metadata. |
+| `backend/migrations/v0006_install_outbox_triggers.py` | Installs **66 triggers** across the 22 in-scope project tables (22 × 3 ops). Operational metadata and bearer sessions are excluded. |
+| `backend/migrations/v0009_exclude_user_sessions_from_mirror.py` | Drops legacy session triggers and purges every local outbox row containing session payloads. |
+| `backend/migrations/v0010_redact_activity_session_ids.py` | Rebuilds activity triggers so local session IDs are emitted as `null`, and scrubs queued activity payloads for rolling-upgrade compatibility. |
 
-These run on every backend boot via the lifespan startup. Both
-migrations are idempotent.
+These run on backend boot via the lifespan startup. Every migration is
+idempotent.
 
 ---
 
@@ -212,6 +230,7 @@ frozen otherwise.
 | Action | Command |
 |--------|---------|
 | Apply Neon DDL | `psql "$NEON_MIRROR_URL" -f migrations/postgres/001-baran-init.sql` |
+| Remove legacy session mirror | `psql "$NEON_MIRROR_URL" -f migrations/postgres/002-remove-user-sessions.sql` |
 | Regenerate DDL | `python -m scripts.regen_neon_ddl` |
 | Backfill (dry) | `python -m scripts.neon_backfill --dry-run` |
 | Backfill (full) | `python -m scripts.neon_backfill` |

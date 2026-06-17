@@ -1,6 +1,6 @@
 -- ============================================================
 -- baran_* mirror DDL — Phase 4 generated artifact.
--- Source: SQLite project schema (23 in-scope tables).
+-- Source: SQLite project schema (22 in-scope tables).
 -- Regenerate with: python -m scripts.regen_neon_ddl
 -- Idempotent: every CREATE uses IF NOT EXISTS.
 -- ============================================================
@@ -111,6 +111,23 @@ CREATE TABLE IF NOT EXISTS baran_document_kanun_refs (
 );
 
 CREATE INDEX IF NOT EXISTS baran_idx_dockanun_doc ON baran_document_kanun_refs(document_id);
+
+CREATE TABLE IF NOT EXISTS baran_activity_events (
+    id bigserial PRIMARY KEY,
+    user_id bigint REFERENCES baran_users(id) ON DELETE SET NULL,
+    session_id bigint,
+    event_type text NOT NULL,
+    document_id text,
+    duration_ms bigint,
+    extra_json jsonb,
+    created_at text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS baran_idx_act_type_time ON baran_activity_events(event_type, created_at);
+
+CREATE INDEX IF NOT EXISTS baran_idx_act_doc_time ON baran_activity_events(document_id, created_at);
+
+CREATE INDEX IF NOT EXISTS baran_idx_act_user_time ON baran_activity_events(user_id, created_at);
 
 CREATE TABLE IF NOT EXISTS baran_admin_audit_log (
     id bigserial PRIMARY KEY,
@@ -308,37 +325,5 @@ CREATE TABLE IF NOT EXISTS baran_training_quiz_overrides (
 );
 
 CREATE INDEX IF NOT EXISTS baran_idx_quiz_overrides_active ON baran_training_quiz_overrides(question_id) WHERE is_deleted=0;
-
-CREATE TABLE IF NOT EXISTS baran_user_sessions (
-    id bigserial PRIMARY KEY,
-    user_id bigint NOT NULL REFERENCES baran_users(id) ON DELETE CASCADE,
-    session_token text NOT NULL,
-    ip_hash text,
-    user_agent text,
-    started_at text NOT NULL,
-    ended_at text,
-    last_activity_at text NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS baran_idx_session_token ON baran_user_sessions(session_token);
-
-CREATE INDEX IF NOT EXISTS baran_idx_session_user_active ON baran_user_sessions(user_id, ended_at);
-
-CREATE TABLE IF NOT EXISTS baran_activity_events (
-    id bigserial PRIMARY KEY,
-    user_id bigint REFERENCES baran_users(id) ON DELETE SET NULL,
-    session_id bigint REFERENCES baran_user_sessions(id) ON DELETE SET NULL,
-    event_type text NOT NULL,
-    document_id text,
-    duration_ms bigint,
-    extra_json jsonb,
-    created_at text NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS baran_idx_act_type_time ON baran_activity_events(event_type, created_at);
-
-CREATE INDEX IF NOT EXISTS baran_idx_act_doc_time ON baran_activity_events(document_id, created_at);
-
-CREATE INDEX IF NOT EXISTS baran_idx_act_user_time ON baran_activity_events(user_id, created_at);
 
 COMMIT;

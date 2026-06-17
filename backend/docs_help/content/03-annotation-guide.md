@@ -1,6 +1,8 @@
 # Anotasyon Rehberi — Kanun Atıfı Nasıl Çıkarılır
 
-Her referans kaydı bir kanun atfını temsil eder. Aşağıdaki 6 alanı doldurursun; **Kanun No** veya **Kanun Adı** alanlarından en az biri zorunludur, diğerleri opsiyoneldir (atıf o kadar spesifik değilse boş bırakabilirsin).
+Her referans kaydı bir kanun atfını temsil eder. **Kanun No** veya **Kanun Adı**
+alanlarından en az biri ve **Metinden Alıntı** zorunludur. Madde, Fıkra ve Bent
+özelgede belirtilmiyorsa boş bırakılabilir.
 
 ## Alanların ne anlama geldiği
 
@@ -40,8 +42,10 @@ Madde altındaki **fıkra numarası**. Sayı olarak yaz: `1`, `2`, `3` (romen "(
 ### Bent
 Fıkra altındaki **bent harfi/numarası**. Genellikle `a`, `b`, `c` gibi tek harf; bazen `1`, `2` rakam olabilir. Küçük harfle yaz, parantez/nokta koyma.
 
-### Metinden alıntı (opsiyonel)
-Özelgenin tam o atıfı yaptığı cümleyi/parçayı kopyala. Bu alanı doldurman **zorunlu değil** — ileride traceability için faydalı ama atlayabilirsin.
+### Metinden alıntı (zorunlu)
+Özelgenin tam o atıfı yaptığı cümleyi veya kısa parçayı kopyala. Bu alan,
+referansın kaynağının sonraki kullanıcı tarafından doğrulanabilmesi için
+zorunludur.
 
 ## Örnek 1 — Klasik atıf
 
@@ -105,7 +109,7 @@ Bu cümle için **2 referans kartı** açarsın:
 
 ## Örnek 5 — Sıfır atıf
 
-Bazı özelgeler sadece olgusal açıklama içerir ve hiçbir somut kanun maddesine atıf yapmaz. Bu durumda **hiç referans eklemeden Sakla** diyebilirsin. Sistem "boş kaydı" da değerli bir veri olarak işler.
+Bazı özelgeler sadece olgusal açıklama içerir ve hiçbir somut kanun maddesine atıf yapmaz. Bu durumda **hiç referans eklemeden Kaydet** diyebilirsin. Sistem "boş kaydı" da değerli bir veri olarak işler.
 
 ## Yapmaman gerekenler
 

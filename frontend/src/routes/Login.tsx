@@ -24,11 +24,11 @@ export function Login() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const disabled = username.length === 0 || password.length === 0
+  const disabled = username.trim().length === 0 || password.length === 0
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    loginMutation.mutate({ username, password }, { onSuccess: () => navigate('/') })
+    loginMutation.mutate({ username: username.trim(), password }, { onSuccess: () => navigate('/') })
   }
 
   const errorMessage =
@@ -57,13 +57,13 @@ export function Login() {
             </span>
           </div>
           <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            № 001
+            001
           </span>
         </div>
 
         <div className="relative z-10 max-w-xl space-y-8">
           <p className="rise-in rise-1 font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-accent">
-            ↳ Bursiyer girişi
+            Bursiyer girişi
           </p>
           <h1 className="rise-in rise-2 font-display text-[3.5rem] xl:text-[4.25rem] font-bold leading-[0.95] tracking-tight text-foreground">
             Türk vergi hukukuna
@@ -71,7 +71,7 @@ export function Login() {
             <em className="font-medium italic text-accent">titiz bir bakış.</em>
           </h1>
           <p className="rise-in rise-3 max-w-md text-[17px] leading-relaxed text-foreground/75">
-            Özelgelerden kanun atıfı çıkarımı — bursiyer ekibinin titizlikle hazırladığı,
+            Özelgelerden kanun atfı çıkarımı: bursiyer ekibinin titizlikle hazırladığı,
             vergi pratisyenleri için bir referans kütüphanesi.
           </p>
           <div className="rise-in rise-4 flex items-center gap-4 pt-2 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-foreground/75">
@@ -82,7 +82,7 @@ export function Login() {
             <span className="h-px w-6 bg-border" aria-hidden />
             <span className="inline-flex items-center gap-2">
               <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent2" />
-              kanun atıfı çıkarımı
+              kanun atfı çıkarımı
             </span>
           </div>
         </div>
@@ -102,7 +102,7 @@ export function Login() {
         <div className="w-full max-w-sm space-y-10">
           <header className="rise-in rise-1 space-y-3">
             <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Giriş · Login
+              Giriş
             </p>
             <h2 className="font-display text-5xl font-bold leading-[1.05] tracking-tight">
               Tekrar
@@ -150,7 +150,7 @@ export function Login() {
               size="lg"
               className="w-full text-base tracking-wide"
             >
-              {loginMutation.isPending ? 'Giriş yapılıyor…' : 'Giriş yap'}
+              {loginMutation.isPending ? 'Giriş yapılıyor...' : 'Giriş yap'}
               <ArrowRight aria-hidden="true" className="ml-1 opacity-80" />
             </Button>
           </form>

@@ -172,7 +172,7 @@ export function Training() {
         onClose={() => setSkipDialogOpen(false)}
       />
       <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-        Eğitim · Training
+        Eğitim
       </p>
       <h1 className="mb-6 font-display text-4xl font-medium tracking-tight">Eğitim</h1>
       {pendingSentinelVisible && step === 'idle' && (

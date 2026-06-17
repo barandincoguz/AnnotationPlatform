@@ -30,11 +30,12 @@ Bir kanun atfı görüyorsun ama **bent** belirsiz ya da "burada belki Geçici 6
 
 ## 5. Karakter limiti (Metinden alıntı için)
 
-"Metinden alıntı" alanı opsiyonel ama doldurursan:
+"Metinden alıntı" alanı zorunludur. Alıntı uzunluğu için:
 - **300 karakter üzerinde** turuncu uyarı
 - **600 üzerinde** kırmızı uyarı
 
-İkisi de Sakla'yı engellemez, sadece dikkat çeker. Atıfın geçtiği **tek cümleyi** alıntılaman yeterli; tüm paragrafı kopyalama.
+Uzunluk uyarıları Kaydet işlemini tek başına engellemez. Atıfın geçtiği **tek
+cümleyi** alıntılaman yeterli; tüm paragrafı kopyalama.
 
 ## 6. Mola ver
 

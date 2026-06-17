@@ -1,7 +1,7 @@
 # Sık Sorulan Sorular
 
 ## "Bir özelgede hiç kanun atfı yoksa ne yapacağım?"
-Boş kaydet — hiç referans kartı açmadan `Sakla` yeterli. "Bu özelge atıf içermiyor" da değerli bir veri. Endişelenme, +1 XP alırsın.
+Boş kaydet — hiç referans kartı açmadan `Kaydet` yeterli. "Bu özelge atıf içermiyor" da değerli bir veri. Endişelenme, +1 XP alırsın.
 
 ## "Bir cümlede birden fazla atıf varsa (örn. 'VUK 229 ile KDV 35 birlikte')?"
 Her atıf için **ayrı referans kartı** aç. İki ayrı kanunu tek karta sığdırma; sistem her kartı bağımsız bir referans olarak indeksliyor.
@@ -24,11 +24,13 @@ Evet. Aynı özelge üstüne tıkla → "Tamamlandıyı kaldır" butonuna bas. A
 ## "Şifremi unuttum"
 Şu an "şifre sıfırla" self-service akışı yok. Admin'e başvur, sana yeni şifre verir veya admin paneli üzerinden hesabını sıfırlar.
 
-## "Yazdığım alıntı çok uzun oldu, kırmızı uyarı geldi ama Sakla çalışıyor. Hata mı var?"
+## "Yazdığım alıntı çok uzun oldu, uyarı geldi ama Kaydet çalışıyor. Hata mı var?"
 Hata yok — kırmızı uyarı sadece "kısalt" rica eder, blocking değil. Yine de o uyarıyı dikkate al; sadece atıfın geçtiği cümleyi al, tüm paragrafı kopyalama.
 
 ## "Önceki bursiyerin yazdığı her referansı beğeniyorum, +5 hak ediyor muyum?"
-Hayır. Sadece **sen `Tamamlandı` butonuna bastığında** +5 alırsın. Pasif kabul (referanslar zaten dolu olduğu için Sakla'ya basmak) +1'dir. Tamamlandı işareti referansların güvenilir olduğuna dair açık beyandır, kullan.
+Hayır. Sadece **sen `Tamamla` düğmesine bastığında** +5 alırsın. Referansları
+değiştirmeden Kaydet işlemi +1'dir. Tamamlandı işareti referansların güvenilir
+olduğuna dair açık beyandır.
 
 ## "Ekranda hep aynı isim 'çalışıyor' yazıyor"
 Üst barda online bursiyerler ve onların açtıkları özelgeler görünür. Bir kullanıcı 5 dakikadan uzun süre hareketsiz kalırsa kilit otomatik düşer. Sen tıkladığında hâlâ kilitli görünüyorsa sayfayı yenile.
@@ -39,8 +41,9 @@ Hayır. Sadece **sen `Tamamlandı` butonuna bastığında** +5 alırsın. Pasif 
 ## "Bir referansın opsiyonel alanlarını boş bırakırsam o referans 'eksik' sayılır mı?"
 Hayır. Opsiyonel alanlar tam olarak bu yüzden opsiyonel — özelge belirtmemişse sen de yazma. "Eksik bilgi" eksik olarak kaydedilir, "yanlış tahmin" değil.
 
-## "Source text (metinden alıntı) alanını her zaman doldurmalı mıyım?"
-Hayır, opsiyonel. Faydalı bir traceability sinyali ama doldurmazsan annotation eksik sayılmaz. Vaktinin yetmediği durumlarda atla.
+## "Metinden alıntı alanını her zaman doldurmalı mıyım?"
+Evet. Her referans kartında özelge metninden kısa ve birebir bir alıntı
+bulunmalıdır. Böylece sonraki kullanıcı referansın kaynağını doğrulayabilir.
 
 ## "Eğitimi atladım/Eğitimi geçemedim, ne olacak?"
 Eğitimi atladıysan (kırmızı "Eğitimi geç" linki) hesabın aktif kalır ama admin panelinde flag'lenir. 3 deneme hakkını kaybettiysen admin'in seni resetlemesi gerekir.

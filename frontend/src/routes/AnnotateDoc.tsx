@@ -2,9 +2,11 @@ import { useCallback, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { DocViewer } from '@/components/annotation/DocViewer'
 import { ReferencePanel } from '@/components/annotation/ReferencePanel'
 import { LockConflictModal } from '@/components/modals/LockConflictModal'
+import { Button } from '@/components/ui/button'
 import { useLock } from '@/hooks/useLock'
 import { useDoc } from '@/hooks/useDoc'
 import {
@@ -257,18 +259,61 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   if (lock.status === 'lost') {
     return (
       <div className="flex h-full items-center justify-center p-8">
-        <div className="space-y-3 text-center">
-          <p className="text-lg font-medium">Kilit kaybedildi</p>
-          <p className="text-sm text-muted-foreground">
-            Bu doküman üzerindeki düzenleme yetkiniz sonlandı.
-          </p>
-          <button
-            type="button"
-            className="text-sm underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-            onClick={() => navigate('/', { replace: true })}
-          >
-            Listeye dön
-          </button>
+        <div className="max-w-md space-y-4 text-center">
+          <AlertCircle aria-hidden="true" className="mx-auto h-8 w-8 text-destructive" />
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">Düzenleme kilidi kaybedildi</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Bağlantı kesilmesi nedeniyle bu doküman üzerindeki düzenleme yetkiniz sonlandı.
+              Çalışmalarınızı kaybetmemek için yeniden kilit almayı deneyebilirsiniz.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <Button type="button" variant="outline" onClick={() => navigate('/', { replace: true })}>
+              Listeye dön
+            </Button>
+            <Button type="button" onClick={lock.retry}>
+              <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+              Yeniden kilitle
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (lock.status === 'error') {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="max-w-md space-y-4 text-center">
+          <AlertCircle aria-hidden="true" className="mx-auto h-8 w-8 text-destructive" />
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">Düzenleme kilidi alınamadı</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Bağlantıyı kontrol edip yeniden deneyin. Dokümanda yaptığınız kayıtlı çalışmalar
+              etkilenmedi.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <Button type="button" variant="outline" onClick={() => navigate('/', { replace: true })}>
+              Listeye dön
+            </Button>
+            <Button type="button" onClick={lock.retry}>
+              <RefreshCw aria-hidden="true" />
+              Yeniden dene
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (lock.status === 'idle' || lock.status === 'acquiring') {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+          Düzenleme kilidi alınıyor...
         </div>
       </div>
     )

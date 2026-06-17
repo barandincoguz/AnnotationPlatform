@@ -95,7 +95,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
         </div>
         <div className="mt-6">
           <Button onClick={onAdvance}>
-            {isLast ? 'Sonuçları Gör ▸' : `Sonraki: Doküman ${docIndex + 2} ▸`}
+            {isLast ? 'Sonuçları gör' : `Sonraki: Doküman ${docIndex + 2}`}
           </Button>
         </div>
       </section>
@@ -121,6 +121,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
             key={i}
             index={i}
             value={r}
+            docText={currentDoc.content}
             onChange={(next) => updateRef(i, next)}
             onRemove={() => removeRef(i)}
             disabled={isSubmitting}
@@ -134,7 +135,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
       </section>
       <div className="mt-6 flex items-center justify-between">
         <Button onClick={() => onSubmit(currentDoc.gold_id, refs)} disabled={isSubmitting || !allValid}>
-          {isSubmitting ? 'Gönderiliyor...' : 'Submit & Sonraki ▸'}
+          {isSubmitting ? 'Gönderiliyor...' : 'Gönder ve devam et'}
         </Button>
         <Button
           variant="outline"
@@ -157,7 +158,7 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
             Cevap Anahtarı
           </p>
           <p className="font-medium mb-2">
-            Beklenen anotasyonlar — {expectedConcepts.length} concept
+            Beklenen anotasyonlar: {expectedConcepts.length} kavram
             (min eşleşme: {minConceptCount}):
           </p>
           <ol className="list-decimal pl-5 space-y-1">

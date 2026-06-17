@@ -25,7 +25,7 @@ def test_badges_catalog_returns_all_seven(passed_user):
 
     first = body[0]
     assert first["id"] == "first_annotation"
-    assert first["name"] == "İlk Annotation"
+    assert first["name"] == "İlk Anotasyon"
     assert first["description"] == "İlk kayıt başarıyla yapıldı."
     assert first["criterion"] == "İlk anotasyon kaydını yap."
 

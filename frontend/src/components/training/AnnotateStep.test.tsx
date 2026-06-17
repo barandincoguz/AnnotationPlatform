@@ -40,43 +40,52 @@ describe('AnnotateStep', () => {
     expect(screen.getByLabelText(/^metinden alıntı$/i)).toBeInTheDocument()
   })
 
-  it('Submit disabled if a reference has source_text but neither kanun_no nor kanun_ad', async () => {
+  it('submit disabled if a reference has source_text but neither kanun_no nor kanun_ad', async () => {
     const user = userEvent.setup()
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
     await user.click(screen.getByRole('button', { name: /yeni referans/i }))
     const sourceTextarea = screen.getByLabelText(/^metinden alıntı$/i)
     await user.type(sourceTextarea, 'metin')
-    expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /gönder ve devam et/i })).toBeDisabled()
   })
 
-  it('Submit enabled when reference has source_text + kanun_ad only (no kanun_no)', async () => {
+  it('submit enabled when reference has source_text + kanun_ad only (no kanun_no)', async () => {
     const user = userEvent.setup()
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
     await user.click(screen.getByRole('button', { name: /yeni referans/i }))
     await user.type(screen.getByLabelText(/^metinden alıntı$/i), 'metin')
     await user.type(screen.getByLabelText(/^kanun adı$/i), 'Kurumlar Vergisi Kanunu')
-    expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /gönder ve devam et/i })).not.toBeDisabled()
   })
 
-  it('Submit enabled when reference has source_text + kanun_no only (no kanun_ad)', async () => {
+  it('submit enabled when reference has source_text + kanun_no only (no kanun_ad)', async () => {
     const user = userEvent.setup()
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
     await user.click(screen.getByRole('button', { name: /yeni referans/i }))
     await user.type(screen.getByLabelText(/^metinden alıntı$/i), 'metin')
     await user.type(screen.getByLabelText(/^kanun no$/i), '5520')
-    expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /gönder ve devam et/i })).not.toBeDisabled()
   })
 
-  it('Submit enabled with no references (zero-ref legal case)', () => {
+  it('validates the source quote against the current training document', async () => {
+    const user = userEvent.setup()
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
-    expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /yeni referans/i }))
+    await user.type(screen.getByLabelText(/^metinden alıntı$/i), 'KVK 5/1-a')
+
+    expect(screen.queryByText(/alıntı metni özelge gövdesinde bulunamadı/i)).not.toBeInTheDocument()
   })
 
-  it('Submit click invokes onSubmit with gold_id and references', async () => {
+  it('submit enabled with no references (zero-ref legal case)', () => {
+    render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
+    expect(screen.getByRole('button', { name: /gönder ve devam et/i })).not.toBeDisabled()
+  })
+
+  it('submit click invokes onSubmit with gold_id and references', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<AnnotateStep onSubmit={onSubmit} onAdvance={vi.fn()} isSubmitting={false} />)
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     expect(onSubmit).toHaveBeenCalledWith('gold_a', [])
   })
 

@@ -68,7 +68,7 @@ QUIZ_QUESTIONS: list[dict] = [
         "text": "Bir özelge dokümanında hiçbir kanun atfı yoksa ne yapılmalı?",
         "choices": [
             "Doküman 'Atla' ile geçilmeli.",
-            "Boş bir referans listesi ([]) ile 'Sakla' edilmelidir — bu meşru bir durumdur.",
+            "Boş bir referans listesi ([]) ile 'Kaydet' işlemi yapılmalıdır — bu meşru bir durumdur.",
             "Sahte bir referans ekleyip kaydedilmelidir.",
             "Admin'e bildirim gönderilmelidir.",
         ],
@@ -76,10 +76,10 @@ QUIZ_QUESTIONS: list[dict] = [
     },
     {
         "id": "q06",
-        "text": "kanun_no ve kanun_ad birlikte verilirken hangi durum tipiktir?",
+        "text": "Kanun No ve Kanun Adı alanları için geçerli kural hangisidir?",
         "choices": [
-            "kanun_no zorunlu, kanun_ad opsiyonel ama her ikisi de tutarlı olmalı (örn. 5520 → 'Kurumlar Vergisi Kanunu').",
-            "Sadece kanun_ad yeterlidir; kanun_no opsiyonel.",
+            "Kanun No veya Kanun Adından en az biri zorunludur; ikisi birlikte verilirse tutarlı olmalıdır.",
+            "Kanun No her zaman zorunludur; Kanun Adı tek başına yeterli değildir.",
             "İkisi de zorunludur, eksik olursa 422 döner.",
             "İkisi de opsiyoneldir, source_text yeterlidir.",
         ],
@@ -87,7 +87,7 @@ QUIZ_QUESTIONS: list[dict] = [
     },
     {
         "id": "q07",
-        "text": "Bir doküman üzerinde 'Sakla' işlemi başarıyla tamamlandığında, kullanıcının dokümanı üzerindeki kilidiyle (lock) ne olur?",
+        "text": "Bir doküman üzerinde 'Kaydet' işlemi başarıyla tamamlandığında, kullanıcının doküman üzerindeki kilidine ne olur?",
         "choices": [
             "Kilit 5 dakika daha uzatılır.",
             "Kilit otomatik olarak serbest bırakılır.",
@@ -101,9 +101,9 @@ QUIZ_QUESTIONS: list[dict] = [
         "text": "Aynı dokümanı iki bursiyer aynı anda anotasyonlamaya çalışırsa ne olur?",
         "choices": [
             "İkisi de aynı anda yazabilir, son kaydedenin verisi geçerli olur.",
-            "İkincisi 409 Conflict alır ve modal ile 'Başka doc seç' yönlendirmesi yapılır.",
+            "İkincisi kilit çakışması görür ve 'Listeye dön' ile başka bir doküman seçebilir.",
             "Sistem otomatik olarak ikincinin oturumunu kapatır.",
-            "İkisinden hangisi 'Sakla'ya önce basarsa onun girişi yazılır, diğerininki sessizce kaybolur.",
+            "İkisinden hangisi 'Kaydet'e önce basarsa onun girişi yazılır, diğerininki sessizce kaybolur.",
         ],
         "correct_choice_idx": 1,
     },

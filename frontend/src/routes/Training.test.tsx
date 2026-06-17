@@ -55,23 +55,23 @@ describe('Training route — happy path', () => {
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 1/i }))
 
     await waitFor(() => expect(screen.getByText(/doc a içeriği/i)).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     await waitFor(() => expect(screen.getByText(/durum:/i)).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 2/i }))
 
     await waitFor(() => expect(screen.getByText(/doc b içeriği/i)).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     await waitFor(() => expect(screen.getByText(/durum:/i)).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 3/i }))
 
     await waitFor(() => expect(screen.getByText(/doc c içeriği/i)).toBeInTheDocument())
     server.use(mockAuthedUser({ has_seen_manual: true, has_passed_training: true }))
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     await waitFor(() => expect(screen.getByText(/durum:/i)).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /sonuçları gör/i }))
 
     await waitFor(() => expect(screen.getByText(/tebrikler/i)).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /anotasyona başla/i }))
+    await user.click(screen.getByRole('button', { name: /etiketlemeye başla/i }))
 
     await waitFor(() => expect(screen.getByTestId('route-root')).toBeInTheDocument())
     expect(sessionStorage.getItem('training-attempt-v1')).toBeNull()
@@ -98,17 +98,17 @@ describe('Training route — fail path', () => {
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 1/i }))
 
     await waitFor(() => expect(screen.getByText(/doc a içeriği/i)).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     await waitFor(() => expect(screen.getByText(/durum:/i)).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 2/i }))
 
     await waitFor(() => expect(screen.getByText(/doc b içeriği/i)).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     await waitFor(() => expect(screen.getByText(/durum:/i)).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /sonraki: doküman 3/i }))
 
     await waitFor(() => expect(screen.getByText(/doc c içeriği/i)).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /submit/i }))
+    await user.click(screen.getByRole('button', { name: /gönder ve devam et/i }))
     await waitFor(() => expect(screen.getByText(/durum:/i)).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /sonuçları gör/i }))
 
@@ -294,6 +294,6 @@ describe('Training — 16c.1 skip link', () => {
     renderWithProviders(<Training />, { initialEntries: ['/training'] })
     const link = await screen.findByRole('button', { name: /Eğitimi geç/ })
     await user.click(link)
-    expect(await screen.findByText(/asla önerilmez/i)).toBeInTheDocument()
+    expect(await screen.findByText(/atlamak önerilmez/i)).toBeInTheDocument()
   })
 })

@@ -180,6 +180,58 @@ def test_logout_releases_user_locks(seeded_client):
         conn.close()
 
 
+def test_logout_still_succeeds_when_lock_broadcast_fails(seeded_client, monkeypatch):
+    from backend import config
+    from backend.shared.db import connect
+    from backend.shared.sse import broker as sse_broker
+
+    seeded_client.post("/api/auth/register", json={
+        "username": "alice", "password": "password123",
+        "invite_code": "BURSIYER-2026",
+    })
+    seeded_client.post("/api/auth/login", json={
+        "username": "alice", "password": "password123",
+    })
+
+    conn = connect(config.DB_PATH)
+    try:
+        user_id = conn.execute(
+            "SELECT id FROM users WHERE username='alice'"
+        ).fetchone()["id"]
+        conn.execute(
+            "INSERT INTO documents_meta("
+            "document_id, file_path, pdf_text, word_count, sentence_count, "
+            "text_density, estimated_difficulty, created_at"
+            ") VALUES ('logout-doc', 'path', 'text', 1, 1, 1, 'Kolay', datetime('now'))"
+        )
+        conn.execute(
+            "INSERT INTO document_locks("
+            "document_id, user_id, acquired_at, last_heartbeat, expires_at"
+            ") VALUES ('logout-doc', ?, datetime('now'), datetime('now'), "
+            "datetime('now', '+5 minutes'))",
+            (user_id,),
+        )
+    finally:
+        conn.close()
+
+    async def fail_publish(*_args, **_kwargs):
+        raise RuntimeError("SSE unavailable")
+
+    monkeypatch.setattr(sse_broker, "publish_broadcast", fail_publish)
+    response = seeded_client.post("/api/auth/logout")
+
+    assert response.status_code == 200
+    assert seeded_client.get("/api/auth/me").status_code == 401
+    conn = connect(config.DB_PATH)
+    try:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM document_locks WHERE user_id=?",
+            (user_id,),
+        ).fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
 def test_seen_manual_endpoint_sets_flag(seeded_client):
     seeded_client.post("/api/auth/register", json={
         "username": "alice", "password": "password123",

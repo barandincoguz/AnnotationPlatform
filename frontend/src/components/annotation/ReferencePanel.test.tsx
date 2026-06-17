@@ -55,10 +55,10 @@ describe('ReferencePanel', () => {
     expect(onAdd).toHaveBeenCalled()
   })
 
-  it('"Sakla" calls onSave', () => {
+  it('"Kaydet" calls onSave', () => {
     const onSave = vi.fn()
     render(<ReferencePanel {...baseProps} refs={[makeReferenceItem()]} onSave={onSave} />)
-    fireEvent.click(screen.getByRole('button', { name: /sakla/i }))
+    fireEvent.click(screen.getByRole('button', { name: /kaydet/i }))
     expect(onSave).toHaveBeenCalled()
   })
 
@@ -69,13 +69,13 @@ describe('ReferencePanel', () => {
     expect(onSkip).toHaveBeenCalled()
   })
 
-  it('Sakla disabled while saving or when canEdit=false', () => {
+  it('Kaydet disabled while saving or when canEdit=false', () => {
     const { rerender } = render(
       <ReferencePanel {...baseProps} refs={[makeReferenceItem()]} isSaving={true} />,
     )
-    expect(screen.getByRole('button', { name: /sakla|kaydediliyor/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /kaydet|kaydediliyor/i })).toBeDisabled()
     rerender(<ReferencePanel {...baseProps} refs={[makeReferenceItem()]} canEdit={false} />)
-    expect(screen.getByRole('button', { name: /sakla/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /kaydet/i })).toBeDisabled()
   })
 
   it('shows ApiError.message inline when error is present', () => {
@@ -103,10 +103,10 @@ describe('ReferencePanel', () => {
 })
 
 describe('ReferencePanel — validation gate (16c bug fix)', () => {
-  it('Sakla disabled when an invalid ref is present', () => {
+  it('Kaydet disabled when an invalid ref is present', () => {
     const refs = [{ kanun_no: null, kanun_ad: null, madde: null, fikra: null, bent: null, source_text: 'metin' }]
     render(<ReferencePanel {...baseProps} refs={refs} isValid={false} />)
-    expect(screen.getByRole('button', { name: /sakla/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /kaydet/i })).toBeDisabled()
     expect(screen.getByText((_, el) =>
       el?.tagName === 'P' &&
       (el.textContent ?? '').includes('Kanun No') &&
@@ -114,15 +114,15 @@ describe('ReferencePanel — validation gate (16c bug fix)', () => {
     )).toBeInTheDocument()
   })
 
-  it('Sakla enabled when all refs valid', () => {
+  it('Kaydet enabled when all refs valid', () => {
     const refs = [{ kanun_no: '5520', kanun_ad: null, madde: null, fikra: null, bent: null, source_text: 'metin' }]
     render(<ReferencePanel {...baseProps} refs={refs} isValid={true} />)
-    expect(screen.getByRole('button', { name: /sakla/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /kaydet/i })).not.toBeDisabled()
   })
 
-  it('Sakla enabled when refs is empty (zero-ref legal)', () => {
+  it('Kaydet enabled when refs is empty (zero-ref legal)', () => {
     render(<ReferencePanel {...baseProps} refs={[]} isValid={true} />)
-    expect(screen.getByRole('button', { name: /sakla/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /kaydet/i })).not.toBeDisabled()
   })
 })
 

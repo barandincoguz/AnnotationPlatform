@@ -7,7 +7,7 @@ interface TrainingProgressProps {
   docIndex: 0 | 1 | 2
 }
 
-const LABELS = ['Quiz', 'Doc 1', 'Doc 2', 'Doc 3', 'Sonuç']
+const LABELS = ['Bilgi', 'Belge 1', 'Belge 2', 'Belge 3', 'Sonuç']
 
 export function TrainingProgress({ step, docIndex }: TrainingProgressProps) {
   const activeIndex =

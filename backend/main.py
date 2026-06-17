@@ -8,8 +8,10 @@ On startup:
 Domain routers (users, documents, ...) are mounted in their respective packages.
 """
 import os
+import json
 import mimetypes
 from contextlib import asynccontextmanager
+from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -49,6 +51,87 @@ from backend.mirror import dispatcher as mirror_dispatcher
 from backend.mirror import config as mirror_config
 
 VERSION = "0.1.0"
+
+# Durable application state that may be restored from the Neon mirror.
+# Bearer sessions and document locks are intentionally local-only runtime
+# state: restoring either would revive stale access or stale ownership.
+MIRROR_RESTORE_TABLES = (
+    "users",
+    "invite_codes",
+    "site_settings",
+    "gamification_state",
+    "gamification_ledger",
+    "badges_earned",
+    "training_attempts",
+    "notifications",
+    "training_gold_doc_overrides",
+    "training_quiz_overrides",
+    "annotations",
+    "annotation_versions",
+    "annotation_references",
+    "drafts",
+    "activity_events",
+    "behavioral_events",
+    "admin_audit_log",
+    "system_events",
+)
+
+
+def _translate_mirror_value(value):
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _restore_mirrored_state(conn, pg_conn) -> dict[str, int]:
+    """Atomically replace durable local state from an already-open PG connection."""
+    foreign_keys_enabled = bool(conn.execute("PRAGMA foreign_keys").fetchone()[0])
+    if foreign_keys_enabled:
+        conn.execute("PRAGMA foreign_keys=OFF")
+
+    restored_counts: dict[str, int] = {}
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        # Runtime credentials and ownership never survive an ephemeral restore.
+        conn.execute("DELETE FROM user_sessions")
+        conn.execute("DELETE FROM document_locks")
+
+        for table in MIRROR_RESTORE_TABLES:
+            pg_cur = pg_conn.cursor()
+            try:
+                pg_cur.execute(f"SELECT * FROM baran_{table}")
+                rows = pg_cur.fetchall()
+            except Exception as exc:
+                raise RuntimeError(f"failed to read required mirror table baran_{table}") from exc
+            finally:
+                pg_cur.close()
+
+            conn.execute(f"DELETE FROM {table}")
+            restored_counts[table] = len(rows)
+            if not rows:
+                continue
+
+            columns = list(rows[0].keys())
+            placeholders = ",".join("?" for _ in columns)
+            sql = f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders})"
+            for row in rows:
+                values = [
+                    None if table == "activity_events" and column == "session_id"
+                    else _translate_mirror_value(row[column])
+                    for column in columns
+                ]
+                conn.execute(sql, values)
+
+        conn.commit()
+        return restored_counts
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if foreign_keys_enabled:
+            conn.execute("PRAGMA foreign_keys=ON")
 
 
 @asynccontextmanager
@@ -168,38 +251,7 @@ async def lifespan(_app: FastAPI):
                 # 2. Sync all users and activity state if users are empty (solves ephemeral storage completely)
                 if is_fresh_db:
                     from psycopg.rows import dict_row
-                    import json
-                    from datetime import datetime
-                    
-                    USER_AND_ACTIVITY_TABLES = [
-                        "users",
-                        "invite_codes",
-                        "site_settings",
-                        "user_sessions",
-                        "gamification_state",
-                        "gamification_ledger",
-                        "badges_earned",
-                        "training_attempts",
-                        "notifications",
-                        "training_gold_doc_overrides",
-                        "annotations",
-                        "annotation_versions",
-                        "annotation_references",
-                        "drafts",
-                        "activity_events",
-                        "behavioral_events",
-                        "admin_audit_log",
-                        "system_events",
-                        "document_locks",
-                    ]
-                    
-                    def _translate_value(val):
-                        if isinstance(val, (dict, list)):
-                            return json.dumps(val, ensure_ascii=False)
-                        if isinstance(val, datetime):
-                            return val.isoformat()
-                        return val
-                        
+
                     try:
                         with psycopg.connect(mirror_config.NEON_MIRROR_URL, row_factory=dict_row) as pg_conn:
                             audit.log_system_event(
@@ -207,48 +259,16 @@ async def lifespan(_app: FastAPI):
                                 message="Local users database is empty. Starting automatic state restoration from Neon Postgres...",
                             )
                             print("Local users database is empty. Starting automatic state restoration from Neon Postgres...")
-                            
-                            conn.execute("BEGIN IMMEDIATE")
-                            conn.execute("PRAGMA foreign_keys=OFF")
-                            try:
-                                for table in USER_AND_ACTIVITY_TABLES:
-                                    pg_cur = pg_conn.cursor()
-                                    try:
-                                        pg_cur.execute(f"SELECT * FROM baran_{table}")
-                                        rows = pg_cur.fetchall()
-                                    except Exception as e:
-                                        print(f"Skipping restore for table {table} (not found or error on Neon: {e})")
-                                        continue
-                                    finally:
-                                        pg_cur.close()
-                                        
-                                    if not rows:
-                                        continue
-                                        
-                                    # Delete existing rows if any to ensure clean state
-                                    conn.execute(f"DELETE FROM {table}")
-                                    
-                                    columns = list(rows[0].keys())
-                                    placeholders = ",".join("?" for _ in columns)
-                                    sql = f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders})"
-                                    
-                                    for row in rows:
-                                        values = [_translate_value(row[col]) for col in columns]
-                                        conn.execute(sql, values)
-                                        
-                                    print(f"Successfully restored {len(rows)} rows to table {table}")
-                                conn.commit()
-                            except Exception:
-                                conn.rollback()
-                                raise
-                            finally:
-                                conn.execute("PRAGMA foreign_keys=ON")
+
+                            restored_counts = _restore_mirrored_state(conn, pg_conn)
+                            for table, count in restored_counts.items():
+                                print(f"Successfully restored {count} rows to table {table}")
                                 
                         audit.log_system_event(
                             conn, "neon_user_sync_success", "info",
-                            message="Successfully restored all users, sessions, annotations, and system state from Neon Postgres!",
+                            message="Successfully restored durable users, annotations, and system state from Neon Postgres; sessions and locks were invalidated.",
                         )
-                        print("Successfully restored all users, sessions, annotations, and system state from Neon Postgres!")
+                        print("Successfully restored durable users, annotations, and system state from Neon Postgres; sessions and locks were invalidated.")
                     except Exception as e:
                         audit.log_system_event(
                             conn, "neon_user_sync_failed", "error",

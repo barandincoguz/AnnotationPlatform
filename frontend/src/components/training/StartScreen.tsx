@@ -22,8 +22,8 @@ export function StartScreen({ onStart, onBackToHelp, isPending }: StartScreenPro
       <div className="space-y-2 text-sm">
         <p>Aşağıdaki adımlardan oluşur:</p>
         <ol className="ml-5 list-decimal space-y-1">
-          <li>5 soruluk quiz (≥4 doğru)</li>
-          <li>3 doküman üzerinde anotasyon (≥2 geçer)</li>
+          <li>5 bilgi sorusu: en az 4 doğru cevap gerekir.</li>
+          <li>3 örnek doküman: en az 2 dokümanda beklenen atıflar bulunmalıdır.</li>
         </ol>
       </div>
       <div className="rounded-md border border-warning/40 bg-warning/5 p-4 text-sm">
@@ -48,7 +48,7 @@ export function StartScreen({ onStart, onBackToHelp, isPending }: StartScreenPro
         <Button onClick={onStart} disabled={!confirmed || isPending} size="lg">
           {isPending ? 'Başlatılıyor...' : 'Başla'}
         </Button>
-        <Button onClick={onBackToHelp} variant="ghost">← Kılavuza dön</Button>
+        <Button onClick={onBackToHelp} variant="ghost">Kılavuza dön</Button>
       </div>
     </div>
   )

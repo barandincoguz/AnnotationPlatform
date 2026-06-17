@@ -1,4 +1,5 @@
 """Auth + user routes."""
+import logging
 import sqlite3
 from typing import Optional
 
@@ -19,6 +20,7 @@ from backend.users.models import (
 )
 
 router = APIRouter(prefix="/api", tags=["users"])
+log = logging.getLogger(__name__)
 
 
 # Per-IP throttles. Generous-but-noticeable: a real user typing a wrong

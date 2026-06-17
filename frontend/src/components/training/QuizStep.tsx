@@ -45,7 +45,7 @@ export function QuizStep({ onSubmit, isSubmitting }: QuizStepProps) {
             {passed ? '✓' : '✗'}
           </span>{' '}
           Skor: <strong>{quizResult.score} / {quizResult.total}</strong>
-          <p className="mt-1 text-xs text-muted-foreground">(Geçmek için ≥4 gerekir)</p>
+          <p className="mt-1 text-xs text-muted-foreground">Geçmek için en az 4 doğru gerekir.</p>
         </div>
 
         {quizResult.results && (
@@ -86,7 +86,7 @@ export function QuizStep({ onSubmit, isSubmitting }: QuizStepProps) {
         )}
 
         <div className="mt-6">
-          <Button onClick={() => setStep('doc')}>Sonraki: Doküman 1 ▸</Button>
+          <Button onClick={() => setStep('doc')}>Sonraki: Doküman 1</Button>
         </div>
       </section>
     )
@@ -95,10 +95,10 @@ export function QuizStep({ onSubmit, isSubmitting }: QuizStepProps) {
   return (
     <section aria-labelledby="quiz-heading">
       <h2 ref={headingRef} tabIndex={-1} id="quiz-heading" className="text-xl font-semibold focus:outline-none">
-        Quiz
+        Bilgi soruları
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        ⓘ 5 soruyu cevapla, sonra &quot;Cevapları Gönder&quot; tuşuna bas. Skorunu hepsini birden öğreneceksin.
+        5 soruyu cevapla, sonra &quot;Cevapları gönder&quot; tuşuna bas. Skorunu hepsini birden göreceksin.
       </p>
       <div className="mt-6 space-y-6">
         {questions.map((q, idx) => (
@@ -131,7 +131,7 @@ export function QuizStep({ onSubmit, isSubmitting }: QuizStepProps) {
       </div>
       <div className="mt-6">
         <Button onClick={() => onSubmit(quizAnswers)} disabled={!allAnswered || isSubmitting}>
-          {isSubmitting ? 'Gönderiliyor...' : 'Cevapları Gönder'}
+          {isSubmitting ? 'Gönderiliyor...' : 'Cevapları gönder'}
         </Button>
       </div>
     </section>
