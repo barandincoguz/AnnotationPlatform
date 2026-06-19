@@ -11,6 +11,8 @@ import {
   normalizeIdentifier,
   normalizeKanunAdi,
   type ReferenceField,
+  getLawNameByNumber,
+  getLawNumberByName,
 } from '@/lib/validateReferences'
 
 interface Props {
@@ -57,7 +59,15 @@ export function ConceptRowEditor({ value, onChange, onRemove }: Props) {
           placeholder="kanun_no (zorunlu)"
           value={value.kanun_no}
           onChange={(e) => set('kanun_no', e.target.value)}
-          onBlur={(e) => set('kanun_no', normalizeKanunNo(e.target.value) ?? '')}
+          onBlur={(e) => {
+            const cleaned = normalizeKanunNo(e.target.value) ?? ''
+            const autoAd = getLawNameByNumber(cleaned)
+            onChange({
+              ...value,
+              kanun_no: cleaned,
+              ...(autoAd ? { kanun_ad: autoAd } : {}),
+            })
+          }}
           aria-describedby={describedBy('kanun_no')}
           aria-invalid={invalidFor('kanun_no')}
         />
@@ -69,7 +79,15 @@ export function ConceptRowEditor({ value, onChange, onRemove }: Props) {
           placeholder="kanun_ad"
           value={value.kanun_ad ?? ''}
           onChange={(e) => set('kanun_ad', e.target.value || null)}
-          onBlur={(e) => set('kanun_ad', normalizeKanunAdi(e.target.value))}
+          onBlur={(e) => {
+            const cleaned = normalizeKanunAdi(e.target.value)
+            const autoNo = getLawNumberByName(cleaned)
+            onChange({
+              ...value,
+              kanun_ad: cleaned,
+              ...(autoNo ? { kanun_no: autoNo } : {}),
+            })
+          }}
           aria-describedby={describedBy('kanun_ad')}
           aria-invalid={invalidFor('kanun_ad')}
         />

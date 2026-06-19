@@ -16,6 +16,8 @@ import {
   normalizeKanunAdi,
   isSourceTextInDoc,
   type ReferenceField,
+  getLawNameByNumber,
+  getLawNumberByName,
 } from '@/lib/validateReferences'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
@@ -225,7 +227,12 @@ export function ReferenceCard({
               onChange={(e) => onChange(set(value, 'kanun_no', e.target.value))}
               onBlur={(e) => {
                 const cleaned = normalizeKanunNo(e.target.value)
-                onChange(set(value, 'kanun_no', cleaned ?? ''))
+                let next = set(value, 'kanun_no', cleaned ?? '')
+                const autoAd = getLawNameByNumber(cleaned)
+                if (autoAd) {
+                  next = set(next, 'kanun_ad', autoAd)
+                }
+                onChange(next)
               }}
               aria-describedby={describedBy('kanun_no')}
               aria-invalid={invalidFor('kanun_no')}
@@ -241,7 +248,12 @@ export function ReferenceCard({
               onChange={(e) => onChange(set(value, 'kanun_ad', e.target.value))}
               onBlur={(e) => {
                 const cleaned = normalizeKanunAdi(e.target.value)
-                onChange(set(value, 'kanun_ad', cleaned ?? ''))
+                let next = set(value, 'kanun_ad', cleaned ?? '')
+                const autoNo = getLawNumberByName(cleaned)
+                if (autoNo) {
+                  next = set(next, 'kanun_no', autoNo)
+                }
+                onChange(next)
               }}
               aria-describedby={describedBy('kanun_ad')}
               aria-invalid={invalidFor('kanun_ad')}

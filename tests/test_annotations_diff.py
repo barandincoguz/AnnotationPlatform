@@ -186,6 +186,29 @@ def test_normalize_kanun_adi():
     assert normalize_kanun_adi("GVKKANUNU") == "Gelir Vergisi Kanunu"
     assert normalize_kanun_adi("KVKKANUNU") == "Kurumlar Vergisi Kanunu"
     assert normalize_kanun_adi("DVKKANUNU") == "Damga Vergisi Kanunu"
+    
+    # Test parenthetical removal
+    assert normalize_kanun_adi("Kurumlar Vergisi (KVK) Kanunu") == "Kurumlar Vergisi Kanunu"
+    assert normalize_kanun_adi("Kurumlar Vergisi (KVK) Kanununun") == "Kurumlar Vergisi Kanunu"
+    
+    # Test suffixes on abbreviations
+    assert normalize_kanun_adi("KVK'nın") == "Kurumlar Vergisi Kanunu"
+    assert normalize_kanun_adi("GVK'ya") == "Gelir Vergisi Kanunu"
+    assert normalize_kanun_adi("VUK'un") == "Vergi Usul Kanunu"
+    assert normalize_kanun_adi("KDVK'nın") == "Katma Değer Vergisi Kanunu"
+    
+    # Test suffixes on law name
+    assert normalize_kanun_adi("Kurumlar Vergisi Kanunu'na") == "Kurumlar Vergisi Kanunu"
+    assert normalize_kanun_adi("Kurumlar Vergisi Kanunundan") == "Kurumlar Vergisi Kanunu"
+    
+    # Test law base with suffix
+    assert normalize_kanun_adi("Kurumlar Vergisi'nde") == "Kurumlar Vergisi Kanunu"
+    
+    # Test newly added laws/abbreviations
+    assert normalize_kanun_adi("TTK") == "Türk Ticaret Kanunu"
+    assert normalize_kanun_adi("KVKK'ya") == "Kişisel Verilerin Korunması Kanunu"
+    assert normalize_kanun_adi("AATUHK") == "Amme Alacaklarının Tahsil Usulü Hakkında Kanun"
+
     assert normalize_kanun_adi("Kanun") == "Kanun"
     assert normalize_kanun_adi(None) is None
 

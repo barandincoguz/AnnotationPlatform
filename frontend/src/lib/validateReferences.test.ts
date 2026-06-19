@@ -10,6 +10,8 @@ import {
   cleanForFuzzyMatch,
   isSourceTextInDoc,
   checkAndRemoveDuplicateReferences,
+  getLawNameByNumber,
+  getLawNumberByName,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -191,6 +193,29 @@ describe('normalizeKanunAdi', () => {
     expect(normalizeKanunAdi('GVK')).toBe('Gelir Vergisi Kanunu')
     expect(normalizeKanunAdi('VUK')).toBe('Vergi Usul Kanunu')
   })
+  it('normalizes laws with Turkish suffixes and parentheticals', () => {
+    // Parenthetical removal
+    expect(normalizeKanunAdi('Kurumlar Vergisi (KVK) Kanunu')).toBe('Kurumlar Vergisi Kanunu')
+    expect(normalizeKanunAdi('Kurumlar Vergisi (KVK) Kanununun')).toBe('Kurumlar Vergisi Kanunu')
+    
+    // Abbreviation suffixes
+    expect(normalizeKanunAdi("KVK'nın")).toBe('Kurumlar Vergisi Kanunu')
+    expect(normalizeKanunAdi("GVK'ya")).toBe('Gelir Vergisi Kanunu')
+    expect(normalizeKanunAdi("VUK'un")).toBe('Vergi Usul Kanunu')
+    expect(normalizeKanunAdi("KDVK'nın")).toBe('Katma Değer Vergisi Kanunu')
+    
+    // Law name suffixes
+    expect(normalizeKanunAdi("Kurumlar Vergisi Kanunu'na")).toBe('Kurumlar Vergisi Kanunu')
+    expect(normalizeKanunAdi("Kurumlar Vergisi Kanunundan")).toBe('Kurumlar Vergisi Kanunu')
+    
+    // Law base with suffix
+    expect(normalizeKanunAdi("Kurumlar Vergisi'nde")).toBe('Kurumlar Vergisi Kanunu')
+    
+    // New laws/abbreviations
+    expect(normalizeKanunAdi('TTK')).toBe('Türk Ticaret Kanunu')
+    expect(normalizeKanunAdi("KVKK'ya")).toBe('Kişisel Verilerin Korunması Kanunu')
+    expect(normalizeKanunAdi('AATUHK')).toBe('Amme Alacaklarının Tahsil Usulü Hakkında Kanun')
+  })
   it('returns raw text if unknown name', () => {
     expect(normalizeKanunAdi('Özel Kanun')).toBe('Özel Kanun')
     expect(normalizeKanunAdi(null)).toBeNull()
@@ -322,8 +347,8 @@ describe('checkAndRemoveDuplicateReferences', () => {
     const { list: cleaned, hasDuplicates } = checkAndRemoveDuplicateReferences(list)
     expect(hasDuplicates).toBe(true)
     expect(cleaned).toHaveLength(2)
-    expect(cleaned[0].source_text).toBe('first')
-    expect(cleaned[1].madde).toBe('6')
+    expect(cleaned[0]?.source_text).toBe('first')
+    expect(cleaned[1]?.madde).toBe('6')
   })
 
   it('tolerates minor formatting differences via normalization', () => {
@@ -334,6 +359,33 @@ describe('checkAndRemoveDuplicateReferences', () => {
     const { list: cleaned, hasDuplicates } = checkAndRemoveDuplicateReferences(list)
     expect(hasDuplicates).toBe(true)
     expect(cleaned).toHaveLength(1)
+  })
+})
+
+describe('auto-fill helpers', () => {
+  describe('getLawNameByNumber', () => {
+    it('returns the correct law name for known numbers', () => {
+      expect(getLawNameByNumber('5520')).toBe('Kurumlar Vergisi Kanunu')
+      expect(getLawNameByNumber(' 3065 ')).toBe('Katma Değer Vergisi Kanunu')
+      expect(getLawNameByNumber('/213-')).toBe('Vergi Usul Kanunu')
+    })
+    it('returns null for unknown numbers', () => {
+      expect(getLawNameByNumber('9999')).toBeNull()
+      expect(getLawNameByNumber(null)).toBeNull()
+    })
+  })
+
+  describe('getLawNumberByName', () => {
+    it('returns the correct law number for known names and abbreviations', () => {
+      expect(getLawNumberByName('KVK')).toBe('5520')
+      expect(getLawNumberByName('Katma Değer Vergisi')).toBe('3065')
+      expect(getLawNumberByName("KVK'nın")).toBe('5520')
+      expect(getLawNumberByName('Kurumlar Vergisi Kanunu')).toBe('5520')
+    })
+    it('returns null for unknown names', () => {
+      expect(getLawNumberByName('Bilinmeyen Kanun')).toBeNull()
+      expect(getLawNumberByName(null)).toBeNull()
+    })
   })
 })
 

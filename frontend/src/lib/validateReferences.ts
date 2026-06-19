@@ -45,24 +45,134 @@ const LAW_ABBREVIATIONS: Record<string, string> = {
   OTVK: 'Özel Tüketim Vergisi Kanunu',
   OTV: 'Özel Tüketim Vergisi Kanunu',
   DVK: 'Damga Vergisi Kanunu',
+  HK: 'Harçlar Kanunu',
+  AATUHK: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  AATUK: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  MTVK: 'Motorlu Taşıtlar Vergisi Kanunu',
+  MTV: 'Motorlu Taşıtlar Vergisi Kanunu',
+  BGK: 'Belediye Gelirleri Kanunu',
+  GK: 'Gümrük Kanunu',
+  EVK: 'Emlak Vergisi Kanunu',
+  GIVK: 'Gider Vergileri Kanunu',
+  GIV: 'Gider Vergileri Kanunu',
+  VIVK: 'Veraset ve İntikal Vergisi Kanunu',
+  VIV: 'Veraset ve İntikal Vergisi Kanunu',
+  KVKK: 'Kişisel Verilerin Korunması Kanunu',
+  SBK: 'Serbest Bölgeler Kanunu',
+  TGBK: 'Teknoloji Geliştirme Bölgeleri Kanunu',
+  SSGSSK: 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  SGK: 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  IK: 'İş Kanunu',
+  TTK: 'Türk Ticaret Kanunu',
+  TMK: 'Türk Medeni Kanunu',
+  TBK: 'Türk Borçlar Kanunu',
+  HMK: 'Hukuk Muhakemeleri Kanunu',
+  CMK: 'Ceza Muhakemesi Kanunu',
+  TCK: 'Türk Ceza Kanunu',
+  IIK: 'İcra ve İflas Kanunu',
+  DMK: 'Devlet Memurları Kanunu',
+  IYUK: 'İdari Yargılama Usulü Kanunu',
+  IYK: 'İdari Yargılama Usulü Kanunu',
 }
 
 const LAW_NAME_ALIASES: Record<string, string> = {
   VERGIUSULKANUNU: 'Vergi Usul Kanunu',
+  VERGIUSUL: 'Vergi Usul Kanunu',
   VUKKANUNU: 'Vergi Usul Kanunu',
   GELIRVERGISIKANUNU: 'Gelir Vergisi Kanunu',
+  GELIRVERGISI: 'Gelir Vergisi Kanunu',
   GVKKANUNU: 'Gelir Vergisi Kanunu',
   KURUMLARVERGISIKANUNU: 'Kurumlar Vergisi Kanunu',
+  KURUMLARVERGISI: 'Kurumlar Vergisi Kanunu',
   KVKKANUNU: 'Kurumlar Vergisi Kanunu',
   KATMADEGERVERGISIKANUNU: 'Katma Değer Vergisi Kanunu',
+  KATMADEGERVERGISI: 'Katma Değer Vergisi Kanunu',
   KATMADEGERVERGISIKDVKANUNU: 'Katma Değer Vergisi Kanunu',
   KDVKANUNU: 'Katma Değer Vergisi Kanunu',
+  KDVKANUN: 'Katma Değer Vergisi Kanunu',
   OZELTUKETIMVERGISIKANUNU: 'Özel Tüketim Vergisi Kanunu',
+  OZELTUKETIMVERGISI: 'Özel Tüketim Vergisi Kanunu',
   OTVKANUNU: 'Özel Tüketim Vergisi Kanunu',
   DAMGAVERGISIKANUNU: 'Damga Vergisi Kanunu',
+  DAMGAVERGISI: 'Damga Vergisi Kanunu',
   DVKKANUNU: 'Damga Vergisi Kanunu',
   HARCLARKANUNU: 'Harçlar Kanunu',
+  HARCLAR: 'Harçlar Kanunu',
+  HKKANUNU: 'Harçlar Kanunu',
+  AMMEALACAKLARININTAHSILUSULUHAKKINDAKANUN: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  AMMEALACAKLARININTAHSILUSULUHAKKINDAKANUNU: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  AMMEALACAKLARININTAHSILUSULU: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  AATUHKKANUNU: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  AATUKKANUNU: 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  MOTORLUTASITLARVERGISIKANUNU: 'Motorlu Taşıtlar Vergisi Kanunu',
+  MOTORLUTASITLARVERGISI: 'Motorlu Taşıtlar Vergisi Kanunu',
+  MTVKANUNU: 'Motorlu Taşıtlar Vergisi Kanunu',
+  MTVKKANUNU: 'Motorlu Taşıtlar Vergisi Kanunu',
+  BELEDIYEGELIRLERIKANUNU: 'Belediye Gelirleri Kanunu',
+  BELEDIYEGELIRLERI: 'Belediye Gelirleri Kanunu',
+  BGKKANUNU: 'Belediye Gelirleri Kanunu',
+  GUMRUKKANUNU: 'Gümrük Kanunu',
+  GUMRUK: 'Gümrük Kanunu',
+  GKKANUNU: 'Gümrük Kanunu',
+  EMLAKVERGISIKANUNU: 'Emlak Vergisi Kanunu',
+  EMLAKVERGISI: 'Emlak Vergisi Kanunu',
+  EVKKANUNU: 'Emlak Vergisi Kanunu',
+  GIDERVERGILERIKANUNU: 'Gider Vergileri Kanunu',
+  GIDERVERGILERI: 'Gider Vergileri Kanunu',
+  GIVKKANUNU: 'Gider Vergileri Kanunu',
+  VERASETVEINTIKALVERGISIKANUNU: 'Veraset ve İntikal Vergisi Kanunu',
+  VERASETVEINTIKALVERGISI: 'Veraset ve İntikal Vergisi Kanunu',
+  VIVKKANUNU: 'Veraset ve İntikal Vergisi Kanunu',
+  KISISELVERILERINKORUNMASIKANUNU: 'Kişisel Verilerin Korunması Kanunu',
+  KISISELVERILERINKORUNMASI: 'Kişisel Verilerin Korunması Kanunu',
+  KVKKKANUNU: 'Kişisel Verilerin Korunması Kanunu',
+  SERBESTBOLGELERKANUNU: 'Serbest Bölgeler Kanunu',
+  SERBESTBOLGELER: 'Serbest Bölgeler Kanunu',
+  SBKKANUNU: 'Serbest Bölgeler Kanunu',
+  TEKNOLOJIGELISTIRMEBOLGELERIKANUNU: 'Teknoloji Geliştirme Bölgeleri Kanunu',
+  TEKNOLOJIGELISTIRMEBOLGELERI: 'Teknoloji Geliştirme Bölgeleri Kanunu',
+  TGBKKANUNU: 'Teknoloji Geliştirme Bölgeleri Kanunu',
+  SOSYALSIGORTALARVEGENELSAGLIKSIGORTASIKANUNU: 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  SOSYALSIGORTALARVEGENELSAGLIKSIGORTASI: 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  SSGSSKKANUNU: 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  SGKKANUNU: 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  ISKANUNU: 'İş Kanunu',
+  IS: 'İş Kanunu',
+  IKKANUNU: 'İş Kanunu',
+  TURKTICARETKANUNU: 'Türk Ticaret Kanunu',
+  TURKTICARET: 'Türk Ticaret Kanunu',
+  TTKKANUNU: 'Türk Ticaret Kanunu',
+  TURKMEDENIKANUNU: 'Türk Medeni Kanunu',
+  TURKMEDENI: 'Türk Medeni Kanunu',
+  TMKKANUNU: 'Türk Medeni Kanunu',
+  TURKBORCLARKANUNU: 'Türk Borçlar Kanunu',
+  TURKBORCLAR: 'Türk Borçlar Kanunu',
+  TBKKANUNU: 'Türk Borçlar Kanunu',
+  HUKUKMUHAKEMELERIKANUNU: 'Hukuk Muhakemeleri Kanunu',
+  HUKUKMUHAKEMELERI: 'Hukuk Muhakemeleri Kanunu',
+  HMKKANUNU: 'Hukuk Muhakemeleri Kanunu',
+  CEZAMUHAKEMESIKANUNU: 'Ceza Muhakemesi Kanunu',
+  CEZAMUHAKEMESI: 'Ceza Muhakemesi Kanunu',
+  CMKKANUNU: 'Ceza Muhakemesi Kanunu',
+  TURKCEZAKANUNU: 'Türk Ceza Kanunu',
+  TURKCEZA: 'Türk Ceza Kanunu',
+  TCKKANUNU: 'Türk Ceza Kanunu',
+  ICRAVEIFLASKANUNU: 'İcra ve İflas Kanunu',
+  ICRAVEIFLAS: 'İcra ve İflas Kanunu',
+  IIKKANUNU: 'İcra ve İflas Kanunu',
+  DEVLETMEMURLARIKANUNU: 'Devlet Memurları Kanunu',
+  DEVLETMEMURLARI: 'Devlet Memurları Kanunu',
+  DMKKANUNU: 'Devlet Memurları Kanunu',
+  IDARIYARGILAMAUSULUKANUNU: 'İdari Yargılama Usulü Kanunu',
+  IDARIYARGILAMAUSULU: 'İdari Yargılama Usulü Kanunu',
+  IYUKKANUNU: 'İdari Yargılama Usulü Kanunu',
 }
+
+const KNOWN_ABBREVIATIONS = [
+  'AATUHK', 'SSGSSK', 'TGBK', 'AATUK', 'MTVK', 'GIVK', 'VIVK', 'KVKK', 'IYUK', 'KDVK', 'OTVK',
+  'VUK', 'GVK', 'KDV', 'KVK', 'OTV', 'DVK', 'MTV', 'BGK', 'EVK', 'GIV', 'VIV', 'SBK', 'SGK',
+  'TTK', 'TMK', 'TBK', 'HMK', 'CMK', 'TCK', 'IIK', 'DMK', 'IYK', 'HK', 'GK', 'IK'
+]
 
 export function normalizeTurkishKey(text: string): string {
   const lower = text.toLowerCase()
@@ -81,17 +191,63 @@ export function normalizeTurkishKey(text: string): string {
     .toUpperCase()
 }
 
+function cleanParentheses(text: string): string {
+  // Remove anything inside parentheses, brackets or braces, e.g. (KVK) -> ""
+  return text.replace(/\s*[\(\[\{][^\(\)\[\]\{\}]*[\)\]\}]\s*/g, ' ')
+}
+
 export function normalizeKanunAdi(text: string | null): string | null {
   if (!text) return null
-  const trimmed = text.trim()
-  const upperKey = normalizeTurkishKey(trimmed)
+  
+  // 1. Clean parenthetical expressions like "Kurumlar Vergisi (KVK) Kanunu" -> "Kurumlar Vergisi Kanunu"
+  const cleaned = cleanParentheses(text)
+  const raw = cleaned.replace(/\s+/g, ' ').trim()
+  if (!raw) return null
+  
+  const upperKey = normalizeTurkishKey(raw)
+  
+  // 2. Try direct match
   if (LAW_ABBREVIATIONS[upperKey]) {
     return LAW_ABBREVIATIONS[upperKey]
   }
   if (LAW_NAME_ALIASES[upperKey]) {
     return LAW_NAME_ALIASES[upperKey]
   }
-  return trimmed || null
+  
+  // 3. Try matching abbreviation + suffix (e.g. KVK'nın -> KVKNIN -> KVK)
+  const suffixPattern = /^(?:NIN|NUN|IN|UN|YA|YE|A|E|YI|YU|I|U|DA|DE|TA|TE|DAN|DEN|TAN|TEN|CA|CE|LAR|LER|LARI|LERI|LARIN|LERIN|LARINA|LERINE|LARININ|LERININ|LARINDA|LERINDE|LARINDAN|LERINDAN|LERINDEN|LARINI|LERINI|LARICA|LERICE|NU|NI|NA|NE|NDA|NDE|NDAN|NDEN|CA|CE|LA|LE)*$/
+  for (const abbr of KNOWN_ABBREVIATIONS) {
+    if (upperKey.startsWith(abbr)) {
+      const suffix = upperKey.slice(abbr.length)
+      if (suffixPattern.test(suffix)) {
+        const abbrVal = LAW_ABBREVIATIONS[abbr]
+        if (abbrVal) {
+          return abbrVal
+        }
+      }
+    }
+  }
+  
+  // 4. Try matching law name ending with "KANUN..." + suffix (e.g. Kurumlar Vergisi Kanununun -> KURUMLARVERGISIKANUNUNUN -> KURUMLARVERGISIKANUNU)
+  const suffixPatNonAnchored = '(?:NIN|NUN|IN|UN|YA|YE|A|E|YI|YU|I|U|DA|DE|TA|TE|DAN|DEN|TAN|TEN|CA|CE|LAR|LER|LARI|LERI|LARIN|LERIN|LARINA|LERINE|LARININ|LERININ|LARINDA|LERINDE|LARINDAN|LERINDAN|LERINDEN|LARINI|LERINI|LARICA|LERICE|NU|NI|NA|NE|NDA|NDE|NDAN|NDEN|CA|CE|LA|LE)*$'
+  const replacedKey = upperKey.replace(new RegExp('KANUN' + suffixPatNonAnchored), 'KANUNU')
+  if (LAW_NAME_ALIASES[replacedKey]) {
+    return LAW_NAME_ALIASES[replacedKey]
+  }
+  
+  // 5. Try matching law name base (without "KANUNU") + suffix (e.g. Kurumlar Vergisi'nde -> KURUMLARVERGISINDE -> KURUMLARVERGISI)
+  for (const [aliasKey, canonical] of Object.entries(LAW_NAME_ALIASES)) {
+    if (!aliasKey.endsWith('KANUNU') && !aliasKey.endsWith('KANUN')) {
+      if (upperKey.startsWith(aliasKey)) {
+        const suffix = upperKey.slice(aliasKey.length)
+        if (suffixPattern.test(suffix)) {
+          return canonical
+        }
+      }
+    }
+  }
+  
+  return raw
 }
 
 export function normalizeKanunNo(value: string | null): string | null {
@@ -402,6 +558,80 @@ export function checkAndRemoveDuplicateReferences(
   }
 
   return { list: result, hasDuplicates }
+}
+
+export const LAW_NAME_BY_NUMBER: Record<string, string> = {
+  '213': 'Vergi Usul Kanunu',
+  '193': 'Gelir Vergisi Kanunu',
+  '5520': 'Kurumlar Vergisi Kanunu',
+  '3065': 'Katma Değer Vergisi Kanunu',
+  '4760': 'Özel Tüketim Vergisi Kanunu',
+  '488': 'Damga Vergisi Kanunu',
+  '492': 'Harçlar Kanunu',
+  '6183': 'Amme Alacaklarının Tahsil Usulü Hakkında Kanun',
+  '197': 'Motorlu Taşıtlar Vergisi Kanunu',
+  '2464': 'Belediye Gelirleri Kanunu',
+  '4458': 'Gümrük Kanunu',
+  '1319': 'Emlak Vergisi Kanunu',
+  '6802': 'Gider Vergileri Kanunu',
+  '7338': 'Veraset ve İntikal Vergisi Kanunu',
+  '6698': 'Kişisel Verilerin Korunması Kanunu',
+  '3218': 'Serbest Bölgeler Kanunu',
+  '4691': 'Teknoloji Geliştirme Bölgeleri Kanunu',
+  '5510': 'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu',
+  '4857': 'İş Kanunu',
+  '6102': 'Türk Ticaret Kanunu',
+  '4721': 'Türk Medeni Kanunu',
+  '6098': 'Türk Borçlar Kanunu',
+  '6100': 'Hukuk Muhakemeleri Kanunu',
+  '5271': 'Ceza Muhakemesi Kanunu',
+  '5237': 'Türk Ceza Kanunu',
+  '2004': 'İcra ve İflas Kanunu',
+  '657': 'Devlet Memurları Kanunu',
+  '2577': 'İdari Yargılama Usulü Kanunu',
+}
+
+export const LAW_NUMBER_BY_NAME: Record<string, string> = {
+  'Vergi Usul Kanunu': '213',
+  'Gelir Vergisi Kanunu': '193',
+  'Kurumlar Vergisi Kanunu': '5520',
+  'Katma Değer Vergisi Kanunu': '3065',
+  'Özel Tüketim Vergisi Kanunu': '4760',
+  'Damga Vergisi Kanunu': '488',
+  'Harçlar Kanunu': '492',
+  'Amme Alacaklarının Tahsil Usulü Hakkında Kanun': '6183',
+  'Motorlu Taşıtlar Vergisi Kanunu': '197',
+  'Belediye Gelirleri Kanunu': '2464',
+  'Gümrük Kanunu': '4458',
+  'Emlak Vergisi Kanunu': '1319',
+  'Gider Vergileri Kanunu': '6802',
+  'Veraset ve İntikal Vergisi Kanunu': '7338',
+  'Kişisel Verilerin Korunması Kanunu': '6698',
+  'Serbest Bölgeler Kanunu': '3218',
+  'Teknoloji Geliştirme Bölgeleri Kanunu': '4691',
+  'Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu': '5510',
+  'İş Kanunu': '4857',
+  'Türk Ticaret Kanunu': '6102',
+  'Türk Medeni Kanunu': '4721',
+  'Türk Borçlar Kanunu': '6098',
+  'Hukuk Muhakemeleri Kanunu': '6100',
+  'Ceza Muhakemesi Kanunu': '5271',
+  'Türk Ceza Kanunu': '5237',
+  'İcra ve İflas Kanunu': '2004',
+  'Devlet Memurları Kanunu': '657',
+  'İdari Yargılama Usulü Kanunu': '2577',
+}
+
+export function getLawNameByNumber(num: string | null | undefined): string | null {
+  if (!num) return null
+  const cleaned = normalizeKanunNo(num)
+  return cleaned ? (LAW_NAME_BY_NUMBER[cleaned] || null) : null
+}
+
+export function getLawNumberByName(name: string | null | undefined): string | null {
+  if (!name) return null
+  const cleaned = normalizeKanunAdi(name)
+  return cleaned ? (LAW_NUMBER_BY_NAME[cleaned] || null) : null
 }
 
 

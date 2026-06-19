@@ -35,6 +35,34 @@ LAW_ABBREVIATIONS = {
     "OTVK": "Özel Tüketim Vergisi Kanunu",
     "OTV": "Özel Tüketim Vergisi Kanunu",
     "DVK": "Damga Vergisi Kanunu",
+    "HK": "Harçlar Kanunu",
+    "AATUHK": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "AATUK": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "MTVK": "Motorlu Taşıtlar Vergisi Kanunu",
+    "MTV": "Motorlu Taşıtlar Vergisi Kanunu",
+    "BGK": "Belediye Gelirleri Kanunu",
+    "GK": "Gümrük Kanunu",
+    "EVK": "Emlak Vergisi Kanunu",
+    "GIVK": "Gider Vergileri Kanunu",
+    "GIV": "Gider Vergileri Kanunu",
+    "VIVK": "Veraset ve İntikal Vergisi Kanunu",
+    "VIV": "Veraset ve İntikal Vergisi Kanunu",
+    "KVKK": "Kişisel Verilerin Korunması Kanunu",
+    "SBK": "Serbest Bölgeler Kanunu",
+    "TGBK": "Teknoloji Geliştirme Bölgeleri Kanunu",
+    "SSGSSK": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+    "SGK": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+    "IK": "İş Kanunu",
+    "TTK": "Türk Ticaret Kanunu",
+    "TMK": "Türk Medeni Kanunu",
+    "TBK": "Türk Borçlar Kanunu",
+    "HMK": "Hukuk Muhakemeleri Kanunu",
+    "CMK": "Ceza Muhakemesi Kanunu",
+    "TCK": "Türk Ceza Kanunu",
+    "IIK": "İcra ve İflas Kanunu",
+    "DMK": "Devlet Memurları Kanunu",
+    "IYUK": "İdari Yargılama Usulü Kanunu",
+    "IYK": "İdari Yargılama Usulü Kanunu",
 }
 
 LAW_NUMBER_BY_NAME = {
@@ -45,24 +73,127 @@ LAW_NUMBER_BY_NAME = {
     "Özel Tüketim Vergisi Kanunu": "4760",
     "Damga Vergisi Kanunu": "488",
     "Harçlar Kanunu": "492",
+    "Amme Alacaklarının Tahsil Usulü Hakkında Kanun": "6183",
+    "Motorlu Taşıtlar Vergisi Kanunu": "197",
+    "Belediye Gelirleri Kanunu": "2464",
+    "Gümrük Kanunu": "4458",
+    "Emlak Vergisi Kanunu": "1319",
+    "Gider Vergileri Kanunu": "6802",
+    "Veraset ve İntikal Vergisi Kanunu": "7338",
+    "Kişisel Verilerin Korunması Kanunu": "6698",
+    "Serbest Bölgeler Kanunu": "3218",
+    "Teknoloji Geliştirme Bölgeleri Kanunu": "4691",
+    "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu": "5510",
+    "İş Kanunu": "4857",
+    "Türk Ticaret Kanunu": "6102",
+    "Türk Medeni Kanunu": "4721",
+    "Türk Borçlar Kanunu": "6098",
+    "Hukuk Muhakemeleri Kanunu": "6100",
+    "Ceza Muhakemesi Kanunu": "5271",
+    "Türk Ceza Kanunu": "5237",
+    "İcra ve İflas Kanunu": "2004",
+    "Devlet Memurları Kanunu": "657",
+    "İdari Yargılama Usulü Kanunu": "2577",
 }
 
 LAW_NAME_ALIASES = {
     "VERGIUSULKANUNU": "Vergi Usul Kanunu",
+    "VERGIUSUL": "Vergi Usul Kanunu",
     "VUKKANUNU": "Vergi Usul Kanunu",
     "GELIRVERGISIKANUNU": "Gelir Vergisi Kanunu",
+    "GELIRVERGISI": "Gelir Vergisi Kanunu",
     "GVKKANUNU": "Gelir Vergisi Kanunu",
     "KURUMLARVERGISIKANUNU": "Kurumlar Vergisi Kanunu",
+    "KURUMLARVERGISI": "Kurumlar Vergisi Kanunu",
     "KVKKANUNU": "Kurumlar Vergisi Kanunu",
     "KATMADEGERVERGISIKANUNU": "Katma Değer Vergisi Kanunu",
+    "KATMADEGERVERGISI": "Katma Değer Vergisi Kanunu",
     "KATMADEGERVERGISIKDVKANUNU": "Katma Değer Vergisi Kanunu",
     "KDVKANUNU": "Katma Değer Vergisi Kanunu",
+    "KDVKANUN": "Katma Değer Vergisi Kanunu",
     "OZELTUKETIMVERGISIKANUNU": "Özel Tüketim Vergisi Kanunu",
+    "OZELTUKETIMVERGISI": "Özel Tüketim Vergisi Kanunu",
     "OTVKANUNU": "Özel Tüketim Vergisi Kanunu",
     "DAMGAVERGISIKANUNU": "Damga Vergisi Kanunu",
+    "DAMGAVERGISI": "Damga Vergisi Kanunu",
     "DVKKANUNU": "Damga Vergisi Kanunu",
     "HARCLARKANUNU": "Harçlar Kanunu",
+    "HARCLAR": "Harçlar Kanunu",
+    "HKKANUNU": "Harçlar Kanunu",
+    "AMMEALACAKLARININTAHSILUSULUHAKKINDAKANUN": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "AMMEALACAKLARININTAHSILUSULUHAKKINDAKANUNU": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "AMMEALACAKLARININTAHSILUSULU": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "AATUHKKANUNU": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "AATUKKANUNU": "Amme Alacaklarının Tahsil Usulü Hakkında Kanun",
+    "MOTORLUTASITLARVERGISIKANUNU": "Motorlu Taşıtlar Vergisi Kanunu",
+    "MOTORLUTASITLARVERGISI": "Motorlu Taşıtlar Vergisi Kanunu",
+    "MTVKANUNU": "Motorlu Taşıtlar Vergisi Kanunu",
+    "MTVKKANUNU": "Motorlu Taşıtlar Vergisi Kanunu",
+    "BELEDIYEGELIRLERIKANUNU": "Belediye Gelirleri Kanunu",
+    "BELEDIYEGELIRLERI": "Belediye Gelirleri Kanunu",
+    "BGKKANUNU": "Belediye Gelirleri Kanunu",
+    "GUMRUKKANUNU": "Gümrük Kanunu",
+    "GUMRUK": "Gümrük Kanunu",
+    "GKKANUNU": "Gümrük Kanunu",
+    "EMLAKVERGISIKANUNU": "Emlak Vergisi Kanunu",
+    "EMLAKVERGISI": "Emlak Vergisi Kanunu",
+    "EVKKANUNU": "Emlak Vergisi Kanunu",
+    "GIDERVERGILERIKANUNU": "Gider Vergileri Kanunu",
+    "GIDERVERGILERI": "Gider Vergileri Kanunu",
+    "GIVKKANUNU": "Gider Vergileri Kanunu",
+    "VERASETVEINTIKALVERGISIKANUNU": "Veraset ve İntikal Vergisi Kanunu",
+    "VERASETVEINTIKALVERGISI": "Veraset ve İntikal Vergisi Kanunu",
+    "VIVKKANUNU": "Veraset ve İntikal Vergisi Kanunu",
+    "KISISELVERILERINKORUNMASIKANUNU": "Kişisel Verilerin Korunması Kanunu",
+    "KISISELVERILERINKORUNMASI": "Kişisel Verilerin Korunması Kanunu",
+    "KVKKKANUNU": "Kişisel Verilerin Korunması Kanunu",
+    "SERBESTBOLGELERKANUNU": "Serbest Bölgeler Kanunu",
+    "SERBESTBOLGELER": "Serbest Bölgeler Kanunu",
+    "SBKKANUNU": "Serbest Bölgeler Kanunu",
+    "TEKNOLOJIGELISTIRMEBOLGELERIKANUNU": "Teknoloji Geliştirme Bölgeleri Kanunu",
+    "TEKNOLOJIGELISTIRMEBOLGELERI": "Teknoloji Geliştirme Bölgeleri Kanunu",
+    "TGBKKANUNU": "Teknoloji Geliştirme Bölgeleri Kanunu",
+    "SOSYALSIGORTALARVEGENELSAGLIKSIGORTASIKANUNU": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+    "SOSYALSIGORTALARVEGENELSAGLIKSIGORTASI": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+    "SSGSSKKANUNU": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+    "SGKKANUNU": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+    "ISKANUNU": "İş Kanunu",
+    "IS": "İş Kanunu",
+    "IKKANUNU": "İş Kanunu",
+    "TURKTICARETKANUNU": "Türk Ticaret Kanunu",
+    "TURKTICARET": "Türk Ticaret Kanunu",
+    "TTKKANUNU": "Türk Ticaret Kanunu",
+    "TURKMEDENIKANUNU": "Türk Medeni Kanunu",
+    "TURKMEDENI": "Türk Medeni Kanunu",
+    "TMKKANUNU": "Türk Medeni Kanunu",
+    "TURKBORCLARKANUNU": "Türk Borçlar Kanunu",
+    "TURKBORCLAR": "Türk Borçlar Kanunu",
+    "TBKKANUNU": "Türk Borçlar Kanunu",
+    "HUKUKMUHAKEMELERIKANUNU": "Hukuk Muhakemeleri Kanunu",
+    "HUKUKMUHAKEMELERI": "Hukuk Muhakemeleri Kanunu",
+    "HMKKANUNU": "Hukuk Muhakemeleri Kanunu",
+    "CEZAMUHAKEMESIKANUNU": "Ceza Muhakemesi Kanunu",
+    "CEZAMUHAKEMESI": "Ceza Muhakemesi Kanunu",
+    "CMKKANUNU": "Ceza Muhakemesi Kanunu",
+    "TURKCEZAKANUNU": "Türk Ceza Kanunu",
+    "TURKCEZA": "Türk Ceza Kanunu",
+    "TCKKANUNU": "Türk Ceza Kanunu",
+    "ICRAVEIFLASKANUNU": "İcra ve İflas Kanunu",
+    "ICRAVEIFLAS": "İcra ve İflas Kanunu",
+    "IIKKANUNU": "İcra ve İflas Kanunu",
+    "DEVLETMEMURLARIKANUNU": "Devlet Memurları Kanunu",
+    "DEVLETMEMURLARI": "Devlet Memurları Kanunu",
+    "DMKKANUNU": "Devlet Memurları Kanunu",
+    "IDARIYARGILAMAUSULUKANUNU": "İdari Yargılama Usulü Kanunu",
+    "IDARIYARGILAMAUSULU": "İdari Yargılama Usulü Kanunu",
+    "IYUKKANUNU": "İdari Yargılama Usulü Kanunu",
 }
+
+KNOWN_ABBREVIATIONS = [
+    "AATUHK", "SSGSSK", "TGBK", "AATUK", "MTVK", "GIVK", "VIVK", "KVKK", "IYUK", "KDVK", "OTVK",
+    "VUK", "GVK", "KDV", "KVK", "OTV", "DVK", "MTV", "BGK", "EVK", "GIV", "VIV", "SBK", "SGK",
+    "TTK", "TMK", "TBK", "HMK", "CMK", "TCK", "IIK", "DMK", "IYK", "HK", "GK", "IK"
+]
 
 RE_NON_NO_CHARS = re.compile(r"[^0-9A-Za-z/-]+")
 RE_MULTI_SPACE = re.compile(r"\s+")
@@ -111,15 +242,53 @@ def _normalize_turkish_key(text: str) -> str:
     return value
 
 
+def clean_parentheses(text: str) -> str:
+    # Remove anything inside parentheses, brackets or braces, e.g. (KVK) -> ""
+    return re.sub(r"\s*[\(\[\{][^\(\)\[\]\{\}]*[\)\]\}]\s*", " ", text)
+
+
 def normalize_kanun_adi(text: Optional[str], kanun_no: str = "") -> Optional[str]:
     if not text:
         return None
-    raw = collapse_ws(text)
+    
+    # 1. Clean parenthetical expressions like "Kurumlar Vergisi (KVK) Kanunu" -> "Kurumlar Vergisi Kanunu"
+    cleaned = clean_parentheses(text)
+    raw = collapse_ws(cleaned)
+    if not raw:
+        return None
+        
     upper_key = _normalize_turkish_key(raw)
+    
+    # 2. Try direct match
     if upper_key in LAW_ABBREVIATIONS:
         return LAW_ABBREVIATIONS[upper_key]
     if upper_key in LAW_NAME_ALIASES:
         return LAW_NAME_ALIASES[upper_key]
+        
+    # 3. Try matching abbreviation + suffix (e.g. KVK'nın -> KVKNIN -> KVK)
+    suffix_pattern = r"^(?:NIN|NUN|IN|UN|YA|YE|A|E|YI|YU|I|U|DA|DE|TA|TE|DAN|DEN|TAN|TEN|CA|CE|LAR|LER|LARI|LERI|LARIN|LERIN|LARINA|LERINE|LARININ|LERININ|LARINDA|LERINDE|LARINDAN|LERINDAN|LERINDEN|LARINI|LERINI|LARICA|LERICE|NU|NI|NA|NE|NDA|NDE|NDAN|NDEN|CA|CE|LA|LE)*$"
+    for abbr in KNOWN_ABBREVIATIONS:
+        if upper_key.startswith(abbr):
+            suffix = upper_key[len(abbr):]
+            if re.match(suffix_pattern, suffix):
+                abbr_val = LAW_ABBREVIATIONS.get(abbr)
+                if abbr_val:
+                    return abbr_val
+                    
+    # 4. Try matching law name ending with "KANUN..." + suffix (e.g. Kurumlar Vergisi Kanununun -> KURUMLARVERGISIKANUNUNUN -> KURUMLARVERGISIKANUNU)
+    suffix_pat_non_anchored = r"(?:NIN|NUN|IN|UN|YA|YE|A|E|YI|YU|I|U|DA|DE|TA|TE|DAN|DEN|TAN|TEN|CA|CE|LAR|LER|LARI|LERI|LARIN|LERIN|LARINA|LERINE|LARININ|LERININ|LARINDA|LERINDE|LARINDAN|LERINDAN|LERINDEN|LARINI|LERINI|LARICA|LERICE|NU|NI|NA|NE|NDA|NDE|NDAN|NDEN|CA|CE|LA|LE)*"
+    replaced_key = re.sub(r"KANUN" + suffix_pat_non_anchored + r"$", "KANUNU", upper_key)
+    if replaced_key in LAW_NAME_ALIASES:
+        return LAW_NAME_ALIASES[replaced_key]
+        
+    # 5. Try matching law name base (without "KANUNU") + suffix (e.g. Kurumlar Vergisi'nde -> KURUMLARVERGISINDE -> KURUMLARVERGISI)
+    for alias_key, canonical in LAW_NAME_ALIASES.items():
+        if not alias_key.endswith("KANUNU") and not alias_key.endswith("KANUN"):
+            if upper_key.startswith(alias_key):
+                suffix = upper_key[len(alias_key):]
+                if re.match(suffix_pattern, suffix):
+                    return canonical
+                    
     return raw
 
 
