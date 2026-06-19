@@ -14,7 +14,7 @@ import {
 import { useLogoutMutation } from '@/api/queries/auth'
 import { refreshAuth } from '@/lib/refreshAuth'
 import { submitWithRecovery, AbortAdvance } from '@/lib/trainingRecovery'
-import { is403LockedOut, is409AlreadyPassed } from '@/lib/apiError'
+import { is403LockedOut, is409AlreadyPassed, isApiError } from '@/lib/apiError'
 import { TrainingProgress } from '@/components/training/TrainingProgress'
 import { StartScreen } from '@/components/training/StartScreen'
 import { QuizStep } from '@/components/training/QuizStep'
@@ -99,6 +99,11 @@ export function Training() {
       recordQuizResult(result)
     } catch (err) {
       if (err instanceof AbortAdvance) return
+      if (isApiError(err) && (err.status === 404 || err.status === 403)) {
+        clear()
+        toast.error('Oturum sonlandırılmış veya geçersiz. Lütfen eğitimi tekrar başlatın.')
+        return
+      }
       toast.error('Cevap gönderilemedi, tekrar dene.')
     }
   }
@@ -114,6 +119,11 @@ export function Training() {
       recordDocResult(goldId, result)
     } catch (err) {
       if (err instanceof AbortAdvance) return
+      if (isApiError(err) && (err.status === 404 || err.status === 403)) {
+        clear()
+        toast.error('Oturum sonlandırılmış veya geçersiz. Lütfen eğitimi tekrar başlatın.')
+        return
+      }
       toast.error('Anotasyon gönderilemedi, tekrar dene.')
     }
   }
