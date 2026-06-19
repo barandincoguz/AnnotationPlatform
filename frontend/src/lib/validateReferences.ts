@@ -352,3 +352,56 @@ export function isSourceTextInDoc(
   return ratio >= 0.8
 }
 
+export function isReferenceBlank(r: ReferenceLike): boolean {
+  return (
+    !(r.kanun_no?.trim()) &&
+    !(r.kanun_ad?.trim()) &&
+    !(r.madde?.trim()) &&
+    !(r.fikra?.trim()) &&
+    !(r.bent?.trim())
+  )
+}
+
+export function areReferencesEquivalent(r1: ReferenceLike, r2: ReferenceLike): boolean {
+  const no1 = normalizeKanunNo(r1.kanun_no ?? null)
+  const no2 = normalizeKanunNo(r2.kanun_no ?? null)
+  const ad1 = normalizeKanunAdi(r1.kanun_ad ?? null)
+  const ad2 = normalizeKanunAdi(r2.kanun_ad ?? null)
+  const m1 = normalizeMadde(r1.madde ?? null)
+  const m2 = normalizeMadde(r2.madde ?? null)
+  const f1 = normalizeIdentifier(r1.fikra ?? null)
+  const f2 = normalizeIdentifier(r2.fikra ?? null)
+  const b1 = normalizeIdentifier(r1.bent ?? null)
+  const b2 = normalizeIdentifier(r2.bent ?? null)
+
+  return no1 === no2 && ad1 === ad2 && m1 === m2 && f1 === f2 && b1 === b2
+}
+
+export function checkAndRemoveDuplicateReferences(
+  refs: ReferenceItem[],
+): { list: ReferenceItem[]; hasDuplicates: boolean } {
+  const result: ReferenceItem[] = []
+  let hasDuplicates = false
+
+  for (const r of refs) {
+    if (isReferenceBlank(r)) {
+      result.push(r)
+      continue
+    }
+
+    const isDuplicate = result.some((existing) => {
+      if (isReferenceBlank(existing)) return false
+      return areReferencesEquivalent(r, existing)
+    })
+
+    if (isDuplicate) {
+      hasDuplicates = true
+    } else {
+      result.push(r)
+    }
+  }
+
+  return { list: result, hasDuplicates }
+}
+
+

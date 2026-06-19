@@ -6,7 +6,9 @@ import { useTrainingStore } from '@/stores/trainingStore'
 import {
   areAllTrainingReferencesValid,
   emptyReferenceItem,
+  checkAndRemoveDuplicateReferences,
 } from '@/lib/validateReferences'
+import { toast } from 'sonner'
 import { formatConcept } from '@/lib/formatTrainingConcept'
 import type { components } from '@/api/types'
 
@@ -145,7 +147,19 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
         </Button>
       </section>
       <div className="mt-6">
-        <Button onClick={() => onSubmit(currentDoc.gold_id, refs)} disabled={isSubmitting || !allValid}>
+        <Button
+          onClick={() => {
+            const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refs)
+            if (hasDuplicates) {
+              toast.warning('Yinelenen anotasyon silindi.')
+              setDocRefs(currentDoc.gold_id, cleanedRefs)
+              onSubmit(currentDoc.gold_id, cleanedRefs)
+            } else {
+              onSubmit(currentDoc.gold_id, refs)
+            }
+          }}
+          disabled={isSubmitting || !allValid}
+        >
           {isSubmitting ? 'Gönderiliyor...' : 'Gönder ve devam et'}
         </Button>
       </div>

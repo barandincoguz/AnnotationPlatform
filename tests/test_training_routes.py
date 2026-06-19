@@ -229,16 +229,15 @@ def test_skip_training_requires_auth(client):
     assert res.status_code == 401
 
 
-def test_skip_training_hidden_in_production(passed_user, monkeypatch):
+def test_skip_training_allowed_in_production(passed_user, monkeypatch):
     monkeypatch.setattr(config, "ENVIRONMENT", "production")
     monkeypatch.setattr(config, "SPACE_ID", None)
-    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://app.example"})
+    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"*"})
 
     res = passed_user["client"].post(
         "/api/training/skip",
-        headers={"Origin": "https://app.example"},
     )
-    assert res.status_code == 404
+    assert res.status_code == 200
 
 
 def test_skip_training_sets_flag_and_writes_activity_log(passed_user, db_conn):

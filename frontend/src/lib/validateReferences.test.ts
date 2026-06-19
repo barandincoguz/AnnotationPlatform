@@ -9,6 +9,7 @@ import {
   getReferenceFieldDiagnostic,
   cleanForFuzzyMatch,
   isSourceTextInDoc,
+  checkAndRemoveDuplicateReferences,
 } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
@@ -297,6 +298,42 @@ describe('isSourceTextInDoc', () => {
   it('returns false if less than 80% of words exist in the document', () => {
     const source = 'bu cümle tamamen uydurulmuş bir cümledir hiçbir şekilde eşleşmez'
     expect(isSourceTextInDoc(source, docText)).toBe(false)
+  })
+})
+
+describe('checkAndRemoveDuplicateReferences', () => {
+  it('does not touch unique or empty references', () => {
+    const list = [
+      ref({ kanun_no: '5520', madde: '5', source_text: 'first' }),
+      ref({ kanun_no: '193', madde: '6', source_text: 'second' }),
+      ref({ source_text: 'empty one' }),
+    ]
+    const { list: cleaned, hasDuplicates } = checkAndRemoveDuplicateReferences(list)
+    expect(hasDuplicates).toBe(false)
+    expect(cleaned).toHaveLength(3)
+  })
+
+  it('removes equivalent references ignoring source_text', () => {
+    const list = [
+      ref({ kanun_no: '5520', madde: '5', source_text: 'first' }),
+      ref({ kanun_no: '5520', madde: '5', source_text: 'different source text' }),
+      ref({ kanun_no: '5520', madde: '6', source_text: 'third' }),
+    ]
+    const { list: cleaned, hasDuplicates } = checkAndRemoveDuplicateReferences(list)
+    expect(hasDuplicates).toBe(true)
+    expect(cleaned).toHaveLength(2)
+    expect(cleaned[0].source_text).toBe('first')
+    expect(cleaned[1].madde).toBe('6')
+  })
+
+  it('tolerates minor formatting differences via normalization', () => {
+    const list = [
+      ref({ kanun_no: '5520 ', madde: 'Madde 5', source_text: 'first' }),
+      ref({ kanun_no: '5520', madde: '5', source_text: 'second' }),
+    ]
+    const { list: cleaned, hasDuplicates } = checkAndRemoveDuplicateReferences(list)
+    expect(hasDuplicates).toBe(true)
+    expect(cleaned).toHaveLength(1)
   })
 })
 

@@ -9,12 +9,14 @@ import {
   useTrainingStartMutation,
   useQuizSubmitMutation,
   useAnnotateSubmitMutation,
+  useTrainingSkipMutation,
   PENDING_START_SENTINEL_KEY,
 } from '@/api/queries/training'
 import { useLogoutMutation } from '@/api/queries/auth'
 import { refreshAuth } from '@/lib/refreshAuth'
 import { submitWithRecovery, AbortAdvance } from '@/lib/trainingRecovery'
 import { is403LockedOut, is409AlreadyPassed, isApiError } from '@/lib/apiError'
+import { Button } from '@/components/ui/button'
 import { TrainingProgress } from '@/components/training/TrainingProgress'
 import { StartScreen } from '@/components/training/StartScreen'
 import { QuizStep } from '@/components/training/QuizStep'
@@ -44,6 +46,7 @@ export function Training() {
   const quizMut = useQuizSubmitMutation()
   const annMut = useAnnotateSubmitMutation()
   const logoutMut = useLogoutMutation()
+  const skipMut = useTrainingSkipMutation()
 
   const [pendingSentinelVisible, setPendingSentinelVisible] = useState(false)
 
@@ -63,6 +66,18 @@ export function Training() {
     (step === 'quiz' || step === 'doc') && !quizMut.isPending && !annMut.isPending,
     'Eğitime devam ediyorsun, sayfayı kapatma.',
   )
+
+  const handleTrainingSkip = async () => {
+    try {
+      await skipMut.mutateAsync()
+      toast.success('Eğitim geçildi.')
+      clear()
+      await refreshAuth(qc)
+      navigate('/', { replace: true })
+    } catch {
+      toast.error('Eğitim geçilemedi, lütfen tekrar deneyin.')
+    }
+  }
 
   const handleStart = async () => {
     try {
@@ -167,10 +182,25 @@ export function Training() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-6 py-10 lg:py-14">
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-        Eğitim
-      </p>
-      <h1 className="mb-6 font-display text-4xl font-medium tracking-tight">Eğitim</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              Eğitim
+            </p>
+            <h1 className="font-display text-4xl font-medium tracking-tight">Eğitim</h1>
+          </div>
+          {step !== 'locked-out' && step !== 'summary' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground hover:text-foreground border border-input hover:bg-accent"
+              onClick={() => void handleTrainingSkip()}
+              disabled={skipMut.isPending}
+            >
+              {skipMut.isPending ? 'Geçiliyor...' : 'Eğitimi Geç (Skip)'}
+            </Button>
+          )}
+        </div>
       {pendingSentinelVisible && step === 'idle' && (
         <div className="mb-6">
           <PendingStartBanner onDismiss={handleDismissPending} onStartNew={() => void handleStart()} />

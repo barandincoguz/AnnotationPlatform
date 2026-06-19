@@ -108,8 +108,6 @@ def skip_training_route(
     logged in (pre-training users CAN call this — it's the whole
     point). Idempotent: re-calling on an already-passed user returns
     ok without side effects."""
-    if config.is_production():
-        raise HTTPException(status_code=404, detail="not found")
     service.skip_training(db, user_id=user["id"])
     return {"ok": True}
 

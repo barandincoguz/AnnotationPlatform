@@ -120,6 +120,7 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
     update: (index: number, ref: ReferenceItem) =>
       userDispatch({ type: 'update', index, ref }),
     remove: (index: number) => userDispatch({ type: 'remove', index }),
+    updateAll: (refs: ReferenceItem[]) => userDispatch({ type: 'init', refs }),
     hydrated: hydratedRef.current,
   }
 }

@@ -19,7 +19,7 @@ import { useDraft } from '@/hooks/useDraft'
 import { useReferencesState } from '@/hooks/useReferencesState'
 import { useAnnotateStore } from '@/stores/annotateStore'
 import { pickNextInFeedAcrossPages } from '@/lib/nextDocId'
-import { areAllReferencesValid } from '@/lib/validateReferences'
+import { areAllReferencesValid, checkAndRemoveDuplicateReferences } from '@/lib/validateReferences'
 import { ApiError } from '@/api/client'
 import { feedKeys } from '@/api/queries/feed'
 import type { components } from '@/api/types'
@@ -94,11 +94,16 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const isCompleted = annotation.data?.annotation?.is_completed ?? false
 
   const handleSave = async () => {
+    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refs.list)
+    if (hasDuplicates) {
+      toast.warning('Yinelenen anotasyon silindi.')
+      refs.updateAll(cleanedRefs)
+    }
     draft.blockSavesUntilFurtherNotice()
     try {
       await saveMutation.mutateAsync({
         document_id: docId,
-        references: refs.list,
+        references: cleanedRefs,
       })
     } catch {
       draft.unblockSaves()
@@ -147,6 +152,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
 
   const handleComplete = async () => {
     const targetCompleted = !isCompleted
+    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refs.list)
+    if (targetCompleted && hasDuplicates) {
+      toast.warning('Yinelenen anotasyon silindi.')
+      refs.updateAll(cleanedRefs)
+    }
     draft.blockSavesUntilFurtherNotice()
 
     // Phase 3: single atomic POST.
@@ -172,7 +182,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
         // Conditional spread — `exactOptionalPropertyTypes` rejects
         // `references: undefined` as an in-band signal. Only include
         // the key on the atomic path.
-        ...(targetCompleted && { references: refs.list }),
+        ...(targetCompleted && { references: cleanedRefs }),
       })
     } catch {
       draft.unblockSaves()
