@@ -203,6 +203,40 @@ describe('useReferencesState', () => {
     expect(result.current.list).toEqual([annotationRef])
   })
 
+  it('does not treat an annotation load error as an empty annotation', () => {
+    const { result } = renderHook(() =>
+      useReferencesState({
+        draftQueryStatus: 'success',
+        annotationQueryStatus: 'error',
+        draftData: null,
+        annotationData: null,
+        onChange: vi.fn(),
+      }),
+    )
+
+    expect(result.current.hydrated).toBe(false)
+    expect(result.current.list).toEqual([])
+  })
+
+  it('ignores user mutations until server hydration is complete', () => {
+    const onChange = vi.fn()
+    const { result } = renderHook(() =>
+      useReferencesState({
+        draftQueryStatus: 'pending',
+        annotationQueryStatus: 'pending',
+        draftData: null,
+        annotationData: null,
+        onChange,
+      }),
+    )
+
+    act(() => result.current.add())
+
+    expect(result.current.hydrated).toBe(false)
+    expect(result.current.list).toEqual([])
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('clears and re-hydrates when the source document key changes', () => {
     const ref1 = makeReferenceItem({ madde: 'DOC_1_ONLY' })
     const ref2 = makeReferenceItem({ madde: 'DOC_2_ONLY' })

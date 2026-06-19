@@ -30,11 +30,14 @@ Operator setup:
 from __future__ import annotations
 
 import json
+import logging
 from urllib.parse import urlparse
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend import config
+
+log = logging.getLogger(__name__)
 
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -57,6 +60,10 @@ class OriginCheckMiddleware:
             await self.app(scope, receive, send)
             return
 
+        if "*" in config.ALLOWED_ORIGINS:
+            await self.app(scope, receive, send)
+            return
+
         method = scope.get("method", "GET")
         if method in SAFE_METHODS:
             await self.app(scope, receive, send)
@@ -76,7 +83,19 @@ class OriginCheckMiddleware:
             if parsed.scheme and parsed.netloc:
                 source = f"{parsed.scheme}://{parsed.netloc}"
 
-        if not source or source not in config.ALLOWED_ORIGINS:
+        is_allowed = False
+        if source:
+            if source in config.ALLOWED_ORIGINS:
+                is_allowed = True
+            elif source.startswith("https://") and (source.endswith(".hf.space") or source.endswith(".static.hf.space")):
+                is_allowed = True
+
+        if not is_allowed:
+            log.warning(
+                "CSRF check failed: source %s is not in ALLOWED_ORIGINS %s",
+                source,
+                config.ALLOWED_ORIGINS,
+            )
             await _reject(send, source)
             return
 

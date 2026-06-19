@@ -7,9 +7,9 @@ import { SummaryStep } from './SummaryStep'
 import { makeUser } from '@/test/msw-handlers'
 
 const goldDocs = [
-  { gold_id: 'gold_a', content: 'A', expected_concepts: [], min_concept_count: 1 },
-  { gold_id: 'gold_b', content: 'B', expected_concepts: [], min_concept_count: 1 },
-  { gold_id: 'gold_c', content: 'C', expected_concepts: [], min_concept_count: 1 },
+  { gold_id: 'gold_a', content: 'A' },
+  { gold_id: 'gold_b', content: 'B' },
+  { gold_id: 'gold_c', content: 'C' },
 ]
 
 describe('SummaryStep', () => {
@@ -27,9 +27,18 @@ describe('SummaryStep', () => {
         { question_id: 'q05', user_choice: 1, correct_choice: 1, is_correct: true },
       ] },
       docResults: {
-        gold_a: { passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 },
-        gold_b: { passed: true, matched_count: 1, expected_count: 1, min_concept_count: 1 },
-        gold_c: { passed: false, matched_count: 0, expected_count: 2, min_concept_count: 1 },
+        gold_a: {
+          passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '5520' }],
+        },
+        gold_b: {
+          passed: true, matched_count: 1, expected_count: 1, min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '3065' }],
+        },
+        gold_c: {
+          passed: false, matched_count: 0, expected_count: 2, min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '193' }],
+        },
       },
     })
   })

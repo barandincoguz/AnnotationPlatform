@@ -45,5 +45,5 @@ Hayır. Opsiyonel alanlar tam olarak bu yüzden opsiyonel — özelge belirtmemi
 Evet. Her referans kartında özelge metninden kısa ve birebir bir alıntı
 bulunmalıdır. Böylece sonraki kullanıcı referansın kaynağını doğrulayabilir.
 
-## "Eğitimi atladım/Eğitimi geçemedim, ne olacak?"
-Eğitimi atladıysan (kırmızı "Eğitimi geç" linki) hesabın aktif kalır ama admin panelinde flag'lenir. 3 deneme hakkını kaybettiysen admin'in seni resetlemesi gerekir.
+## "Eğitimi geçemedim, ne olacak?"
+3 deneme hakkını kullandıysan yeni bir deneme için yöneticinin eğitim kaydını sıfırlaması gerekir.

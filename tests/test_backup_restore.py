@@ -228,3 +228,122 @@ def test_restore_returns_skipped_tables_list(fresh_db, tmp_path):
     assert "skipped_tables" in out
     assert sorted(out["skipped_tables"]) == ["future_table_a", "future_table_b"]
     assert out["tables"]["invite_codes"] == 1
+
+
+def test_restore_ignores_runtime_tables_and_clears_live_runtime_state(
+    fresh_db,
+    tmp_path,
+):
+    from backend.backup.restore import restore_from_snapshot
+
+    fresh_db.execute(
+        """
+        INSERT INTO users(
+            id, username, password_hash, role, created_at, updated_at
+        ) VALUES (1, 'live-user', 'hash', 'user', datetime('now'), datetime('now'))
+        """
+    )
+    fresh_db.execute(
+        """
+        INSERT INTO documents_meta(
+            document_id, file_path, pdf_text, word_count, sentence_count,
+            text_density, estimated_difficulty, created_at
+        ) VALUES ('live-doc', 'path', 'text', 1, 1, 1, 'Kolay', datetime('now'))
+        """
+    )
+    fresh_db.execute(
+        """
+        INSERT INTO user_sessions(
+            user_id, session_token, started_at, last_activity_at
+        ) VALUES (1, 'live-session', datetime('now'), datetime('now'))
+        """
+    )
+    fresh_db.execute(
+        """
+        INSERT INTO document_locks(
+            document_id, user_id, acquired_at, last_heartbeat, expires_at
+        ) VALUES (
+            'live-doc', 1, datetime('now'), datetime('now'),
+            datetime('now', '+5 minutes')
+        )
+        """
+    )
+    fresh_db.execute(
+        """
+        INSERT INTO _outbox(
+            table_name, op, pk_value, payload_json, created_at
+        ) VALUES ('users', 'UPDATE', '1', '{}', datetime('now'))
+        """
+    )
+    payload = {
+        "user_sessions": [{
+            "id": 99,
+            "user_id": 1,
+            "session_token": "stale-snapshot-session",
+            "ip_hash": None,
+            "user_agent": None,
+            "started_at": "2020-01-01T00:00:00+00:00",
+            "ended_at": None,
+            "last_activity_at": "2020-01-01T00:00:00+00:00",
+        }],
+        "document_locks": [{
+            "document_id": "live-doc",
+            "user_id": 1,
+            "acquired_at": "2020-01-01T00:00:00+00:00",
+            "last_heartbeat": "2020-01-01T00:00:00+00:00",
+            "expires_at": "2099-01-01T00:00:00+00:00",
+        }],
+        "_outbox": [{
+            "id": 999,
+            "table_name": "users",
+            "op": "UPDATE",
+            "pk_value": "1",
+            "payload_json": "{}",
+            "created_at": "2020-01-01T00:00:00+00:00",
+            "delivered_at": None,
+            "retry_count": 0,
+            "error": None,
+        }],
+    }
+
+    out = restore_from_snapshot(
+        fresh_db,
+        _write_snapshot(tmp_path, payload),
+    )
+
+    assert "user_sessions" not in out["tables"]
+    assert "document_locks" not in out["tables"]
+    assert "_outbox" not in out["tables"]
+    assert fresh_db.execute(
+        "SELECT COUNT(*) FROM user_sessions"
+    ).fetchone()[0] == 0
+    assert fresh_db.execute(
+        "SELECT COUNT(*) FROM document_locks"
+    ).fetchone()[0] == 0
+    assert fresh_db.execute(
+        "SELECT COUNT(*) FROM _outbox WHERE id=999"
+    ).fetchone()[0] == 0
+
+
+def test_restore_streams_rows_larger_than_reader_chunk(fresh_db, tmp_path):
+    from backend.backup.restore import restore_from_snapshot
+
+    large_value = "x" * (1024 * 1024 + 17)
+    payload = {
+        "invite_codes": [{
+            "id": 1,
+            "code": large_value,
+            "is_active": 0,
+            "created_at": "2026-05-09T00:00:00+00:00",
+        }],
+    }
+
+    out = restore_from_snapshot(
+        fresh_db,
+        _write_snapshot(tmp_path, payload),
+    )
+
+    assert out["tables"]["invite_codes"] == 1
+    assert fresh_db.execute(
+        "SELECT length(code) FROM invite_codes WHERE id=1"
+    ).fetchone()[0] == len(large_value)

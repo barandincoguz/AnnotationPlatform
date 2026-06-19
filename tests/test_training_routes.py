@@ -36,8 +36,13 @@ def _seen_manual_user(client, username="u_train"):
 
 
 def test_start_requires_auth(client):
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 401
+
+
+def test_start_get_is_not_a_state_changing_alias(client):
+    r = client.get("/api/training/start")
+    assert r.status_code == 405
 
 
 def test_start_pre_manual_user_409(client):
@@ -54,14 +59,14 @@ def test_start_pre_manual_user_409(client):
         "username": "u_pre", "password": "password123", "invite_code": "INV-PRE",
     })
     client.post("/api/auth/login", json={"username": "u_pre", "password": "password123"})
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 409
     assert r.json()["detail"]["error"] == "manual_not_seen"
 
 
 def test_start_returns_5_questions_and_3_gold_docs(client):
     _seen_manual_user(client, "u_start1")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 200
     data = r.json()
     assert "attempt_id" in data
@@ -70,9 +75,8 @@ def test_start_returns_5_questions_and_3_gold_docs(client):
     # No leaks on quiz answers
     for q in data["questions"]:
         assert "correct_choice_idx" not in q
-    # Per 16c.1: gold doc expected_concepts ARE exposed (reveal panel, no penalty)
     for g in data["gold_docs"]:
-        assert set(g.keys()) == {"gold_id", "content", "expected_concepts", "min_concept_count"}
+        assert set(g.keys()) == {"gold_id", "content"}
 
 
 def test_start_409_when_already_passed(client):
@@ -82,7 +86,7 @@ def test_start_409_when_already_passed(client):
         conn.execute("UPDATE users SET has_passed_training=1 WHERE id=?", (user["id"],))
     finally:
         conn.close()
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 409
     assert r.json()["detail"]["error"] == "already_passed"
 
@@ -102,9 +106,40 @@ def test_start_403_when_locked_out(client):
             )
     finally:
         conn.close()
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 403
     assert r.json()["detail"]["error"] == "max_attempts_reached"
+
+
+def test_start_503_when_training_content_is_incomplete(client):
+    user = _seen_manual_user(client, "u_incomplete")
+    conn = connect(config.DB_PATH)
+    try:
+        for qid in ("q01", "q02", "q03", "q04"):
+            conn.execute(
+                """
+                INSERT INTO training_quiz_overrides(
+                    question_id, is_deleted, source, created_at, updated_at
+                ) VALUES (?, 1, 'override', datetime('now'), datetime('now'))
+                """,
+                (qid,),
+            )
+    finally:
+        conn.close()
+
+    r = client.post("/api/training/start")
+    assert r.status_code == 503
+    assert r.json()["detail"]["error"] == "training_content_unavailable"
+
+    conn = connect(config.DB_PATH)
+    try:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM training_attempts WHERE user_id=?",
+            (user["id"],),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert count == 0
 
 
 def test_quiz_submit_unknown_attempt_404(client):
@@ -118,7 +153,7 @@ def test_quiz_submit_unknown_attempt_404(client):
 
 def test_quiz_submit_wrong_user_403(client):
     _seen_manual_user(client, "u_qa")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     aid = r.json()["attempt_id"]
     # Switch to a different user
     client.cookies.clear()
@@ -131,7 +166,7 @@ def test_quiz_submit_wrong_user_403(client):
 
 def test_quiz_submit_idempotent_409(client):
     _seen_manual_user(client, "u_qid")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     aid = r.json()["attempt_id"]
     r = client.post("/api/training/quiz/submit", json={
         "attempt_id": aid, "answers": {},
@@ -146,7 +181,7 @@ def test_quiz_submit_idempotent_409(client):
 
 def test_annotate_submit_unknown_gold_id_404(client):
     _seen_manual_user(client, "u_an1")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     aid = r.json()["attempt_id"]
     r = client.post("/api/training/annotate/submit", json={
         "attempt_id": aid, "gold_id": "not_in_attempt", "references": [],
@@ -157,7 +192,7 @@ def test_annotate_submit_unknown_gold_id_404(client):
 
 def test_annotate_submit_resubmit_409(client):
     _seen_manual_user(client, "u_an2")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     aid = r.json()["attempt_id"]
     gid = r.json()["gold_docs"][0]["gold_id"]
     r = client.post("/api/training/annotate/submit", json={
@@ -170,13 +205,7 @@ def test_annotate_submit_resubmit_409(client):
     assert r.status_code == 409
 
 
-def test_start_response_includes_expected_concepts(passed_user, db_conn):
-    """Per Paket 16c.1: the start payload exposes expected_concepts and
-    min_concept_count per gold doc so the reveal panel can render them.
-
-    NOTE: this leaks answers to the client. Acceptable in 16c.1
-    because the design decision was 'reveal panel, no penalty'.
-    """
+def test_start_response_does_not_expose_gold_answers(passed_user, db_conn):
     me_id = passed_user["user"]["id"]
     db_conn.execute(
         "DELETE FROM training_attempts WHERE user_id=?", (me_id,),
@@ -186,21 +215,30 @@ def test_start_response_includes_expected_concepts(passed_user, db_conn):
     )
     db_conn.commit()
 
-    res = passed_user["client"].get("/api/training/start")
+    res = passed_user["client"].post("/api/training/start")
     assert res.status_code == 200, res.text
     body = res.json()
     assert "gold_docs" in body
     assert len(body["gold_docs"]) >= 1
     for doc in body["gold_docs"]:
-        assert "expected_concepts" in doc, doc
-        assert isinstance(doc["expected_concepts"], list)
-        assert "min_concept_count" in doc
-        assert isinstance(doc["min_concept_count"], int)
+        assert set(doc) == {"gold_id", "content"}
 
 
 def test_skip_training_requires_auth(client):
     res = client.post("/api/training/skip")
     assert res.status_code == 401
+
+
+def test_skip_training_hidden_in_production(passed_user, monkeypatch):
+    monkeypatch.setattr(config, "ENVIRONMENT", "production")
+    monkeypatch.setattr(config, "SPACE_ID", None)
+    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://app.example"})
+
+    res = passed_user["client"].post(
+        "/api/training/skip",
+        headers={"Origin": "https://app.example"},
+    )
+    assert res.status_code == 404
 
 
 def test_skip_training_sets_flag_and_writes_activity_log(passed_user, db_conn):

@@ -92,6 +92,33 @@ def test_release_when_absent_no_op(db):
     locks.release(db, document_id="doc_1", user_id=1)  # does not raise
 
 
+def test_get_lock_expiry_cleanup_uses_conditional_delete(db):
+    past = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat()
+    db.execute(
+        "INSERT INTO document_locks("
+        "document_id, user_id, acquired_at, last_heartbeat, expires_at"
+        ") VALUES (?, ?, ?, ?, ?)",
+        ("doc_1", 1, past, past, past),
+    )
+    calls: list[str] = []
+
+    class _TraceConn:
+        def __getattr__(self, name):
+            return getattr(db, name)
+
+        def execute(self, statement, *args, **kwargs):
+            calls.append(" ".join(statement.split()).lower())
+            return db.execute(statement, *args, **kwargs)
+
+    assert locks.get_lock(_TraceConn(), "doc_1") is None
+    cleanup = next(
+        statement
+        for statement in calls
+        if statement.startswith("delete from document_locks")
+    )
+    assert "document_id=? and expires_at < ?" in cleanup
+
+
 def test_force_release_drops_lock(db):
     locks.acquire(db, document_id="doc_1", user_id=1)
     locks.force_release(db, document_id="doc_1")

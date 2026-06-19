@@ -53,6 +53,16 @@ def test_dump_excludes_schema_migrations(fresh_db):
     assert "schema_migrations" not in out
 
 
+def test_dump_excludes_runtime_only_tables(fresh_db):
+    from backend.backup.service import dump_all_tables_to_json
+
+    out = dump_all_tables_to_json(fresh_db)
+
+    assert "user_sessions" not in out
+    assert "document_locks" not in out
+    assert "_outbox" not in out
+
+
 def test_dump_returns_empty_lists_on_fresh_db(fresh_db):
     from backend.backup.service import dump_all_tables_to_json
     out = dump_all_tables_to_json(fresh_db)
@@ -107,6 +117,35 @@ def test_write_snapshot_is_atomic(backup_dir):
     write_snapshot(payload, backup_dir, ts="20260509-1430")
     tmps = list(backup_dir.glob("*.tmp"))
     assert tmps == []
+
+
+def test_write_database_snapshot_streams_valid_runtime_safe_json(
+    fresh_db,
+    backup_dir,
+):
+    from backend.backup.service import write_database_snapshot
+
+    fresh_db.execute(
+        "INSERT INTO invite_codes(code, is_active, created_at) "
+        "VALUES ('STREAMED', 1, datetime('now'))"
+    )
+    path, table_count = write_database_snapshot(
+        fresh_db,
+        backup_dir,
+        "20260619-0800",
+    )
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert table_count > 0
+    assert payload["__format_version"] == 1
+    assert payload["invite_codes"][0]["code"] == "STREAMED"
+    assert "user_sessions" not in payload
+    assert "document_locks" not in payload
+    assert "_outbox" not in payload
+    assert json.loads(
+        (backup_dir / "latest.json").read_text(encoding="utf-8")
+    ) == payload
+    assert list(backup_dir.glob("*.tmp")) == []
 
 
 def test_rotate_snapshots_keeps_last_n(backup_dir):

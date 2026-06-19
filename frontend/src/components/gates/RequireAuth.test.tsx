@@ -25,7 +25,7 @@ describe('RequireAuth', () => {
     useAuthStore.setState({ status: 'anon' })
     renderWithProviders(<ProtectedTree />, {
       initialEntries: ['/'],
-      destinationStubs: [{ path: '/login', testId: 'route-login' }],
+      wildcardEntry: true,
     })
     expect(await screen.findByTestId('route-login')).toBeInTheDocument()
   })
@@ -44,7 +44,7 @@ describe('RequireAuth', () => {
     })
     renderWithProviders(<ProtectedTree />, {
       initialEntries: ['/'],
-      destinationStubs: [{ path: '/login', testId: 'route-login' }],
+      wildcardEntry: true,
     })
     expect(screen.getByTestId('protected')).toBeInTheDocument()
   })

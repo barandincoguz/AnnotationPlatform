@@ -16,11 +16,63 @@ Subset-semantic concept matching contract:
   A gold doc's match count = number of distinct concepts that match.
   A gold doc passes if match_count >= min_concept_count.
 """
+import re
 from typing import Iterable
 import unicodedata
 
 
 _IGNORED_FIELDS = ("source_text",)
+
+
+def _clean_for_fuzzy_match(text: str) -> str:
+    if not text:
+        return ""
+    t = (
+        str(text).lower()
+        .replace("ı", "i")
+        .replace("ş", "s")
+        .replace("ğ", "g")
+        .replace("ü", "u")
+        .replace("ö", "o")
+        .replace("ç", "c")
+    )
+    s = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
+def _fuzzy_match_source_text(user_text: str, concept_text: str) -> bool:
+    if not user_text or not concept_text:
+        return True
+    
+    clean_user = _clean_for_fuzzy_match(user_text)
+    clean_concept = _clean_for_fuzzy_match(concept_text)
+    
+    if not clean_user or not clean_concept:
+        return True
+        
+    # Substring match (either user excerpt is within concept excerpt or vice-versa)
+    if clean_user in clean_concept or clean_concept in clean_user:
+        return True
+        
+    # Word-level fallback (at least 70% of user words appear in concept excerpt)
+    user_words = [w for w in (_clean_for_fuzzy_match(w) for w in str(user_text).split()) if len(w) >= 3]
+    if not user_words:
+        return True
+        
+    matched = sum(1 for w in user_words if w in clean_concept)
+    if matched / len(user_words) >= 0.7:
+        return True
+        
+    # Concept word-level fallback (at least 70% of concept words appear in user excerpt)
+    concept_words = [w for w in (_clean_for_fuzzy_match(w) for w in str(concept_text).split()) if len(w) >= 3]
+    if not concept_words:
+        return True
+        
+    matched_concept = sum(1 for w in concept_words if w in clean_user)
+    if matched_concept / len(concept_words) >= 0.7:
+        return True
+        
+    return False
 
 
 def score_quiz(
@@ -114,22 +166,59 @@ def _normalize_value(v):
     return " ".join(out_parts)
 
 
+def _enrich_law_fields(d: dict) -> dict:
+    res = dict(d)
+    k_no = res.get("kanun_no")
+    k_ad = res.get("kanun_ad")
+    
+    if k_no:
+        k_no = str(k_no).strip()
+    if k_ad:
+        from backend.annotations.diff import normalize_kanun_adi
+        k_ad = normalize_kanun_adi(str(k_ad))
+        
+    if not k_no and k_ad:
+        from backend.annotations.diff import LAW_NUMBER_BY_NAME
+        k_no = LAW_NUMBER_BY_NAME.get(k_ad)
+        
+    if k_no and not k_ad:
+        from backend.annotations.diff import LAW_NUMBER_BY_NAME
+        rev = {v: k for k, v in LAW_NUMBER_BY_NAME.items()}
+        k_no_clean = k_no.lstrip("0") or "0"
+        k_ad = rev.get(k_no_clean)
+        
+    res["kanun_no"] = k_no
+    res["kanun_ad"] = k_ad
+    return res
+
+
 def match_concept(concept: dict, references: Iterable[dict]) -> bool:
     """Return True iff at least one reference satisfies all constraints
     in `concept` (subset semantics) after string normalization.
 
     Normalization is applied symmetrically to concept values AND
     reference values before equality comparison; see _normalize_value
-    for the pipeline. source_text is still excluded from constraints.
+    for the pipeline. source_text is checked via fuzzy matching if present.
     """
-    constraints_raw = _concept_constraints(concept)
+    enriched_concept = _enrich_law_fields(concept)
+    constraints_raw = _concept_constraints(enriched_concept)
     constraints = {k: _normalize_value(v) for k, v in constraints_raw.items()}
+    concept_source_text = enriched_concept.get("source_text")
+
     if not constraints:
+        if concept_source_text:
+            return any(_fuzzy_match_source_text(r.get("source_text"), concept_source_text) for r in references)
         return any(True for _ in references)
+
     for r in references:
-        normed = {k: _normalize_value(r.get(k)) for k in constraints}
+        enriched_r = _enrich_law_fields(r)
+        normed = {k: _normalize_value(enriched_r.get(k)) for k in constraints}
         if all(normed.get(k) == v for k, v in constraints.items()):
-            return True
+            if concept_source_text:
+                if _fuzzy_match_source_text(enriched_r.get("source_text"), concept_source_text):
+                    return True
+            else:
+                return True
     return False
 
 

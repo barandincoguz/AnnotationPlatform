@@ -105,3 +105,63 @@ def test_disable_existing_user_succeeds(client, bootstrap_admin):
     resp = client.post(f"/api/admin/users/{target_id}/disable")
     assert resp.status_code == 200
     assert resp.json() == {"ok": True}
+
+
+def test_disable_broadcast_failure_does_not_rollback_account_state(
+    client,
+    bootstrap_admin,
+    monkeypatch,
+):
+    bootstrap_admin()
+    target_id = _register_target_user(client)
+    from backend.shared.sse import broker as sse_broker
+    from backend.shared.db import connect
+    from backend import config
+
+    db = connect(config.DB_PATH)
+    try:
+        db.execute(
+            """
+            INSERT INTO documents_meta(
+                document_id, file_path, pdf_text, word_count, sentence_count,
+                text_density, estimated_difficulty, created_at
+            ) VALUES (
+                'disable-route-doc', 'path', 'text', 1, 1, 1, 'Kolay',
+                datetime('now')
+            )
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO document_locks(
+                document_id, user_id, acquired_at, last_heartbeat, expires_at
+            ) VALUES (
+                'disable-route-doc', ?, datetime('now'), datetime('now'),
+                datetime('now', '+5 minutes')
+            )
+            """,
+            (target_id,),
+        )
+    finally:
+        db.close()
+
+    async def fail_publish(*_args, **_kwargs):
+        raise RuntimeError("SSE unavailable")
+
+    monkeypatch.setattr(sse_broker, "publish_broadcast", fail_publish)
+    response = client.post(f"/api/admin/users/{target_id}/disable")
+
+    assert response.status_code == 200
+    db = connect(config.DB_PATH)
+    try:
+        user = db.execute(
+            "SELECT is_active FROM users WHERE id=?",
+            (target_id,),
+        ).fetchone()
+        assert user["is_active"] == 0
+        assert db.execute(
+            "SELECT 1 FROM document_locks WHERE user_id=?",
+            (target_id,),
+        ).fetchone() is None
+    finally:
+        db.close()

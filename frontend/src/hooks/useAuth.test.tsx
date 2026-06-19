@@ -8,7 +8,9 @@ import { useAuthStore } from '@/stores/authStore'
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={new QueryClient()}>
-    <MemoryRouter>{children}</MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {children}
+    </MemoryRouter>
   </QueryClientProvider>
 )
 

@@ -70,16 +70,22 @@ def _row_to_info(row: sqlite3.Row, db: sqlite3.Connection) -> dict:
 
 
 def get_lock(db: sqlite3.Connection, document_id: str) -> Optional[dict]:
-    """Read current lock state for a document. Sweeps if expired."""
+    """Read current lock state for a document, removing it if expired.
+
+    Expiry cleanup is a conditional DELETE rather than SELECT-then-DELETE.
+    A concurrent heartbeat that has already extended the row therefore cannot
+    be erased by a stale expiry observation.
+    """
+    now_iso = _now().isoformat()
+    db.execute(
+        "DELETE FROM document_locks "
+        "WHERE document_id=? AND expires_at < ?",
+        (document_id, now_iso),
+    )
     row = db.execute(
         "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
     ).fetchone()
-    if row is None:
-        return None
-    if row["expires_at"] < _now().isoformat():
-        db.execute("DELETE FROM document_locks WHERE document_id=?", (document_id,))
-        return None
-    return _row_to_info(row, db)
+    return None if row is None else _row_to_info(row, db)
 
 
 def release_if_held(
@@ -183,15 +189,32 @@ def heartbeat(db: sqlite3.Connection, *, document_id: str, user_id: int) -> dict
 
 
 def release(db: sqlite3.Connection, *, document_id: str, user_id: int) -> None:
-    """Drop lock. No-op if no lock; raises NotLockHolder if held by another user."""
-    row = db.execute(
-        "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
-    ).fetchone()
-    if row is None:
-        return  # already released — silent
-    if row["user_id"] != user_id:
-        raise NotLockHolder(document_id)
-    db.execute("DELETE FROM document_locks WHERE document_id=?", (document_id,))
+    """Drop the caller's lock atomically.
+
+    No-op if no lock exists; raises NotLockHolder if another user owns it.
+    The owner check and delete share a write transaction so an expired lock
+    cannot be replaced by another user between the two statements and then
+    accidentally deleted by the stale releaser.
+    """
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        row = db.execute(
+            "SELECT user_id FROM document_locks WHERE document_id=?",
+            (document_id,),
+        ).fetchone()
+        if row is None:
+            db.execute("COMMIT")
+            return
+        if row["user_id"] != user_id:
+            raise NotLockHolder(document_id)
+        db.execute(
+            "DELETE FROM document_locks WHERE document_id=? AND user_id=?",
+            (document_id, user_id),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
 
 def force_release(db: sqlite3.Connection, *, document_id: str) -> None:

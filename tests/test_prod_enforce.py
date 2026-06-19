@@ -27,6 +27,10 @@ def prod(monkeypatch):
     monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_PASSWORD", "S0lid!Random*Pass-2026")
     monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://anotasyon.example"})
     monkeypatch.setattr(config, "BACKUP_REPO_URL", "")
+    monkeypatch.setattr(config, "TRUST_FORWARDED_FOR", False)
+    monkeypatch.setattr(config, "TRUSTED_PROXY_NETWORKS", ())
+    monkeypatch.setattr(config, "INVALID_TRUSTED_PROXY_CIDRS", ())
+    monkeypatch.setattr(config, "SPACE_ID", None, raising=False)
     return monkeypatch
 
 
@@ -99,6 +103,69 @@ def test_placeholder_allowed_origins_rejected(prod):
     set that passes the truthy check, then 403s every browser request."""
     prod.setattr(config, "ALLOWED_ORIGINS", {"<REPLACE_ME_https_your_public_host>"})
     with pytest.raises(ProductionConfigError, match="template.*placeholder"):
+        enforce_production_secrets()
+
+
+@pytest.mark.parametrize(
+    ("origin", "message"),
+    [
+        ("http://anotasyon.example", "must use https"),
+        ("https://*.example.com", "must not contain wildcards"),
+        ("https://anotasyon.example/app", "without path"),
+        ("https://anotasyon.example?tenant=1", "without path"),
+        ("https://user:pass@anotasyon.example", "credentials"),
+        ("https://ANOTASYON.example", "canonical form"),
+        ("https://anotasyon.example/", "without path"),
+        ("https://anotasyon.example:bad", "invalid host or port"),
+    ],
+)
+def test_invalid_allowed_origin_rejected(prod, origin, message):
+    prod.setattr(config, "ALLOWED_ORIGINS", {origin})
+    with pytest.raises(ProductionConfigError, match=message):
+        enforce_production_secrets()
+
+
+def test_non_default_https_port_is_allowed(prod):
+    prod.setattr(config, "ALLOWED_ORIGINS", {"https://anotasyon.example:8443"})
+    enforce_production_secrets()
+
+
+def test_explicit_default_https_port_must_be_canonical(prod):
+    prod.setattr(config, "ALLOWED_ORIGINS", {"https://anotasyon.example:443"})
+    with pytest.raises(ProductionConfigError, match="canonical form"):
+        enforce_production_secrets()
+
+
+def test_hugging_face_runtime_also_enforces(monkeypatch):
+    monkeypatch.setattr(config, "ENVIRONMENT", "development")
+    monkeypatch.setattr(config, "SPACE_ID", "owner/space")
+    monkeypatch.setattr(config, "SESSION_SECRET", "dev-secret-DO-NOT-USE-IN-PROD")
+    monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_PASSWORD", "")
+    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://owner-space.hf.space"})
+    monkeypatch.setattr(config, "BACKUP_REPO_URL", "")
+    monkeypatch.setattr(config, "INVALID_TRUSTED_PROXY_CIDRS", ())
+
+    with pytest.raises(ProductionConfigError, match="SESSION_SECRET"):
+        enforce_production_secrets()
+
+
+def test_forwarded_for_trust_requires_proxy_cidrs(prod):
+    prod.setattr(config, "TRUST_FORWARDED_FOR", True)
+    with pytest.raises(ProductionConfigError, match="TRUSTED_PROXY_CIDRS"):
+        enforce_production_secrets()
+
+
+def test_invalid_proxy_cidr_rejected_even_when_trust_is_off(prod):
+    prod.setattr(config, "INVALID_TRUSTED_PROXY_CIDRS", ("not-a-network",))
+    with pytest.raises(ProductionConfigError, match="invalid network"):
+        enforce_production_secrets()
+
+
+def test_unrestricted_proxy_cidr_rejected(prod):
+    from ipaddress import ip_network
+
+    prod.setattr(config, "TRUSTED_PROXY_NETWORKS", (ip_network("0.0.0.0/0"),))
+    with pytest.raises(ProductionConfigError, match="entire address family"):
         enforce_production_secrets()
 
 

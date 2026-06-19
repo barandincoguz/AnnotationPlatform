@@ -1,19 +1,8 @@
-"""Static placeholder quiz questions for the training gate.
+"""Domain-focused quiz questions for the training gate.
 
 Format: each entry has `id`, `text`, `choices` (4 options), `correct_choice_idx`.
-Admin override of these questions is out of scope for Paket 10 (planned for
-Paket 11). For now, edit this file directly to update question content.
-
-These 8 questions cover the most-needed concepts a bursiyer must know before
-annotating real özelge documents:
-  - Why source_text is required
-  - Reference field semantics (kanun_no vs kanun_ad vs madde vs fikra vs bent)
-  - Madde format ("Mükerrer 20", "Geçici 5")
-  - is_diff_zero meaning
-  - Duplicate-reference rule
-  - Lock release timing
-  - Skip vs save semantics
-  - Empty-references-list legality
+These questions avoid implementation terms and measure decisions an annotator
+must make while reading an özelge.
 """
 import json
 import sqlite3
@@ -21,45 +10,45 @@ import sqlite3
 QUIZ_QUESTIONS: list[dict] = [
     {
         "id": "q01",
-        "text": "Bir referansta source_text alanı zorunludur. Aşağıdakilerden hangisi en doğru gerekçe?",
+        "text": "Bir kanun atfı eklerken özelgeden ilgili cümleyi de alıntılamak neden zorunludur?",
         "choices": [
-            "Frontend'in alanı boş bırakmasını önlemek için.",
-            "Sonraki kullanıcıların hangi metin parçasından çıkarıldığını görüp doğrulayabilmesi için.",
-            "Veritabanı PRIMARY KEY kısıtlaması zorunlu kılıyor.",
-            "Backup sistemi source_text alanına bakarak chunking yapıyor.",
+            "Belgenin daha uzun görünmesini sağlamak için.",
+            "Atfın hangi ifadeden çıkarıldığını sonraki inceleyen kişinin doğrulayabilmesi için.",
+            "Kanun adını otomatik olarak değiştirmek için.",
+            "Belgenin tarihini belirlemek için.",
         ],
         "correct_choice_idx": 1,
     },
     {
         "id": "q02",
-        "text": "Madde alanı için aşağıdaki örneklerden hangisi GEÇERSİZDİR?",
+        "text": "Özelgede “Geçici 67'nci madde” yazıyorsa Madde alanına ne girilmelidir?",
         "choices": [
-            "5",
-            "Mükerrer 20",
             "Geçici 5",
-            "Madde 5'in 1. fıkrasının a bendi",
+            "67",
+            "Geçici 67",
+            "Madde 67'nin tamamı",
         ],
-        "correct_choice_idx": 3,
+        "correct_choice_idx": 2,
     },
     {
         "id": "q03",
-        "text": "is_diff_zero=True ne anlama gelir?",
+        "text": "Kaynak veride gösterilen hazır kanun referanslarına nasıl yaklaşılmalıdır?",
         "choices": [
-            "Önceki kullanıcının bıraktığı referans listesi ile şu anki kayıt birebir aynı.",
-            "Bu doküman henüz hiç anotasyonlanmamış.",
-            "Kayıt sırasında bir hata oldu, hiçbir referans yazılmadı.",
-            "Kullanıcı 'Atla' butonuna bastı.",
+            "Kesin doğru kabul edilip aynen kaydedilmelidir.",
+            "Yalnızca başlangıç ipucu olarak görülmeli, özelge metninden tek tek doğrulanmalıdır.",
+            "Her durumda tamamen silinmelidir.",
+            "Sadece kanun numarası varsa doğru kabul edilmelidir.",
         ],
-        "correct_choice_idx": 0,
+        "correct_choice_idx": 1,
     },
     {
         "id": "q04",
-        "text": "Aynı dokümana aynı 6'lı tuple (kanun_no, kanun_ad, madde, fikra, bent, source_text) ile iki kez referans eklenirse ne olur?",
+        "text": "Özelgede aynı kanun maddesine ait aynı atıf iki kez görünüyorsa ne yapılmalıdır?",
         "choices": [
-            "İkincisi sessizce yok sayılır.",
-            "Sistem 422 ile DuplicateReference hatası döndürür.",
-            "Ledger'a iki ayrı satır olarak yazılır.",
-            "İlk olan otomatik silinir.",
+            "Aynı alıntı için iki özdeş referans kaydı oluşturulmalıdır.",
+            "Tek bir referans kaydı oluşturulmalı; yinelenen özdeş kayıt eklenmemelidir.",
+            "Doküman doğrudan atlanmalıdır.",
+            "Kanun numarası boş bırakılmalıdır.",
         ],
         "correct_choice_idx": 1,
     },
@@ -68,9 +57,9 @@ QUIZ_QUESTIONS: list[dict] = [
         "text": "Bir özelge dokümanında hiçbir kanun atfı yoksa ne yapılmalı?",
         "choices": [
             "Doküman 'Atla' ile geçilmeli.",
-            "Boş bir referans listesi ([]) ile 'Kaydet' işlemi yapılmalıdır — bu meşru bir durumdur.",
+            "Referans eklemeden kaydedilmelidir; atıf bulunmaması geçerli bir sonuçtur.",
             "Sahte bir referans ekleyip kaydedilmelidir.",
-            "Admin'e bildirim gönderilmelidir.",
+            "Kaynak verideki ilk referans kullanılmalıdır.",
         ],
         "correct_choice_idx": 1,
     },
@@ -80,14 +69,14 @@ QUIZ_QUESTIONS: list[dict] = [
         "choices": [
             "Kanun No veya Kanun Adından en az biri zorunludur; ikisi birlikte verilirse tutarlı olmalıdır.",
             "Kanun No her zaman zorunludur; Kanun Adı tek başına yeterli değildir.",
-            "İkisi de zorunludur, eksik olursa 422 döner.",
-            "İkisi de opsiyoneldir, source_text yeterlidir.",
+            "İkisi de her durumda zorunludur.",
+            "İkisi de boş bırakılabilir; yalnızca alıntı yeterlidir.",
         ],
         "correct_choice_idx": 0,
     },
     {
         "id": "q07",
-        "text": "Bir doküman üzerinde 'Kaydet' işlemi başarıyla tamamlandığında, kullanıcının doküman üzerindeki kilidine ne olur?",
+        "text": "Bir dokümanı kaydetmeyi tamamladıktan sonra aynı dokümandaki çalışma kilidine ne olur?",
         "choices": [
             "Kilit 5 dakika daha uzatılır.",
             "Kilit otomatik olarak serbest bırakılır.",
@@ -98,12 +87,12 @@ QUIZ_QUESTIONS: list[dict] = [
     },
     {
         "id": "q08",
-        "text": "Aynı dokümanı iki bursiyer aynı anda anotasyonlamaya çalışırsa ne olur?",
+        "text": "Başka bir bursiyerin üzerinde çalıştığı dokümanı açmaya çalışırsan ne yapmalısın?",
         "choices": [
-            "İkisi de aynı anda yazabilir, son kaydedenin verisi geçerli olur.",
-            "İkincisi kilit çakışması görür ve 'Listeye dön' ile başka bir doküman seçebilir.",
-            "Sistem otomatik olarak ikincinin oturumunu kapatır.",
-            "İkisinden hangisi 'Kaydet'e önce basarsa onun girişi yazılır, diğerininki sessizce kaybolur.",
+            "Aynı anda düzenlemeye devam edip önce kaydetmeye çalışmalısın.",
+            "Kilit uyarısını dikkate alıp listeye dönerek başka bir doküman seçmelisin.",
+            "Tarayıcıyı yenileyerek kilidi zorla almalısın.",
+            "Diğer kullanıcının oturumunu kapatmalısın.",
         ],
         "correct_choice_idx": 1,
     },

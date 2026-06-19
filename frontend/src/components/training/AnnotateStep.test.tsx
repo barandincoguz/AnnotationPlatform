@@ -5,9 +5,9 @@ import { useTrainingStore } from '@/stores/trainingStore'
 import { AnnotateStep } from './AnnotateStep'
 
 const goldDocs = [
-  { gold_id: 'gold_a', content: 'Doc A içeriği — KVK 5/1-a uyarınca...', expected_concepts: [{ kanun_no: '5520', madde: '5' }], min_concept_count: 1 },
-  { gold_id: 'gold_b', content: 'Doc B içeriği — KDV 29...', expected_concepts: [{ kanun_no: '3065', madde: '29' }], min_concept_count: 1 },
-  { gold_id: 'gold_c', content: 'Doc C içeriği — GVK Geçici 67...', expected_concepts: [{ kanun_no: '193', madde: 'Geçici 67' }], min_concept_count: 1 },
+  { gold_id: 'gold_a', content: 'Doc A içeriği — KVK 5/1-a uyarınca...' },
+  { gold_id: 'gold_b', content: 'Doc B içeriği — KDV 29...' },
+  { gold_id: 'gold_c', content: 'Doc C içeriği — GVK Geçici 67...' },
 ]
 
 describe('AnnotateStep', () => {
@@ -89,23 +89,46 @@ describe('AnnotateStep', () => {
     expect(onSubmit).toHaveBeenCalledWith('gold_a', [])
   })
 
+  it('does not expose the answer key before submission', () => {
+    render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
+    expect(screen.queryByRole('button', { name: /cevabı göster/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /beklenen anotasyonlar/i })).not.toBeInTheDocument()
+  })
+
   it('shows result card when current doc has resultShown', () => {
     useTrainingStore.setState({
       docResults: {
-        gold_a: { passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 },
+        gold_a: {
+          passed: true,
+          matched_count: 2,
+          expected_count: 2,
+          min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '5520', madde: '5' }],
+        },
       },
       resultShown: { kind: 'doc', goldId: 'gold_a' },
     })
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)
     expect(screen.getByText(/2 \/ 2/)).toBeInTheDocument()
     expect(screen.getByText(/geçti/i)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /beklenen anotasyonlar/i })).toHaveTextContent(
+      /kanun no: 5520.*madde: 5/i,
+    )
   })
 
   it('Sonraki button advances doc index for docIndex<2', async () => {
     const user = userEvent.setup()
     const onAdvance = vi.fn()
     useTrainingStore.setState({
-      docResults: { gold_a: { passed: true, matched_count: 1, expected_count: 1, min_concept_count: 1 } },
+      docResults: {
+        gold_a: {
+          passed: true,
+          matched_count: 1,
+          expected_count: 1,
+          min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '5520' }],
+        },
+      },
       resultShown: { kind: 'doc', goldId: 'gold_a' },
     })
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={onAdvance} isSubmitting={false} />)
@@ -116,7 +139,15 @@ describe('AnnotateStep', () => {
   it('on docIndex=2, last button is "Sonuçları Gör"', () => {
     useTrainingStore.setState({
       docIndex: 2,
-      docResults: { gold_c: { passed: true, matched_count: 1, expected_count: 1, min_concept_count: 1 } },
+      docResults: {
+        gold_c: {
+          passed: true,
+          matched_count: 1,
+          expected_count: 1,
+          min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '193' }],
+        },
+      },
       resultShown: { kind: 'doc', goldId: 'gold_c' },
     })
     render(<AnnotateStep onSubmit={vi.fn()} onAdvance={vi.fn()} isSubmitting={false} />)

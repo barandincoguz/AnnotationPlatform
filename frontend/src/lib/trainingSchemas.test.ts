@@ -87,6 +87,7 @@ describe('Zod schemas', () => {
           matched_count: 2,
           expected_count: 2,
           min_concept_count: 1,
+          expected_concepts: [{ kanun_no: '5520', madde: '5' }],
         }),
       ).not.toThrow()
     })

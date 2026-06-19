@@ -249,8 +249,8 @@ docker compose --env-file .env.production up -d
 The lifespan startup:
 
 1. Validates `ENVIRONMENT ∈ {development, test, production}`.
-2. In production: hard-fails on default `SESSION_SECRET`, short secrets,
-   or short admin passwords.
+2. In production: hard-fails on unsafe secrets, invalid/non-HTTPS origins,
+   and unsafe forwarded-IP trust configuration.
 3. Applies pending migrations idempotently.
 4. Seeds the first admin user when the users table has no active admin.
 
@@ -267,12 +267,16 @@ lives in **[docs/deployment.md](docs/deployment.md)**.
 | `ENVIRONMENT` | no | **yes** | One of `development`, `test`, `production` |
 | `SESSION_SECRET` | yes | **yes** | ≥32 chars in production; `openssl rand -hex 32` |
 | `SESSION_COOKIE_NAME` | no | no | Defaults to `anotasyon_session` |
+| `SESSION_MAX_AGE_SECONDS` | no | no | Browser and server session lifetime; default 30 days |
+| `SESSION_COOKIE_SAMESITE` | no | no | Defaults to `lax`; `none` only for cross-site embedding |
 | `BOOTSTRAP_ADMIN_USERNAME` | no | recommended | First-admin seed username |
 | `BOOTSTRAP_ADMIN_PASSWORD` | no | recommended | First-admin password (≥12 chars in production) |
 | `BACKUP_REPO_URL` | no | recommended | GitHub repo for off-host backup snapshots |
 | `GITHUB_PAT` | no | required if backup set | Fine-grained PAT, `contents:write` only |
 | `DATA_DIR` | no | no | `/data` in the container |
 | `ALLOWED_ORIGINS` | no | **yes** | Comma-separated origins for CSRF middleware |
+| `TRUST_FORWARDED_FOR` | no | no | Enable only behind a trusted reverse proxy |
+| `TRUSTED_PROXY_CIDRS` | no | with forwarded trust | Immediate trusted proxy networks |
 
 See `.env.example` for the annotated template.
 

@@ -4,9 +4,10 @@ Custom exceptions are caught by route handlers and mapped to HTTP errors.
 """
 import hashlib
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from backend import config
 from backend.shared import auth, audit
 
 
@@ -61,6 +62,16 @@ AVATAR_PALETTE = [
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_utc(value: str) -> Optional[datetime]:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _avatar_color_for(username: str) -> str:
@@ -193,7 +204,7 @@ def login(
         ) VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
-            user["id"], token,
+            user["id"], auth.hash_session_token(token),
             auth.hash_ip(ip) if ip else None,
             user_agent,
             now, now,
@@ -202,24 +213,45 @@ def login(
     return token
 
 
-def logout(db: sqlite3.Connection, *, session_token: str) -> None:
-    # Find user_id associated with this session token to release any held locks
-    row = db.execute(
-        "SELECT user_id FROM user_sessions WHERE session_token=? AND ended_at IS NULL",
-        (session_token,),
-    ).fetchone()
+def logout(
+    db: sqlite3.Connection, *, session_token: str
+) -> tuple[Optional[int], list[str]]:
+    """End one session and atomically release that user's current locks."""
+    token_hash = auth.hash_session_token(session_token)
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        row = db.execute(
+            "SELECT user_id FROM user_sessions "
+            "WHERE session_token=? AND ended_at IS NULL",
+            (token_hash,),
+        ).fetchone()
+        if row is None:
+            db.execute("COMMIT")
+            return None, []
 
-    db.execute(
-        "UPDATE user_sessions SET ended_at=? WHERE session_token=? AND ended_at IS NULL",
-        (_now(), session_token),
-    )
-
-    if row:
-        user_id = row["user_id"]
+        user_id = int(row["user_id"])
+        released_document_ids = [
+            str(lock["document_id"])
+            for lock in db.execute(
+                "SELECT document_id FROM document_locks WHERE user_id=?",
+                (user_id,),
+            ).fetchall()
+        ]
+        now = _now()
+        db.execute(
+            "UPDATE user_sessions SET ended_at=? "
+            "WHERE session_token=? AND ended_at IS NULL",
+            (now, token_hash),
+        )
         db.execute(
             "DELETE FROM document_locks WHERE user_id=?",
             (user_id,),
         )
+        db.execute("COMMIT")
+        return user_id, released_document_ids
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
 
 def get_user_by_session(
@@ -231,15 +263,26 @@ def get_user_by_session(
     """
     row = db.execute(
         """
-        SELECT u.*, s.id AS session_id
+        SELECT u.*, s.id AS session_id, s.started_at AS session_started_at
         FROM user_sessions s JOIN users u ON s.user_id = u.id
         WHERE s.session_token = ?
           AND s.ended_at IS NULL
           AND u.is_active = 1
         """,
-        (session_token,),
+        (auth.hash_session_token(session_token),),
     ).fetchone()
     if row is None:
+        return None
+    started_at = _parse_utc(row["session_started_at"])
+    cutoff = datetime.now(timezone.utc) - timedelta(
+        seconds=config.SESSION_MAX_AGE_SECONDS
+    )
+    if started_at is None or started_at <= cutoff:
+        db.execute(
+            "UPDATE user_sessions SET ended_at=? "
+            "WHERE id=? AND ended_at IS NULL",
+            (_now(), row["session_id"]),
+        )
         return None
     db.execute(
         "UPDATE user_sessions SET last_activity_at=? WHERE id=?",
@@ -320,7 +363,7 @@ def demote_admin(
 def disable_user(
     db: sqlite3.Connection, *, admin_user_id: int, target_user_id: int,
     trace_id: Optional[str] = None,
-) -> None:
+) -> list[str]:
     _ensure_admin(db, admin_user_id)
     target = db.execute(
         "SELECT * FROM users WHERE id=?", (target_user_id,)
@@ -338,6 +381,23 @@ def disable_user(
             "UPDATE users SET is_active=0, updated_at=? WHERE id=?",
             (_now(), target_user_id),
         )
+        released_document_ids = [
+            str(lock["document_id"])
+            for lock in db.execute(
+                "SELECT document_id FROM document_locks WHERE user_id=?",
+                (target_user_id,),
+            ).fetchall()
+        ]
+        now = _now()
+        db.execute(
+            "UPDATE user_sessions SET ended_at=? "
+            "WHERE user_id=? AND ended_at IS NULL",
+            (now, target_user_id),
+        )
+        db.execute(
+            "DELETE FROM document_locks WHERE user_id=?",
+            (target_user_id,),
+        )
         db.execute("COMMIT")
     except Exception:
         try:
@@ -350,6 +410,7 @@ def disable_user(
         target_kind="user", target_id=str(target_user_id),
         trace_id=trace_id,
     )
+    return released_document_ids
 
 
 def enable_user(
@@ -560,4 +621,3 @@ def seed_bootstrap_admin(
         f"Bootstrap admin {username!r} created (id={user_id}, trace_id={trace_id})",
         file=sys.stderr,
     )
-

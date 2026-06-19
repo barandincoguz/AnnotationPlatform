@@ -9,7 +9,10 @@ import { EventsPage } from './EventsPage'
 
 const Wrap = ({ search = '' }: { search?: string }) => (
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <MemoryRouter initialEntries={[`/admin/events${search}`]}>
+    <MemoryRouter
+      initialEntries={[`/admin/events${search}`]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <EventsPage />
     </MemoryRouter>
   </QueryClientProvider>

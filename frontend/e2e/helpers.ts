@@ -17,6 +17,7 @@ export const E2E_DOC_IDS = {
   alpha: 'e2e-doc-alpha',
   bravo: 'e2e-doc-bravo',
   charlie: 'e2e-doc-charlie',
+  concurrency: 'e2e-doc-concurrency',
 }
 
 /**

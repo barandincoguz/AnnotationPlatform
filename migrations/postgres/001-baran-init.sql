@@ -293,7 +293,7 @@ CREATE TABLE IF NOT EXISTS baran_training_attempts (
     annotation_details_json jsonb,
     passed bigint NOT NULL,
     started_at text NOT NULL,
-    finished_at text NOT NULL
+    finished_at text
 );
 
 CREATE INDEX IF NOT EXISTS baran_idx_train_user ON baran_training_attempts(user_id);

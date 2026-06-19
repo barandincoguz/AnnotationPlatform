@@ -1,5 +1,7 @@
 """Unit tests for training.service attempt lifecycle (no HTTP)."""
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
@@ -41,16 +43,15 @@ def test_start_attempt_creates_row_returns_questions_and_docs(db):
     # No correct_choice_idx exposed
     assert all("correct_choice_idx" not in q for q in out["questions"])
     assert len(out["gold_docs"]) == 3
-    # Per 16c.1: expected_concepts and min_concept_count ARE now exposed
-    # (reveal panel, no penalty design)
     for g in out["gold_docs"]:
-        assert set(g.keys()) == {"gold_id", "content", "expected_concepts", "min_concept_count"}
+        assert set(g.keys()) == {"gold_id", "content"}
 
 
 def test_start_attempt_persists_attempt_row(db):
     out = training_service.start_attempt(db, user_id=1)
     row = db.execute(
-        "SELECT user_id, attempt_number, quiz_total, annotation_total, passed "
+        "SELECT user_id, attempt_number, quiz_total, annotation_total, passed, "
+        "finished_at "
         "FROM training_attempts WHERE id=?", (out["attempt_id"],),
     ).fetchone()
     assert row["user_id"] == 1
@@ -58,6 +59,27 @@ def test_start_attempt_persists_attempt_row(db):
     assert row["quiz_total"] == 5
     assert row["annotation_total"] == 3
     assert row["passed"] == 0
+    assert row["finished_at"] is None
+
+
+def test_start_attempt_rejects_incomplete_pool_without_consuming_attempt(db):
+    for qid in ("q01", "q02", "q03", "q04"):
+        db.execute(
+            """
+            INSERT INTO training_quiz_overrides(
+                question_id, is_deleted, source, created_at, updated_at
+            ) VALUES (?, 1, 'override', datetime('now'), datetime('now'))
+            """,
+            (qid,),
+        )
+
+    with pytest.raises(training_service.TrainingPoolTooSmallError) as exc:
+        training_service.start_attempt(db, user_id=1)
+
+    assert exc.value.kind == "quiz"
+    assert db.execute(
+        "SELECT COUNT(*) FROM training_attempts WHERE user_id=1"
+    ).fetchone()[0] == 0
 
 
 def test_start_attempt_increments_attempt_number(db):
@@ -95,6 +117,68 @@ def test_start_attempt_seed_is_deterministic(db):
     questions_a = training_service._select_questions_for_attempt(db, out["attempt_id"])
     questions_b = training_service._select_questions_for_attempt(db, out["attempt_id"])
     assert [q["id"] for q in questions_a] == [q["id"] for q in questions_b]
+
+
+def test_concurrent_quiz_deletes_preserve_minimum_pool(db, db_path):
+    training_service.soft_delete_quiz_override(
+        db, question_id="q01", admin_id=1,
+    )
+    training_service.soft_delete_quiz_override(
+        db, question_id="q02", admin_id=1,
+    )
+    barrier = threading.Barrier(2)
+
+    def delete(question_id):
+        conn = connect(db_path)
+        try:
+            barrier.wait()
+            training_service.soft_delete_quiz_override(
+                conn, question_id=question_id, admin_id=1,
+            )
+            return "ok"
+        except training_service.TrainingPoolTooSmallError:
+            return "minimum"
+        finally:
+            conn.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(delete, ("q03", "q04")))
+
+    assert sorted(outcomes) == ["minimum", "ok"]
+    assert len(training_service.quiz_data.get_active_quiz_questions(db)) == 5
+
+
+def test_concurrent_gold_deletes_preserve_minimum_pool(db, db_path):
+    training_service.upsert_gold_doc_override(
+        db,
+        gold_id="concurrency_buffer",
+        content="Eşzamanlı silme koruması için eğitim belgesi.",
+        expected_concepts=[{"kanun_no": "5520", "madde": "5"}],
+        min_concept_count=1,
+        admin_id=1,
+    )
+    barrier = threading.Barrier(2)
+
+    def delete(gold_id):
+        conn = connect(db_path)
+        try:
+            barrier.wait()
+            training_service.soft_delete_gold_doc(
+                conn, gold_id=gold_id, admin_id=1,
+            )
+            return "ok"
+        except training_service.TrainingPoolTooSmallError:
+            return "minimum"
+        finally:
+            conn.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(
+            pool.map(delete, ("sample_kvk_5", "sample_kdv_29"))
+        )
+
+    assert sorted(outcomes) == ["minimum", "ok"]
+    assert len(training_service.get_active_gold_docs(db)) == 3
 
 
 # ---- submit_quiz ----
@@ -175,6 +259,7 @@ def test_submit_annotation_first_doc_persists(db):
     )
     assert "passed" in result
     assert "matched_count" in result
+    assert result["expected_concepts"] == docs[0]["expected_concepts"]
     row = db.execute(
         "SELECT annotation_details_json FROM training_attempts WHERE id=?",
         (out["attempt_id"],),

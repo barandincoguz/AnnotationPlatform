@@ -13,6 +13,7 @@ from typing import Optional
 import json
 import sqlite3
 
+from backend import config
 from backend.shared import audit, settings
 
 
@@ -103,6 +104,29 @@ def purge_single_table(
     return cur.rowcount
 
 
+def close_expired_sessions(
+    db: sqlite3.Connection,
+    *,
+    now: Optional[datetime] = None,
+) -> int:
+    """Close absolute-expiry sessions so ended-session retention can purge them."""
+    current = now or datetime.now(timezone.utc)
+    cutoff = current - timedelta(seconds=config.SESSION_MAX_AGE_SECONDS)
+    cur = db.execute(
+        """
+        UPDATE user_sessions
+        SET ended_at=?
+        WHERE ended_at IS NULL
+          AND (
+            datetime(started_at) IS NULL
+            OR datetime(started_at) <= datetime(?)
+          )
+        """,
+        (current.isoformat(), cutoff.isoformat()),
+    )
+    return cur.rowcount
+
+
 def run_purge(
     db: sqlite3.Connection, *, trace_id: Optional[str] = None,
 ) -> dict:
@@ -131,6 +155,7 @@ def run_purge(
     db.execute("BEGIN IMMEDIATE")
     current_table: Optional[str] = None  # for failure-row observability
     try:
+        expired_sessions_closed = close_expired_sessions(db)
         purged: dict[str, int] = {}
         for entry in PURGE_POLICY:
             current_table = entry.table
@@ -157,8 +182,14 @@ def run_purge(
     active_table_count = sum(1 for v in purged.values() if v > 0)
     audit.log_system_event(
         db, "retention_success", "info",
-        message=f"purged {total} rows across {active_table_count} active tables",
-        extra={"purged": purged},
+        message=(
+            f"purged {total} rows across {active_table_count} active tables; "
+            f"closed {expired_sessions_closed} expired sessions"
+        ),
+        extra={
+            "purged": purged,
+            "expired_sessions_closed": expired_sessions_closed,
+        },
         trace_id=trace_id,
     )
     return {"ok": True, "purged": purged, "total": total}

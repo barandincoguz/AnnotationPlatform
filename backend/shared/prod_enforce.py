@@ -5,6 +5,7 @@ fail fast and loud (Docker Compose restart loop will keep retrying,
 but stderr makes diagnosis trivial).
 """
 import sys
+from urllib.parse import urlsplit
 
 from backend import config
 
@@ -46,12 +47,48 @@ class ProductionConfigError(RuntimeError):
     """Raised when production mode is enabled but config is unsafe."""
 
 
+def _validate_public_origin(origin: str) -> str | None:
+    """Return a production-safety error for an invalid browser origin."""
+    if any(char.isspace() for char in origin):
+        return "must not contain whitespace"
+    if origin == "*":
+        return None
+    if "*" in origin:
+        return "must not contain wildcards"
+
+    try:
+        parsed = urlsplit(origin)
+        port = parsed.port
+    except ValueError:
+        return "contains an invalid host or port"
+
+    if parsed.scheme != "https":
+        return "must use https"
+    if not parsed.hostname:
+        return "must include a host"
+    if parsed.username is not None or parsed.password is not None:
+        return "must not contain credentials"
+    if parsed.path or parsed.query or parsed.fragment:
+        return "must be an exact origin without path, query, or fragment"
+
+    default_port = port in (None, 443)
+    canonical_host = parsed.hostname.lower()
+    if ":" in canonical_host:
+        canonical_host = f"[{canonical_host}]"
+    canonical = f"https://{canonical_host}"
+    if not default_port:
+        canonical += f":{port}"
+    if origin != canonical:
+        return f"must use canonical form {canonical!r}"
+    return None
+
+
 def enforce_production_secrets() -> None:
     """In ENVIRONMENT=production: hard-fail on any unsafe config.
 
     Otherwise: no-op.
     """
-    if config.ENVIRONMENT != "production":
+    if not config.is_production():
         return
 
     errors: list[str] = []
@@ -107,6 +144,34 @@ def enforce_production_secrets() -> None:
             "ALLOWED_ORIGINS still contains the .env.example template "
             f"placeholder ({_TEMPLATE_PLACEHOLDER_NEEDLE!r}); set the real "
             "public origin (e.g. https://anotasyon.example.com)"
+        )
+    else:
+        invalid_origins = [
+            (origin, error)
+            for origin in sorted(config.ALLOWED_ORIGINS)
+            if (error := _validate_public_origin(origin)) is not None
+        ]
+        for origin, error in invalid_origins:
+            errors.append(f"ALLOWED_ORIGINS entry {origin!r} {error}")
+
+    if config.INVALID_TRUSTED_PROXY_CIDRS:
+        errors.append(
+            "TRUSTED_PROXY_CIDRS contains invalid network values: "
+            + ", ".join(repr(value) for value in config.INVALID_TRUSTED_PROXY_CIDRS)
+        )
+    if any(network.prefixlen == 0 for network in config.TRUSTED_PROXY_NETWORKS):
+        errors.append(
+            "TRUSTED_PROXY_CIDRS must not trust an entire address family "
+            "(0.0.0.0/0 or ::/0)"
+        )
+    if (
+        config.TRUST_FORWARDED_FOR
+        and not config.TRUSTED_PROXY_NETWORKS
+        and not config.SPACE_ID
+    ):
+        errors.append(
+            "TRUST_FORWARDED_FOR=1 requires TRUSTED_PROXY_CIDRS in production; "
+            "otherwise clients can forge rate-limit and audit IPs"
         )
 
     if errors:

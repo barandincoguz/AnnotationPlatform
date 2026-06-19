@@ -3,7 +3,7 @@ services:
     build: .
     image: anotasyon-platform:latest
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - anotasyon_data:/data
     environment:
@@ -12,12 +12,15 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - SESSION_SECRET=${SESSION_SECRET:-dev-secret-change-me}
       - SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME:-anotasyon_session}
+      - SESSION_MAX_AGE_SECONDS=${SESSION_MAX_AGE_SECONDS:-2592000}
+      - SESSION_COOKIE_SAMESITE=${SESSION_COOKIE_SAMESITE:-lax}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
       - BACKUP_REPO_URL=${BACKUP_REPO_URL:-}
       - GITHUB_PAT=${GITHUB_PAT:-}
       - TRUST_FORWARDED_FOR=${TRUST_FORWARDED_FOR:-0}
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-}
       - NEON_MIRROR_URL=${NEON_MIRROR_URL:-}
       - NEON_MIRROR_BATCH_SIZE=${NEON_MIRROR_BATCH_SIZE:-100}
       - NEON_MIRROR_MAX_RETRIES=${NEON_MIRROR_MAX_RETRIES:-5}

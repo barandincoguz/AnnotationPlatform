@@ -41,6 +41,16 @@ def test_generate_session_token_unique():
     assert len(tokens) == 100
 
 
+def test_hash_session_token_is_deterministic_and_one_way():
+    token = "raw-bearer-token"
+    hashed = auth.hash_session_token(token)
+    assert hashed.startswith("sha256:")
+    assert len(hashed) == len("sha256:") + 64
+    assert token not in hashed
+    assert auth.hash_session_token(token) == hashed
+    assert auth.hash_session_token("different") != hashed
+
+
 def test_hash_ip_returns_64_char_hex():
     h = auth.hash_ip("203.0.113.7")
     assert len(h) == 64

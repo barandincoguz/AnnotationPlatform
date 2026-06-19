@@ -34,6 +34,12 @@ from backend.migrations.helpers.schema_introspect import (
     list_project_tables,
 )
 
+OUTBOX_EXCLUDED_TABLES = frozenset({
+    "user_sessions",
+    "document_locks",
+    "system_events",
+})
+
 
 # ----- Per-op trigger SQL --------------------------------------------------
 
@@ -103,7 +109,11 @@ def build_triggers_for_table(schema: TableSchema) -> list[str]:
 # ----- Aggregate over all in-scope tables ----------------------------------
 
 def _collect_schemas(conn: sqlite3.Connection) -> list[TableSchema]:
-    return [introspect_table(conn, t) for t in list_project_tables(conn)]
+    return [
+        introspect_table(conn, table)
+        for table in list_project_tables(conn)
+        if table not in OUTBOX_EXCLUDED_TABLES
+    ]
 
 
 def build_all_triggers(conn: sqlite3.Connection) -> list[str]:

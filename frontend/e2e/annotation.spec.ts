@@ -2,6 +2,99 @@ import { test, expect } from '@playwright/test'
 import { E2E_DOC_IDS, loginAs } from './helpers'
 
 test.describe('Annotation flow', () => {
+  test('two users serialize editing and preserve the version chain', async ({ browser }) => {
+    const aliceContext = await browser.newContext()
+    const bobContext = await browser.newContext()
+    const alice = await aliceContext.newPage()
+    const bob = await bobContext.newPage()
+
+    try {
+      await loginAs(alice, 'alice')
+      await loginAs(bob, 'bob')
+
+      await alice.goto(`/docs/${E2E_DOC_IDS.concurrency}`)
+      await expect(alice.getByRole('button', { name: 'Kaydet' })).toBeVisible()
+
+      await bob.goto(`/docs/${E2E_DOC_IDS.concurrency}`)
+      await expect(bob.getByRole('dialog', { name: /alice düzenliyor/i })).toBeVisible()
+
+      const [aliceSaveResponse, aliceReleaseResponse] = await Promise.all([
+        alice.waitForResponse((response) =>
+          response.url().endsWith('/api/annotations')
+          && response.request().method() === 'POST',
+        ),
+        alice.waitForResponse((response) =>
+          response.url().endsWith(`/api/locks/${E2E_DOC_IDS.concurrency}/release`)
+          && response.request().method() === 'POST',
+        ),
+        alice.getByRole('button', { name: 'Kaydet' }).click(),
+      ])
+      expect(aliceSaveResponse.ok()).toBeTruthy()
+      expect(aliceReleaseResponse.ok()).toBeTruthy()
+
+      await bob.getByRole('button', { name: 'Listeye dön' }).click()
+      await expect(bob).toHaveURL(/\/$/)
+      await bob.goto(`/docs/${E2E_DOC_IDS.concurrency}`)
+      await expect(bob.getByRole('button', { name: 'Kaydet' })).toBeVisible()
+
+      await bob.getByRole('button', { name: 'Yeni Referans' }).click()
+      await bob.getByRole('textbox', { name: 'Kanun No' }).fill('193')
+      await bob.getByRole('textbox', { name: 'Madde' }).fill('37')
+      await bob.getByRole('textbox', { name: 'Metinden Alıntı' }).fill(
+        '193 sayili Gelir Vergisi Kanununun 37. maddesi',
+      )
+      const [bobSaveResponse, bobReleaseResponse] = await Promise.all([
+        bob.waitForResponse((response) =>
+          response.url().endsWith('/api/annotations')
+          && response.request().method() === 'POST',
+        ),
+        bob.waitForResponse((response) =>
+          response.url().endsWith(`/api/locks/${E2E_DOC_IDS.concurrency}/release`)
+          && response.request().method() === 'POST',
+        ),
+        bob.getByRole('button', { name: 'Kaydet' }).click(),
+      ])
+      expect(bobSaveResponse.ok()).toBeTruthy()
+      expect(bobReleaseResponse.ok()).toBeTruthy()
+
+      const response = await bobContext.request.get(
+        `/api/documents/${E2E_DOC_IDS.concurrency}/annotation`,
+      )
+      expect(response.ok()).toBeTruthy()
+      const body = await response.json() as {
+        annotation: {
+          references: Array<{ kanun_no: string; madde: string }>
+          edit_count: number
+          unique_users_count: number
+        }
+        chain: Array<{ username: string; action: string }>
+      }
+
+      expect(body.annotation.references).toMatchObject([
+        { kanun_no: '193', madde: '37' },
+      ])
+      expect(body.annotation.edit_count).toBe(2)
+      expect(body.annotation.unique_users_count).toBe(2)
+      expect(body.chain.map((version) => version.username)).toEqual([
+        'alice',
+        'bob',
+      ])
+      expect(body.chain.map((version) => version.action)).toEqual([
+        'create',
+        'edit',
+      ])
+    } finally {
+      await Promise.allSettled([
+        alice.close({ runBeforeUnload: false }),
+        bob.close({ runBeforeUnload: false }),
+      ])
+      await Promise.allSettled([
+        aliceContext.close(),
+        bobContext.close(),
+      ])
+    }
+  })
+
   test('jump-to-doc input navigates to the requested özelge', async ({ page }) => {
     await loginAs(page, 'alice')
     // The form has aria-label "Doküman ID ile ara" and the input has
@@ -19,26 +112,23 @@ test.describe('Annotation flow', () => {
   test('reference panel shows the source-data unreliability warning', async ({ page }) => {
     await loginAs(page, 'alice')
     await page.goto(`/docs/${E2E_DOC_IDS.alpha}`)
-    // doc-alpha was seeded with one kanun_ref, so the destructive
-    // warning banner must render.
+    // The source references are intentionally collapsed by default.
+    // Opening them must reveal the destructive reliability warning.
+    await page.getByRole('button', { name: /kaynak veri referansları/i }).click()
     const warning = page.getByTestId('refs-source-warning')
     await expect(warning).toBeVisible({ timeout: 10_000 })
-    await expect(warning).toContainText(/güvenilir değil/i)
+    await expect(warning).toContainText(/güvensiz/i)
   })
 
   test('tabs switch the doc list under their semantic identity', async ({ page }) => {
     await loginAs(page, 'alice')
-    // All seeded docs land in the "Yeni" tab (no annotations yet),
-    // so switching to "Devam Eden" or "Tamamlanan" shows an empty
-    // state.
     await expect(page.getByRole('tab', { name: /yeni/i })).toHaveAttribute(
       'data-state',
       'active',
     )
-    await page.getByRole('tab', { name: /devam eden/i }).click()
-    await expect(page.getByText(/bu sekmede doküman yok/i)).toBeVisible({
-      timeout: 10_000,
-    })
+    const reviewTab = page.getByRole('tab', { name: /devam eden/i })
+    await reviewTab.click()
+    await expect(reviewTab).toHaveAttribute('data-state', 'active')
   })
 
   test('sort menu is hidden from end users by default (phase 6 contract)', async ({ page }) => {

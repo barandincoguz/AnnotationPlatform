@@ -88,7 +88,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const skipMutation = useSkipAnnotationMutation()
   const completeMutation = useCompleteAnnotationMutation()
 
-  const canEdit = lock.status === 'held'
+  const canEdit = lock.status === 'held' && refs.hydrated
   const isValid = areAllReferencesValid(refs.list)
   const hasAnnotation = !!annotation.data?.annotation
   const isCompleted = annotation.data?.annotation?.is_completed ?? false
@@ -314,6 +314,63 @@ function AnnotateDocInner({ docId }: { docId: string }) {
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
           Düzenleme kilidi alınıyor...
+        </div>
+      </div>
+    )
+  }
+
+  if (!refs.hydrated) {
+    const draftRefs = draft.draftQuery.data?.references
+    const hasDraftRefs = Array.isArray(draftRefs) && draftRefs.length > 0
+    const referenceLoadFailed =
+      draft.draftQuery.status === 'error'
+      || (
+        draft.draftQuery.status === 'success'
+        && !hasDraftRefs
+        && annotation.status === 'error'
+      )
+
+    return (
+      <div className="grid h-full grid-cols-[60%_40%] overflow-hidden">
+        <div className="border-r border-border overflow-hidden">
+          <DocViewer docId={docId} />
+        </div>
+        <div className="flex items-center justify-center p-8">
+          {referenceLoadFailed ? (
+            <div className="max-w-sm space-y-4 text-center">
+              <AlertCircle
+                aria-hidden="true"
+                className="mx-auto h-8 w-8 text-destructive"
+              />
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold">Referanslar yüklenemedi</h2>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Kayıtlı referanslar doğrulanmadan düzenleme açılamaz.
+                  Bağlantıyı kontrol edip yeniden deneyin.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => {
+                  void Promise.all([
+                    draft.draftQuery.refetch(),
+                    annotation.refetch(),
+                  ])
+                }}
+              >
+                <RefreshCw aria-hidden="true" />
+                Yeniden dene
+              </Button>
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+              role="status"
+            >
+              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+              Referanslar yükleniyor...
+            </div>
+          )}
         </div>
       </div>
     )

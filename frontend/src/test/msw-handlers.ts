@@ -276,15 +276,15 @@ export function makeStartResponse(overrides: Partial<{ attempt_id: number; attem
       { id: 'q05', text: 'Soru 5', choices: ['a', 'b', 'c', 'd'] },
     ],
     gold_docs: [
-      { gold_id: 'gold_a', content: 'Doc A içeriği', expected_concepts: [{ kanun_no: '5520', madde: '5' }], min_concept_count: 1 },
-      { gold_id: 'gold_b', content: 'Doc B içeriği', expected_concepts: [{ kanun_no: '3065', madde: '29' }], min_concept_count: 1 },
-      { gold_id: 'gold_c', content: 'Doc C içeriği', expected_concepts: [{ kanun_no: '193', madde: 'Geçici 67' }], min_concept_count: 1 },
+      { gold_id: 'gold_a', content: 'Doc A içeriği' },
+      { gold_id: 'gold_b', content: 'Doc B içeriği' },
+      { gold_id: 'gold_c', content: 'Doc C içeriği' },
     ],
   }
 }
 
 const TRAINING_DEFAULT_HANDLERS = [
-  http.get(`${API}/api/training/start`, () => HttpResponse.json(makeStartResponse())),
+  http.post(`${API}/api/training/start`, () => HttpResponse.json(makeStartResponse())),
   http.post(`${API}/api/training/quiz/submit`, () => HttpResponse.json({
     score: 4, total: 5,
     results: [
@@ -296,21 +296,25 @@ const TRAINING_DEFAULT_HANDLERS = [
     ],
   })),
   http.post(`${API}/api/training/annotate/submit`, () =>
-    HttpResponse.json({ passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1 }),
+    HttpResponse.json({
+      passed: true,
+      matched_count: 2,
+      expected_count: 2,
+      min_concept_count: 1,
+      expected_concepts: [{ kanun_no: '5520', madde: '5' }],
+    }),
   ),
   http.post(`${API}/api/me/seen-manual`, () => HttpResponse.json({ ok: true })),
-  // 16c.1: skip training escape hatch
-  http.post(`${API}/api/training/skip`, () => HttpResponse.json({ ok: true })),
 ]
 
 export function mockTrainingStartLockedOut() {
-  return http.get(`${API}/api/training/start`, () =>
+  return http.post(`${API}/api/training/start`, () =>
     HttpResponse.json({ detail: { error: 'max_attempts_reached', message: 'too many' } }, { status: 403 }),
   )
 }
 
 export function mockTrainingStartAlreadyPassed() {
-  return http.get(`${API}/api/training/start`, () =>
+  return http.post(`${API}/api/training/start`, () =>
     HttpResponse.json({ detail: { error: 'already_passed', message: 'already' } }, { status: 409 }),
   )
 }
@@ -329,7 +333,13 @@ export function mockAnnotateSubmitAlreadySubmitted() {
 
 export function mockAnnotateSubmitFail() {
   return http.post(`${API}/api/training/annotate/submit`, () =>
-    HttpResponse.json({ passed: false, matched_count: 0, expected_count: 2, min_concept_count: 1 }),
+    HttpResponse.json({
+      passed: false,
+      matched_count: 0,
+      expected_count: 2,
+      min_concept_count: 1,
+      expected_concepts: [{ kanun_no: '5520', madde: '5' }],
+    }),
   )
 }
 

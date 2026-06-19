@@ -61,6 +61,65 @@ describe('AnnotateDoc integration', () => {
     )
   })
 
+  it('does not expose editing before reference hydration completes', async () => {
+    let resolveDraft!: () => void
+    let resolveAnnotation!: () => void
+    const draftGate = new Promise<void>((resolve) => {
+      resolveDraft = resolve
+    })
+    const annotationGate = new Promise<void>((resolve) => {
+      resolveAnnotation = resolve
+    })
+    server.use(
+      http.get('http://localhost/api/drafts/doc-1', async () => {
+        await draftGate
+        return HttpResponse.json({ detail: 'not found' }, { status: 404 })
+      }),
+      http.get('http://localhost/api/documents/doc-1/annotation', async () => {
+        await annotationGate
+        return HttpResponse.json({ annotation: null, chain: [] })
+      }),
+    )
+
+    renderDoc('/docs/doc-1')
+
+    expect(
+      await screen.findByText(/referanslar yükleniyor/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /yeni referans/i }),
+    ).not.toBeInTheDocument()
+
+    resolveDraft()
+    resolveAnnotation()
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /yeni referans/i }),
+      ).not.toBeDisabled()
+    })
+  })
+
+  it('blocks editing and offers retry when reference hydration fails', async () => {
+    server.use(
+      http.get('http://localhost/api/drafts/doc-1', () =>
+        HttpResponse.json({ detail: 'temporary failure' }, { status: 503 }),
+      ),
+    )
+
+    renderDoc('/docs/doc-1')
+
+    expect(
+      await screen.findByRole('heading', { name: /referanslar yüklenemedi/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /yeni referans/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /yeniden dene/i }),
+    ).toBeInTheDocument()
+  })
+
   it('shows LockConflictModal on 409 acquire (different user)', async () => {
     server.use(
       http.post('http://localhost/api/locks/doc-1/acquire', () =>

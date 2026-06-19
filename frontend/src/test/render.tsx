@@ -1,11 +1,11 @@
 import { render as rtlRender, type RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route, parsePath } from 'react-router-dom'
-import { type ReactElement, type ReactNode } from 'react'
+import { type ComponentProps, type ReactElement, type ReactNode } from 'react'
 import { afterEach } from 'vitest'
 
 interface RenderOpts extends Omit<RenderOptions, 'wrapper'> {
-  initialEntries?: string[]
+  initialEntries?: NonNullable<ComponentProps<typeof MemoryRouter>['initialEntries']>
   destinationStubs?: { path: string; testId: string }[]
   extraDestinationStubs?: { path: string; testId: string }[]
   /**
@@ -79,13 +79,19 @@ export function renderWithProviders(
 
   const routerEntries = initialEntries.length > 0 ? initialEntries : ['/']
   const firstEntry = routerEntries[0]!
-  const entryPath = parsePath(firstEntry).pathname ?? '/'
+  const entryPath =
+    typeof firstEntry === 'string'
+      ? parsePath(firstEntry).pathname ?? '/'
+      : firstEntry.pathname ?? '/'
 
   const stubs = destinationStubs ?? [...DEFAULT_STUBS, ...extraDestinationStubs]
 
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={routerEntries}>
+      <MemoryRouter
+        initialEntries={routerEntries}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         {wildcardEntry ? (
           // ui owns its own <Routes>. Stub destinations are not mounted
           // here because they would shadow paths inside ui's Routes;

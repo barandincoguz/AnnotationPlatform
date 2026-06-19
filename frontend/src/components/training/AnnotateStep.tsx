@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ReferenceCard } from '@/components/annotation/ReferenceCard'
@@ -33,9 +32,6 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
   }, [resultShown, docIndex])
 
   const currentDoc = goldDocs[docIndex]
-  // 16c.1 reveal panel state — closes when doc index changes
-  const [revealOpen, setRevealOpen] = useState(false)
-  useEffect(() => { setRevealOpen(false) }, [currentDoc?.gold_id])
 
   const refs = currentDoc ? (docRefs[currentDoc.gold_id] ?? []) : []
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(0)
@@ -58,8 +54,6 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
   }
 
   const allValid = areAllTrainingReferencesValid(refs)
-  const expectedConcepts = (currentDoc as { expected_concepts?: Record<string, string | null | undefined>[] }).expected_concepts ?? []
-  const minConceptCount = (currentDoc as { min_concept_count?: number }).min_concept_count ?? 1
 
   const updateRef = (idx: number, next: ReferenceItem) => {
     const updated = [...refs]
@@ -92,6 +86,23 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
           <p className={cn('mt-1', result.passed ? 'text-success' : 'text-destructive')}>
             Durum: <strong>{result.passed ? 'Geçti' : 'Geçemedi'}</strong>
           </p>
+        </div>
+        <div
+          role="region"
+          aria-label="Beklenen anotasyonlar"
+          className="mt-3 rounded-md border bg-muted/40 p-4 text-sm"
+        >
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Geri bildirim
+          </p>
+          <p className="mb-2 font-medium">
+            Beklenen anotasyonlar:
+          </p>
+          <ol className="list-decimal space-y-1 pl-5">
+            {result.expected_concepts.map((concept, index) => (
+              <li key={index}>{formatConcept(concept)}</li>
+            ))}
+          </ol>
         </div>
         <div className="mt-6">
           <Button onClick={onAdvance}>
@@ -133,41 +144,11 @@ export function AnnotateStep({ onSubmit, onAdvance, isSubmitting }: AnnotateStep
           + Yeni Referans
         </Button>
       </section>
-      <div className="mt-6 flex items-center justify-between">
+      <div className="mt-6">
         <Button onClick={() => onSubmit(currentDoc.gold_id, refs)} disabled={isSubmitting || !allValid}>
           {isSubmitting ? 'Gönderiliyor...' : 'Gönder ve devam et'}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setRevealOpen((o) => !o)}
-          aria-expanded={revealOpen}
-          aria-controls="reveal-panel"
-        >
-          <Eye className="h-4 w-4" aria-hidden /> Cevabı göster
-        </Button>
       </div>
-      {revealOpen && (
-        <div
-          id="reveal-panel"
-          role="region"
-          aria-label="Beklenen anotasyonlar"
-          className="mt-3 rounded-md border bg-muted/40 p-4 text-sm"
-        >
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            Cevap Anahtarı
-          </p>
-          <p className="font-medium mb-2">
-            Beklenen anotasyonlar: {expectedConcepts.length} kavram
-            (min eşleşme: {minConceptCount}):
-          </p>
-          <ol className="list-decimal pl-5 space-y-1">
-            {expectedConcepts.map((c, i) => (
-              <li key={i}>{formatConcept(c)}</li>
-            ))}
-          </ol>
-        </div>
-      )}
     </section>
   )
 }

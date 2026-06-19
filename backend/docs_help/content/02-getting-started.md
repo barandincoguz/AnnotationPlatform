@@ -8,9 +8,7 @@
 2. **3 örnek özelge** — Bu özelgelerden beklenen kanun atıflarını çıkarman istenir; sistem girdilerini "altın yanıt" ile karşılaştırır.
 3. **Geçer not** — 5 sorudan en az 4 doğru **ve** 3 dokümandan en az 2 başarılı anotasyon.
 
-3 deneme hakkın var. Hepsini de kaybedersen admin reseti gerekir; panik yapma.
-
-Eğitim sırasında "Cevabı göster" düğmesiyle doğru cevaba bakabilirsin (öğretici mod, ceza yok). Çok zor geliyorsa **kırmızı "Eğitimi geç" bağlantısıyla** atlayabilirsin ama bu **kesinlikle önerilmez** — eğitim sayesinde format hatalarını gerçek anotasyona taşımıyorsun.
+3 deneme hakkın var. Tüm haklarını kullanırsan yeni bir deneme için yöneticinin eğitim kaydını sıfırlaması gerekir. Her örnek dokümanı gönderdikten sonra beklenen anotasyonları geri bildirim olarak görebilirsin.
 
 ## 2. Ana ekran
 

@@ -13,7 +13,10 @@ function renderAppShell() {
   })
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter
+        initialEntries={['/']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<div data-testid="child">child</div>} />

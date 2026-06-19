@@ -5,6 +5,7 @@ Used by every route in subsequent packages:
   def feed(user: dict = Depends(get_current_user)): ...
 """
 import sqlite3
+from ipaddress import ip_address
 from typing import Iterator, Optional
 
 from fastapi import Cookie, Depends, HTTPException, Request
@@ -76,14 +77,40 @@ def require_passed_training(user: sqlite3.Row = Depends(require_seen_manual)) ->
 def get_request_ip(request: Request) -> Optional[str]:
     """Extract client IP from request.
 
-    X-Forwarded-For is only honored when `TRUST_FORWARDED_FOR=1` is set
-    (operator opts in when running behind a trusted reverse proxy). In
-    a direct-to-uvicorn deployment the header is attacker-controlled,
-    and trusting it lets clients forge the IP recorded in
-    `user_sessions.ip_hash` and any future IP-based controls.
+    X-Forwarded-For is honored only when the immediate peer is a configured
+    trusted proxy. The chain is walked from right to left, returning the
+    nearest untrusted address. This remains correct whether a proxy
+    overwrites XFF or appends to an attacker-supplied value.
     """
-    if config.TRUST_FORWARDED_FOR:
+    peer = request.client.host if request.client else None
+    peer_is_trusted = False
+    if peer and config.TRUST_FORWARDED_FOR:
+        try:
+            peer_ip = ip_address(peer)
+            peer_is_trusted = any(
+                peer_ip in network for network in config.TRUSTED_PROXY_NETWORKS
+            )
+        except ValueError:
+            peer_is_trusted = False
+
+    # Hugging Face's edge proxy owns the forwarding header and does not
+    # expose a stable public CIDR contract to Space containers.
+    if config.SPACE_ID:
+        peer_is_trusted = True
+
+    if peer_is_trusted:
         fwd = request.headers.get("x-forwarded-for")
         if fwd:
-            return fwd.split(",")[0].strip()
-    return request.client.host if request.client else None
+            parsed_chain = []
+            for value in fwd.split(","):
+                try:
+                    parsed_chain.append(ip_address(value.strip()))
+                except ValueError:
+                    continue
+            for candidate in reversed(parsed_chain):
+                if not any(
+                    candidate in network
+                    for network in config.TRUSTED_PROXY_NETWORKS
+                ):
+                    return str(candidate)
+    return peer

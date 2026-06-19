@@ -5,7 +5,10 @@ import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './AdminLayout'
 
 const Wrap = ({ initialPath }: { initialPath: string }) => (
-  <MemoryRouter initialEntries={[initialPath]}>
+  <MemoryRouter
+    initialEntries={[initialPath]}
+    future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+  >
     <Routes>
       <Route path="/admin/*" element={<AdminLayout />}>
         <Route path="audit" element={<div>AUDIT_STUB</div>} />
@@ -53,7 +56,10 @@ describe('AdminLayout', () => {
 
   it('redirects /admin index to /admin/audit', () => {
     render(
-      <MemoryRouter initialEntries={['/admin']}>
+      <MemoryRouter
+        initialEntries={['/admin']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/audit" replace />} />

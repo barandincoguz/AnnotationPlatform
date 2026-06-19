@@ -45,11 +45,11 @@ credentials must never block backend startup.
 
 ## 2. One-time DDL apply
 
-Generate the mirror schema from the live SQLite tables and apply it to
-Neon:
+Generate the mirror schema from a freshly migrated temporary SQLite
+database and apply it to Neon:
 
 ```bash
-# Regenerate the file from the current SQLite schema. Idempotent.
+# Regenerate the file from all committed SQLite migrations. Idempotent.
 python -m scripts.regen_neon_ddl
 
 # Apply to Neon. Idempotent — re-running is safe.
@@ -78,6 +78,19 @@ This removes the legacy FK from `baran_activity_events` and drops
 consumer of the partner database. Rotate the Neon credential if session
 tokens were previously mirrored to a role or environment that should not
 have held them.
+
+### Existing deployments: allow active training attempts
+
+After deploying SQLite migration `v0011`, update the existing mirror column
+before new active attempts are dispatched:
+
+```bash
+psql "$NEON_MIRROR_URL" -f migrations/postgres/003-nullable-training-finished-at.sql
+```
+
+This removes the obsolete `NOT NULL` constraint from
+`baran_training_attempts.finished_at`. Fresh mirror databases created from
+the current `001-baran-init.sql` already have the nullable column.
 
 ---
 
@@ -117,6 +130,7 @@ runner:
 | `backend/migrations/v0006_install_outbox_triggers.py` | Installs **66 triggers** across the 22 in-scope project tables (22 × 3 ops). Operational metadata and bearer sessions are excluded. |
 | `backend/migrations/v0009_exclude_user_sessions_from_mirror.py` | Drops legacy session triggers and purges every local outbox row containing session payloads. |
 | `backend/migrations/v0010_redact_activity_session_ids.py` | Rebuilds activity triggers so local session IDs are emitted as `null`, and scrubs queued activity payloads for rolling-upgrade compatibility. |
+| `backend/migrations/v0011_nullable_training_finished_at.py` | Makes `training_attempts.finished_at` nullable so an active attempt is distinguishable from a completed attempt. |
 
 These run on backend boot via the lifespan startup. Every migration is
 idempotent.
@@ -231,6 +245,7 @@ frozen otherwise.
 |--------|---------|
 | Apply Neon DDL | `psql "$NEON_MIRROR_URL" -f migrations/postgres/001-baran-init.sql` |
 | Remove legacy session mirror | `psql "$NEON_MIRROR_URL" -f migrations/postgres/002-remove-user-sessions.sql` |
+| Allow active training attempts | `psql "$NEON_MIRROR_URL" -f migrations/postgres/003-nullable-training-finished-at.sql` |
 | Regenerate DDL | `python -m scripts.regen_neon_ddl` |
 | Backfill (dry) | `python -m scripts.neon_backfill --dry-run` |
 | Backfill (full) | `python -m scripts.neon_backfill` |

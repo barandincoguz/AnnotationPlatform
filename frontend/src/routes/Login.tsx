@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
@@ -21,8 +21,17 @@ const ASIDE_BACKGROUND: React.CSSProperties = {
 
 export function Login() {
   const { loginMutation } = useAuth()
+  const location = useLocation()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
+  const navigationState = location.state as unknown
+  const registeredUsername =
+    typeof navigationState === 'object' &&
+    navigationState !== null &&
+    'registeredUsername' in navigationState &&
+    typeof navigationState.registeredUsername === 'string'
+      ? navigationState.registeredUsername
+      : ''
+  const [username, setUsername] = useState(registeredUsername)
   const [password, setPassword] = useState('')
   const disabled = username.trim().length === 0 || password.length === 0
 

@@ -93,3 +93,45 @@ def test_restore_route_requires_admin(client, seen_manual_user, tmp_path):
             files={"snapshot": ("snap.json", f, "application/json")},
         )
     assert resp.status_code in (401, 403, 404)
+
+
+def test_restore_route_rejects_oversized_upload_and_removes_temp_file(
+    client,
+    bootstrap_admin,
+    monkeypatch,
+):
+    from backend import config
+
+    bootstrap_admin()
+    monkeypatch.setattr("backend.backup.routes.MAX_RESTORE_BYTES", 32)
+    before = set(config.DATA_DIR.glob("*.restore.json"))
+
+    response = client.post(
+        "/api/admin/backup/restore",
+        files={
+            "snapshot": (
+                "large.json",
+                b'{"users":[],"padding":"' + b"x" * 64 + b'"}',
+                "application/json",
+            ),
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["error"] == "restore_too_large"
+    assert set(config.DATA_DIR.glob("*.restore.json")) == before
+
+
+def test_restore_route_rejects_malformed_json_as_client_error(
+    client,
+    bootstrap_admin,
+):
+    bootstrap_admin()
+
+    response = client.post(
+        "/api/admin/backup/restore",
+        files={"snapshot": ("broken.json", b'{"users":[', "application/json")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "restore_invalid_snapshot"

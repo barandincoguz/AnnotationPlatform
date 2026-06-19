@@ -22,6 +22,9 @@ from backend.training import gold_docs as code_gold
 
 log = logging.getLogger(__name__)
 
+QUIZ_QUESTION_COUNT = 5
+GOLD_DOC_COUNT = 3
+
 
 # ---------------------------------------------------------------------------
 # Hybrid gold-doc resolver
@@ -116,6 +119,18 @@ class GoldDocAlreadySubmittedError(TrainingServiceError):
     """This gold_id was already annotated within this attempt."""
 
 
+class TrainingPoolTooSmallError(TrainingServiceError):
+    """The active training content cannot satisfy the fixed assessment shape."""
+
+    def __init__(self, kind: str, current: int, required: int):
+        self.kind = kind
+        self.current = current
+        self.required = required
+        super().__init__(
+            f"training {kind} pool has {current} active items; {required} required"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Deterministic selection (attempt_id is the seed)
 # ---------------------------------------------------------------------------
@@ -142,29 +157,24 @@ def _select_questions_for_attempt(db: sqlite3.Connection, attempt_id: int) -> li
     direct QUIZ_QUESTIONS import in Paket 11 T6 so admin overrides take
     effect on next attempt without code changes."""
     pool = quiz_data.get_active_quiz_questions(db)
-    if len(pool) < 5:
-        # Defensive: if admin tombstoned too many baseline questions, fall
-        # back to whatever is available so the attempt can still proceed.
-        log.warning(
-            "quiz pool has only %d questions (expected >=5); "
-            "training quiz size degraded; consider restoring a tombstoned question or adding custom ones",
-            len(pool),
+    if len(pool) < QUIZ_QUESTION_COUNT:
+        raise TrainingPoolTooSmallError(
+            "quiz", len(pool), QUIZ_QUESTION_COUNT,
         )
-        return pool
     rng = random.Random(attempt_id)
-    return rng.sample(pool, 5)
+    return rng.sample(pool, QUIZ_QUESTION_COUNT)
 
 
 def _select_gold_docs_for_attempt(db: sqlite3.Connection, attempt_id: int) -> list[dict]:
     """Pick 3 deterministic gold docs seeded by attempt_id, drawn from the
     resolved active pool (code baseline + DB overrides)."""
     pool = get_active_gold_docs(db)
-    if len(pool) < 3:
-        # In production, the user's CLI-imported docs + 3 placeholders
-        # always satisfies this. Defensive: fall back to whatever is available.
-        return pool
+    if len(pool) < GOLD_DOC_COUNT:
+        raise TrainingPoolTooSmallError(
+            "gold_document", len(pool), GOLD_DOC_COUNT,
+        )
     rng = random.Random(attempt_id)
-    return rng.sample(pool, 3)
+    return rng.sample(pool, GOLD_DOC_COUNT)
 
 
 def _strip_correct_answers(questions: list[dict]) -> list[dict]:
@@ -175,19 +185,11 @@ def _strip_correct_answers(questions: list[dict]) -> list[dict]:
 
 
 def _strip_gold_answers(docs: list[dict]) -> list[dict]:
-    """Project the resolver gold-doc dicts down to the wire shape.
-
-    Per 16c.1: expected_concepts and min_concept_count are preserved
-    (not stripped) so the AnnotateStep reveal panel can render them.
-    The "strip" name is kept for git-history continuity even though
-    we no longer strip those two fields.
-    """
+    """Project gold documents without exposing their scoring key."""
     return [
         {
             "gold_id": d["gold_id"],
             "content": d["content"],
-            "expected_concepts": d["expected_concepts"],
-            "min_concept_count": d["min_concept_count"],
         }
         for d in docs
     ]
@@ -241,38 +243,62 @@ def start_attempt(db: sqlite3.Connection, *, user_id: int) -> dict:
       AlreadyPassedError — user.has_passed_training already 1
       LockedOutError    — user has used max_attempts without passing
     """
-    if _user_passed(db, user_id):
-        raise AlreadyPassedError(user_id)
-    if is_locked_out(db, user_id=user_id):
-        raise LockedOutError(user_id)
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        if _user_passed(db, user_id):
+            raise AlreadyPassedError(user_id)
+        if is_locked_out(db, user_id=user_id):
+            raise LockedOutError(user_id)
 
-    # Compute next attempt_number
-    row = db.execute(
-        "SELECT COUNT(*) AS c FROM training_attempts WHERE user_id=?", (user_id,),
-    ).fetchone()
-    attempt_number = row["c"] + 1
-    now = _now_utc_iso()
+        quiz_pool_size = len(quiz_data.get_active_quiz_questions(db))
+        if quiz_pool_size < QUIZ_QUESTION_COUNT:
+            raise TrainingPoolTooSmallError(
+                "quiz", quiz_pool_size, QUIZ_QUESTION_COUNT,
+            )
+        gold_pool_size = len(get_active_gold_docs(db))
+        if gold_pool_size < GOLD_DOC_COUNT:
+            raise TrainingPoolTooSmallError(
+                "gold_document", gold_pool_size, GOLD_DOC_COUNT,
+            )
 
-    cur = db.execute(
-        """
-        INSERT INTO training_attempts(
-            user_id, attempt_number, quiz_score, quiz_total,
-            annotation_pass_count, annotation_total, annotation_details_json,
-            passed, started_at, finished_at
-        ) VALUES (?, ?, 0, 5, 0, 3, NULL, 0, ?, ?)
-        """,
-        (user_id, attempt_number, now, now),
-    )
-    attempt_id = cur.lastrowid
-    assert attempt_id is not None  # SQLite always returns an id on successful INSERT
+        row = db.execute(
+            "SELECT COUNT(*) AS c FROM training_attempts WHERE user_id=?",
+            (user_id,),
+        ).fetchone()
+        attempt_number = row["c"] + 1
+        now = _now_utc_iso()
 
-    questions = _select_questions_for_attempt(db, attempt_id)
-    docs = _select_gold_docs_for_attempt(db, attempt_id)
+        cur = db.execute(
+            """
+            INSERT INTO training_attempts(
+                user_id, attempt_number, quiz_score, quiz_total,
+                annotation_pass_count, annotation_total, annotation_details_json,
+                passed, started_at, finished_at
+            ) VALUES (?, ?, 0, ?, 0, ?, NULL, 0, ?, NULL)
+            """,
+            (
+                user_id,
+                attempt_number,
+                QUIZ_QUESTION_COUNT,
+                GOLD_DOC_COUNT,
+                now,
+            ),
+        )
+        attempt_id = cur.lastrowid
+        assert attempt_id is not None
 
-    audit.log_activity(
-        db, user_id=user_id, event_type="training_start",
-        extra={"attempt_id": attempt_id, "attempt_number": attempt_number},
-    )
+        questions = _select_questions_for_attempt(db, attempt_id)
+        docs = _select_gold_docs_for_attempt(db, attempt_id)
+
+        audit.log_activity(
+            db, user_id=user_id, event_type="training_start",
+            extra={"attempt_id": attempt_id, "attempt_number": attempt_number},
+        )
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+
     return {
         "attempt_id": attempt_id,
         "attempt_number": attempt_number,
@@ -350,7 +376,18 @@ def submit_annotation(
             raise GoldDocAlreadySubmittedError(gold_id)
 
         doc = by_id[gold_id]
-        summary = matching.match_gold_doc(doc["expected_concepts"], references)
+        
+        # Normalize incoming references to resolve law abbreviations (e.g. VUK) and clean fields
+        from backend.annotations.diff import normalize_reference
+        normalized_refs = []
+        for r in references:
+            try:
+                normalized_refs.append(normalize_reference(r))
+            except Exception:
+                # If a reference is incomplete/invalid, keep it as-is so matching fails naturally
+                normalized_refs.append(r)
+
+        summary = matching.match_gold_doc(doc["expected_concepts"], normalized_refs)
         passed = matching.is_doc_pass(summary, min_concept_count=doc["min_concept_count"])
         details[gold_id] = {
             "passed": passed,
@@ -378,6 +415,7 @@ def submit_annotation(
         "matched_count": summary["matched_count"],
         "expected_count": summary["expected_count"],
         "min_concept_count": doc["min_concept_count"],
+        "expected_concepts": doc["expected_concepts"],
     }
 
 
@@ -600,25 +638,37 @@ def soft_delete_gold_doc(
     """Tombstone via is_deleted=1. Idempotent. Preserves created_at and
     created_by_admin_id from the original row if any (those columns are
     absent from the ON CONFLICT DO UPDATE SET clause)."""
-    baseline_ids = {d["gold_id"] for d in code_gold.GOLD_DOCS}
-    source = "override" if gold_id in baseline_ids else "custom"
-    now = datetime.now(timezone.utc).isoformat()
-    db.execute(
-        """
-        INSERT INTO training_gold_doc_overrides(
-            gold_id, is_deleted, content, expected_concepts,
-            min_concept_count, source, created_by_admin_id,
-            created_at, updated_at
-        ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
-        ON CONFLICT(gold_id) DO UPDATE SET
-            is_deleted = 1,
-            content = NULL,
-            expected_concepts = NULL,
-            min_concept_count = NULL,
-            updated_at = excluded.updated_at
-        """,
-        (gold_id, source, admin_id, now, now),
-    )
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        active_ids = {d["gold_id"] for d in get_active_gold_docs(db)}
+        if gold_id in active_ids and len(active_ids) <= GOLD_DOC_COUNT:
+            raise TrainingPoolTooSmallError(
+                "gold_document", len(active_ids) - 1, GOLD_DOC_COUNT,
+            )
+
+        baseline_ids = {d["gold_id"] for d in code_gold.GOLD_DOCS}
+        source = "override" if gold_id in baseline_ids else "custom"
+        now = datetime.now(timezone.utc).isoformat()
+        db.execute(
+            """
+            INSERT INTO training_gold_doc_overrides(
+                gold_id, is_deleted, content, expected_concepts,
+                min_concept_count, source, created_by_admin_id,
+                created_at, updated_at
+            ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
+            ON CONFLICT(gold_id) DO UPDATE SET
+                is_deleted = 1,
+                content = NULL,
+                expected_concepts = NULL,
+                min_concept_count = NULL,
+                updated_at = excluded.updated_at
+            """,
+            (gold_id, source, admin_id, now, now),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -666,24 +716,36 @@ def soft_delete_quiz_override(
 ) -> None:
     """Tombstone via is_deleted=1. Preserves created_at, source,
     created_by_admin_id from the original row if any."""
-    baseline_ids = {q["id"] for q in quiz_data.QUIZ_QUESTIONS}
-    source = "override" if question_id in baseline_ids else "custom"
-    now = datetime.now(timezone.utc).isoformat()
-    db.execute(
-        """
-        INSERT INTO training_quiz_overrides(
-            question_id, is_deleted, text, choices_json, correct_choice_idx,
-            source, created_by_admin_id, created_at, updated_at
-        ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
-        ON CONFLICT(question_id) DO UPDATE SET
-            is_deleted = 1,
-            text = NULL,
-            choices_json = NULL,
-            correct_choice_idx = NULL,
-            updated_at = excluded.updated_at
-        """,
-        (question_id, source, admin_id, now, now),
-    )
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        active_ids = {q["id"] for q in quiz_data.get_active_quiz_questions(db)}
+        if question_id in active_ids and len(active_ids) <= QUIZ_QUESTION_COUNT:
+            raise TrainingPoolTooSmallError(
+                "quiz", len(active_ids) - 1, QUIZ_QUESTION_COUNT,
+            )
+
+        baseline_ids = {q["id"] for q in quiz_data.QUIZ_QUESTIONS}
+        source = "override" if question_id in baseline_ids else "custom"
+        now = datetime.now(timezone.utc).isoformat()
+        db.execute(
+            """
+            INSERT INTO training_quiz_overrides(
+                question_id, is_deleted, text, choices_json, correct_choice_idx,
+                source, created_by_admin_id, created_at, updated_at
+            ) VALUES (?, 1, NULL, NULL, NULL, ?, ?, ?, ?)
+            ON CONFLICT(question_id) DO UPDATE SET
+                is_deleted = 1,
+                text = NULL,
+                choices_json = NULL,
+                correct_choice_idx = NULL,
+                updated_at = excluded.updated_at
+            """,
+            (question_id, source, admin_id, now, now),
+        )
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
 
 # ---------------------------------------------------------------------------

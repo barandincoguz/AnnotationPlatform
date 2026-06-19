@@ -5,21 +5,19 @@ from pydantic import BaseModel, Field, model_validator
 class QuestionOut(BaseModel):
     id: str
     text: str
-    choices: list[str]
+    choices: list[str] = Field(min_length=4, max_length=4)
 
 
 class GoldDocOut(BaseModel):
     gold_id: str
     content: str
-    expected_concepts: list[dict]   # 16c.1 — reveal panel needs this
-    min_concept_count: int          # 16c.1 — reveal panel label
 
 
 class StartResponse(BaseModel):
     attempt_id: int
     attempt_number: int
-    questions: list[QuestionOut]
-    gold_docs: list[GoldDocOut]
+    questions: list[QuestionOut] = Field(min_length=5, max_length=5)
+    gold_docs: list[GoldDocOut] = Field(min_length=3, max_length=3)
 
 
 class QuizSubmitRequest(BaseModel):
@@ -51,6 +49,7 @@ class AnnotateSubmitResponse(BaseModel):
     matched_count: int
     expected_count: int
     min_concept_count: int
+    expected_concepts: list[dict]
 
 
 class OkResponse(BaseModel):

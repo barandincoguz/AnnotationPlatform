@@ -39,6 +39,16 @@ def test_prod_accepts_strong_secret(monkeypatch):
     enforce_production_secrets()  # no raise
 
 
+def test_prod_accepts_wildcard_origin(monkeypatch):
+    monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
+    monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
+    monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://example.com/repo.git")
+    monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"*"})
+    enforce_production_secrets()  # no raise
+
+
+
 def test_prod_rejects_short_bootstrap_password(monkeypatch):
     monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)

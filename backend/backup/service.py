@@ -3,6 +3,7 @@ rotate older snapshots. No git involvement here — that's git_remote.py."""
 import json
 import logging
 import os
+import shutil
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,13 +20,16 @@ log = logging.getLogger(__name__)
 # Tables NOT dumped.
 #   - schema_migrations is re-derived from migrations on the restored DB,
 #     so persisting it would create version-skew risk.
-#   - user_sessions stores `session_token` plaintext (the same opaque value
-#     that lives in the `anotasyon_session` cookie and is the only auth
-#     credential). Snapshots are pushed to GitHub when `BACKUP_REPO_URL`
-#     is set; whoever can read the backup repo would immediately own every
-#     active session. Excluding the table is correct: sessions are
-#     ephemeral and re-login on restore is a feature, not a bug.
-EXCLUDED_TABLES = {"schema_migrations", "user_sessions"}
+#   - user_sessions contains token digests and operational metadata. Session
+#     state has no restore value, so copying it into a backup repository would
+#     only preserve stale authentication state. Re-login after restore is the
+#     intentional contract.
+EXCLUDED_TABLES = {
+    "schema_migrations",
+    "user_sessions",
+    "document_locks",
+    "_outbox",
+}
 
 # Snapshot format version. Stored under "__format_version" (double-underscore
 # prefix marks payload-level metadata, distinct from table names). Bump when
@@ -60,7 +64,7 @@ def dump_all_tables_to_json(db: sqlite3.Connection) -> dict:
     Reads under BEGIN IMMEDIATE so the snapshot is consistent across tables
     even if other writers are active.
     """
-    db.execute("BEGIN IMMEDIATE")
+    db.execute("BEGIN")
     try:
         tables = [
             r["name"] for r in db.execute(
@@ -88,6 +92,98 @@ def dump_all_tables_to_json(db: sqlite3.Connection) -> dict:
         raise
 
     return out
+
+
+def _snapshot_table_names(db: sqlite3.Connection) -> list[str]:
+    return sorted(
+        row["name"]
+        for row in db.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+        if row["name"] not in EXCLUDED_TABLES
+    )
+
+
+def _fsync_directory(path: Path) -> None:
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def write_database_snapshot(
+    db: sqlite3.Connection,
+    backup_dir: Path,
+    ts: str,
+) -> tuple[Path, int]:
+    """Stream a transaction-consistent DB snapshot directly to disk."""
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    latest = backup_dir / "latest.json"
+    timestamped = backup_dir / f"{ts}.json"
+    timestamped_tmp = timestamped.with_suffix(".json.tmp")
+    latest_tmp = latest.with_suffix(".json.tmp")
+
+    db.execute("BEGIN")
+    try:
+        tables = _snapshot_table_names(db)
+        with open(timestamped_tmp, "w", encoding="utf-8") as stream:
+            stream.write("{")
+            stream.write(json.dumps("__format_version"))
+            stream.write(":")
+            stream.write(str(SNAPSHOT_FORMAT_VERSION))
+
+            for table in tables:
+                stream.write(",")
+                stream.write(json.dumps(table, ensure_ascii=False))
+                stream.write(":[")
+                columns = [
+                    row["name"]
+                    for row in db.execute(
+                        f"PRAGMA table_info({table})"
+                    ).fetchall()
+                ]
+                first_row = True
+                for row in db.execute(f"SELECT * FROM {table}"):
+                    if not first_row:
+                        stream.write(",")
+                    first_row = False
+                    stream.write(
+                        json.dumps(
+                            {column: row[column] for column in columns},
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        )
+                    )
+                stream.write("]")
+            stream.write("}")
+            stream.flush()
+            os.fsync(stream.fileno())
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        timestamped_tmp.unlink(missing_ok=True)
+        raise
+
+    os.replace(timestamped_tmp, timestamped)
+    _fsync_directory(backup_dir)
+    try:
+        with open(timestamped, "rb") as source, open(latest_tmp, "wb") as target:
+            shutil.copyfileobj(source, target, length=1024 * 1024)
+            target.flush()
+            os.fsync(target.fileno())
+        os.replace(latest_tmp, latest)
+        _fsync_directory(backup_dir)
+    except Exception:
+        latest_tmp.unlink(missing_ok=True)
+        raise
+
+    return timestamped, len(tables)
 
 
 def write_snapshot(payload: dict, backup_dir: Path, ts: str) -> Path:
@@ -165,27 +261,19 @@ def run_backup_cycle(
     repo_url = config.BACKUP_REPO_URL
     pat = config.GITHUB_PAT
 
-    # --- dump ---
-    try:
-        payload = dump_all_tables_to_json(db)
-    except Exception as e:
-        audit.log_system_event(
-            db, "backup_failed", "error",
-            message="dump failed",
-            extra={"step": "dump", "error": str(e)},
-            trace_id=trace_id,
-        )
-        raise
-
-    # --- write snapshot ---
+    # --- stream transaction-consistent snapshot ---
     ts = utc_timestamp()
     try:
-        snapshot_path = write_snapshot(payload, backup_dir, ts=ts)
+        snapshot_path, table_count = write_database_snapshot(
+            db,
+            backup_dir,
+            ts,
+        )
     except Exception as e:
         audit.log_system_event(
             db, "backup_failed", "error",
-            message="write failed",
-            extra={"step": "write", "error": str(e)},
+            message="snapshot failed",
+            extra={"step": "snapshot", "error": str(e)},
             trace_id=trace_id,
         )
         raise
@@ -239,7 +327,6 @@ def run_backup_cycle(
         )
         raise
 
-    table_count = sum(1 for k in payload if not k.startswith("__"))
     audit.log_system_event(
         db, "backup_success", "info",
         message=f"backed up {table_count} tables",

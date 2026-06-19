@@ -1,4 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
+
+from backend import config
+from backend.shared import auth
 from backend.shared.db import connect
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
@@ -93,7 +98,11 @@ def test_login_correct_credentials_creates_session(db):
     assert isinstance(token, str)
     assert len(token) >= 32
 
-    sess = db.execute("SELECT * FROM user_sessions WHERE session_token=?", (token,)).fetchone()
+    sess = db.execute(
+        "SELECT * FROM user_sessions WHERE session_token=?",
+        (auth.hash_session_token(token),),
+    ).fetchone()
+    assert sess["session_token"] != token
     assert sess["user_id"] == uid
     assert sess["ended_at"] is None
     assert sess["ip_hash"] is not None
@@ -124,8 +133,13 @@ def test_logout_ends_session(db):
     service.register(db, username="alice", password="password123",
                       invite_code="BURSIYER-2026", email=None)
     token = service.login(db, username="alice", password="password123", ip="1.2.3.4")
-    service.logout(db, session_token=token)
-    sess = db.execute("SELECT ended_at FROM user_sessions WHERE session_token=?", (token,)).fetchone()
+    user_id, released = service.logout(db, session_token=token)
+    assert user_id is not None
+    assert released == []
+    sess = db.execute(
+        "SELECT ended_at FROM user_sessions WHERE session_token=?",
+        (auth.hash_session_token(token),),
+    ).fetchone()
     assert sess["ended_at"] is not None
 
 
@@ -148,6 +162,47 @@ def test_get_user_by_session_after_logout_returns_none(db):
                       invite_code="BURSIYER-2026", email=None)
     token = service.login(db, username="alice", password="password123", ip="1.2.3.4")
     service.logout(db, session_token=token)
+    assert service.get_user_by_session(db, session_token=token) is None
+
+
+def test_get_user_by_session_rejects_and_closes_expired_session(db, monkeypatch):
+    monkeypatch.setattr(config, "SESSION_MAX_AGE_SECONDS", 60)
+    service.register(
+        db, username="alice", password="password123",
+        invite_code="BURSIYER-2026", email=None,
+    )
+    token = service.login(
+        db, username="alice", password="password123", ip="1.2.3.4",
+    )
+    expired = (datetime.now(timezone.utc) - timedelta(seconds=61)).isoformat()
+    db.execute(
+        "UPDATE user_sessions SET started_at=?, last_activity_at=? "
+        "WHERE session_token=?",
+        (expired, expired, auth.hash_session_token(token)),
+    )
+
+    assert service.get_user_by_session(db, session_token=token) is None
+    row = db.execute(
+        "SELECT ended_at FROM user_sessions WHERE session_token=?",
+        (auth.hash_session_token(token),),
+    ).fetchone()
+    assert row["ended_at"] is not None
+
+
+def test_get_user_by_session_fails_closed_on_malformed_started_at(db):
+    service.register(
+        db, username="alice", password="password123",
+        invite_code="BURSIYER-2026", email=None,
+    )
+    token = service.login(
+        db, username="alice", password="password123", ip="1.2.3.4",
+    )
+    db.execute(
+        "UPDATE user_sessions SET started_at='not-a-date' "
+        "WHERE session_token=?",
+        (auth.hash_session_token(token),),
+    )
+
     assert service.get_user_by_session(db, session_token=token) is None
 
 
@@ -204,6 +259,59 @@ def test_disable_user_sets_inactive(db):
 
     row = db.execute("SELECT is_active FROM users WHERE id=?", (target,)).fetchone()
     assert row["is_active"] == 0
+
+
+def test_disable_user_ends_sessions_and_releases_locks(db):
+    admin = service.register(
+        db, username="admin1", password="adminpass1",
+        invite_code="BURSIYER-2026", email=None,
+    )
+    db.execute("UPDATE users SET role='admin' WHERE id=?", (admin,))
+    target = service.register(
+        db, username="alice", password="password123",
+        invite_code="BURSIYER-2026", email=None,
+    )
+    raw_token = service.login(
+        db, username="alice", password="password123", ip="1.2.3.4",
+    )
+    db.execute(
+        """
+        INSERT INTO documents_meta(
+            document_id, file_path, pdf_text, word_count, sentence_count,
+            text_density, estimated_difficulty, created_at
+        ) VALUES (
+            'disable-doc', 'path', 'text', 1, 1, 1, 'Kolay', datetime('now')
+        )
+        """
+    )
+    db.execute(
+        """
+        INSERT INTO document_locks(
+            document_id, user_id, acquired_at, last_heartbeat, expires_at
+        ) VALUES (
+            'disable-doc', ?, datetime('now'), datetime('now'),
+            datetime('now', '+5 minutes')
+        )
+        """,
+        (target,),
+    )
+
+    released = service.disable_user(
+        db,
+        admin_user_id=admin,
+        target_user_id=target,
+    )
+
+    assert released == ["disable-doc"]
+    assert service.get_user_by_session(db, session_token=raw_token) is None
+    assert db.execute(
+        "SELECT 1 FROM document_locks WHERE user_id=?",
+        (target,),
+    ).fetchone() is None
+    assert db.execute(
+        "SELECT ended_at FROM user_sessions WHERE user_id=?",
+        (target,),
+    ).fetchone()["ended_at"] is not None
 
 
 def test_disable_last_admin_raises(db):

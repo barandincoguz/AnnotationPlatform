@@ -37,7 +37,7 @@ describe('RequireSeenManual', () => {
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
-      destinationStubs: [{ path: '/help', testId: 'route-help' }],
+      wildcardEntry: true,
     })
     expect(await screen.findByTestId('route-help')).toBeInTheDocument()
   })
@@ -50,7 +50,7 @@ describe('RequireSeenManual', () => {
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
-      destinationStubs: [{ path: '/help', testId: 'route-help' }],
+      wildcardEntry: true,
     })
     expect(screen.getByTestId('ok')).toBeInTheDocument()
   })

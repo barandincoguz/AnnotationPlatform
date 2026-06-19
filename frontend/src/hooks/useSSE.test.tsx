@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
@@ -51,14 +51,16 @@ beforeEach(() => {
     created_at: '2026-05-01T00:00:00+00:00',
   })
 })
-afterEach(() => {
-  useAuthStore.setState({ status: 'loading', user: null, error: null })
-})
 
 function wrapper({ children, qc }: { children: ReactNode; qc: QueryClient }) {
   return (
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/']}>{children}</MemoryRouter>
+      <MemoryRouter
+        initialEntries={['/']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        {children}
+      </MemoryRouter>
     </QueryClientProvider>
   )
 }
@@ -77,36 +79,38 @@ describe('useSSE', () => {
 
   it('lock_acquired invalidates feed', async () => {
     const qc = new QueryClient()
-    const spy = vi.spyOn(qc, 'invalidateQueries')
+    const spy = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue()
     renderHook(() => useSSE({ acquiringDocId: null }), {
       wrapper: ({ children }) => wrapper({ children, qc }),
     })
-    act(() => {
+    await act(async () => {
       MockEventSource.instances[0]!.emit('lock_acquired', {
         document_id: 'foo',
         by_user_id: 99,
         by_username: 'ahmet',
       })
+      await Promise.resolve()
     })
     await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['feed'] }))
   })
 
   it('lock_released invalidates feed', async () => {
     const qc = new QueryClient()
-    const spy = vi.spyOn(qc, 'invalidateQueries')
+    const spy = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue()
     renderHook(() => useSSE({ acquiringDocId: null }), {
       wrapper: ({ children }) => wrapper({ children, qc }),
     })
-    act(() => {
+    await act(async () => {
       MockEventSource.instances[0]!.emit('lock_released', {
         document_id: 'foo',
         by_user_id: 99,
       })
+      await Promise.resolve()
     })
     await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['feed'] }))
   })
 
-  it('lock_acquired for own user does NOT trigger kick-out toast', () => {
+  it('lock_acquired for own user does NOT trigger kick-out toast', async () => {
     const qc = new QueryClient()
     renderHook(() => useSSE({ acquiringDocId: null }), {
       wrapper: ({ children }) => wrapper({ children, qc }),
@@ -115,18 +119,19 @@ describe('useSSE', () => {
       writable: true,
       value: { pathname: '/docs/foo' },
     })
-    expect(() => {
-      act(() => {
+    await expect(
+      act(async () => {
         MockEventSource.instances[0]!.emit('lock_acquired', {
           document_id: 'foo',
           by_user_id: 1,
           by_username: 'tester',
         })
-      })
-    }).not.toThrow()
+        await Promise.resolve()
+      }),
+    ).resolves.toBeUndefined()
   })
 
-  it('lock_acquired during own acquire is ignored (F1)', () => {
+  it('lock_acquired during own acquire is ignored (F1)', async () => {
     const qc = new QueryClient()
     Object.defineProperty(window, 'location', {
       writable: true,
@@ -135,14 +140,15 @@ describe('useSSE', () => {
     renderHook(() => useSSE({ acquiringDocId: 'foo' }), {
       wrapper: ({ children }) => wrapper({ children, qc }),
     })
-    expect(() => {
-      act(() => {
+    await expect(
+      act(async () => {
         MockEventSource.instances[0]!.emit('lock_acquired', {
           document_id: 'foo',
           by_user_id: 99,
           by_username: 'ahmet',
         })
-      })
-    }).not.toThrow()
+        await Promise.resolve()
+      }),
+    ).resolves.toBeUndefined()
   })
 })

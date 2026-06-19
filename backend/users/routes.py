@@ -10,7 +10,7 @@ from backend import config
 from backend.gamification import service as gamification_service
 from backend.gamification.models import ProfileResponse
 from backend.shared import audit
-from backend.shared.rate_limit import rate_limit
+from backend.shared.rate_limit import FailureRateLimiter, rate_limit
 from backend.users import service
 from backend.users.deps import (
     get_db, get_current_user, get_request_ip
@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 # admin password hits 429 long before bcrypt is the bottleneck. The
 # in-memory sliding-window limiter is appropriate for the single-process
 # uvicorn deployment; cross-host coordination is out of polish scope.
-_login_throttle = rate_limit(
+_login_failures = FailureRateLimiter(
     namespace="auth.login",
     max_hits=10,
     window_seconds=5 * 60,
@@ -87,8 +87,9 @@ def login(
     request: Request,
     response: Response,
     db: sqlite3.Connection = Depends(get_db),
-    _throttle: None = Depends(_login_throttle),
 ):
+    rate_key = get_request_ip(request) or "unknown"
+    _login_failures.check(rate_key)
     try:
         token = service.login(
             db,
@@ -98,17 +99,20 @@ def login(
             user_agent=request.headers.get("user-agent"),
         )
     except service.InvalidCredentials as e:
+        _login_failures.record_failure(rate_key)
         raise HTTPException(status_code=401, detail=str(e))
     except service.UserDisabled as e:
+        _login_failures.record_failure(rate_key)
         raise HTTPException(status_code=401, detail=str(e))
 
     response.set_cookie(
         key=config.SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        samesite="none" if config.is_production() else "lax",
-        max_age=30 * 24 * 60 * 60,  # 30 days
-        secure=config.is_production(),
+        samesite=config.SESSION_COOKIE_SAMESITE,
+        max_age=config.SESSION_MAX_AGE_SECONDS,
+        secure=config.is_production()
+        or config.SESSION_COOKIE_SAMESITE == "none",
         path="/",
     )
     return {"ok": True}
@@ -122,27 +126,14 @@ async def logout(
 ):
     token = request.cookies.get(config.SESSION_COOKIE_NAME)
     if token:
-        # Find user_id and active locks before logging out
-        session = db.execute(
-            "SELECT user_id FROM user_sessions WHERE session_token=? AND ended_at IS NULL",
-            (token,),
-        ).fetchone()
-        
-        if session:
-            user_id = session["user_id"]
-            # Find active locks held by this user
-            locks = db.execute(
-                "SELECT document_id FROM document_locks WHERE user_id=?",
-                (user_id,),
-            ).fetchall()
-            
-            # Perform logout (ends session + deletes locks)
-            service.logout(db, session_token=token)
-            
+        user_id, released_document_ids = service.logout(
+            db,
+            session_token=token,
+        )
+        if user_id is not None:
             # Publish lock_released for each released lock so the UI instantly updates
             from backend.shared.sse import broker as sse_broker
-            for lock in locks:
-                doc_id = lock["document_id"]
+            for doc_id in released_document_ids:
                 try:
                     await sse_broker.publish_broadcast(
                         "lock_released",
@@ -154,9 +145,14 @@ async def logout(
                     )
                 except Exception:
                     log.exception("publish lock_released failed during logout for %s", doc_id)
-        else:
-            service.logout(db, session_token=token)
-    response.delete_cookie(config.SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(
+        config.SESSION_COOKIE_NAME,
+        path="/",
+        secure=config.is_production()
+        or config.SESSION_COOKIE_SAMESITE == "none",
+        httponly=True,
+        samesite=config.SESSION_COOKIE_SAMESITE,
+    )
     return {"ok": True}
 
 
@@ -303,14 +299,14 @@ def admin_demote(
 
 
 @router.post("/admin/users/{user_id}/disable", response_model=OkResponse)
-def admin_disable(
+async def admin_disable(
     user_id: int,
     db: sqlite3.Connection = Depends(get_db),
     admin: sqlite3.Row = Depends(require_admin),
 ):
     trace_id = audit.gen_trace_id()
     try:
-        service.disable_user(
+        released_document_ids = service.disable_user(
             db, admin_user_id=admin["id"], target_user_id=user_id,
             trace_id=trace_id,
         )
@@ -325,6 +321,23 @@ def admin_disable(
             status_code=409,
             detail={"error": "last_admin_protection", "message": str(e)},
         )
+    if released_document_ids:
+        from backend.shared.sse import broker as sse_broker
+        for document_id in released_document_ids:
+            try:
+                await sse_broker.publish_broadcast(
+                    "lock_released",
+                    {
+                        "document_id": document_id,
+                        "by_user_id": user_id,
+                        "reason": "user_disabled",
+                    },
+                )
+            except Exception:
+                log.exception(
+                    "publish lock_released failed during user disable for %s",
+                    document_id,
+                )
     return {"ok": True}
 
 

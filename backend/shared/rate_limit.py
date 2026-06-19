@@ -53,6 +53,58 @@ def reset_for_tests() -> None:
             ns_bucket.clear()
 
 
+class FailureRateLimiter:
+    """Sliding-window limiter that records only explicit failures.
+
+    Authentication uses this instead of a pre-request dependency so valid
+    logins never consume the brute-force budget. This matters for offices
+    where many legitimate users share one public NAT address.
+    """
+
+    def __init__(self, *, namespace: str, max_hits: int, window_seconds: int):
+        self.max_hits = max_hits
+        self.window_seconds = window_seconds
+        self.bucket = _bucket(namespace)
+
+    def _evict_stale(self, key: str, now: float) -> deque[float]:
+        cutoff = now - self.window_seconds
+        dq = self.bucket.get(key)
+        if dq is None:
+            dq = deque(maxlen=self.max_hits)
+            self.bucket[key] = dq
+        while dq and dq[0] < cutoff:
+            dq.popleft()
+        return dq
+
+    def check(self, key: str) -> None:
+        """Raise 429 when the key has exhausted its failure budget."""
+        from fastapi import HTTPException
+
+        now = time.monotonic()
+        with _LOCK:
+            dq = self._evict_stale(key, now)
+            if len(dq) < self.max_hits:
+                return
+            retry_after = max(
+                1,
+                int(dq[0] + self.window_seconds - now + 0.999),
+            )
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limited",
+                "message": f"too many requests; retry in ~{retry_after}s",
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    def record_failure(self, key: str) -> None:
+        """Consume one slot after an authentication failure."""
+        now = time.monotonic()
+        with _LOCK:
+            self._evict_stale(key, now).append(now)
+
+
 def rate_limit(
     *,
     namespace: str,

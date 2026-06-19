@@ -42,11 +42,29 @@ def test_questions_in_turkish():
     assert any(c in text_blob for c in tr_chars)
 
 
-def test_questions_use_current_save_button_label():
+def test_questions_do_not_use_retired_save_button_label():
     content = " ".join(
         text
         for q in quiz_data.QUIZ_QUESTIONS
         for text in [q["text"], *q["choices"]]
     )
     assert "Sakla" not in content
-    assert "Kaydet" in content
+
+
+def test_questions_do_not_expose_implementation_jargon():
+    content = " ".join(
+        text
+        for q in quiz_data.QUIZ_QUESTIONS
+        for text in [q["text"], *q["choices"]]
+    ).lower()
+    for term in (
+        "is_diff_zero",
+        "frontend",
+        "primary key",
+        "database",
+        "veritabanı",
+        "backup",
+        "tuple",
+        "422",
+    ):
+        assert term not in content

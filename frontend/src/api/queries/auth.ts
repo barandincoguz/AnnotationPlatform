@@ -46,9 +46,11 @@ export function useRegisterMutation() {
       // Backend /api/auth/register returns UserOut (201) but does NOT
       // establish a session cookie. Treat as "create account, log in next".
       unwrap(await client.POST('/api/auth/register', { body: input })),
-    onSuccess: () => {
+    onSuccess: (user) => {
       toast.success('Hesabınız oluşturuldu. Lütfen giriş yapın.')
-      navigate('/login')
+      navigate('/login', {
+        state: { registeredUsername: user.username },
+      })
     },
   })
 }

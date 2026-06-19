@@ -14,6 +14,8 @@ export default tseslint.config(
       'dist',
       'coverage',
       'node_modules',
+      'test-results',
+      'playwright-report',
       'src/api/types.ts',
       'src/components/ui/**',
       'tailwind.config.ts',

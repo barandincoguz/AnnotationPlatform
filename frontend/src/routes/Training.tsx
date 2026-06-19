@@ -22,7 +22,6 @@ import { AnnotateStep } from '@/components/training/AnnotateStep'
 import { SummaryStep } from '@/components/training/SummaryStep'
 import { LockedOutScreen } from '@/components/training/LockedOutScreen'
 import { PendingStartBanner } from '@/components/training/PendingStartBanner'
-import { SkipConfirmDialog } from '@/components/training/SkipConfirmDialog'
 import type { components } from '@/api/types'
 
 type ReferenceItem = components['schemas']['ReferenceItem']
@@ -47,8 +46,6 @@ export function Training() {
   const logoutMut = useLogoutMutation()
 
   const [pendingSentinelVisible, setPendingSentinelVisible] = useState(false)
-  const [skipDialogOpen, setSkipDialogOpen] = useState(false)
-  const skipLinkVisible = step === 'idle' || step === 'quiz' || step === 'doc'
 
   useEffect(() => {
     if (user?.has_passed_training && step !== 'summary' && step !== 'locked-out') {
@@ -75,11 +72,15 @@ export function Training() {
       setPendingSentinelVisible(false)
     } catch (err) {
       if (is409AlreadyPassed(err)) {
+        sessionStorage.removeItem(PENDING_START_SENTINEL_KEY)
+        setPendingSentinelVisible(false)
         await refreshAuth(qc)
         navigate('/', { replace: true })
         return
       }
       if (is403LockedOut(err)) {
+        sessionStorage.removeItem(PENDING_START_SENTINEL_KEY)
+        setPendingSentinelVisible(false)
         setStep('locked-out')
         return
       }
@@ -156,21 +157,6 @@ export function Training() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-6 py-10 lg:py-14">
-      {skipLinkVisible && (
-        <div className="flex justify-end mb-2">
-          <button
-            type="button"
-            onClick={() => setSkipDialogOpen(true)}
-            className="text-xs text-destructive hover:text-destructive/80 underline"
-          >
-            Eğitimi geç (önerilmez)
-          </button>
-        </div>
-      )}
-      <SkipConfirmDialog
-        open={skipDialogOpen}
-        onClose={() => setSkipDialogOpen(false)}
-      />
       <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
         Eğitim
       </p>

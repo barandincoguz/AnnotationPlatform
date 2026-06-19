@@ -9,6 +9,18 @@ import { useAuthStore } from '@/stores/authStore'
 import { Login } from './Login'
 
 describe('Login route', () => {
+  it('prefills the username handed off by successful registration', () => {
+    renderWithProviders(<Login />, {
+      initialEntries: [{
+        pathname: '/login',
+        state: { registeredUsername: 'yeni_kullanici' },
+      }],
+    })
+
+    expect(screen.getByLabelText(/kullanıcı adı/i)).toHaveValue('yeni_kullanici')
+    expect(screen.getByLabelText(/şifre/i)).toHaveValue('')
+  })
+
   it('on submit success: authed + navigates to /', async () => {
     server.use(
       http.post('http://localhost/api/auth/login', () => HttpResponse.json({ ok: true })),

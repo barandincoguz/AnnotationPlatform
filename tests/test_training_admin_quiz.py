@@ -75,7 +75,7 @@ def test_start_attempt_uses_resolver_with_admin_override(client, bootstrap_admin
     # Switch to bursiyer to start training
     client.cookies.clear()
     user_id = seen_manual_user("bursiyer1", "INVITE-2026")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 200
     questions = r.json()["questions"]
     # If q01 is among the 5 sampled, it should have the override text
@@ -157,23 +157,18 @@ def test_delete_quiz_audit_carries_trace_id(client, bootstrap_admin):
         db.close()
 
 
-def test_insufficient_quiz_pool_logs_warning(client, caplog, bootstrap_admin, seen_manual_user):
-    """Tombstoning enough baseline questions so the active pool drops below 5
-    should produce a warning log when start_attempt fires."""
-    import logging
+def test_delete_cannot_reduce_quiz_pool_below_five(
+    client, bootstrap_admin, seen_manual_user,
+):
     bootstrap_admin()
-    # Tombstone 4 baseline questions, leaving only 4 active (8 - 4 = 4)
-    for qid in ("q01", "q02", "q03", "q04"):
-        client.delete(f"/api/admin/training/quiz/{qid}")
+    for qid in ("q01", "q02", "q03"):
+        assert client.delete(f"/api/admin/training/quiz/{qid}").status_code == 200
+    rejected = client.delete("/api/admin/training/quiz/q04")
+    assert rejected.status_code == 409
+    assert rejected.json()["detail"]["error"] == "training_pool_minimum"
 
     client.cookies.clear()
     seen_manual_user("bursiyer1", "INVITE-2026")
-    with caplog.at_level(logging.WARNING, logger="backend.training.service"):
-        r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 200
-    # Should be only 4 questions
-    assert len(r.json()["questions"]) == 4
-    assert any(
-        "quiz pool has only" in record.message
-        for record in caplog.records if record.levelno == logging.WARNING
-    )
+    assert len(r.json()["questions"]) == 5

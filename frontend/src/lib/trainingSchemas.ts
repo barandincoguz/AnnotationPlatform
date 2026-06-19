@@ -20,11 +20,6 @@ export const questionSchema = z.object({
 export const goldDocSchema = z.object({
   gold_id: z.string(),
   content: z.string(),
-  // 16c.1: surfaced for the reveal panel. Permissive shape (dict) because
-  // the per-concept keys vary across gold docs (kanun_no, kanun_ad, madde,
-  // fikra, bent — any subset).
-  expected_concepts: z.array(z.record(z.string(), z.string())).default([]),
-  min_concept_count: z.number().int().default(1),
 })
 
 export const startResponseSchema = z.object({
@@ -52,6 +47,7 @@ export const annotateSubmitResponseSchema = z.object({
   matched_count: z.number().int(),
   expected_count: z.number().int(),
   min_concept_count: z.number().int(),
+  expected_concepts: z.array(z.record(z.string(), z.string().nullable())),
 })
 
 export type HelpSection = z.infer<typeof helpSectionSchema>

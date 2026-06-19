@@ -6,6 +6,24 @@ import type { LockInfo, LockConflictDetail } from '@/api/queries/locks'
 const HEARTBEAT_MS = 30_000
 const HEARTBEAT_RETRY_LIMIT = 2
 
+function releaseWithKeepalive(documentId: string) {
+  try {
+    const apiBase =
+      typeof import.meta.env.VITE_API_BASE_URL === 'string'
+        ? import.meta.env.VITE_API_BASE_URL
+        : ''
+    fetch(`${apiBase}/api/locks/${encodeURIComponent(documentId)}/release`, {
+      method: 'POST',
+      credentials: 'include',
+      keepalive: true,
+    }).catch(() => {
+      // Server TTL is the correctness backstop.
+    })
+  } catch {
+    // Server TTL is the correctness backstop.
+  }
+}
+
 export type LockStatus =
   | 'idle'
   | 'acquiring'
@@ -34,15 +52,25 @@ const INITIAL: LockSnapshot = {
 export function useLock(docId: string) {
   const [snapshot, setSnapshot] = useState<LockSnapshot>(INITIAL)
   const [acquireAttempt, setAcquireAttempt] = useState(0)
-  const cancelledRef = useRef(false)
   const heldRef = useRef(false)
   const heartbeatTimerRef = useRef<number | null>(null)
   const heartbeatFailuresRef = useRef(0)
   const acquireAbortRef = useRef<AbortController | null>(null)
+  const effectGenerationRef = useRef(0)
+  const activeEffectKeyRef = useRef('')
+  const explicitlyReleasedGenerationsRef = useRef(new Set<number>())
   const myUserId = useAuthStore((s) => s.user?.id ?? null)
 
   useEffect(() => {
-    cancelledRef.current = false
+    const generation = effectGenerationRef.current + 1
+    effectGenerationRef.current = generation
+    const effectKey = `${docId}:${myUserId ?? 'anon'}`
+    const explicitlyReleasedGenerations =
+      explicitlyReleasedGenerationsRef.current
+    activeEffectKeyRef.current = effectKey
+    let cancelled = false
+    let acquired = false
+
     heldRef.current = false
     heartbeatFailuresRef.current = 0
     const acquireCtrl = new AbortController()
@@ -55,11 +83,12 @@ export function useLock(docId: string) {
           params: { path: { document_id: docId } },
           signal: acquireCtrl.signal,
         })
-        if (cancelledRef.current) {
-          if (result.error === undefined) {
-            void client.POST('/api/locks/{document_id}/release', {
-              params: { path: { document_id: docId } },
-            })
+        if (cancelled || effectGenerationRef.current !== generation) {
+          if (
+            result.error === undefined
+            && activeEffectKeyRef.current !== effectKey
+          ) {
+            releaseWithKeepalive(docId)
           }
           return
         }
@@ -85,6 +114,7 @@ export function useLock(docId: string) {
           )
         }
 
+        acquired = true
         heldRef.current = true
         setSnapshot({
           status: 'held',
@@ -94,9 +124,9 @@ export function useLock(docId: string) {
           conflictIsSameUser: false,
         })
 
-        if (cancelledRef.current) return
+        if (cancelled) return
         heartbeatTimerRef.current = window.setInterval(() => {
-          if (cancelledRef.current) return
+          if (cancelled || effectGenerationRef.current !== generation) return
           void (async () => {
             try {
               const hb = await client.POST('/api/locks/{document_id}/heartbeat', {
@@ -114,7 +144,11 @@ export function useLock(docId: string) {
             } catch {
               heartbeatFailuresRef.current += 1
             }
-            if (heartbeatFailuresRef.current >= HEARTBEAT_RETRY_LIMIT && !cancelledRef.current) {
+            if (
+              heartbeatFailuresRef.current >= HEARTBEAT_RETRY_LIMIT
+              && !cancelled
+              && effectGenerationRef.current === generation
+            ) {
               if (heartbeatTimerRef.current !== null) {
                 window.clearInterval(heartbeatTimerRef.current)
                 heartbeatTimerRef.current = null
@@ -125,48 +159,28 @@ export function useLock(docId: string) {
           })()
         }, HEARTBEAT_MS)
       } catch (e) {
-        if (cancelledRef.current) return
+        if (cancelled || effectGenerationRef.current !== generation) return
         if ((e as { name?: string })?.name === 'AbortError') return
         setSnapshot((s) => ({ ...s, status: 'error' }))
       }
     })()
 
     return () => {
-      cancelledRef.current = true
+      cancelled = true
       acquireAbortRef.current?.abort()
       if (heartbeatTimerRef.current !== null) {
         window.clearInterval(heartbeatTimerRef.current)
         heartbeatTimerRef.current = null
       }
-      if (!heldRef.current) return
+      if (!acquired) return
       heldRef.current = false
-      try {
-        // Best-effort fire-and-forget release on cleanup (page close, route
-        // change). Uses keepalive so the browser will deliver it even if the
-        // tab is closing. The 5-minute server TTL is the correctness
-        // backstop if this never lands. Errors are intentionally swallowed.
-        //
-        // Use VITE_API_BASE_URL (matching `client`) so split-origin deploys
-        // (frontend behind a CDN, API on a separate host, preview deploys)
-        // hit the right backend. window.location.origin breaks every
-        // deployment that does NOT serve the API from the same host as
-        // the SPA; falling back to '' yields a relative path which the
-        // browser resolves against the SPA origin — correct for same-origin
-        // deploys and the standard dev setup.
-        const apiBase =
-          typeof import.meta.env.VITE_API_BASE_URL === 'string'
-            ? import.meta.env.VITE_API_BASE_URL
-            : ''
-        fetch(`${apiBase}/api/locks/${encodeURIComponent(docId)}/release`, {
-          method: 'POST',
-          credentials: 'include',
-          keepalive: true,
-        }).catch(() => {
-          // swallow — server TTL is the backstop
-        })
-      } catch {
-        // no-op
-      }
+      queueMicrotask(() => {
+        if (explicitlyReleasedGenerations.delete(generation)) return
+        const sameLogicalOwnerRestarted =
+          activeEffectKeyRef.current === effectKey
+          && effectGenerationRef.current !== generation
+        if (!sameLogicalOwnerRestarted) releaseWithKeepalive(docId)
+      })
     }
   }, [docId, myUserId, acquireAttempt])
 
@@ -190,6 +204,7 @@ export function useLock(docId: string) {
       window.clearInterval(heartbeatTimerRef.current)
       heartbeatTimerRef.current = null
     }
+    explicitlyReleasedGenerationsRef.current.add(effectGenerationRef.current)
     heldRef.current = false
     setSnapshot({
       status: 'released',

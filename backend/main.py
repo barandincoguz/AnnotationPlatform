@@ -13,8 +13,6 @@ import mimetypes
 from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 # Explicitly register common MIME types to prevent python-slim images
 # from serving CSS/JS assets as text/plain under strict MIME sniffing policies.
@@ -27,6 +25,12 @@ from backend.shared.db import connect
 from backend.shared import audit
 from backend.shared.csrf import OriginCheckMiddleware
 from backend.shared.prod_enforce import DEV_SESSION_SECRETS, enforce_production_secrets
+from backend.shared.security_headers import SecurityHeadersMiddleware
+from backend.shared.static_serving import (
+    ImmutableStaticFiles,
+    SelectiveGZipMiddleware,
+    revalidating_file_response,
+)
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
 from backend.users.service import seed_bootstrap_admin
@@ -73,7 +77,6 @@ MIRROR_RESTORE_TABLES = (
     "activity_events",
     "behavioral_events",
     "admin_audit_log",
-    "system_events",
 )
 
 
@@ -358,6 +361,10 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Anotasyon Platform", version=VERSION, lifespan=lifespan)
 
+# Compress direct-origin traffic too. The SSE endpoint is excluded by the
+# middleware so event delivery remains immediate and proxy-safe.
+app.add_middleware(SelectiveGZipMiddleware, minimum_size=500, compresslevel=6)
+
 # CSRF defense — must sit BEFORE the routers so every state-changing
 # request hits the Origin allowlist first. Active in production only; see
 # backend/shared/csrf.py for the rationale and operator setup.
@@ -367,6 +374,7 @@ app = FastAPI(title="Anotasyon Platform", version=VERSION, lifespan=lifespan)
 # Origin allowlist below is the *only* CSRF defense beyond SameSite=Lax;
 # a permissive CORS config silently re-opens the surface.
 app.add_middleware(OriginCheckMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(users_router)
 app.include_router(help_router)
@@ -422,7 +430,7 @@ _SPA_DISABLED = os.getenv("DISABLE_SPA_MOUNT") == "1"
 if config.STATIC_DIR.exists() and not _SPA_DISABLED:
     app.mount(
         "/assets",
-        StaticFiles(directory=config.STATIC_DIR / "assets"),
+        ImmutableStaticFiles(directory=config.STATIC_DIR / "assets"),
         name="assets",
     )
     INDEX_HTML = config.STATIC_DIR / "index.html"
@@ -442,6 +450,6 @@ if config.STATIC_DIR.exists() and not _SPA_DISABLED:
             raise HTTPException(403)
         if has_ext:
             if target.is_file():
-                return FileResponse(target)
+                return revalidating_file_response(target)
             raise HTTPException(404)
-        return FileResponse(INDEX_HTML)
+        return revalidating_file_response(INDEX_HTML)

@@ -356,12 +356,23 @@ export interface paths {
         put?: never;
         /**
          * Complete
-         * @description Toggle is_completed on the annotation. Broadcasts annotation_completed
-         *     and runs the gamification orchestrator (XP + first_completion badge on
-         *     completed=True; uncomplete is a clamp — no decrement) only when the
-         *     state actually changes (idempotent same-state toggle is silent). 404 if
-         *     no annotation row. Publish and orchestrator errors are logged and
-         *     swallowed.
+         * @description Toggle is_completed on the annotation, optionally saving refs atomically.
+         *
+         *     Side effects driven from the service's transaction-committed result:
+         *       * `did_save` (atomic path persisted refs) → broadcast annotation_saved,
+         *         run behavioral detectors + gamification.run_after_save (XP, streak,
+         *         badges) — same surface as the dedicated /annotations save route.
+         *       * `changed` (flag transitioned this call) → broadcast annotation_completed,
+         *         run gamification.run_after_complete (XP + first_completion on True;
+         *         uncomplete is a clamp — no decrement).
+         *
+         *     Pre-Phase-2 the route read `service.get_annotation` BEFORE calling
+         *     `set_complete` to derive a `will_change` flag. That left first-time
+         *     atomic completes (annotation didn't exist yet) firing zero side
+         *     effects because `prior is None`. The service now returns committed
+         *     facts and the route stops second-guessing them. 404 if no annotation
+         *     row AND no refs to create one. Publish, detector, and orchestrator
+         *     errors are logged and swallowed.
          */
         post: operations["complete_api_annotations__document_id__complete_post"];
         delete?: never;
@@ -607,13 +618,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Start
          * @description Begin a new training attempt. 409 if user already passed; 403 if locked out.
          */
-        get: operations["start_api_training_start_get"];
-        put?: never;
-        post?: never;
+        post: operations["start_api_training_start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -852,6 +863,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/mirror/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mirror Health View
+         * @description Neon mirror outbox queue depth, dead-letter count, oldest age,
+         *     last delivered timestamp, dispatcher liveness, and Neon reachability.
+         *
+         *     `dispatcher_alive` and `neon_reachable` are operational ergonomics
+         *     fields (not strictly required by D-18) — they let the operator
+         *     distinguish a healthy quiet queue from a silently-crashed dispatcher.
+         */
+        get: operations["mirror_health_view_api_admin_mirror_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/mirror/dead-letter/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin Mirror Dead Letter Requeue
+         * @description Reset retry_count + clear error for all dead-lettered _outbox rows.
+         *
+         *     Returns the count requeued + trace_id. Admin-only, audited.
+         */
+        post: operations["admin_mirror_dead_letter_requeue_api_admin_mirror_dead_letter_requeue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/backup/run-now": {
         parameters: {
             query?: never;
@@ -871,6 +929,30 @@ export interface paths {
          *     the audit row so an operator can reconstruct the chain via trace_id.
          */
         post: operations["admin_backup_run_now_api_admin_backup_run_now_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/backup/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin Backup Restore
+         * @description Restore DB state from an uploaded snapshot JSON.
+         *
+         *     Refuses with 409 db_busy if WAL has uncommitted frames from another
+         *     writer. Wraps restore_from_snapshot and writes an admin_audit_log row
+         *     on success.
+         */
+        post: operations["admin_backup_restore_api_admin_backup_restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1014,6 +1096,10 @@ export interface components {
             expected_count: number;
             /** Min Concept Count */
             min_concept_count: number;
+            /** Expected Concepts */
+            expected_concepts: {
+                [key: string]: unknown;
+            }[];
         };
         /** AnnotationDetail */
         AnnotationDetail: {
@@ -1041,6 +1127,21 @@ export interface components {
             annotation: components["schemas"]["AnnotationDetail"] | null;
             /** Chain */
             chain: components["schemas"]["ChainEntry"][];
+        };
+        /** BackupRestoreResponse */
+        BackupRestoreResponse: {
+            /** Ok */
+            ok: boolean;
+            /** Tables */
+            tables: {
+                [key: string]: number;
+            };
+            /** Total Rows */
+            total_rows: number;
+            /** Skipped Tables */
+            skipped_tables: string[];
+            /** Trace Id */
+            trace_id: string;
         };
         /** BackupRunNowResponse */
         BackupRunNowResponse: {
@@ -1093,6 +1194,14 @@ export interface components {
             kanun_kodu: string | null;
             /** Madde No */
             madde_no: string | null;
+        };
+        /** Body_admin_backup_restore_api_admin_backup_restore_post */
+        Body_admin_backup_restore_api_admin_backup_restore_post: {
+            /**
+             * Snapshot
+             * Format: binary
+             */
+            snapshot: string;
         };
         /** ChainEntry */
         ChainEntry: {
@@ -1263,12 +1372,6 @@ export interface components {
             gold_id: string;
             /** Content */
             content: string;
-            /** Expected Concepts */
-            expected_concepts: {
-                [key: string]: unknown;
-            }[];
-            /** Min Concept Count */
-            min_concept_count: number;
         };
         /** GoldDocUpsertRequest */
         GoldDocUpsertRequest: {
@@ -1423,6 +1526,17 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** QuizResultItem */
+        QuizResultItem: {
+            /** Question Id */
+            question_id: string;
+            /** User Choice */
+            user_choice: number | null;
+            /** Correct Choice */
+            correct_choice: number;
+            /** Is Correct */
+            is_correct: boolean;
+        };
         /** QuizSubmitRequest */
         QuizSubmitRequest: {
             /** Attempt Id */
@@ -1438,6 +1552,8 @@ export interface components {
             score: number;
             /** Total */
             total: number;
+            /** Results */
+            results: components["schemas"]["QuizResultItem"][];
         };
         /** QuizUpsertRequest */
         QuizUpsertRequest: {
@@ -2751,7 +2867,7 @@ export interface operations {
             };
         };
     };
-    start_api_training_start_get: {
+    start_api_training_start_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3231,11 +3347,74 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 event_type?: string | null;
+                event_type_prefix?: string | null;
                 severity?: string | null;
                 trace_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
             };
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mirror_health_view_api_admin_mirror_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_mirror_dead_letter_requeue_api_admin_mirror_dead_letter_requeue_post: {
+        parameters: {
+            query?: never;
             header?: never;
             path?: never;
             cookie?: {
@@ -3282,6 +3461,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BackupRunNowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_backup_restore_api_admin_backup_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_admin_backup_restore_api_admin_backup_restore_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupRestoreResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1,15 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/test/msw-server'
 import { useAuthStore } from '@/stores/authStore'
 import { useLock } from './useLock'
-import type { ReactNode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 
 function wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+}
+
+function strictWrapper({ children }: { children: ReactNode }) {
+  return <StrictMode>{wrapper({ children })}</StrictMode>
 }
 
 const seedUser = (overrides: Partial<{ id: number; username: string }> = {}) => {
@@ -32,7 +36,9 @@ describe('useLock', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     useAuthStore.setState({ status: 'loading', user: null, error: null })
   })
-  afterEach(() => {
+  afterEach(async () => {
+    cleanup()
+    await vi.runOnlyPendingTimersAsync()
     vi.useRealTimers()
   })
 
@@ -41,6 +47,57 @@ describe('useLock', () => {
     const { result } = renderHook(() => useLock('doc-1'), { wrapper })
     await waitFor(() => expect(result.current.status).toBe('held'))
     expect(result.current.info).not.toBeNull()
+  })
+
+  it('does not release the current lock during a same-owner StrictMode remount', async () => {
+    seedUser()
+    let acquireCount = 0
+    const releaseSpy = vi.fn(() => HttpResponse.json({ ok: true }))
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/acquire', () => {
+        acquireCount += 1
+        return HttpResponse.json({
+          document_id: 'doc-1',
+          user_id: 1,
+          by_username: 'tester',
+          acquired_at: '2026-05-11T10:00:00+00:00',
+          expires_at: '2026-05-11T10:01:30+00:00',
+        })
+      }),
+      http.post('http://localhost/api/locks/doc-1/release', releaseSpy),
+    )
+
+    const { result } = renderHook(() => useLock('doc-1'), { wrapper: strictWrapper })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+
+    expect(acquireCount).toBeGreaterThanOrEqual(2)
+    expect(releaseSpy).not.toHaveBeenCalled()
+  })
+
+  it('releases the old document when the hook moves to another document', async () => {
+    seedUser()
+    const releaseDocOne = vi.fn(() => HttpResponse.json({ ok: true }))
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/release', releaseDocOne),
+    )
+
+    const { result, rerender } = renderHook(
+      ({ documentId }) => useLock(documentId),
+      { initialProps: { documentId: 'doc-1' }, wrapper },
+    )
+    await waitFor(() => expect(result.current.status).toBe('held'))
+
+    rerender({ documentId: 'doc-2' })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    await waitFor(() => expect(result.current.status).toBe('held'))
+
+    expect(releaseDocOne).toHaveBeenCalledTimes(1)
+    expect(result.current.info?.document_id).toBe('doc-2')
   })
 
   it('409 → status="conflict" with conflict detail', async () => {
@@ -168,12 +225,22 @@ describe('useLock', () => {
 
   it('explicit release transitions to status="released"', async () => {
     seedUser()
-    const { result } = renderHook(() => useLock('doc-1'), { wrapper })
+    const releaseSpy = vi.fn(() => HttpResponse.json({ ok: true }))
+    server.use(
+      http.post('http://localhost/api/locks/doc-1/release', releaseSpy),
+    )
+    const { result, unmount } = renderHook(() => useLock('doc-1'), { wrapper })
     await waitFor(() => expect(result.current.status).toBe('held'))
     await act(async () => {
       await result.current.release()
     })
     expect(result.current.status).toBe('released')
+
+    unmount()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    expect(releaseSpy).toHaveBeenCalledTimes(1)
   })
 
   it('explicit release rejects on an HTTP error and keeps the held state', async () => {

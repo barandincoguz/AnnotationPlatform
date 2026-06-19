@@ -124,3 +124,33 @@ def test_options_passes_without_origin(app):
     # FastAPI returns 405 for OPTIONS on a GET-only route, but the
     # middleware doesn't reject; that's the assertion we care about.
     assert r.status_code != 403
+
+
+def test_huggingface_wildcard_origins_passed(app):
+    with TestClient(app) as c:
+        r1 = c.post("/mutate", headers={"Origin": "https://barandncgz72-anotasyon-platform.hf.space"})
+        assert r1.status_code == 200
+
+        r2 = c.post("/mutate", headers={"Origin": "https://random-sub.static.hf.space"})
+        assert r2.status_code == 200
+
+        # Disallow non-secure HTTP for Hugging Face
+        r3 = c.post("/mutate", headers={"Origin": "http://sub.hf.space"})
+        assert r3.status_code == 403
+
+
+def test_wildcard_origin_bypass(monkeypatch):
+    monkeypatch.setattr(config, "is_production", lambda: True)
+    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"*"})
+    app = FastAPI()
+    app.add_middleware(OriginCheckMiddleware)
+
+    @app.post("/mutate")
+    def mutate():
+        return {"ok": True}
+
+    with TestClient(app) as c:
+        r = c.post("/mutate")
+    assert r.status_code == 200
+
+

@@ -11,12 +11,15 @@ waits up to 45s for /api/health to return 200, then runs its assertions.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
 import urllib.request
 
 import pytest
+
+from backend.migrations import discover_migrations
 
 DOCKER: str = shutil.which("docker") or ""
 
@@ -144,7 +147,7 @@ def test_health_db_endpoint_reports_migrations(running_container):
     ) as r:
         body = json.loads(r.read().decode("utf-8"))
     assert body["status"] == "ok"
-    assert body["migrations_applied"] == 8  # v0001..v0008
+    assert body["migrations_applied"] == len(discover_migrations())
     assert body["table_count"] >= 23
 
 
@@ -166,3 +169,27 @@ def test_spa_login_route_is_served_from_image(running_container):
     assert r.status == 200
     assert '<div id="root"></div>' in body
     assert "/assets/" in body
+    assert r.headers["Cache-Control"] == "no-cache"
+
+
+def test_hashed_frontend_asset_is_immutable_and_compressed(running_container):
+    """The image serves deploy-safe cache headers and direct-origin gzip."""
+    _cid, port = running_container
+    _wait_healthy(port, timeout_s=45)
+    with urllib.request.urlopen(
+        f"http://127.0.0.1:{port}/", timeout=3,
+    ) as root:
+        body = root.read().decode("utf-8")
+
+    asset_path = re.search(r'src="(/assets/[^"]+\.js)"', body)
+    assert asset_path is not None
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}{asset_path.group(1)}",
+        headers={"Accept-Encoding": "gzip"},
+    )
+    with urllib.request.urlopen(request, timeout=3) as asset:
+        assert asset.headers["Cache-Control"] == (
+            "public, max-age=31536000, immutable"
+        )
+        assert asset.headers["Content-Encoding"] == "gzip"
+        assert asset.headers["X-Content-Type-Options"] == "nosniff"

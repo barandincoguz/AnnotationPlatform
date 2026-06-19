@@ -10,7 +10,10 @@ import { AuditPage } from './AuditPage'
 
 const Wrap = ({ search = '' }: { search?: string }) => (
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <MemoryRouter initialEntries={[`/admin/audit${search}`]}>
+    <MemoryRouter
+      initialEntries={[`/admin/audit${search}`]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <AuditPage />
     </MemoryRouter>
   </QueryClientProvider>

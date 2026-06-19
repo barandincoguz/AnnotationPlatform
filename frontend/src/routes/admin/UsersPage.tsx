@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -212,6 +212,9 @@ export function UsersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Yeni Davet Kodu</DialogTitle>
+            <DialogDescription>
+              Eski davet kodu artık geçersizdir. Yeni kullanıcı kayıtlarında bu kodu kullanın.
+            </DialogDescription>
           </DialogHeader>
           <div className="rounded bg-muted p-3 font-mono text-sm">{inviteCode}</div>
           <DialogFooter>

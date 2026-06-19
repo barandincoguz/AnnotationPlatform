@@ -308,6 +308,60 @@ def test_purge_single_table_spares_active_sessions_with_null_ended_at(fresh_db):
     assert row is not None
 
 
+def test_run_purge_closes_expired_active_sessions_for_future_cleanup(
+    fresh_db,
+    monkeypatch,
+):
+    from backend import config
+    from backend.retention.service import run_purge
+    from datetime import datetime, timedelta, timezone
+    import json
+
+    monkeypatch.setattr(config, "SESSION_MAX_AGE_SECONDS", 60)
+    _seed_user(fresh_db)
+    expired = (datetime.now(timezone.utc) - timedelta(seconds=61)).isoformat()
+    fresh_db.execute(
+        """
+        INSERT INTO user_sessions(
+            user_id, session_token, started_at, last_activity_at
+        ) VALUES (1, 'expired-active', ?, ?)
+        """,
+        (expired, expired),
+    )
+
+    result = run_purge(fresh_db)
+
+    assert result["purged"]["user_sessions"] == 0
+    row = fresh_db.execute(
+        "SELECT ended_at FROM user_sessions WHERE session_token='expired-active'"
+    ).fetchone()
+    assert row["ended_at"] is not None
+    event = fresh_db.execute(
+        "SELECT extra_json FROM system_events "
+        "WHERE event_type='retention_success' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert json.loads(event["extra_json"])["expired_sessions_closed"] == 1
+
+
+def test_close_expired_sessions_fails_closed_on_malformed_timestamp(fresh_db):
+    from backend.retention.service import close_expired_sessions
+
+    _seed_user(fresh_db)
+    fresh_db.execute(
+        """
+        INSERT INTO user_sessions(
+            user_id, session_token, started_at, last_activity_at
+        ) VALUES (1, 'malformed-active', 'not-a-date', datetime('now'))
+        """
+    )
+
+    assert close_expired_sessions(fresh_db) == 1
+    assert fresh_db.execute(
+        "SELECT ended_at FROM user_sessions "
+        "WHERE session_token='malformed-active'"
+    ).fetchone()["ended_at"] is not None
+
+
 # ---------------- run_purge ----------------
 
 

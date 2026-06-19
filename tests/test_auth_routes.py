@@ -77,6 +77,10 @@ def test_login_sets_session_cookie(seeded_client):
     })
     assert r.status_code == 200
     assert "anotasyon_session" in r.cookies
+    cookie_header = r.headers["set-cookie"]
+    assert "HttpOnly" in cookie_header
+    assert "SameSite=lax" in cookie_header
+    assert "Max-Age=2592000" in cookie_header
 
 
 def test_login_wrong_password_returns_401(seeded_client):
@@ -277,6 +281,28 @@ def test_login_sets_secure_cookie_in_production(seeded_client, monkeypatch):
     # Check that the cookie header contains "Secure" flag
     cookie_header = r.headers.get("set-cookie", "")
     assert "Secure" in cookie_header, f"Expected 'Secure' in cookie header: {cookie_header}"
+    assert "SameSite=lax" in cookie_header
+
+
+def test_login_supports_explicit_cross_site_cookie_mode(
+    seeded_client,
+    monkeypatch,
+):
+    from backend import config
+
+    monkeypatch.setattr(config, "SESSION_COOKIE_SAMESITE", "none")
+    seeded_client.post("/api/auth/register", json={
+        "username": "alice", "password": "password123",
+        "invite_code": "BURSIYER-2026",
+    })
+    response = seeded_client.post("/api/auth/login", json={
+        "username": "alice", "password": "password123",
+    })
+
+    assert response.status_code == 200
+    cookie_header = response.headers["set-cookie"]
+    assert "SameSite=none" in cookie_header
+    assert "Secure" in cookie_header
 
 
 def test_login_cookie_not_secure_in_development(seeded_client, monkeypatch):

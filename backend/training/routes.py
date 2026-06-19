@@ -7,6 +7,7 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from backend import config
 from backend.training import service
 from backend.training.models import (
     StartResponse, QuizSubmitRequest, QuizSubmitResponse,
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/api/training", tags=["training"])
 admin_router = APIRouter(prefix="/api/admin/training", tags=["admin-training"])
 
 
-@router.get("/start", response_model=StartResponse)
+@router.post("/start", response_model=StartResponse)
 def start(
     db: sqlite3.Connection = Depends(get_db),
     user: sqlite3.Row = Depends(require_seen_manual),
@@ -44,6 +45,17 @@ def start(
         raise HTTPException(
             status_code=403,
             detail={"error": "max_attempts_reached", "message": "max attempts used; admin reset required"},
+        )
+    except service.TrainingPoolTooSmallError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "training_content_unavailable",
+                "message": "training content is temporarily unavailable; contact an administrator",
+                "kind": exc.kind,
+                "current": exc.current,
+                "required": exc.required,
+            },
         )
 
 
@@ -96,6 +108,8 @@ def skip_training_route(
     logged in (pre-training users CAN call this — it's the whole
     point). Idempotent: re-calling on an already-passed user returns
     ok without side effects."""
+    if config.is_production():
+        raise HTTPException(status_code=404, detail="not found")
     service.skip_training(db, user_id=user["id"])
     return {"ok": True}
 
@@ -177,7 +191,18 @@ def admin_delete_gold_doc(
     admin: sqlite3.Row = Depends(require_admin),
 ):
     trace_id = audit.gen_trace_id()
-    service.soft_delete_gold_doc(db, gold_id=gold_id, admin_id=admin["id"])
+    try:
+        service.soft_delete_gold_doc(db, gold_id=gold_id, admin_id=admin["id"])
+    except service.TrainingPoolTooSmallError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "training_pool_minimum",
+                "message": "at least 3 active training documents are required",
+                "current": exc.current,
+                "required": exc.required,
+            },
+        )
     try:
         audit.log_admin_action(
             db, admin_user_id=admin["id"], action_type="delete_gold_doc",
@@ -235,7 +260,20 @@ def admin_delete_quiz(
     admin: sqlite3.Row = Depends(require_admin),
 ):
     trace_id = audit.gen_trace_id()
-    service.soft_delete_quiz_override(db, question_id=question_id, admin_id=admin["id"])
+    try:
+        service.soft_delete_quiz_override(
+            db, question_id=question_id, admin_id=admin["id"],
+        )
+    except service.TrainingPoolTooSmallError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "training_pool_minimum",
+                "message": "at least 5 active training questions are required",
+                "current": exc.current,
+                "required": exc.required,
+            },
+        )
     try:
         audit.log_admin_action(
             db, admin_user_id=admin["id"], action_type="delete_quiz_question",

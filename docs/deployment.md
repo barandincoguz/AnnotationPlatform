@@ -49,21 +49,36 @@ admin panel.
 | `ENVIRONMENT` | no | **yes** | `production` | Must be one of: `development`, `test`, `production` |
 | `SESSION_SECRET` | yes | **yes** | `<64 hex chars>` | Must be ≥32 chars in production; never use default |
 | `SESSION_COOKIE_NAME` | no | no | `anotasyon_session` | Override if running multiple instances on same host |
+| `SESSION_MAX_AGE_SECONDS` | no | no | `2592000` | Absolute browser and server session lifetime; must be positive |
+| `SESSION_COOKIE_SAMESITE` | no | no | `lax` | `lax`, `strict`, or `none`; use `none` only for required cross-site iframe embedding |
 | `BOOTSTRAP_ADMIN_USERNAME` | no | recommended | `root` | First-admin seed; only acts when users table has no admin |
 | `BOOTSTRAP_ADMIN_PASSWORD` | no | recommended | `<≥12 chars>` | Paired with the above; ≥12 chars in production |
 | `BACKUP_REPO_URL` | no | recommended | `https://github.com/me/anotasyon-backup.git` | Empty → stderr WARN at boot, no backup |
 | `GITHUB_PAT` | no | required if above set | `<fine-grained PAT, contents:write>` | Inject into `BACKUP_REPO_URL` clone URL at runtime |
 | `DATA_DIR` | no | no | `/data` | Container default; override only for non-Docker dev |
 | `DISABLE_SPA_MOUNT` | no | no | `1` | Set in tests only; do not set in prod |
+| `TRUST_FORWARDED_FOR` | no | no | `1` | Enable only behind a trusted reverse proxy |
+| `TRUSTED_PROXY_CIDRS` | no | required with trust | `172.16.0.0/12` | Immediate proxy networks; never use `0.0.0.0/0` or `::/0` |
 | `NEON_MIRROR_URL` | no | **yes for cross-team** | `postgresql://baran_writer:...@ep-xxx.neon.tech/neondb?sslmode=require` | **If unset, the Neon dispatcher boots in degraded mode and the partner team sees stale rows for an unbounded window.** Full setup: `docs/neon-mirror.md`. |
 | `NEON_MIRROR_BATCH_SIZE` | no | no | `100` | Rows per dispatcher tick. Default `100`. |
 | `NEON_MIRROR_MAX_RETRIES` | no | no | `5` | Per-row retry budget before dead-letter. Default `5`. |
 | `NEON_MIRROR_EMPTY_SLEEP` | no | no | `5` | Dispatcher idle wait (seconds) when the outbox is empty. Default `5.0`. |
 
-For deployments created before SQLite migration `v0009`, apply
-`migrations/postgres/002-remove-user-sessions.sql` once after the application
-deploy. This removes legacy mirrored bearer tokens; see
-`docs/neon-mirror.md`.
+For existing Neon mirror databases, apply these migrations once, in order,
+after the application deploy:
+
+1. `migrations/postgres/002-remove-user-sessions.sql` removes legacy mirrored
+   bearer tokens from deployments created before SQLite migration `v0009`.
+2. `migrations/postgres/003-nullable-training-finished-at.sql` permits active
+   training attempts to mirror with `finished_at = NULL`.
+
+See `docs/neon-mirror.md` for connection and execution details.
+
+Session tokens are stored only as SHA-256 digests. SQLite migration `v0012`
+converts existing rows in place without invalidating the raw token already
+held by the browser. Sessions are rejected server-side after
+`SESSION_MAX_AGE_SECONDS`, so copying an old cookie cannot bypass browser
+expiry.
 
 ## 3a. Cross-team coordination (Phase 6 ordering contract)
 
@@ -217,8 +232,19 @@ entry.
 
 ## 8. Reverse proxy
 
-The app listens on port 8000 in the container, mapped to host 8000 by
-default. Terminate HTTPS at a proxy. Two minimal examples:
+The app listens on port 8000 in the container and Compose binds it to
+`127.0.0.1:8000` on the host. This prevents clients from bypassing the
+HTTPS proxy. Do not change the host binding to `0.0.0.0` in production.
+Terminate HTTPS at a proxy. Two minimal examples:
+
+The application itself gzips normal HTTP responses but deliberately excludes
+`/api/events` so SSE notifications are never buffered. Vite's content-hashed
+`/assets/*` files are served with a one-year immutable cache; `index.html`,
+`favicon.svg`, and `robots.txt` use `Cache-Control: no-cache` so a deployment
+cannot strand clients on stale chunk names. Production builds do not publish
+JavaScript source maps. Every `/api/*` response is forced to
+`Cache-Control: no-store`; browser responses also carry clickjacking,
+MIME-sniffing, referrer, permissions, opener, and HTML CSP protections.
 
 ### Caddy
 
@@ -251,7 +277,7 @@ server {
   location / {
     proxy_pass http://127.0.0.1:8000;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 }
@@ -259,12 +285,24 @@ server {
 
 ### Security Note: IP Forwarding and `TRUST_FORWARDED_FOR`
 
-When the application is deployed behind a reverse proxy, you should set `TRUST_FORWARDED_FOR=1` in your environment so that the backend can resolve client IP addresses correctly (which are recorded in `user_sessions.ip_hash` and used by rate limiters).
+Client IPs feed the login/register rate limiters and session audit hashes.
+Enable forwarding only when the immediate peer is trusted:
 
-Because the application extracts the client IP address from the **first** element in the `X-Forwarded-For` header:
-- **Operators must configure their reverse proxy to sanitize or strip any client-supplied `X-Forwarded-For` header** before forwarding the request to the application.
-- In **nginx**, ensure you use `proxy_set_header X-Forwarded-For $remote_addr;` (which overwrites client-supplied values) rather than appending them via `$proxy_add_x_forwarded_for`, unless you are running behind another trusted layer (like Cloudflare) that sanitizes the header.
-- In **Caddy**, the default proxy behavior is to append client IPs. For security-sensitive deployments, ensure Caddy is configured to strip incoming downstream `X-Forwarded-For` headers.
+```dotenv
+TRUST_FORWARDED_FOR=1
+TRUSTED_PROXY_CIDRS=172.16.0.0/12
+```
+
+Use the narrowest CIDR that contains the Docker bridge address observed by
+the app. Production startup rejects trust without a CIDR, malformed CIDRs,
+and whole-address-family values such as `0.0.0.0/0`.
+
+The backend validates every forwarded value as an IP and walks the chain
+from right to left to select the nearest untrusted address. The proxy must
+still overwrite or correctly append `X-Forwarded-For`; the nginx example
+above overwrites it. Caddy's default `reverse_proxy` behavior sets the
+forwarding headers and ignores spoofed incoming values unless trusted
+proxy handling is explicitly configured.
 
 ## 9. Logs and observability
 

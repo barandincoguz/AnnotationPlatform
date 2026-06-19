@@ -20,7 +20,7 @@ const PROXY_TARGET = `http://127.0.0.1:${E2E_BACKEND_PORT}`
  * - Backend: `DATA_DIR=/tmp/anotasyon-e2e-data uvicorn backend.main:app
  *   --port 8001`. The seed script reset+rebuilds that DB before the
  *   server boots, so every full run starts from the same fixtures
- *   (alice/bob/admin + 3 sample docs + invite "E2E-CODE").
+ *   (alice/bob/admin + 4 sample docs + invite "E2E-CODE").
  * - Frontend: `VITE_PROXY_TARGET=http://127.0.0.1:8001 vite --port 5174`.
  *   The proxy override is read by frontend/vite.config.ts so the SPA
  *   talks to the isolated backend.

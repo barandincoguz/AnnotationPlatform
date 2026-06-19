@@ -11,7 +11,10 @@ function LocationProbe() {
 
 function wrap(initialPath = '/') {
   return (
-    <MemoryRouter initialEntries={[initialPath]}>
+    <MemoryRouter
+      initialEntries={[initialPath]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <Routes>
         <Route path="/" element={<><DocSearch /><LocationProbe /></>} />
         <Route path="/docs/:docId" element={<LocationProbe />} />

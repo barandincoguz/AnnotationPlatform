@@ -128,6 +128,29 @@ def test_login_route_throttled(client):
     assert "Retry-After" in final.headers
 
 
+def test_successful_logins_do_not_consume_failure_budget(client, bootstrap_admin):
+    bootstrap_admin(username="admin", password="admin123")
+    for _ in range(15):
+        response = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "admin123"},
+        )
+        assert response.status_code == 200
+
+    for attempt in range(10):
+        response = client.post(
+            "/api/auth/login",
+            json={"username": "ghost", "password": "wrongwrong"},
+        )
+        assert response.status_code == 401, f"failure {attempt} unexpectedly throttled"
+
+    response = client.post(
+        "/api/auth/login",
+        json={"username": "ghost", "password": "wrongwrong"},
+    )
+    assert response.status_code == 429
+
+
 def test_register_route_throttled(client):
     """Six register attempts in quick succession — the sixth is throttled."""
     for i in range(5):

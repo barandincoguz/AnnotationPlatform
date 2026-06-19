@@ -1,6 +1,18 @@
 """Admin gold-doc CRUD: list, upsert (override + custom), tombstone."""
 
 
+def _add_custom_gold(client, gold_id="delete-buffer"):
+    response = client.put(
+        f"/api/admin/training/gold-docs/{gold_id}",
+        json={
+            "content": "Silme işlemi için yedek eğitim belgesi.",
+            "expected_concepts": [{"kanun_no": "193", "madde": "37"}],
+            "min_concept_count": 1,
+        },
+    )
+    assert response.status_code == 200
+
+
 def test_list_gold_docs_returns_resolved_and_overrides(client, bootstrap_admin):
     bootstrap_admin()
     r = client.get("/api/admin/training/gold-docs")
@@ -59,6 +71,7 @@ def test_upsert_new_id_writes_source_custom(client, bootstrap_admin):
 
 def test_delete_writes_tombstone(client, bootstrap_admin):
     bootstrap_admin()
+    _add_custom_gold(client)
     r = client.delete("/api/admin/training/gold-docs/sample_kvk_5")
     assert r.status_code == 200
 
@@ -96,6 +109,7 @@ def test_upsert_writes_audit_row(client, bootstrap_admin):
 
 def test_delete_writes_audit_row(client, bootstrap_admin):
     admin_id = bootstrap_admin()
+    _add_custom_gold(client)
     client.delete("/api/admin/training/gold-docs/sample_kvk_5")
 
     from backend.shared.db import connect
@@ -182,6 +196,7 @@ def test_upsert_gold_doc_audit_carries_trace_id(client, bootstrap_admin):
 def test_delete_gold_doc_audit_carries_trace_id(client, bootstrap_admin):
     """Group B audit-only: delete_gold_doc audit row carries a non-NULL 16-char trace_id."""
     bootstrap_admin()
+    _add_custom_gold(client)
     r = client.delete("/api/admin/training/gold-docs/sample_kvk_5")
     assert r.status_code == 200
 
@@ -199,6 +214,15 @@ def test_delete_gold_doc_audit_carries_trace_id(client, bootstrap_admin):
         assert len(row["trace_id"]) == 16
     finally:
         db.close()
+
+
+def test_delete_cannot_reduce_gold_pool_below_three(client, bootstrap_admin):
+    bootstrap_admin()
+
+    response = client.delete("/api/admin/training/gold-docs/sample_kvk_5")
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["error"] == "training_pool_minimum"
 
 
 def test_upsert_by_second_admin_preserves_original_created_by(client, bootstrap_admin):

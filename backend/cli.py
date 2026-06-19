@@ -380,7 +380,7 @@ def cmd_restore_from_github(args) -> int:
 
 def cmd_seed_e2e(args) -> int:
     """Reset the DB at $DB_PATH and seed minimal fixtures for Playwright
-    e2e runs: one invite code, three pre-trained users, three sample
+    e2e runs: one invite code, three pre-trained users, four sample
     documents. Always run against an ISOLATED test DB (DB_PATH env var)
     — refuses to touch the default production path without --force.
     """
@@ -463,6 +463,19 @@ def cmd_seed_e2e(args) -> int:
             "konu": "E2E test belgesi charlie — kurumlar vergisi",
             "vergiTuru": "0002",
             "pdfText": "Kurumlar vergisi hakkinda ozelge govdesi.",
+            "kanunBilgileri": [],
+            "bkkTebligSirkuBilgileri": [],
+        },
+        {
+            "evrakOid": "e2e-doc-concurrency",
+            "sayi": 104,
+            "tarih": "20260118",
+            "konu": "E2E concurrency belgesi — iki kullanıcı kilit testi",
+            "vergiTuru": "0001",
+            "pdfText": (
+                "193 sayili Gelir Vergisi Kanununun 37. maddesi "
+                "uyarinca ticari kazanc degerlendirilir."
+            ),
             "kanunBilgileri": [],
             "bkkTebligSirkuBilgileri": [],
         },
@@ -568,7 +581,7 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Wipes the DB at $DB_PATH (sidecars too) and re-seeds with a "
             "single invite code, three users (alice/bob/admin, password "
-            "'e2e-pass-123!'), and three sample documents. Refuses to "
+            "'e2e-pass-123!'), and four sample documents. Refuses to "
             "run against the default production path unless --force."
         ),
     )

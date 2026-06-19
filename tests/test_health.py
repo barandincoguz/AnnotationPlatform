@@ -4,6 +4,8 @@ def test_health_returns_ok(client):
     body = r.json()
     assert body["status"] == "ok"
     assert "version" in body
+    assert r.headers["cache-control"] == "no-store"
+    assert r.headers["x-frame-options"] == "DENY"
 
 
 def test_app_runs_migrations_on_startup(client):

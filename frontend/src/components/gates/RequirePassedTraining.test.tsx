@@ -37,7 +37,7 @@ describe('RequirePassedTraining', () => {
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
-      destinationStubs: [{ path: '/training', testId: 'route-training' }],
+      wildcardEntry: true,
     })
     expect(await screen.findByTestId('route-training')).toBeInTheDocument()
   })
@@ -50,7 +50,7 @@ describe('RequirePassedTraining', () => {
     })
     renderWithProviders(<Tree />, {
       initialEntries: ['/'],
-      destinationStubs: [{ path: '/training', testId: 'route-training' }],
+      wildcardEntry: true,
     })
     expect(screen.getByTestId('ok')).toBeInTheDocument()
   })

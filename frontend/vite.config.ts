@@ -30,7 +30,10 @@ export default defineConfig({
   build: {
     outDir: '../backend/static',
     emptyOutDir: true,
-    sourcemap: true,
+    // Production images serve this directory publicly. Shipping source maps
+    // exposes implementation details and adds several megabytes per deploy;
+    // the Vite dev server remains the supported debugging path.
+    sourcemap: false,
   },
   test: {
     environment: 'happy-dom',

@@ -58,13 +58,13 @@ def _seed_user(conn: sqlite3.Connection, **overrides) -> int:
 # === Task 5: end-to-end trigger capture ===
 
 
-def test_66_triggers_installed_after_migrations():
+def test_60_triggers_installed_after_migrations():
     conn = _migrated_conn()
     row = conn.execute(
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 66
+    assert row["c"] == 60
     conn.close()
 
 
@@ -152,7 +152,7 @@ def test_migration_v0006_is_idempotent():
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 66
+    assert row["c"] == 60
     conn.close()
 
 
@@ -222,6 +222,36 @@ def test_outbox_table_not_self_mirrored():
         "SELECT count(*) AS c FROM _outbox WHERE table_name='_outbox'"
     ).fetchone()
     assert rows["c"] == 0  # no recursion
+    conn.close()
+
+
+def test_runtime_locks_and_system_events_are_not_mirrored():
+    conn = _migrated_conn()
+    user_id = _seed_user(conn, username="runtime-owner")
+    conn.execute(
+        "INSERT INTO documents_meta("
+        "document_id, file_path, pdf_text, word_count, sentence_count, "
+        "text_density, estimated_difficulty, created_at"
+        ") VALUES ('runtime-doc', 'path', 'text', 1, 1, 1, 'Kolay', datetime('now'))"
+    )
+    conn.execute("DELETE FROM _outbox")
+
+    conn.execute(
+        "INSERT INTO document_locks("
+        "document_id, user_id, acquired_at, last_heartbeat, expires_at"
+        ") VALUES ('runtime-doc', ?, datetime('now'), datetime('now'), "
+        "datetime('now', '+5 minutes'))",
+        (user_id,),
+    )
+    conn.execute(
+        "INSERT INTO system_events(event_type, severity, message, created_at) "
+        "VALUES ('local-health', 'warn', 'local only', datetime('now'))"
+    )
+
+    assert conn.execute(
+        "SELECT COUNT(*) FROM _outbox WHERE table_name IN "
+        "('document_locks', 'system_events')"
+    ).fetchone()[0] == 0
     conn.close()
 
 

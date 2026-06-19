@@ -50,7 +50,7 @@ def test_full_pass_flow(client):
     user = _seen_manual_user(client, "u_full")
 
     # 1. start
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     assert r.status_code == 200
     data = r.json()
     aid = data["attempt_id"]
@@ -120,7 +120,7 @@ def test_full_pass_flow(client):
 def test_fail_flow_keeps_user_pre_training(client):
     """All quiz answers wrong → finalize fails → user stays has_passed_training=0."""
     user = _seen_manual_user(client, "u_fail")
-    r = client.get("/api/training/start")
+    r = client.post("/api/training/start")
     aid = r.json()["attempt_id"]
 
     from backend.training.service import _select_questions_for_attempt

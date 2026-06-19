@@ -11,9 +11,9 @@ const makeStart = (): StartResponse => ({
     choices: ['a', 'b', 'c', 'd'],
   })),
   gold_docs: [
-    { gold_id: 'gold_a', content: 'A', expected_concepts: [], min_concept_count: 1 },
-    { gold_id: 'gold_b', content: 'B', expected_concepts: [], min_concept_count: 1 },
-    { gold_id: 'gold_c', content: 'C', expected_concepts: [], min_concept_count: 1 },
+    { gold_id: 'gold_a', content: 'A' },
+    { gold_id: 'gold_b', content: 'B' },
+    { gold_id: 'gold_c', content: 'C' },
   ],
 })
 
@@ -74,7 +74,11 @@ describe('trainingStore', () => {
   it('recordDocResult sets resultShown to doc', () => {
     useTrainingStore.getState().hydrate(makeStart())
     useTrainingStore.getState().recordDocResult('gold_a', {
-      passed: true, matched_count: 2, expected_count: 2, min_concept_count: 1,
+      passed: true,
+      matched_count: 2,
+      expected_count: 2,
+      min_concept_count: 1,
+      expected_concepts: [{ kanun_no: '5520', madde: '5' }],
     })
     const s = useTrainingStore.getState()
     expect(s.docResults.gold_a!.passed).toBe(true)

@@ -89,7 +89,7 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
     // settle before committing. Otherwise we'd lock hydratedRef=true
     // with an empty list while the real refs are still in flight (the
     // refresh-thrash bug: refs disappear until the next race lottery).
-    if (opts.annotationQueryStatus === 'pending') return
+    if (opts.annotationQueryStatus !== 'success') return
     const annotationRefs = opts.annotationData?.references ?? []
     lastOriginRef.current = 'init'
     dispatch({ type: 'init', refs: annotationRefs })
@@ -109,6 +109,7 @@ export function useReferencesState(opts: UseReferencesStateOpts) {
   }, [list])
 
   const userDispatch = (action: Action) => {
+    if (!hydratedRef.current) return
     lastOriginRef.current = 'user'
     dispatch(action)
   }

@@ -1,5 +1,4 @@
 """Admin HTTP endpoint for manual backup trigger."""
-import json
 import logging
 import pathlib
 import sqlite3
@@ -17,6 +16,8 @@ from backend.users.deps import get_db, require_admin
 
 
 log = logging.getLogger(__name__)
+MAX_RESTORE_BYTES = 1024 * 1024 * 1024
+RESTORE_CHUNK_BYTES = 1024 * 1024
 
 router = APIRouter(prefix="/api/admin/backup", tags=["admin-backup"])
 
@@ -91,29 +92,54 @@ async def admin_backup_restore(
             },
         )
 
-    raw = await snapshot.read()
+    snap_path: pathlib.Path | None = None
     try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as e:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            mode="wb",
+            dir=str(config.DATA_DIR),
+            suffix=".restore.json",
+        ) as f:
+            snap_path = pathlib.Path(f.name)
+            total_bytes = 0
+            while chunk := await snapshot.read(RESTORE_CHUNK_BYTES):
+                total_bytes += len(chunk)
+                if total_bytes > MAX_RESTORE_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail={
+                            "error": "restore_too_large",
+                            "message": (
+                                f"snapshot exceeds {MAX_RESTORE_BYTES} byte limit"
+                            ),
+                            "trace_id": trace_id,
+                        },
+                    )
+                f.write(chunk)
+            f.flush()
+    except HTTPException:
+        if snap_path is not None:
+            snap_path.unlink(missing_ok=True)
+        raise
+    except OSError as exc:
+        if snap_path is not None:
+            snap_path.unlink(missing_ok=True)
         raise HTTPException(
-            status_code=400,
-            detail={"error": "invalid_json", "message": str(e), "trace_id": trace_id},
-        )
-
-    # Persist to a temp file inside DATA_DIR so restore_from_snapshot's
-    # Path-based signature is preserved without further refactor.
-    with tempfile.NamedTemporaryFile(
-        delete=False, mode="w", dir=str(config.DATA_DIR), suffix=".restore.json"
-    ) as f:
-        json.dump(payload, f)
-        snap_path = pathlib.Path(f.name)
+            status_code=507,
+            detail={
+                "error": "restore_upload_write_failed",
+                "message": str(exc),
+                "trace_id": trace_id,
+            },
+        ) from exc
 
     try:
+        assert snap_path is not None
         result = restore_from_snapshot(db, snap_path)
     except ValueError as e:
         raise HTTPException(
             status_code=400,
-            detail={"error": "restore_invalid_columns", "message": str(e), "trace_id": trace_id},
+            detail={"error": "restore_invalid_snapshot", "message": str(e), "trace_id": trace_id},
         )
     except Exception as e:
         raise HTTPException(

@@ -25,6 +25,12 @@ def generate_session_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def hash_session_token(token: str) -> str:
+    """One-way representation stored in SQLite for bearer-token safety."""
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
 def hash_ip(ip: str) -> str:
     """SHA-256 hex digest of an IP address. Used for privacy-preserving session logging."""
     return hashlib.sha256(ip.encode("utf-8")).hexdigest()

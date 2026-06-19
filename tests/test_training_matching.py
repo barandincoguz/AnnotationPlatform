@@ -81,11 +81,21 @@ def test_match_concept_empty_string_fields_in_concept_are_wildcard():
     assert matching.match_concept(concept, refs) is True
 
 
-def test_match_concept_source_text_in_concept_ignored():
-    """source_text is NEVER a match constraint, even if present in concept."""
-    refs = [_ref(kanun_no="5520", madde="5", source_text="totally different wording")]
-    concept = {"kanun_no": "5520", "madde": "5", "source_text": "expected wording"}
-    assert matching.match_concept(concept, refs) is True
+def test_match_concept_source_text_fuzzy_matched():
+    """source_text is matched fuzzily if present in concept."""
+    concept = {"kanun_no": "5520", "madde": "5", "source_text": "KDV iadesi talep edilmektedir"}
+    
+    # 1. Close match / Substring -> passes
+    refs_close = [_ref(kanun_no="5520", madde="5", source_text="kdv iadesi talep ediliyor")]
+    assert matching.match_concept(concept, refs_close) is True
+
+    # 2. Exact match -> passes
+    refs_exact = [_ref(kanun_no="5520", madde="5", source_text="KDV iadesi talep edilmektedir")]
+    assert matching.match_concept(concept, refs_exact) is True
+
+    # 3. Completely different wording -> fails
+    refs_diff = [_ref(kanun_no="5520", madde="5", source_text="bambaska bir alinti metni")]
+    assert matching.match_concept(concept, refs_diff) is False
 
 
 def test_match_concept_no_refs():
@@ -197,3 +207,15 @@ class TestMatchConceptNormalization:
         concept = {"kanun_no": "193"}
         refs = [{"kanun_no": "194", "source_text": "x"}]
         assert match_concept(concept, refs) is False
+
+    def test_law_name_and_number_symmetrical_match(self):
+        # 1. Concept specifies number, ref specifies name/abbreviation
+        concept_no = {"kanun_no": "5520", "madde": "5"}
+        refs_name = [{"kanun_ad": "KVK", "madde": "5", "source_text": "x"}]
+        assert match_concept(concept_no, refs_name) is True
+
+        # 2. Concept specifies name, ref specifies number
+        concept_name = {"kanun_ad": "Kurumlar Vergisi Kanunu", "madde": "5"}
+        refs_no = [{"kanun_no": "5520", "madde": "5", "source_text": "x"}]
+        assert match_concept(concept_name, refs_no) is True
+

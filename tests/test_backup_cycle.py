@@ -96,13 +96,13 @@ def test_run_backup_cycle_logs_failure_on_git_error(fresh_db, tmp_path, monkeypa
     assert "Permission denied" in extra["error"]
 
 
-def test_run_backup_cycle_dump_failure_logged_and_raised(fresh_db, monkeypatch):
-    """If dump_all_tables_to_json raises, log failure with step='dump' and re-raise."""
+def test_run_backup_cycle_snapshot_failure_logged_and_raised(fresh_db, monkeypatch):
+    """Streaming snapshot failures are logged and re-raised."""
     from backend.backup import service
     monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
     monkeypatch.setattr("backend.config.GITHUB_PAT", "")
 
-    with patch("backend.backup.service.dump_all_tables_to_json",
+    with patch("backend.backup.service.write_database_snapshot",
                side_effect=sqlite3.OperationalError("database is locked")):
         with pytest.raises(sqlite3.OperationalError):
             service.run_backup_cycle(fresh_db)
@@ -112,7 +112,7 @@ def test_run_backup_cycle_dump_failure_logged_and_raised(fresh_db, monkeypatch):
     ).fetchone()
     assert row is not None
     extra = json.loads(row["extra_json"])
-    assert extra["step"] == "dump"
+    assert extra["step"] == "snapshot"
 
 
 def test_run_backup_cycle_rotates_snapshots(fresh_db, tmp_path, monkeypatch):

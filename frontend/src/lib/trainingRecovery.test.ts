@@ -63,6 +63,7 @@ describe('submitWithRecovery', () => {
       matched_count: 2,
       expected_count: 2,
       min_concept_count: 1,
+      expected_concepts: [{ kanun_no: '5520', madde: '5' }],
     }
     useTrainingStore.setState({ docResults: { gold_x: docResult } })
     const result = await submitWithRecovery({

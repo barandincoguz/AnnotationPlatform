@@ -9,6 +9,7 @@ Phase 5 BE-1 + BE-2: heartbeat() and sweep_expired() must also wrap
 their read-then-write sequences in BEGIN IMMEDIATE.
 """
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -172,6 +173,88 @@ def test_acquire_serializes_after_release(two_dbs):
 
     info = locks.acquire(conn_b, document_id="doc_1", user_id=2)
     assert info["user_id"] == 2
+
+
+def test_stale_release_cannot_delete_reacquired_lock(two_dbs):
+    """An expired Alice lock is read by release while Bob tries to acquire it.
+
+    release() must hold BEGIN IMMEDIATE across its owner check and conditional
+    delete. Bob therefore waits, acquires after Alice commits, and his new row
+    remains. Without the transaction, Bob can replace the expired row between
+    Alice's SELECT and DELETE and Alice then deletes Bob's lock.
+    """
+    conn_a, conn_b = two_dbs
+    locks.acquire(conn_a, document_id="doc_1", user_id=1)
+    conn_a.execute(
+        "UPDATE document_locks SET expires_at='2020-01-01T00:00:00+00:00' "
+        "WHERE document_id='doc_1'"
+    )
+
+    owner_read = threading.Event()
+    resume_release = threading.Event()
+
+    class _CursorProxy:
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        def fetchone(self):
+            row = self._cursor.fetchone()
+            owner_read.set()
+            assert resume_release.wait(timeout=5)
+            return row
+
+        def __getattr__(self, name):
+            return getattr(self._cursor, name)
+
+    class _PauseAfterOwnerRead:
+        def __getattr__(self, name):
+            return getattr(conn_a, name)
+
+        def execute(self, statement, *args, **kwargs):
+            cursor = conn_a.execute(statement, *args, **kwargs)
+            normalized = " ".join(statement.split()).lower()
+            if normalized.startswith(
+                "select user_id from document_locks where document_id=?"
+            ):
+                return _CursorProxy(cursor)
+            return cursor
+
+    release_error: list[Exception] = []
+    acquire_result: list[dict] = []
+
+    def stale_release():
+        try:
+            locks.release(
+                _PauseAfterOwnerRead(), document_id="doc_1", user_id=1,
+            )
+        except Exception as exc:
+            release_error.append(exc)
+
+    def reacquire():
+        acquire_result.append(
+            locks.acquire(conn_b, document_id="doc_1", user_id=2)
+        )
+
+    release_thread = threading.Thread(target=stale_release)
+    release_thread.start()
+    assert owner_read.wait(timeout=5)
+
+    acquire_thread = threading.Thread(target=reacquire)
+    acquire_thread.start()
+    time.sleep(0.05)
+    assert acquire_thread.is_alive(), "Bob must wait for Alice's release transaction"
+
+    resume_release.set()
+    release_thread.join(timeout=5)
+    acquire_thread.join(timeout=5)
+
+    assert not release_error
+    assert acquire_result[0]["user_id"] == 2
+    row = conn_a.execute(
+        "SELECT user_id FROM document_locks WHERE document_id='doc_1'"
+    ).fetchone()
+    assert row is not None
+    assert row["user_id"] == 2
 
 
 # ---------------------------------------------------------------------------

@@ -57,6 +57,8 @@ def test_restore_scope_covers_every_durable_non_document_mirror_table():
     }
     expected = set(list_project_tables(conn)) - document_sync_tables - {
         "document_locks",
+        "user_sessions",
+        "system_events",
     }
     assert set(MIRROR_RESTORE_TABLES) == expected
     conn.close()

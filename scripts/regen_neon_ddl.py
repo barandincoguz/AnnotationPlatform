@@ -1,9 +1,10 @@
-"""Regenerate migrations/postgres/001-baran-init.sql from the live SQLite schema.
+"""Regenerate migrations/postgres/001-baran-init.sql from a fresh SQLite schema.
 
-One-shot operator script. Opens config.DB_PATH (read-only is fine), calls
-`build_all_pg_ddl(conn)`, and writes the result. The output is deterministic
-against an unchanged schema (no embedded timestamp), so re-running the script
-without schema changes produces a byte-identical file.
+The script applies every committed SQLite migration to an isolated temporary
+database, then calls `build_all_pg_ddl(conn)`. It never depends on whether the
+operator's local application database has already been migrated. The output is
+deterministic against an unchanged migration set (no embedded timestamp), so
+re-running the script without schema changes produces a byte-identical file.
 
 Usage:
     .venv/bin/python -m scripts.regen_neon_ddl
@@ -11,9 +12,11 @@ Usage:
 from __future__ import annotations
 
 import sys
+import tempfile
 from pathlib import Path
 
-from backend import config
+from backend.migrations import discover_migrations
+from backend.migrations.runner import apply_migrations
 from backend.shared.db import connect
 from backend.migrations.helpers.postgres_ddl import build_all_pg_ddl
 
@@ -22,11 +25,13 @@ OUTPUT_PATH = Path(__file__).resolve().parent.parent / "migrations" / "postgres"
 
 
 def main() -> int:
-    conn = connect(config.DB_PATH)
-    try:
-        ddl = build_all_pg_ddl(conn)
-    finally:
-        conn.close()
+    with tempfile.TemporaryDirectory(prefix="regen-neon-ddl-") as tmp:
+        conn = connect(Path(tmp) / "schema.db")
+        try:
+            apply_migrations(conn, discover_migrations())
+            ddl = build_all_pg_ddl(conn)
+        finally:
+            conn.close()
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(ddl, encoding="utf-8")
