@@ -219,3 +219,113 @@ class TestMatchConceptNormalization:
         refs_no = [{"kanun_no": "5520", "madde": "5", "source_text": "x"}]
         assert match_concept(concept_name, refs_no) is True
 
+
+class TestComprehensiveAnnotationMatching:
+    def test_correct_matching_all_fields(self):
+        # All fields match exactly
+        concept = {"kanun_no": "5520", "kanun_ad": "Kurumlar Vergisi Kanunu", "madde": "5", "fikra": "1", "bent": "e"}
+        refs = [_ref(kanun_no="5520", kanun_ad="Kurumlar Vergisi Kanunu", madde="5", fikra="1", bent="e", source_text="test")]
+        assert match_concept(concept, refs) is True
+
+    def test_incorrect_matching_kanun_no(self):
+        # Different kanun_no
+        concept = {"kanun_no": "5520", "madde": "5"}
+        refs = [_ref(kanun_no="193", madde="5", source_text="test")]
+        assert match_concept(concept, refs) is False
+
+    def test_incorrect_matching_madde(self):
+        # Different madde
+        concept = {"kanun_no": "5520", "madde": "5"}
+        refs = [_ref(kanun_no="5520", madde="6", source_text="test")]
+        assert match_concept(concept, refs) is False
+
+    def test_incorrect_matching_fikra(self):
+        # Different fikra
+        concept = {"kanun_no": "5520", "madde": "5", "fikra": "1"}
+        refs = [_ref(kanun_no="5520", madde="5", fikra="2", source_text="test")]
+        assert match_concept(concept, refs) is False
+
+    def test_incorrect_matching_bent(self):
+        # Different bent
+        concept = {"kanun_no": "5520", "madde": "5", "fikra": "1", "bent": "a"}
+        refs = [_ref(kanun_no="5520", madde="5", fikra="1", bent="b", source_text="test")]
+        assert match_concept(concept, refs) is False
+
+    def test_incorrect_missing_field_demanded(self):
+        # Concept demands fikra="1", but ref has no fikra (empty or None)
+        concept = {"kanun_no": "5520", "madde": "5", "fikra": "1"}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="test")]
+        assert match_concept(concept, refs) is False
+
+    def test_missing_concept_fields_are_wildcards(self):
+        # Concept has missing/None/empty fields - they should be treated as wildcards and match
+        concept = {"kanun_no": "5520", "madde": "5", "fikra": None, "bent": ""}
+        refs = [_ref(kanun_no="5520", madde="5", fikra="2", bent="a", source_text="test")]
+        assert match_concept(concept, refs) is True
+
+    def test_cross_resolution_name_to_no(self):
+        # VUK is 213
+        concept = {"kanun_ad": "Vergi Usul Kanunu", "madde": "359"}
+        refs = [_ref(kanun_no="213", madde="359", source_text="test")]
+        assert match_concept(concept, refs) is True
+
+        # GVK is 193
+        concept2 = {"kanun_ad": "GVK", "madde": "94"}
+        refs2 = [_ref(kanun_no="193", madde="94", source_text="test")]
+        assert match_concept(concept2, refs2) is True
+
+    def test_cross_resolution_no_to_name(self):
+        # 3065 is KDVK
+        concept = {"kanun_no": "3065", "madde": "1"}
+        refs = [_ref(kanun_ad="Katma Değer Vergisi Kanunu", madde="1", source_text="test")]
+        assert match_concept(concept, refs) is True
+
+    def test_source_text_exact_match(self):
+        concept = {"kanun_no": "5520", "madde": "5", "source_text": "bursiyerlerin calismalari"}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="bursiyerlerin calismalari")]
+        assert match_concept(concept, refs) is True
+
+    def test_source_text_case_turkish_characters(self):
+        concept = {"kanun_no": "5520", "madde": "5", "source_text": "İstisna Hükmünden YARARLANMA"}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="istisna hukmunden yararlanma")]
+        assert match_concept(concept, refs) is True
+
+    def test_source_text_punctuation_and_spaces(self):
+        concept = {"kanun_no": "5520", "madde": "5", "source_text": "maddenin (e) bendine göre..."}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="maddenin e bendine gore")]
+        assert match_concept(concept, refs) is True
+
+    def test_source_text_substring(self):
+        concept = {"kanun_no": "5520", "madde": "5", "source_text": "istisna uygulanacaktır"}
+        # User entered a longer sentence containing the concept text
+        refs_user_longer = [_ref(kanun_no="5520", madde="5", source_text="bu kapsamda istisna uygulanacaktır ve beyan edilecektir")]
+        assert match_concept(concept, refs_user_longer) is True
+
+        # User entered a shorter substring of the concept text
+        refs_user_shorter = [_ref(kanun_no="5520", madde="5", source_text="istisna uygulan")]
+        assert match_concept(concept, refs_user_shorter) is True
+
+    def test_source_text_loose_word_matching_pass(self):
+        # 7 out of 10 words match (70% ratio)
+        concept = {"kanun_no": "5520", "madde": "5", "source_text": "bir iki uc dort bes alti yedi sekiz dokuz on"}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="bir iki uc dort bes alti yedi yanlis1 yanlis2 yanlis3")]
+        assert match_concept(concept, refs) is True
+
+    def test_source_text_loose_word_matching_fail(self):
+        # Only 6 out of 10 words match (60% ratio - should fail)
+        concept = {"kanun_no": "5520", "madde": "5", "source_text": "bir iki uc dort bes alti yedi sekiz dokuz on"}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="bir iki uc dort bes alti yanlis1 yanlis2 yanlis3 yanlis4")]
+        assert match_concept(concept, refs) is False
+
+    def test_source_text_empty_ignored(self):
+        # Concept has no source_text constraint
+        concept = {"kanun_no": "5520", "madde": "5"}
+        refs = [_ref(kanun_no="5520", madde="5", source_text="bambaska bir sey")]
+        assert match_concept(concept, refs) is True
+
+        # Ref has no source_text
+        concept2 = {"kanun_no": "5520", "madde": "5", "source_text": "bursiyer"}
+        refs2 = [_ref(kanun_no="5520", madde="5", source_text="")]
+        assert match_concept(concept2, refs2) is True
+
+
