@@ -4,11 +4,14 @@ from __future__ import annotations
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from backend import config
+
+_FRAME_ANCESTORS = "'self' https://huggingface.co" if config.SPACE_ID else "'none'"
 
 CONTENT_SECURITY_POLICY = (
     "base-uri 'self'; "
     "object-src 'none'; "
-    "frame-ancestors 'none'; "
+    f"frame-ancestors {_FRAME_ANCESTORS}; "
     "form-action 'self'; "
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
@@ -34,7 +37,8 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
                 headers["X-Content-Type-Options"] = "nosniff"
-                headers["X-Frame-Options"] = "DENY"
+                if not config.SPACE_ID:
+                    headers["X-Frame-Options"] = "DENY"
                 headers["Referrer-Policy"] = "no-referrer"
                 headers["Permissions-Policy"] = (
                     "camera=(), geolocation=(), microphone=()"
