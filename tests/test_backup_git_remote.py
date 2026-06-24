@@ -63,6 +63,102 @@ def test_ensure_initialized_is_idempotent(tmp_path):
     assert log.stdout.count("\n") == 1
 
 
+def test_ensure_initialized_does_not_store_pat_in_git_config(tmp_path):
+    from backend.backup.git_remote import ensure_initialized
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+
+    ensure_initialized(
+        backup_dir,
+        "https://github.com/owner/repo.git",
+        "supersecret",
+    )
+
+    remote = subprocess.run(
+        ["git", "remote", "get-url", "origin"], cwd=backup_dir,
+        capture_output=True, text=True,
+    )
+    assert remote.returncode == 0
+    assert remote.stdout.strip() == "https://github.com/owner/repo.git"
+    assert "supersecret" not in (backup_dir / ".git" / "config").read_text()
+
+
+def test_ensure_initialized_refreshes_existing_origin_without_pat(tmp_path):
+    from backend.backup.git_remote import ensure_initialized
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+
+    ensure_initialized(
+        backup_dir,
+        "https://github.com/owner/old.git",
+        "oldsecret",
+    )
+    ensure_initialized(
+        backup_dir,
+        "https://github.com/owner/new.git",
+        "newsecret",
+    )
+
+    remote = subprocess.run(
+        ["git", "remote", "get-url", "origin"], cwd=backup_dir,
+        capture_output=True, text=True,
+    )
+    assert remote.returncode == 0
+    assert remote.stdout.strip() == "https://github.com/owner/new.git"
+    assert "oldsecret" not in (backup_dir / ".git" / "config").read_text()
+    assert "newsecret" not in (backup_dir / ".git" / "config").read_text()
+
+
+def _completed(cmd, returncode=0, stdout="", stderr=""):
+    return subprocess.CompletedProcess(
+        args=cmd,
+        returncode=returncode,
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+
+@pytest.mark.parametrize(
+    ("failing_prefix", "expected_label"),
+    [
+        (("git", "add"), "git add"),
+        (("git", "commit"), "git commit"),
+        (("git", "rev-parse"), "git rev-parse"),
+    ],
+)
+def test_commit_and_push_raises_when_pre_push_command_fails(
+    tmp_path,
+    failing_prefix,
+    expected_label,
+):
+    from backend.backup.git_remote import GitRemoteError, commit_and_push
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+
+    def fake_run(cmd, cwd):
+        if tuple(cmd[:len(failing_prefix)]) == failing_prefix:
+            return _completed(
+                cmd,
+                returncode=1,
+                stderr=(
+                    "fatal: https://x-access-token:supersecret@"
+                    "github.com/owner/repo.git failed"
+                ),
+            )
+        if cmd[:2] == ["git", "rev-parse"]:
+            return _completed(cmd, stdout="oldsha\n")
+        return _completed(cmd)
+
+    with patch("backend.backup.git_remote._run", side_effect=fake_run):
+        with pytest.raises(GitRemoteError) as exc:
+            commit_and_push(backup_dir, "test")
+
+    message = str(exc.value)
+    assert expected_label in message
+    assert "supersecret" not in message
+    assert "x-access-token:***" in message
+
+
 def test_commit_and_push_runs_subprocess_with_timeout(tmp_path):
     """Verify commit_and_push invokes git push with the 30s timeout."""
     from backend.backup.git_remote import commit_and_push, ensure_initialized

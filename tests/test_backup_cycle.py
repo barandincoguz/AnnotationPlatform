@@ -2,6 +2,7 @@
 import json
 import os
 import sqlite3
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -131,3 +132,71 @@ def test_run_backup_cycle_rotates_snapshots(fresh_db, tmp_path, monkeypatch):
     new_snapshots = list(backup_dir.glob("20260[5-9]*.json"))
     total_dated = len(snapshots) + len(new_snapshots)
     assert total_dated <= 144
+
+
+def test_run_backup_cycle_serializes_concurrent_runs(fresh_db, tmp_path, monkeypatch):
+    """Concurrent manual/background cycles must not enter the snapshot/git
+    critical section at the same time."""
+    from backend import config
+    from backend.backup import service
+
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
+
+    active = 0
+    max_active = 0
+    call_count = 0
+    state_lock = threading.Lock()
+    first_inside = threading.Event()
+    release_first = threading.Event()
+    errors: list[BaseException] = []
+
+    def fake_snapshot(db, backup_dir, ts):
+        nonlocal active, call_count, max_active
+        with state_lock:
+            call_count += 1
+            is_first_call = call_count == 1
+            active += 1
+            max_active = max(max_active, active)
+
+        if is_first_call:
+            first_inside.set()
+            assert release_first.wait(timeout=2)
+
+        path = backup_dir / f"{ts}-{threading.get_ident()}.json"
+        path.write_text("{}")
+        (backup_dir / "latest.json").write_text("{}")
+
+        with state_lock:
+            active -= 1
+        return path, 1
+
+    def run_cycle(db):
+        try:
+            service.run_backup_cycle(db)
+        except BaseException as exc:
+            errors.append(exc)
+
+    second_conn = connect(config.DB_PATH)
+    try:
+        with patch(
+            "backend.backup.service.write_database_snapshot",
+            side_effect=fake_snapshot,
+        ):
+            first = threading.Thread(target=run_cycle, args=(fresh_db,))
+            second = threading.Thread(target=run_cycle, args=(second_conn,))
+
+            first.start()
+            assert first_inside.wait(timeout=1)
+            second.start()
+            time.sleep(0.05)
+            release_first.set()
+            first.join(timeout=2)
+            second.join(timeout=2)
+
+        assert not first.is_alive()
+        assert not second.is_alive()
+        assert errors == []
+        assert max_active == 1
+    finally:
+        second_conn.close()

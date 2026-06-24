@@ -54,7 +54,7 @@ admin panel.
 | `BOOTSTRAP_ADMIN_USERNAME` | no | recommended | `root` | First-admin seed; only acts when users table has no admin |
 | `BOOTSTRAP_ADMIN_PASSWORD` | no | recommended | `<≥12 chars>` | Paired with the above; ≥12 chars in production |
 | `BACKUP_REPO_URL` | no | recommended | `https://github.com/me/anotasyon-backup.git` | Empty → stderr WARN at boot, no backup |
-| `GITHUB_PAT` | no | required if above set | `<fine-grained PAT, contents:write>` | Inject into `BACKUP_REPO_URL` clone URL at runtime |
+| `GITHUB_PAT` | no | required if above set | `<fine-grained PAT, contents:write>` | Used for GitHub auth at runtime; not stored in `backup/.git/config` |
 | `DATA_DIR` | no | no | `/data` | Container default; override only for non-Docker dev |
 | `DISABLE_SPA_MOUNT` | no | no | `1` | Set in tests only; do not set in prod |
 | `TRUST_FORWARDED_FOR` | no | no | `1` | Enable only behind a trusted reverse proxy |

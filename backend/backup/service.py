@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,7 @@ from backend.shared import audit
 
 
 log = logging.getLogger(__name__)
+_backup_cycle_lock = threading.Lock()
 
 
 # Tables NOT dumped.
@@ -257,6 +259,13 @@ def run_backup_cycle(
     system_events row carries it for cross-table correlation. Background
     loop callers omit it → NULL.
     """
+    with _backup_cycle_lock:
+        return _run_backup_cycle_locked(db, trace_id=trace_id)
+
+
+def _run_backup_cycle_locked(
+    db: sqlite3.Connection, *, trace_id: Optional[str] = None,
+) -> dict:
     backup_dir = config.BACKUP_DIR
     repo_url = config.BACKUP_REPO_URL
     pat = config.GITHUB_PAT
@@ -317,7 +326,12 @@ def run_backup_cycle(
         raise
 
     try:
-        sha = git_remote.commit_and_push(backup_dir, f"auto-backup {ts}")
+        sha = git_remote.commit_and_push(
+            backup_dir,
+            f"auto-backup {ts}",
+            remote_url=repo_url,
+            pat=pat,
+        )
     except Exception as e:
         audit.log_system_event(
             db, "backup_failed", "error",

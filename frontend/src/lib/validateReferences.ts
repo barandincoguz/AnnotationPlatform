@@ -193,7 +193,10 @@ export function normalizeTurkishKey(text: string): string {
 
 function cleanParentheses(text: string): string {
   // Remove anything inside parentheses, brackets or braces, e.g. (KVK) -> ""
-  return text.replace(/\s*[\(\[\{][^\(\)\[\]\{\}]*[\)\]\}]\s*/g, ' ')
+  return text
+    .replace(/\s*\([^()]*\)\s*/g, ' ')
+    .replace(/\s*\[[^\]]*\]\s*/g, ' ')
+    .replace(/\s*\{[^{}]*\}\s*/g, ' ')
 }
 
 export function normalizeKanunAdi(text: string | null): string | null {
@@ -625,13 +628,11 @@ export const LAW_NUMBER_BY_NAME: Record<string, string> = {
 export function getLawNameByNumber(num: string | null | undefined): string | null {
   if (!num) return null
   const cleaned = normalizeKanunNo(num)
-  return cleaned ? (LAW_NAME_BY_NUMBER[cleaned] || null) : null
+  return cleaned ? (LAW_NAME_BY_NUMBER[cleaned] ?? null) : null
 }
 
 export function getLawNumberByName(name: string | null | undefined): string | null {
   if (!name) return null
   const cleaned = normalizeKanunAdi(name)
-  return cleaned ? (LAW_NUMBER_BY_NAME[cleaned] || null) : null
+  return cleaned ? (LAW_NUMBER_BY_NAME[cleaned] ?? null) : null
 }
-
-

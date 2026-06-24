@@ -179,7 +179,13 @@ def enforce_production_secrets() -> None:
         msg += "\nSet ENVIRONMENT=development to disable enforcement."
         raise ProductionConfigError(msg)
 
-    if not config.BACKUP_REPO_URL:
+    if config.BACKUP_REPO_URL and not config.GITHUB_PAT:
+        print(
+            "WARNING: backup repo configured but GITHUB_PAT empty; "
+            "automatic GitHub backup push will be skipped.",
+            file=sys.stderr,
+        )
+    elif not config.BACKUP_REPO_URL:
         print(
             "WARNING: no backup configured (BACKUP_REPO_URL empty); "
             "set it for automatic GitHub backup.",

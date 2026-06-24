@@ -55,7 +55,7 @@ export function useTrainingSkipMutation() {
   return useMutation<{ ok: boolean }, Error, void>({
     mutationFn: async () => {
       const raw = await unwrap(await client.POST('/api/training/skip'))
-      return raw as { ok: boolean }
+      return raw
     },
   })
 }
