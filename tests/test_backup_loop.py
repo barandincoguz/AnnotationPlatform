@@ -34,7 +34,8 @@ async def test_backup_loop_cancellation_is_graceful():
 
     with patch("backend.backup.loop.backup_once", side_effect=slow_cycle), \
          patch("backend.backup.loop.connect"), \
-         patch("backend.backup.loop._read_interval", return_value=600):
+         patch("backend.backup.loop._read_interval", return_value=600), \
+         patch("backend.backup.loop.STARTUP_DELAY_SECONDS", 0, create=True):
         task = asyncio.create_task(backup_loop_mod.backup_loop())
         await asyncio.sleep(0.01)
         task.cancel()
@@ -62,7 +63,8 @@ async def test_backup_loop_swallows_cycle_exception_and_continues():
         second_call_done.set()
 
     with patch("backend.backup.loop.backup_once", side_effect=cycle_then_raise), \
-         patch("backend.backup.loop._read_interval", return_value=0):
+         patch("backend.backup.loop._read_interval", return_value=0), \
+         patch("backend.backup.loop.STARTUP_DELAY_SECONDS", 0, create=True):
         task = asyncio.create_task(backup_loop_mod.backup_loop())
         # Wait for the second call to actually happen (proves the loop didn't
         # die on the first exception). 1s ceiling guards against deadlocks
@@ -74,6 +76,46 @@ async def test_backup_loop_swallows_cycle_exception_and_continues():
         except asyncio.CancelledError:
             pass
         assert call_count[0] >= 2
+
+
+@pytest.mark.asyncio
+async def test_backup_loop_runs_initial_backup_after_startup_delay():
+    """Verify that backup_loop first sleeps for STARTUP_DELAY_SECONDS,
+    runs the initial backup, and then sleeps for the regular interval."""
+    from backend.backup import loop as backup_loop_mod
+
+    sleep_calls = []
+    backup_once_calls = []
+
+    async def mock_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    async def mock_backup_once():
+        backup_once_calls.append(True)
+
+    real_sleep = asyncio.sleep
+
+    with patch("backend.backup.loop.asyncio.sleep", side_effect=mock_sleep), \
+         patch("backend.backup.loop.backup_once", side_effect=mock_backup_once), \
+         patch("backend.backup.loop.connect"), \
+         patch("backend.backup.loop._read_interval", return_value=86400), \
+         patch("backend.backup.loop.STARTUP_DELAY_SECONDS", 300, create=True):
+
+        task = asyncio.create_task(backup_loop_mod.backup_loop())
+        
+        for _ in range(10):
+            await real_sleep(0.001)
+            if len(sleep_calls) >= 2:
+                break
+
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    assert sleep_calls == [300, 86400]
+    assert backup_once_calls == [True, True]
 
 
 def test_read_interval_returns_default_when_setting_missing(tmp_path):

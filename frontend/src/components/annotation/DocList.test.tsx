@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/test/msw-server'
 import { renderWithProviders } from '@/test/render'
 import { makeFeedItem } from '@/test/msw-handlers'
+import * as useFeedMod from '@/hooks/useFeed'
 import { DocList } from './DocList'
 
 describe('DocList', () => {
@@ -72,5 +73,26 @@ describe('DocList', () => {
     await waitFor(() => expect(screen.getByRole('button')).toBeInTheDocument())
     screen.getByRole('button').click()
     expect(onSelect).toHaveBeenCalledWith('doc-A')
+  })
+
+  it('renders a loading indicator when fetching the next page', () => {
+    const useFeedSpy = vi.spyOn(useFeedMod, 'useFeed').mockReturnValue({
+      data: {
+        pages: [
+          {
+            items: [makeFeedItem({ document_id: 'doc-a' })],
+            total: 2,
+          },
+        ],
+      },
+      isPending: false,
+      isFetchingNextPage: true,
+      hasNextPage: true,
+      fetchNextPage: vi.fn(),
+    } as any)
+
+    renderWithProviders(<DocList tab="verified" selectedId={null} onSelectDoc={vi.fn()} />)
+    expect(screen.getByText('Daha fazla yükleniyor...')).toBeInTheDocument()
+    useFeedSpy.mockRestore()
   })
 })

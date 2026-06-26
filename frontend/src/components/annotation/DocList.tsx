@@ -45,15 +45,17 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
   // intent of the dependency array. `fetchNextPage` is referentially
   // stable on TanStack v5.
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed
+  const virtualItems = virtualizer.getVirtualItems()
+  const lastItem = virtualItems[virtualItems.length - 1]
+  const lastIndex = lastItem?.index
+
   useEffect(() => {
     if (IS_TEST) return
-    const virtualItems = virtualizer.getVirtualItems()
-    const last = virtualItems[virtualItems.length - 1]
-    if (!last) return
-    if (last.index >= items.length - 10 && hasNextPage && !isFetchingNextPage) {
+    if (lastIndex === undefined) return
+    if (lastIndex >= items.length - 10 && hasNextPage && !isFetchingNextPage) {
       void fetchNextPage()
     }
-  }, [virtualizer, items.length, hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [lastIndex, items.length, hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // Stable handler so memoized DocListItem children don't bust their
   // memo on every parent re-render. Reading docId off the event target
@@ -95,6 +97,11 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
               onClick={handleSelect}
             />
           ))}
+          {isFetchingNextPage && (
+            <div role="status" className="p-3 text-center text-xs text-muted-foreground animate-pulse border-t border-border/60">
+              Daha fazla yükleniyor...
+            </div>
+          )}
         </div>
       </div>
     )
@@ -137,6 +144,11 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
             )
           })}
         </div>
+        {isFetchingNextPage && (
+          <div role="status" className="p-3 text-center text-xs text-muted-foreground animate-pulse border-t border-border/60">
+            Daha fazla yükleniyor...
+          </div>
+        )}
       </div>
     </div>
   )

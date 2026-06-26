@@ -17,6 +17,7 @@ from backend.shared.db import connect
 
 log = logging.getLogger(__name__)
 DEFAULT_INTERVAL_SECONDS = 86400  # 24h
+STARTUP_DELAY_SECONDS = 300
 
 
 def _read_interval(db: sqlite3.Connection) -> int:
@@ -42,12 +43,24 @@ async def backup_once() -> dict:
 async def backup_loop() -> None:
     """Async loop. Cancel via task.cancel().
 
-    Each iteration:
+    On boot:
+      1. Sleep for STARTUP_DELAY_SECONDS (to let Neon sync and boot work settle).
+      2. Run the initial backup cycle.
+
+    Each subsequent iteration:
       1. Re-read backup.interval_seconds (live admin tuning).
       2. Sleep `interval_seconds`.
       3. Run one backup cycle inside asyncio.to_thread.
       4. Swallow any non-Cancelled exception; log + continue.
     """
+    try:
+        await asyncio.sleep(STARTUP_DELAY_SECONDS)
+        await backup_once()
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        log.exception("initial backup cycle failed")
+
     while True:
         try:
             conn = connect(config.DB_PATH)
@@ -60,8 +73,6 @@ async def backup_loop() -> None:
             interval = DEFAULT_INTERVAL_SECONDS
 
         try:
-            # Sleep-first ordering: avoids piling backup I/O on top of
-            # server-startup work. First cycle fires after one interval.
             await asyncio.sleep(interval)
             await backup_once()
         except asyncio.CancelledError:
