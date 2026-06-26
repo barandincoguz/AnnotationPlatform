@@ -241,6 +241,18 @@ def utc_timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
 
 
+def _unique_snapshot_timestamp(backup_dir: Path) -> str:
+    """Return a timestamp stem that will not overwrite an existing snapshot."""
+    base = utc_timestamp()
+    if not (backup_dir / f"{base}.json").exists():
+        return base
+    for suffix in range(1, 1000):
+        candidate = f"{base}-{suffix:03d}"
+        if not (backup_dir / f"{candidate}.json").exists():
+            return candidate
+    raise RuntimeError(f"too many backup snapshots for timestamp {base!r}")
+
+
 def run_backup_cycle(
     db: sqlite3.Connection, *, trace_id: Optional[str] = None,
 ) -> dict:
@@ -271,7 +283,7 @@ def _run_backup_cycle_locked(
     pat = config.GITHUB_PAT
 
     # --- stream transaction-consistent snapshot ---
-    ts = utc_timestamp()
+    ts = _unique_snapshot_timestamp(backup_dir)
     try:
         snapshot_path, table_count = write_database_snapshot(
             db,

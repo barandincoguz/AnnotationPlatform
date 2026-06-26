@@ -134,6 +134,27 @@ def test_run_backup_cycle_rotates_snapshots(fresh_db, tmp_path, monkeypatch):
     assert total_dated <= 144
 
 
+def test_run_backup_cycle_avoids_same_minute_snapshot_collision(
+    fresh_db,
+    tmp_path,
+    monkeypatch,
+):
+    """Manual/background cycles in the same minute must not overwrite the
+    first timestamped snapshot."""
+    from backend.backup import service
+
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
+    monkeypatch.setattr(service, "utc_timestamp", lambda: "20260626-1234")
+
+    first = service.run_backup_cycle(fresh_db)
+    second = service.run_backup_cycle(fresh_db)
+
+    assert first["snapshot_path"] != second["snapshot_path"]
+    assert Path(first["snapshot_path"]).exists()
+    assert Path(second["snapshot_path"]).exists()
+
+
 def test_run_backup_cycle_serializes_concurrent_runs(fresh_db, tmp_path, monkeypatch):
     """Concurrent manual/background cycles must not enter the snapshot/git
     critical section at the same time."""
