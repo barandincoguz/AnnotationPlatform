@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import gzip
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, TextIO
 
@@ -88,6 +90,18 @@ class _StreamingJsonReader:
                 raise ValueError("restore: trailing data after top-level object")
 
 
+@contextmanager
+def _open_snapshot_text(snapshot_path: Path) -> Iterator[TextIO]:
+    with open(snapshot_path, "rb") as probe:
+        is_gzip = probe.read(2) == b"\x1f\x8b"
+    if snapshot_path.name.endswith(".json.gz") or is_gzip:
+        with gzip.open(snapshot_path, "rt", encoding="utf-8") as stream:
+            yield stream
+    else:
+        with open(snapshot_path, encoding="utf-8") as stream:
+            yield stream
+
+
 def _iter_table_rows(reader: _StreamingJsonReader) -> Iterator[dict[str, Any]]:
     reader.expect("[")
     if reader.peek() == "]":
@@ -131,7 +145,7 @@ def restore_from_snapshot(db: sqlite3.Connection, snapshot_path: Path) -> dict:
         skipped_tables: list[str] = []
         total = 0
 
-        with open(snapshot_path, encoding="utf-8") as stream:
+        with _open_snapshot_text(snapshot_path) as stream:
             reader = _StreamingJsonReader(stream)
             reader.expect("{")
             if reader.peek() != "}":

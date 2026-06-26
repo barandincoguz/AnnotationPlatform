@@ -53,7 +53,7 @@ admin panel.
 | `SESSION_COOKIE_SAMESITE` | no | no | `lax` | `lax`, `strict`, or `none`; use `none` only for required cross-site iframe embedding |
 | `BOOTSTRAP_ADMIN_USERNAME` | no | recommended | `root` | First-admin seed; only acts when users table has no admin |
 | `BOOTSTRAP_ADMIN_PASSWORD` | no | recommended | `<≥12 chars>` | Paired with the above; ≥12 chars in production |
-| `BACKUP_REPO_URL` | no | recommended | `https://github.com/me/anotasyon-backup.git` | Empty → stderr WARN at boot, no backup |
+| `BACKUP_REPO_URL` | no | recommended | `https://github.com/barandincoguz/PrivateAnnotationDatas.git` | Empty → stderr WARN at boot, no backup |
 | `GITHUB_PAT` | no | required if above set | `<fine-grained PAT, contents:write>` | Used for GitHub auth at runtime; not stored in `backup/.git/config` |
 | `DATA_DIR` | no | no | `/data` | Container default; override only for non-Docker dev |
 | `DISABLE_SPA_MOUNT` | no | no | `1` | Set in tests only; do not set in prod |
@@ -158,7 +158,10 @@ drill with two STOP gates.
 
 ## 6. Backup setup (GitHub remote)
 
-Set up off-host snapshots so a host failure does not destroy data.
+Set up off-host compressed JSON snapshots so a host failure does not destroy data.
+The snapshot includes user annotation work (`annotations`,
+`annotation_versions`, `annotation_references`, and `drafts`) plus durable
+admin/user state. Runtime-only sessions and locks are intentionally excluded.
 
 ```bash
 # 1. Create an empty private GitHub repo, e.g. "anotasyon-backup"
@@ -171,7 +174,7 @@ Set up off-host snapshots so a host failure does not destroy data.
 #    Copy the token immediately.
 
 # 3. In .env.production:
-BACKUP_REPO_URL=https://github.com/<you>/anotasyon-backup.git
+BACKUP_REPO_URL=https://github.com/barandincoguz/PrivateAnnotationDatas.git
 GITHUB_PAT=github_pat_<...>
 
 # 4. Restart
@@ -179,7 +182,9 @@ docker compose --env-file .env.production down
 docker compose --env-file .env.production up -d
 ```
 
-Verify the first backup landed (typically within the backup window):
+Verify the first backup landed. The automatic loop runs every 24 hours by
+default; use the admin backup endpoint for an immediate smoke test after
+setting the secret:
 ```bash
 docker compose exec app sqlite3 /data/db/annotations.db \
   "SELECT event_type, severity, message FROM system_events \

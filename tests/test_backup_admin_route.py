@@ -11,7 +11,7 @@ def test_run_now_succeeds_with_no_remote(client, bootstrap_admin):
     assert body["ok"] is True
     assert body["pushed"] is False
     assert body["committed_sha"] is None
-    assert body["snapshot_path"].endswith(".json")
+    assert body["snapshot_path"].endswith(".json.gz")
 
 
 def test_run_now_writes_audit_row(client, bootstrap_admin):

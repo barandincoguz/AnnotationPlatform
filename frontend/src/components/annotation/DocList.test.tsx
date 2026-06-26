@@ -26,6 +26,19 @@ describe('DocList', () => {
     expect(screen.getByText('doc-b')).toBeInTheDocument()
   })
 
+  it('renders the total count from the feed response', async () => {
+    server.use(
+      http.get('http://localhost/api/feed', () =>
+        HttpResponse.json({
+          items: [makeFeedItem({ document_id: 'doc-a' })],
+          total: 683,
+        }),
+      ),
+    )
+    renderWithProviders(<DocList tab="verified" selectedId={null} onSelectDoc={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('683 kayıt')).toBeInTheDocument())
+  })
+
   it('shows empty state when feed is empty', async () => {
     server.use(
       http.get('http://localhost/api/feed', () => HttpResponse.json({ items: [], total: 0 })),

@@ -28,6 +28,8 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
   const sort = useAnnotateStore((s) => s.sort[tab])
   const feed = useFeed(tab, sort)
   const items = feed.data?.pages.flatMap((p) => p.items) ?? []
+  const total = feed.data?.pages[0]?.total
+  const countLabel = `${typeof total === 'number' ? total : items.length} kayıt`
   const parentRef = useRef<HTMLDivElement>(null)
 
   const virtualizer = useVirtualizer({
@@ -80,51 +82,61 @@ export function DocList({ tab, selectedId, onSelectDoc }: DocListProps) {
 
   if (IS_TEST) {
     return (
-      <div ref={parentRef} className="h-full overflow-auto">
-        {items.map((item) => (
-          <DocListItem
-            key={item.document_id}
-            item={item}
-            isSelected={selectedId === item.document_id}
-            onClick={handleSelect}
-          />
-        ))}
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="shrink-0 border-b border-border/60 px-5 py-2 font-mono text-[11px] font-semibold text-muted-foreground">
+          {countLabel}
+        </div>
+        <div ref={parentRef} className="min-h-0 flex-1 overflow-auto">
+          {items.map((item) => (
+            <DocListItem
+              key={item.document_id}
+              item={item}
+              isSelected={selectedId === item.document_id}
+              onClick={handleSelect}
+            />
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div ref={parentRef} className="h-full overflow-auto">
-      <div
-        style={{
-          height: `${virtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
-        }}
-      >
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const item = items[virtualRow.index]!
-          return (
-            <div
-              key={item.document_id}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              <DocListItem
-                item={item}
-                isSelected={selectedId === item.document_id}
-                onClick={handleSelect}
-              />
-            </div>
-          )
-        })}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-border/60 px-5 py-2 font-mono text-[11px] font-semibold text-muted-foreground">
+        {countLabel}
+      </div>
+      <div ref={parentRef} className="min-h-0 flex-1 overflow-auto">
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const item = items[virtualRow.index]!
+            return (
+              <div
+                key={item.document_id}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                <DocListItem
+                  item={item}
+                  isSelected={selectedId === item.document_id}
+                  onClick={handleSelect}
+                />
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

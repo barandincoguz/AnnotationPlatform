@@ -1,4 +1,5 @@
 """Phase 5 U1: POST /api/admin/backup/restore — uploaded snapshot restore."""
+import gzip
 import json
 from unittest.mock import patch
 
@@ -37,6 +38,45 @@ def test_restore_route_replaces_db_state(client, bootstrap_admin, tmp_path):
     assert body["tables"]["users"] >= 1
     assert isinstance(body["total_rows"], int)
     assert "trace_id" in body
+
+
+def test_restore_route_accepts_compressed_snapshot_upload(
+    client,
+    bootstrap_admin,
+    tmp_path,
+):
+    bootstrap_admin()
+    snapshot = {
+        "__format_version": 1,
+        "users": [
+            {
+                "id": 1,
+                "username": "compressed",
+                "email": None,
+                "password_hash": "pbkdf2_sha256$1$test$x",
+                "role": "user",
+                "is_active": 1,
+                "has_passed_training": 1,
+                "has_seen_manual": 1,
+                "avatar_color": None,
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+            }
+        ],
+    }
+    snap_path = tmp_path / "snap.json.gz"
+    snap_path.write_bytes(
+        gzip.compress(json.dumps(snapshot).encode("utf-8"))
+    )
+
+    with open(snap_path, "rb") as f:
+        resp = client.post(
+            "/api/admin/backup/restore",
+            files={"snapshot": ("snap.json.gz", f, "application/gzip")},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["tables"]["users"] == 1
 
 
 def test_restore_route_writes_audit_row(client, bootstrap_admin, tmp_path):

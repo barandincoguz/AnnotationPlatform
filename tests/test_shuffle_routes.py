@@ -52,6 +52,23 @@ def test_feed_verified_tab_includes_completed(passed_user, ingest_doc):
     assert body["items"][0]["is_completed"] is True
 
 
+def test_feed_verified_total_counts_all_completed_across_pages(passed_user, ingest_doc):
+    c = passed_user["client"]
+    for i in range(75):
+        doc_id = f"doc_done_{i:02d}"
+        ingest_doc(doc_id)
+        c.post("/api/annotations", json={"document_id": doc_id, "references": []})
+        c.post(f"/api/annotations/{doc_id}/complete", json={"completed": True})
+
+    page1 = c.get("/api/feed?tab=verified&limit=50&offset=0").json()
+    page2 = c.get("/api/feed?tab=verified&limit=50&offset=50").json()
+
+    assert page1["total"] == 75
+    assert page2["total"] is None
+    assert len(page1["items"]) == 50
+    assert len(page2["items"]) == 25
+
+
 def test_feed_invalid_tab_returns_422(passed_user):
     r = passed_user["client"].get("/api/feed?tab=bogus")
     assert r.status_code == 422  # FastAPI Query pattern rejects

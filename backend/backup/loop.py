@@ -16,10 +16,15 @@ from backend.shared.db import connect
 
 
 log = logging.getLogger(__name__)
+DEFAULT_INTERVAL_SECONDS = 86400  # 24h
 
 
 def _read_interval(db: sqlite3.Connection) -> int:
-    return S.get_int(db, "backup.interval_seconds", default=600)
+    return S.get_int(
+        db,
+        "backup.interval_seconds",
+        default=DEFAULT_INTERVAL_SECONDS,
+    )
 
 
 async def backup_once() -> dict:
@@ -51,8 +56,8 @@ async def backup_loop() -> None:
             finally:
                 conn.close()
         except Exception:
-            log.exception("backup loop: failed to read interval; using default 600")
-            interval = 600
+            log.exception("backup loop: failed to read interval; using default 86400")
+            interval = DEFAULT_INTERVAL_SECONDS
 
         try:
             # Sleep-first ordering: avoids piling backup I/O on top of

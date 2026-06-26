@@ -93,6 +93,48 @@ def _ensure_origin_remote(backup_dir: Path, remote_url: str) -> None:
     )
 
 
+def _has_payload_files(backup_dir: Path) -> bool:
+    return any(path.name != ".git" for path in backup_dir.iterdir())
+
+
+def _is_missing_remote_ref(result: subprocess.CompletedProcess) -> bool:
+    text = (result.stderr or result.stdout or "").lower()
+    return "couldn't find remote ref" in text or "could not find remote ref" in text
+
+
+def _adopt_existing_remote_history(
+    backup_dir: Path,
+    remote_url: str,
+    pat: str,
+) -> bool:
+    """Attach a fresh backup worktree to an existing GitHub branch.
+
+    GitHub rejects the first push when the private backup repo already has
+    commits (for example a README) and the local backup dir starts from an
+    unrelated root commit. Fetching the remote branch and soft-resetting HEAD
+    preserves the freshly written snapshot files while making the next backup
+    commit a normal child of the remote history.
+    """
+    auth_url = inject_pat(remote_url_without_pat(remote_url), pat)
+    for branch in ("main", "master"):
+        fetched = _run(["git", "fetch", "--depth=1", auth_url, branch], cwd=backup_dir)
+        if fetched.returncode == 0:
+            _check(
+                "git symbolic-ref",
+                _run(["git", "symbolic-ref", "HEAD", f"refs/heads/{branch}"], cwd=backup_dir),
+            )
+            _check(
+                "git reset --soft",
+                _run(["git", "reset", "--soft", "FETCH_HEAD"], cwd=backup_dir),
+            )
+            return True
+        if _is_missing_remote_ref(fetched):
+            continue
+        _check(f"git fetch {branch}", fetched)
+
+    return False
+
+
 def ensure_initialized(backup_dir: Path, remote_url: str, pat: str) -> None:
     """Ensure `backup_dir` is a git repo with origin set to the plain remote URL.
 
@@ -118,8 +160,14 @@ def ensure_initialized(backup_dir: Path, remote_url: str, pat: str) -> None:
     _check("git init", _run(["git", "init", "-b", "main"], cwd=backup_dir))
     _check("git config email", _run(["git", "config", "user.email", "backup@localhost"], cwd=backup_dir))
     _check("git config name", _run(["git", "config", "user.name", "Backup Bot"], cwd=backup_dir))
-    _check("git commit init", _run(["git", "commit", "--allow-empty", "-m", "init"], cwd=backup_dir))
     _ensure_origin_remote(backup_dir, remote_url)
+    adopted = (
+        _adopt_existing_remote_history(backup_dir, remote_url, pat)
+        if _has_payload_files(backup_dir)
+        else False
+    )
+    if not adopted:
+        _check("git commit init", _run(["git", "commit", "--allow-empty", "-m", "init"], cwd=backup_dir))
 
 
 def commit_and_push(

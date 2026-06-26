@@ -1,4 +1,5 @@
 """Tests for restore_from_snapshot."""
+import gzip
 import json
 import sqlite3
 from pathlib import Path
@@ -25,6 +26,12 @@ def _write_snapshot(tmp_path: Path, payload: dict) -> Path:
     return snap
 
 
+def _write_gzip_snapshot(tmp_path: Path, payload: dict) -> Path:
+    snap = tmp_path / "test_snapshot.json.gz"
+    snap.write_bytes(gzip.compress(json.dumps(payload, ensure_ascii=False).encode("utf-8")))
+    return snap
+
+
 def test_restore_populates_tables(fresh_db, tmp_path):
     from backend.backup.restore import restore_from_snapshot
     payload = {
@@ -38,6 +45,23 @@ def test_restore_populates_tables(fresh_db, tmp_path):
     assert out["tables"]["invite_codes"] == 1
     row = fresh_db.execute("SELECT code FROM invite_codes WHERE id=1").fetchone()
     assert row["code"] == "RESTORED"
+
+
+def test_restore_populates_tables_from_gzip_snapshot(fresh_db, tmp_path):
+    from backend.backup.restore import restore_from_snapshot
+
+    payload = {
+        "invite_codes": [
+            {"id": 1, "code": "RESTORED-GZ", "is_active": 1, "created_at": "2026-05-09T00:00:00+00:00"},
+        ],
+        "users": [],
+    }
+
+    out = restore_from_snapshot(fresh_db, _write_gzip_snapshot(tmp_path, payload))
+
+    assert out["tables"]["invite_codes"] == 1
+    row = fresh_db.execute("SELECT code FROM invite_codes WHERE id=1").fetchone()
+    assert row["code"] == "RESTORED-GZ"
 
 
 def test_restore_does_not_touch_schema_migrations(fresh_db, tmp_path):

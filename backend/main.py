@@ -79,6 +79,13 @@ MIRROR_RESTORE_TABLES = (
     "admin_audit_log",
 )
 
+ANNOTATION_STATE_TABLES = (
+    "annotations",
+    "annotation_versions",
+    "annotation_references",
+    "drafts",
+)
+
 
 def _translate_mirror_value(value):
     if isinstance(value, (dict, list)):
@@ -86,6 +93,27 @@ def _translate_mirror_value(value):
     if isinstance(value, datetime):
         return value.isoformat()
     return value
+
+
+def _local_annotation_state_empty(conn) -> bool:
+    for table in ANNOTATION_STATE_TABLES:
+        count = conn.execute(f"SELECT COUNT(*) AS c FROM {table}").fetchone()["c"]
+        if count:
+            return False
+    return True
+
+
+def _mirror_annotation_state_available(pg_conn) -> bool:
+    for table in ANNOTATION_STATE_TABLES:
+        pg_cur = pg_conn.cursor()
+        try:
+            pg_cur.execute(f"SELECT COUNT(*) FROM baran_{table}")
+            row = pg_cur.fetchone()
+        finally:
+            pg_cur.close()
+        if row and row[0] > 0:
+            return True
+    return False
 
 
 def _restore_mirrored_state(conn, pg_conn) -> dict[str, int]:
@@ -178,7 +206,12 @@ async def lifespan(_app: FastAPI):
         # Automatic document replication and full user state sync from Neon Postgres on first boot (Phase 6 + Ephemeral Sync)
         user_count = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
         doc_count = conn.execute("SELECT COUNT(*) AS c FROM documents_meta").fetchone()["c"]
-        if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL and (is_fresh_db or doc_count == 0):
+        local_annotation_state_empty = _local_annotation_state_empty(conn)
+        if (
+            config.ENVIRONMENT != "test"
+            and mirror_config.NEON_MIRROR_URL
+            and (is_fresh_db or doc_count == 0 or local_annotation_state_empty)
+        ):
             import psycopg
             
             # Drop all outbox triggers temporarily to avoid generating useless queue writes (59,000+ rows)
@@ -251,8 +284,22 @@ async def lifespan(_app: FastAPI):
                         )
                         print(f"Failed to auto-sync documents from Neon: {e}")
 
-                # 2. Sync all users and activity state if users are empty (solves ephemeral storage completely)
-                if is_fresh_db:
+                # 2. Sync durable user/annotation state if the DB is fresh, or
+                # if documents exist locally but annotation state is empty while
+                # Neon has annotation work. Never overwrite local annotation work.
+                should_restore_state = is_fresh_db
+                if not should_restore_state and local_annotation_state_empty:
+                    try:
+                        with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
+                            should_restore_state = _mirror_annotation_state_available(pg_conn)
+                    except Exception as e:
+                        audit.log_system_event(
+                            conn, "neon_user_sync_failed", "error",
+                            message=f"Failed to check Neon annotation state: {e}",
+                        )
+                        print(f"Failed to check Neon annotation state: {e}")
+
+                if should_restore_state:
                     from psycopg.rows import dict_row
 
                     try:

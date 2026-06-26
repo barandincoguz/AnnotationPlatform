@@ -341,7 +341,7 @@ DEFAULT_SETTINGS: dict[str, tuple[object, str]] = {
     "lock.expires_seconds": (300, "Doküman kilidi idle timeout (saniye)"),
     "lock.heartbeat_interval_seconds": (30, "Frontend heartbeat sıklığı"),
     # Backup
-    "backup.interval_seconds": (600, "GitHub backup sıklığı (10dk)"),
+    "backup.interval_seconds": (86400, "GitHub backup sıklığı (24 saat)"),
     # Training
     "training.quiz_pass_threshold": (4, "5 sorudan en az kaç doğru gerekli"),
     "training.annotation_pass_threshold": (2, "3 gold doc'tan en az kaç pass gerekli"),

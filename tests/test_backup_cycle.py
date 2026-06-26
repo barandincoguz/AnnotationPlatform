@@ -42,9 +42,9 @@ def test_run_backup_cycle_no_remote_skips_git(fresh_db, tmp_path, monkeypatch):
     result = service.run_backup_cycle(fresh_db)
     assert result["pushed"] is False
     assert result["committed_sha"] is None
-    assert result["snapshot_path"].endswith(".json")
+    assert result["snapshot_path"].endswith(".json.gz")
     backup_dir = tmp_path / "backup"
-    assert (backup_dir / "latest.json").exists()
+    assert (backup_dir / "latest.json.gz").exists()
     row = fresh_db.execute(
         "SELECT * FROM system_events WHERE event_type='backup_skipped_no_remote'"
     ).fetchone()
@@ -132,6 +132,27 @@ def test_run_backup_cycle_rotates_snapshots(fresh_db, tmp_path, monkeypatch):
     new_snapshots = list(backup_dir.glob("20260[5-9]*.json"))
     total_dated = len(snapshots) + len(new_snapshots)
     assert total_dated <= 144
+
+
+def test_run_backup_cycle_removes_legacy_uncompressed_snapshots(
+    fresh_db,
+    tmp_path,
+    monkeypatch,
+):
+    from backend.backup import service
+
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
+
+    backup_dir = tmp_path / "backup"
+    (backup_dir / "latest.json").write_text("{}")
+    (backup_dir / "20260617-2227.json").write_text("{}")
+
+    service.run_backup_cycle(fresh_db)
+
+    assert not (backup_dir / "latest.json").exists()
+    assert not (backup_dir / "20260617-2227.json").exists()
+    assert (backup_dir / "latest.json.gz").exists()
 
 
 def test_run_backup_cycle_avoids_same_minute_snapshot_collision(

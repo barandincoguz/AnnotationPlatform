@@ -278,6 +278,29 @@ def _clone_backup_repo(pat_url: str, dest: Path) -> None:
         raise RuntimeError(f"git clone failed: {stderr}")
 
 
+def _find_snapshot_path(clone_dir: Path, snapshot: str | None) -> Path:
+    stem = snapshot if snapshot else "latest"
+    candidates = (
+        [clone_dir / f"{stem}.json.gz", clone_dir / f"{stem}.json"]
+        if snapshot
+        else [clone_dir / "latest.json.gz", clone_dir / "latest.json"]
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+def _load_snapshot_preview(snapshot_path: Path) -> dict:
+    import gzip
+
+    if snapshot_path.name.endswith(".json.gz"):
+        with gzip.open(snapshot_path, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    with open(snapshot_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def cmd_restore_from_github(args) -> int:
     """Restore the local DB from a snapshot in the GitHub backup repo.
 
@@ -285,7 +308,7 @@ def cmd_restore_from_github(args) -> int:
       1. Read BACKUP_REPO_URL + GITHUB_PAT from config (env-backed).
       2. Rename current DB to corrupt-<UTC ISO>.db.bak.
       3. Clone the backup repo to /tmp/restore-<ts>/.
-      4. Pick the requested snapshot (default: latest.json).
+      4. Pick the requested snapshot (default: latest.json.gz, with legacy latest.json fallback).
       5. Confirmation prompt (skipped with --yes).
       6. Run migrations on the new (empty) DB, then restore.
       7. On error: rename corrupt-bak back to annotations.db.
@@ -322,10 +345,7 @@ def cmd_restore_from_github(args) -> int:
             return 1
 
         try:
-            if args.snapshot:
-                snap_path = clone_dir / f"{args.snapshot}.json"
-            else:
-                snap_path = clone_dir / "latest.json"
+            snap_path = _find_snapshot_path(clone_dir, args.snapshot)
             if not snap_path.exists():
                 print(f"error: snapshot not found: {snap_path.name}", file=sys.stderr)
                 if bak_path is not None:
@@ -333,8 +353,7 @@ def cmd_restore_from_github(args) -> int:
                 return 1
 
             if not args.yes:
-                with open(snap_path, encoding="utf-8") as f:
-                    preview = json.load(f)
+                preview = _load_snapshot_preview(snap_path)
                 n_tables = len(preview)
                 n_rows = sum(len(rows) for rows in preview.values())
                 print(f"Will restore {n_tables} tables, {n_rows} total rows from {snap_path.name}.")

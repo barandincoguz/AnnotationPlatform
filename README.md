@@ -271,7 +271,7 @@ lives in **[docs/deployment.md](docs/deployment.md)**.
 | `SESSION_COOKIE_SAMESITE` | no | no | Defaults to `lax`; `none` only for cross-site embedding |
 | `BOOTSTRAP_ADMIN_USERNAME` | no | recommended | First-admin seed username |
 | `BOOTSTRAP_ADMIN_PASSWORD` | no | recommended | First-admin password (≥12 chars in production) |
-| `BACKUP_REPO_URL` | no | recommended | GitHub repo for off-host backup snapshots |
+| `BACKUP_REPO_URL` | no | recommended | GitHub repo for off-host backup snapshots; default cadence is 24h |
 | `GITHUB_PAT` | no | required if backup set | Fine-grained PAT, `contents:write` only |
 | `DATA_DIR` | no | no | `/data` in the container |
 | `ALLOWED_ORIGINS` | no | **yes** | Comma-separated origins for CSRF middleware |

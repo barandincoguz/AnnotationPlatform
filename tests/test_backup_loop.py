@@ -86,8 +86,25 @@ def test_read_interval_returns_default_when_setting_missing(tmp_path):
     conn = connect(db_path)
     apply_migrations(conn, discover_migrations())
     interval = backup_loop_mod._read_interval(conn)
-    assert interval == 600
+    assert interval == 86400
     conn.close()
+
+
+def test_read_interval_fallback_is_24h_for_missing_setting(tmp_path):
+    from backend.backup import loop as backup_loop_mod
+    from backend.shared.db import connect
+    from backend.migrations import discover_migrations
+    from backend.migrations.runner import apply_migrations
+
+    db_path = tmp_path / "test.db"
+    conn = connect(db_path)
+    try:
+        apply_migrations(conn, discover_migrations())
+        conn.execute("DELETE FROM site_settings WHERE key='backup.interval_seconds'")
+        interval = backup_loop_mod._read_interval(conn)
+        assert interval == 86400
+    finally:
+        conn.close()
 
 
 @pytest.mark.asyncio

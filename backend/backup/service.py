@@ -6,6 +6,7 @@ import os
 import shutil
 import sqlite3
 import threading
+import gzip
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -30,6 +31,7 @@ EXCLUDED_TABLES = {
     "schema_migrations",
     "user_sessions",
     "document_locks",
+    "system_events",
     "_outbox",
 }
 
@@ -125,15 +127,15 @@ def write_database_snapshot(
 ) -> tuple[Path, int]:
     """Stream a transaction-consistent DB snapshot directly to disk."""
     backup_dir.mkdir(parents=True, exist_ok=True)
-    latest = backup_dir / "latest.json"
-    timestamped = backup_dir / f"{ts}.json"
-    timestamped_tmp = timestamped.with_suffix(".json.tmp")
-    latest_tmp = latest.with_suffix(".json.tmp")
+    latest = backup_dir / "latest.json.gz"
+    timestamped = backup_dir / f"{ts}.json.gz"
+    timestamped_tmp = timestamped.with_suffix(".json.gz.tmp")
+    latest_tmp = latest.with_suffix(".json.gz.tmp")
 
     db.execute("BEGIN")
     try:
         tables = _snapshot_table_names(db)
-        with open(timestamped_tmp, "w", encoding="utf-8") as stream:
+        with gzip.open(timestamped_tmp, "wt", encoding="utf-8", compresslevel=6) as stream:
             stream.write("{")
             stream.write(json.dumps("__format_version"))
             stream.write(":")
@@ -220,8 +222,9 @@ def rotate_snapshots(backup_dir: Path, keep: int = 144) -> list[Path]:
     """
     candidates = [
         p for p in backup_dir.iterdir()
-        if p.is_file() and p.name != "latest.json"
-        and p.suffix == ".json"
+        if p.is_file()
+        and p.name not in {"latest.json", "latest.json.gz"}
+        and (p.suffix == ".json" or p.name.endswith(".json.gz"))
     ]
     candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     to_delete = candidates[keep:]
@@ -235,6 +238,25 @@ def rotate_snapshots(backup_dir: Path, keep: int = 144) -> list[Path]:
     return deleted
 
 
+def remove_uncompressed_snapshots(backup_dir: Path) -> list[Path]:
+    """Delete legacy raw JSON snapshots so GitHub pushes stay below limits.
+
+    New snapshots are written as .json.gz. Leaving old raw .json files in the
+    worktree would make `git add .` pick up 100MB+ files and GitHub would
+    reject the push.
+    """
+    deleted: list[Path] = []
+    for path in backup_dir.glob("*.json"):
+        if not path.is_file():
+            continue
+        try:
+            path.unlink()
+            deleted.append(path)
+        except Exception:
+            log.exception("failed to delete legacy uncompressed snapshot %s", path)
+    return deleted
+
+
 def utc_timestamp() -> str:
     """Return UTC timestamp formatted as YYYYMMDD-HHMM. Used for snapshot
     filenames so lexicographic sort matches chronological sort."""
@@ -244,11 +266,15 @@ def utc_timestamp() -> str:
 def _unique_snapshot_timestamp(backup_dir: Path) -> str:
     """Return a timestamp stem that will not overwrite an existing snapshot."""
     base = utc_timestamp()
-    if not (backup_dir / f"{base}.json").exists():
+    if not (backup_dir / f"{base}.json").exists() and not (
+        backup_dir / f"{base}.json.gz"
+    ).exists():
         return base
     for suffix in range(1, 1000):
         candidate = f"{base}-{suffix:03d}"
-        if not (backup_dir / f"{candidate}.json").exists():
+        if not (backup_dir / f"{candidate}.json").exists() and not (
+            backup_dir / f"{candidate}.json.gz"
+        ).exists():
             return candidate
     raise RuntimeError(f"too many backup snapshots for timestamp {base!r}")
 
@@ -301,6 +327,7 @@ def _run_backup_cycle_locked(
 
     # --- rotate ---
     try:
+        legacy_deleted = remove_uncompressed_snapshots(backup_dir)
         rotated = rotate_snapshots(backup_dir, keep=144)
     except Exception as e:
         audit.log_system_event(
@@ -316,7 +343,11 @@ def _run_backup_cycle_locked(
         audit.log_system_event(
             db, "backup_skipped_no_remote", "info",
             message="BACKUP_REPO_URL or GITHUB_PAT not set; skipping git push",
-            extra={"snapshot_path": str(snapshot_path), "rotated_count": len(rotated)},
+            extra={
+                "snapshot_path": str(snapshot_path),
+                "rotated_count": len(rotated),
+                "legacy_deleted_count": len(legacy_deleted),
+            },
             trace_id=trace_id,
         )
         return {
@@ -360,6 +391,7 @@ def _run_backup_cycle_locked(
             "snapshot_path": str(snapshot_path),
             "committed_sha": sha,
             "rotated_count": len(rotated),
+            "legacy_deleted_count": len(legacy_deleted),
         },
         trace_id=trace_id,
     )

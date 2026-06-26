@@ -109,6 +109,46 @@ def test_ensure_initialized_refreshes_existing_origin_without_pat(tmp_path):
     assert "newsecret" not in (backup_dir / ".git" / "config").read_text()
 
 
+def test_ensure_initialized_adopts_existing_remote_history_for_payload_dir(tmp_path):
+    """A fresh local backup worktree with snapshots must fetch the remote
+    default branch before the first push; otherwise GitHub rejects the push
+    when the private repo already has README/history."""
+    from backend.backup.git_remote import ensure_initialized
+
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+    (backup_dir / "latest.json").write_text("{}")
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, cwd):
+        calls.append(cmd)
+        if cmd[:2] == ["git", "fetch"] and cmd[-1] == "main":
+            return _completed(cmd)
+        if cmd[:3] == ["git", "remote", "get-url"]:
+            return _completed(cmd, returncode=2, stderr="no origin")
+        return _completed(cmd)
+
+    with patch("backend.backup.git_remote._run", side_effect=fake_run):
+        ensure_initialized(
+            backup_dir,
+            "https://github.com/owner/repo.git",
+            "supersecret",
+        )
+
+    fetch_calls = [c for c in calls if c[:2] == ["git", "fetch"]]
+    assert fetch_calls == [[
+        "git",
+        "fetch",
+        "--depth=1",
+        "https://x-access-token:supersecret@github.com/owner/repo.git",
+        "main",
+    ]]
+    assert ["git", "symbolic-ref", "HEAD", "refs/heads/main"] in calls
+    assert ["git", "reset", "--soft", "FETCH_HEAD"] in calls
+    assert ["git", "commit", "--allow-empty", "-m", "init"] not in calls
+
+
 def _completed(cmd, returncode=0, stdout="", stderr=""):
     return subprocess.CompletedProcess(
         args=cmd,

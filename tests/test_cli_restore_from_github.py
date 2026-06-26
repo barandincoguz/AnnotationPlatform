@@ -1,4 +1,5 @@
 """Tests for backend.cli restore-from-github subcommand."""
+import gzip
 import json
 import shutil
 from pathlib import Path
@@ -40,6 +41,15 @@ def _write_clone(tmp_path: Path, payload: dict) -> Path:
     return clone
 
 
+def _write_gzip_clone(tmp_path: Path, payload: dict) -> Path:
+    clone = tmp_path / "fake-clone"
+    clone.mkdir()
+    body = gzip.compress(json.dumps(payload).encode("utf-8"))
+    (clone / "latest.json.gz").write_bytes(body)
+    (clone / "20260509-1430.json.gz").write_bytes(body)
+    return clone
+
+
 def test_restore_exits_when_env_missing(fresh_data_dir, monkeypatch, capsys):
     monkeypatch.setattr(config, "BACKUP_REPO_URL", "")
     monkeypatch.setattr(config, "GITHUB_PAT", "")
@@ -73,6 +83,34 @@ def test_restore_happy_path_with_yes_flag(fresh_data_dir, monkeypatch):
     conn = connect(config.DB_PATH)
     row = conn.execute(
         "SELECT code FROM invite_codes WHERE code='RESTORED'"
+    ).fetchone()
+    assert row is not None
+    conn.close()
+
+
+def test_restore_happy_path_with_gzip_latest(fresh_data_dir, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_REPO_URL", "https://github.com/x/y.git")
+    monkeypatch.setattr(config, "GITHUB_PAT", "fake-pat")
+
+    payload = {
+        "invite_codes": [
+            {"id": 1, "code": "RESTORED_GZ", "is_active": 1,
+             "created_at": "2026-05-09T00:00:00+00:00"},
+        ],
+        "users": [],
+    }
+    clone = _write_gzip_clone(fresh_data_dir, payload)
+
+    def fake_clone(_url, dest):
+        shutil.copytree(clone, dest)
+
+    with patch("backend.cli._clone_backup_repo", side_effect=fake_clone):
+        rc = cli.main(["restore-from-github", "--yes"])
+
+    assert rc == 0
+    conn = connect(config.DB_PATH)
+    row = conn.execute(
+        "SELECT code FROM invite_codes WHERE code='RESTORED_GZ'"
     ).fetchone()
     assert row is not None
     conn.close()
@@ -121,6 +159,39 @@ def test_restore_with_snapshot_flag_picks_specific_file(fresh_data_dir, monkeypa
     conn = connect(config.DB_PATH)
     row = conn.execute("SELECT code FROM invite_codes").fetchone()
     assert row["code"] == "OLDER"
+    conn.close()
+
+
+def test_restore_with_snapshot_flag_picks_specific_gzip_file(fresh_data_dir, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_REPO_URL", "https://github.com/x/y.git")
+    monkeypatch.setattr(config, "GITHUB_PAT", "fake-pat")
+
+    older_payload = {"invite_codes": [
+        {"id": 1, "code": "OLDER_GZ", "is_active": 1,
+         "created_at": "2026-05-01T00:00:00+00:00"},
+    ]}
+    latest_payload = {"invite_codes": [
+        {"id": 2, "code": "LATEST_GZ", "is_active": 1,
+         "created_at": "2026-05-09T00:00:00+00:00"},
+    ]}
+    clone = fresh_data_dir / "fake-clone"
+    clone.mkdir()
+    (clone / "latest.json.gz").write_bytes(
+        gzip.compress(json.dumps(latest_payload).encode("utf-8"))
+    )
+    (clone / "20260501-1200.json.gz").write_bytes(
+        gzip.compress(json.dumps(older_payload).encode("utf-8"))
+    )
+
+    def fake_clone(_url, dest):
+        shutil.copytree(clone, dest)
+
+    with patch("backend.cli._clone_backup_repo", side_effect=fake_clone):
+        rc = cli.main(["restore-from-github", "--yes", "--snapshot", "20260501-1200"])
+    assert rc == 0
+    conn = connect(config.DB_PATH)
+    row = conn.execute("SELECT code FROM invite_codes").fetchone()
+    assert row["code"] == "OLDER_GZ"
     conn.close()
 
 

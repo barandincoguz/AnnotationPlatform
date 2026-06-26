@@ -2,7 +2,12 @@ import sqlite3
 
 import pytest
 
-from backend.main import MIRROR_RESTORE_TABLES, _restore_mirrored_state
+from backend.main import (
+    MIRROR_RESTORE_TABLES,
+    _local_annotation_state_empty,
+    _mirror_annotation_state_available,
+    _restore_mirrored_state,
+)
 from backend.migrations import discover_migrations
 from backend.migrations.helpers.schema_introspect import list_project_tables
 from backend.migrations.runner import apply_migrations
@@ -35,6 +40,29 @@ class _PgConnection:
         return _Cursor(self.rows_by_table, self.fail_table)
 
 
+class _CountCursor:
+    def __init__(self, counts):
+        self.counts = counts
+        self.table = None
+
+    def execute(self, sql):
+        self.table = sql.removeprefix("SELECT COUNT(*) FROM baran_")
+
+    def fetchone(self):
+        return (self.counts.get(self.table, 0),)
+
+    def close(self):
+        pass
+
+
+class _CountPgConnection:
+    def __init__(self, counts):
+        self.counts = counts
+
+    def cursor(self):
+        return _CountCursor(self.counts)
+
+
 def _conn():
     conn = sqlite3.connect(":memory:", isolation_level=None)
     conn.row_factory = sqlite3.Row
@@ -62,6 +90,47 @@ def test_restore_scope_covers_every_durable_non_document_mirror_table():
     }
     assert set(MIRROR_RESTORE_TABLES) == expected
     conn.close()
+
+
+def test_local_annotation_state_empty_detects_empty_and_non_empty_state():
+    conn = _conn()
+    try:
+        assert _local_annotation_state_empty(conn) is True
+        conn.execute(
+            """
+            INSERT INTO users(id, username, password_hash, role, created_at, updated_at)
+            VALUES (1, 'alice', 'hash', 'user', 'now', 'now')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO documents_meta(
+                document_id, file_path, pdf_text, word_count, sentence_count,
+                text_density, estimated_difficulty, created_at
+            ) VALUES ('doc_1', 'doc.json', 'body', 1, 1, 1, 'Kolay', 'now')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO drafts(document_id, user_id, references_json, updated_at)
+            VALUES ('doc_1', 1, '[]', 'now')
+            """
+        )
+        assert _local_annotation_state_empty(conn) is False
+    finally:
+        conn.close()
+
+
+def test_mirror_annotation_state_available_checks_annotations_and_drafts():
+    assert _mirror_annotation_state_available(
+        _CountPgConnection({"annotations": 0, "drafts": 0})
+    ) is False
+    assert _mirror_annotation_state_available(
+        _CountPgConnection({"annotations": 0, "drafts": 3})
+    ) is True
+    assert _mirror_annotation_state_available(
+        _CountPgConnection({"annotation_versions": 1})
+    ) is True
 
 
 def test_restore_invalidates_sessions_and_nulls_legacy_session_references():
