@@ -7,16 +7,16 @@
 
 ### Phase 4 — Neon Dual-Write Mirror
 
-- [ ] **MIRROR-01**: Every SQLite INSERT/UPDATE/DELETE on a project table appends a row to a local outbox queue inside the same transaction.
-- [ ] **MIRROR-02**: A background dispatcher coroutine drains outbox rows and applies them to the partner Neon Postgres database under `baran_<table_name>` table names.
-- [ ] **MIRROR-03**: Partner Neon database has a mirror table for every one of the 24 project tables; types, primary keys, foreign keys, indexes, and check constraints all map faithfully (SQLite → Postgres equivalents).
-- [ ] **MIRROR-04**: Neon outage (any psycopg error) MUST NOT fail or roll back the originating SQLite write. The dispatcher logs the failure, increments the row's retry count, and re-tries with backoff.
-- [ ] **MIRROR-05**: Dispatcher achieves at-least-once delivery — every committed outbox row eventually reaches Neon (or lands in a dead-letter state after max retries with a permanent error stamp).
-- [ ] **MIRROR-06**: A one-time backfill script populates the `baran_*` tables from the current SQLite state (17923 documents + denorms) before live dual-write begins.
-- [ ] **MIRROR-07**: Request latency on existing endpoints does not increase by more than 5 ms p95 (background queue must not block the request path).
-- [ ] **MIRROR-08**: Existing tests (872 backend + 511 frontend) stay green. New tests cover the outbox lifecycle (write → drain → mark delivered), retry on Neon failure, and schema-converter unit tests.
-- [ ] **MIRROR-09**: A small admin / health surface exposes outbox queue depth + last-delivered-at so operators can spot a stuck dispatcher.
-- [ ] **MIRROR-10**: All Neon credentials read from environment (never committed). Connection failures during boot are non-fatal — the app comes up with the dispatcher in a degraded "Neon unreachable" state.
+- [x] **MIRROR-01**: Every SQLite INSERT/UPDATE/DELETE on a project table appends a row to a local outbox queue inside the same transaction.
+- [x] **MIRROR-02**: A background dispatcher coroutine drains outbox rows and applies them to the partner Neon Postgres database under `baran_<table_name>` table names.
+- [x] **MIRROR-03**: Partner Neon database has a mirror table for every one of the 24 project tables; types, primary keys, foreign keys, indexes, and check constraints all map faithfully (SQLite → Postgres equivalents).
+- [x] **MIRROR-04**: Neon outage (any psycopg error) MUST NOT fail or roll back the originating SQLite write. The dispatcher logs the failure, increments the row's retry count, and re-tries with backoff.
+- [x] **MIRROR-05**: Dispatcher achieves at-least-once delivery — every committed outbox row eventually reaches Neon (or lands in a dead-letter state after max retries with a permanent error stamp).
+- [x] **MIRROR-06**: A one-time backfill script populates the `baran_*` tables from the current SQLite state (17923 documents + denorms) before live dual-write begins.
+- [x] **MIRROR-07**: Request latency on existing endpoints does not increase by more than 5 ms p95 (background queue must not block the request path).
+- [x] **MIRROR-08**: Existing tests (872 backend + 511 frontend) stay green. New tests cover the outbox lifecycle (write → drain → mark delivered), retry on Neon failure, and schema-converter unit tests.
+- [x] **MIRROR-09**: A small admin / health surface exposes outbox queue depth + last-delivered-at so operators can spot a stuck dispatcher.
+- [x] **MIRROR-10**: All Neon credentials read from environment (never committed). Connection failures during boot are non-fatal — the app comes up with the dispatcher in a degraded "Neon unreachable" state.
 
 ## v2 Requirements (deferred)
 

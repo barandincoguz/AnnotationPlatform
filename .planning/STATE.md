@@ -1,6 +1,6 @@
 # State
 
-**Updated:** 2026-05-24
+**Updated:** 2026-06-27
 
 ## Current Phase
 
@@ -26,8 +26,8 @@ See [audit/SIGNOFF.md](../audit/SIGNOFF.md) for the per-gate evidence and [audit
 
 ## Test Baseline (post Phase 6 Wave D)
 
-- Backend pytest: **1004 pass / 0 fail** (was 987 entering Phase 6; +14 Wave A HTTP-layer + invariant tests, +2 from installing the already-declared `pytest-asyncio==0.24.0` dev dep, +1 P6-6 schema drift guard at follow-up)
-- Frontend vitest: **527 pass / 527** (was 525 entering Phase 6; +2 frontend store tests shipped with `08026a9`)
+- Backend pytest: **1155 pass / 0 fail**
+- Frontend vitest: **581 pass / 581**
 - Frontend typecheck: clean
 - Frontend lint: clean
 - e2e Playwright: **13 / 13** against auto-launched isolated backend + Vite (was 9 / 9 in Phase 5; +1 SortMenu hidden-default + dev-flag rewrite split, +3 a11y axe-core scans)

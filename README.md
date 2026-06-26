@@ -23,7 +23,7 @@ tax practitioners.**
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TanStack Query](https://img.shields.io/badge/TanStack-Query%205-FF4154?logo=react-query&logoColor=white)](https://tanstack.com/query)
-[![Tests](https://img.shields.io/badge/tests-946%20backend%20%2F%20511%20frontend-success)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-1155%20backend%20%2F%20581%20frontend-success)](#-tests)
 
 <p>
   <img src="docs/screenshots/hero.png" alt="Annotation workspace screenshot" width="850"/>
@@ -293,8 +293,7 @@ cd frontend && npm run test:run -- --reporter=basic              # frontend unit
 cd frontend && npm run e2e                                       # Playwright e2e
 ```
 
-Current counts: **946 backend** (3 Docker-smoke skips when daemon is down) +
-**511 frontend** + **9 e2e**.
+Current counts: **1155 backend** (3 Docker-smoke skips when daemon is down) + **581 frontend** + **13 e2e**.
 
 Numbers drift; run the commands above for live truth.
 
@@ -338,7 +337,7 @@ deneme/
 │   │   ├── stores/           # Zustand (auth, annotate, sort)
 │   │   └── lib/              # formatters / validators / utils
 │   └── tests/e2e/            # Playwright smoke
-├── tests/                    # backend pytest (~110 files, 946 tests)
+├── tests/                    # backend pytest (~131 files, 1155 tests)
 ├── data/                     # gitignored; SQLite DB + uploaded JSON
 ├── docs/
 │   ├── deployment.md         # production runbook
@@ -367,7 +366,7 @@ deneme/
 
 ## Releases & tags
 
-Latest tag: **`paket-16g-hardening`**. Most recent shipped milestone: **Phase 4 — Neon Postgres dual-write mirror** (commits `1f33a53 .. 9fb4a17`). Earlier production bootstrap
+Latest tag: **`phase-6`**. Most recent shipped milestone: **Phase 6 — Cross-team coordination ordering** (commits `ca4328e .. 810b8ea`). Earlier production bootstrap
 with `ENVIRONMENT` enforcement, first-admin seed in lifespan, and the full
 deployment runbook. See `git tag` for the full chronology.
 

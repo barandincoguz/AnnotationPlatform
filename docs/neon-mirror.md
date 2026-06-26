@@ -43,10 +43,15 @@ credentials must never block backend startup.
 
 ---
 
-## 2. One-time DDL apply
+## 2. Automated Schema Sync (Auto-Migrations)
 
-Generate the mirror schema from a freshly migrated temporary SQLite
-database and apply it to Neon:
+On application startup, the platform automatically compares the local SQLite schema with the remote Neon Postgres database and synchronizes any missing tables, columns, or indexes under the `baran_*` prefix. 
+
+Therefore, you do not need to run manual SQL migrations on the Neon Postgres database; they are applied automatically when the container boots (if `NEON_MIRROR_URL` is set and `ENVIRONMENT` is not `test`).
+
+### Manual DDL Apply (Fallback / One-time setup)
+
+If you need to manually apply or verify the schema, you can generate the mirror schema from SQLite and apply it to Neon:
 
 ```bash
 # Regenerate the file from all committed SQLite migrations. Idempotent.
@@ -56,41 +61,15 @@ python -m scripts.regen_neon_ddl
 psql "$NEON_MIRROR_URL" -f migrations/postgres/001-baran-init.sql
 ```
 
-The committed `001-baran-init.sql` is regenerated whenever the SQLite
-schema changes; the partner team must re-apply the DDL diff manually
-(automated cross-database migrations are out of scope for Phase 4).
+The committed `001-baran-init.sql` is automatically regenerated whenever the SQLite schema changes. You can also apply it through the Neon Console SQL editor if `psql` isn't installed locally.
 
-You can also apply the DDL through the Neon Console SQL editor if
-`psql` isn't installed locally.
+### Legacy Migrations (Historical)
 
-### Existing deployments: remove mirrored sessions
+For existing deployments from earlier phases:
+1. `migrations/postgres/002-remove-user-sessions.sql` removed legacy mirrored bearer tokens from deployments created before SQLite migration `v0009`.
+2. `migrations/postgres/003-nullable-training-finished-at.sql` permitted active training attempts to mirror with `finished_at = NULL`.
 
-`user_sessions.session_token` is a bearer credential and is no longer
-part of the mirror. After deploying SQLite migration `v0009`, run the
-one-time destructive Neon migration:
-
-```bash
-psql "$NEON_MIRROR_URL" -f migrations/postgres/002-remove-user-sessions.sql
-```
-
-This removes the legacy FK from `baran_activity_events` and drops
-`baran_user_sessions`. Coordinate the maintenance window with every
-consumer of the partner database. Rotate the Neon credential if session
-tokens were previously mirrored to a role or environment that should not
-have held them.
-
-### Existing deployments: allow active training attempts
-
-After deploying SQLite migration `v0011`, update the existing mirror column
-before new active attempts are dispatched:
-
-```bash
-psql "$NEON_MIRROR_URL" -f migrations/postgres/003-nullable-training-finished-at.sql
-```
-
-This removes the obsolete `NOT NULL` constraint from
-`baran_training_attempts.finished_at`. Fresh mirror databases created from
-the current `001-baran-init.sql` already have the nullable column.
+These are now handled automatically by the auto-sync system.
 
 ---
 

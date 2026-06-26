@@ -64,15 +64,9 @@ admin panel.
 | `NEON_MIRROR_MAX_RETRIES` | no | no | `5` | Per-row retry budget before dead-letter. Default `5`. |
 | `NEON_MIRROR_EMPTY_SLEEP` | no | no | `5` | Dispatcher idle wait (seconds) when the outbox is empty. Default `5.0`. |
 
-For existing Neon mirror databases, apply these migrations once, in order,
-after the application deploy:
+For existing Neon mirror databases, the platform automatically synchronizes the schema (including columns, tables, and indexes) on application boot. Manual execution of migration scripts (such as `002-remove-user-sessions.sql` or `003-nullable-training-finished-at.sql`) is no longer required as fallback scripts are applied automatically on startup.
 
-1. `migrations/postgres/002-remove-user-sessions.sql` removes legacy mirrored
-   bearer tokens from deployments created before SQLite migration `v0009`.
-2. `migrations/postgres/003-nullable-training-finished-at.sql` permits active
-   training attempts to mirror with `finished_at = NULL`.
-
-See `docs/neon-mirror.md` for connection and execution details.
+See `docs/neon-mirror.md` for connection and synchronization details.
 
 Session tokens are stored only as SHA-256 digests. SQLite migration `v0012`
 converts existing rows in place without invalidating the raw token already
