@@ -43,6 +43,10 @@ EXCLUDED_TABLES = {
 SNAPSHOT_FORMAT_VERSION = 1
 
 
+class BackupRemoteNotConfiguredError(RuntimeError):
+    """Raised when production backup cannot push to an off-host remote."""
+
+
 def is_wal_busy(db: sqlite3.Connection) -> bool:
     """Cheap heuristic: WAL has uncommitted frames from another connection.
 
@@ -289,9 +293,9 @@ def run_backup_cycle(
 
     On any step failure: logs system_events('backup_failed', severity='error')
     with extra_json={step, error} and re-raises so callers (the loop swallows;
-    the manual route translates to 500). Missing BACKUP_REPO_URL/GITHUB_PAT
-    is NOT a failure: dump+rotate still run, git is skipped, success event
-    is event_type='backup_skipped_no_remote' (severity='info').
+    the manual route translates to HTTP errors). Missing BACKUP_REPO_URL/GITHUB_PAT
+    is allowed only outside production: dump+rotate still run, git is skipped,
+    success event is event_type='backup_skipped_no_remote' (severity='info').
 
     trace_id: when set (e.g. by the admin run-now route), every emitted
     system_events row carries it for cross-table correlation. Background
@@ -307,6 +311,22 @@ def _run_backup_cycle_locked(
     backup_dir = config.BACKUP_DIR
     repo_url = config.BACKUP_REPO_URL
     pat = config.GITHUB_PAT
+
+    if config.is_production() and (not repo_url or not pat):
+        missing = []
+        if not repo_url:
+            missing.append("BACKUP_REPO_URL")
+        if not pat:
+            missing.append("GITHUB_PAT")
+        audit.log_system_event(
+            db, "backup_failed", "error",
+            message="backup remote not configured",
+            extra={"step": "config", "missing": missing},
+            trace_id=trace_id,
+        )
+        raise BackupRemoteNotConfiguredError(
+            "GitHub backup remote is not configured; set BACKUP_REPO_URL and GITHUB_PAT"
+        )
 
     # --- stream transaction-consistent snapshot ---
     ts = _unique_snapshot_timestamp(backup_dir)

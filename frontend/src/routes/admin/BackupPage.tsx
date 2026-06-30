@@ -2,13 +2,26 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useBackupHistory, useBackupRunNow } from '@/api/queries/admin'
 
+function backupEventLabel(eventType: string) {
+  if (eventType === 'backup_skipped_no_remote') {
+    return 'backup_skipped_no_remote · GitHub’a gönderilmedi'
+  }
+  return eventType
+}
+
 export function BackupPage() {
   const history = useBackupHistory()
   const run = useBackupRunNow()
 
   const onRun = () => {
     run.mutate(undefined, {
-      onSuccess: () => toast.success('Yedek alındı'),
+      onSuccess: (result) => {
+        if (result.pushed) {
+          toast.success('Yedek alındı ve GitHub’a gönderildi')
+          return
+        }
+        toast.warning('Yedek alındı, ancak GitHub’a gönderilmedi')
+      },
       onError: (e: Error) => toast.error(`Yedek başarısız: ${e.message}`),
     })
   }
@@ -62,7 +75,7 @@ export function BackupPage() {
                         : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {e.event_type}
+                  {backupEventLabel(e.event_type)}
                 </span>
                 <span>{e.message}</span>
               </li>

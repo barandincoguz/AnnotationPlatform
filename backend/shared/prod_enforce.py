@@ -4,7 +4,6 @@ Called from lifespan startup BEFORE DB work so misconfigured deploys
 fail fast and loud (Docker Compose restart loop will keep retrying,
 but stderr makes diagnosis trivial).
 """
-import sys
 from urllib.parse import urlsplit
 
 from backend import config
@@ -45,6 +44,34 @@ _TEMPLATE_PLACEHOLDER_NEEDLE = "<replace_me"
 
 class ProductionConfigError(RuntimeError):
     """Raised when production mode is enabled but config is unsafe."""
+
+
+def _validate_github_backup_url(url: str) -> str | None:
+    """Return a production-safety error for an invalid GitHub backup remote."""
+    if any(char.isspace() for char in url):
+        return "must not contain whitespace"
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return "is not a valid URL"
+
+    if parsed.scheme != "https":
+        return "must use https"
+    if parsed.hostname != "github.com":
+        return "must point to github.com"
+    if parsed.username is not None or parsed.password is not None:
+        return "must not contain credentials; set GITHUB_PAT separately"
+    if parsed.query or parsed.fragment:
+        return "must not contain query or fragment"
+
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) != 2:
+        return "must use GitHub remote format https://github.com/<owner>/<repo>.git"
+    if parts[1] in {"", ".git"}:
+        return "must include a repository name"
+    if not parts[1].endswith(".git"):
+        return "must use GitHub remote format https://github.com/<owner>/<repo>.git"
+    return None
 
 
 def _validate_public_origin(origin: str) -> str | None:
@@ -174,20 +201,23 @@ def enforce_production_secrets() -> None:
             "otherwise clients can forge rate-limit and audit IPs"
         )
 
+    if not config.BACKUP_REPO_URL:
+        errors.append(
+            "BACKUP_REPO_URL must be set in production so off-host GitHub "
+            "backups are mandatory"
+        )
+    else:
+        backup_url_error = _validate_github_backup_url(config.BACKUP_REPO_URL)
+        if backup_url_error is not None:
+            errors.append(f"BACKUP_REPO_URL {backup_url_error}")
+
+    if not config.GITHUB_PAT:
+        errors.append(
+            "GITHUB_PAT must be set in production so GitHub backup pushes "
+            "cannot be silently skipped"
+        )
+
     if errors:
         msg = "production mode enforcement failed:\n  - " + "\n  - ".join(errors)
         msg += "\nSet ENVIRONMENT=development to disable enforcement."
         raise ProductionConfigError(msg)
-
-    if config.BACKUP_REPO_URL and not config.GITHUB_PAT:
-        print(
-            "WARNING: backup repo configured but GITHUB_PAT empty; "
-            "automatic GitHub backup push will be skipped.",
-            file=sys.stderr,
-        )
-    elif not config.BACKUP_REPO_URL:
-        print(
-            "WARNING: no backup configured (BACKUP_REPO_URL empty); "
-            "set it for automatic GitHub backup.",
-            file=sys.stderr,
-        )

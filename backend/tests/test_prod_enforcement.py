@@ -34,7 +34,8 @@ def test_prod_accepts_strong_secret(monkeypatch):
     monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
     monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
-    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://example.com/repo.git")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://github.com/example/repo.git")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "fake-pat")
     monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"https://anotasyon.example"})
     enforce_production_secrets()  # no raise
 
@@ -43,7 +44,8 @@ def test_prod_accepts_wildcard_origin(monkeypatch):
     monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
     monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
-    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://example.com/repo.git")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://github.com/example/repo.git")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "fake-pat")
     monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"*"})
     enforce_production_secrets()  # no raise
 
@@ -66,24 +68,37 @@ def test_dev_allows_default_secret(monkeypatch):
     enforce_production_secrets()  # no raise
 
 
-def test_prod_warns_no_backup_url(monkeypatch, capsys):
+def test_prod_rejects_no_backup_url(monkeypatch):
     monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
     monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
     monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "fake-pat")
     monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"https://anotasyon.example"})
-    enforce_production_secrets()  # warn-only, no raise
-    captured = capsys.readouterr()
-    assert "no backup configured" in captured.err.lower()
+    with pytest.raises(ProductionConfigError) as exc:
+        enforce_production_secrets()
+    assert "BACKUP_REPO_URL" in str(exc.value)
 
 
-def test_prod_warns_backup_url_without_pat(monkeypatch, capsys):
+def test_prod_rejects_backup_url_without_pat(monkeypatch):
     monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
     monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
     monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
     monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://github.com/o/r.git")
     monkeypatch.setattr("backend.config.GITHUB_PAT", "")
     monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"https://anotasyon.example"})
-    enforce_production_secrets()  # warn-only, no raise
-    captured = capsys.readouterr()
-    assert "github_pat empty" in captured.err.lower()
+    with pytest.raises(ProductionConfigError) as exc:
+        enforce_production_secrets()
+    assert "GITHUB_PAT" in str(exc.value)
+
+
+def test_prod_rejects_non_github_backup_url(monkeypatch):
+    monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
+    monkeypatch.setattr("backend.config.SESSION_SECRET", "a" * 32)
+    monkeypatch.setattr("backend.config.BOOTSTRAP_ADMIN_PASSWORD", "")
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "https://example.com/o/r.git")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "fake-pat")
+    monkeypatch.setattr("backend.config.ALLOWED_ORIGINS", {"https://anotasyon.example"})
+    with pytest.raises(ProductionConfigError) as exc:
+        enforce_production_secrets()
+    assert "github.com" in str(exc.value)

@@ -26,7 +26,8 @@ def prod(monkeypatch):
     monkeypatch.setattr(config, "SESSION_SECRET", "a" * 64)
     monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_PASSWORD", "S0lid!Random*Pass-2026")
     monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://anotasyon.example"})
-    monkeypatch.setattr(config, "BACKUP_REPO_URL", "")
+    monkeypatch.setattr(config, "BACKUP_REPO_URL", "https://github.com/example/repo.git")
+    monkeypatch.setattr(config, "GITHUB_PAT", "fake-pat")
     monkeypatch.setattr(config, "TRUST_FORWARDED_FOR", False)
     monkeypatch.setattr(config, "TRUSTED_PROXY_NETWORKS", ())
     monkeypatch.setattr(config, "INVALID_TRUSTED_PROXY_CIDRS", ())
@@ -142,7 +143,8 @@ def test_hugging_face_runtime_also_enforces(monkeypatch):
     monkeypatch.setattr(config, "SESSION_SECRET", "dev-secret-DO-NOT-USE-IN-PROD")
     monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_PASSWORD", "")
     monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://owner-space.hf.space"})
-    monkeypatch.setattr(config, "BACKUP_REPO_URL", "")
+    monkeypatch.setattr(config, "BACKUP_REPO_URL", "https://github.com/example/repo.git")
+    monkeypatch.setattr(config, "GITHUB_PAT", "fake-pat")
     monkeypatch.setattr(config, "INVALID_TRUSTED_PROXY_CIDRS", ())
 
     with pytest.raises(ProductionConfigError, match="SESSION_SECRET"):
@@ -174,3 +176,32 @@ def test_empty_bootstrap_password_passes(prod):
     (e.g. they've already seeded and removed the vars)."""
     prod.setattr(config, "BOOTSTRAP_ADMIN_PASSWORD", "")
     enforce_production_secrets()
+
+
+def test_missing_backup_repo_url_rejected(prod):
+    prod.setattr(config, "BACKUP_REPO_URL", "")
+    with pytest.raises(ProductionConfigError, match="BACKUP_REPO_URL"):
+        enforce_production_secrets()
+
+
+def test_missing_github_pat_rejected(prod):
+    prod.setattr(config, "GITHUB_PAT", "")
+    with pytest.raises(ProductionConfigError, match="GITHUB_PAT"):
+        enforce_production_secrets()
+
+
+@pytest.mark.parametrize(
+    ("url", "message"),
+    [
+        ("http://github.com/example/repo.git", "must use https"),
+        ("https://example.com/example/repo.git", "github.com"),
+        ("https://x-access-token:secret@github.com/example/repo.git", "credentials"),
+        ("https://github.com/example", "remote format"),
+        ("https://github.com/example/repo", "remote format"),
+        ("https://github.com/example/repo.git?token=secret", "query"),
+    ],
+)
+def test_invalid_backup_repo_url_rejected(prod, url, message):
+    prod.setattr(config, "BACKUP_REPO_URL", url)
+    with pytest.raises(ProductionConfigError, match=message):
+        enforce_production_secrets()

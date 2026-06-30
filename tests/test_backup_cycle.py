@@ -52,6 +52,32 @@ def test_run_backup_cycle_no_remote_skips_git(fresh_db, tmp_path, monkeypatch):
     assert row["severity"] == "info"
 
 
+def test_run_backup_cycle_production_no_remote_fails(fresh_db, monkeypatch):
+    """Production must not treat local-only backup as a successful cycle."""
+    from backend.backup import service
+
+    monkeypatch.setattr("backend.config.ENVIRONMENT", "production")
+    monkeypatch.setattr("backend.config.SPACE_ID", None)
+    monkeypatch.setattr("backend.config.BACKUP_REPO_URL", "")
+    monkeypatch.setattr("backend.config.GITHUB_PAT", "")
+
+    with pytest.raises(service.BackupRemoteNotConfiguredError):
+        service.run_backup_cycle(fresh_db, trace_id="abc123")
+
+    row = fresh_db.execute(
+        "SELECT * FROM system_events WHERE event_type='backup_failed'"
+    ).fetchone()
+    assert row is not None
+    assert row["severity"] == "error"
+    assert row["message"] == "backup remote not configured"
+    assert row["trace_id"] == "abc123"
+    extra = json.loads(row["extra_json"])
+    assert extra == {
+        "step": "config",
+        "missing": ["BACKUP_REPO_URL", "GITHUB_PAT"],
+    }
+
+
 def test_run_backup_cycle_logs_success_when_git_succeeds(fresh_db, tmp_path, monkeypatch):
     """Stub the git wrapper; verify event_type='backup_success' is logged."""
     from backend.backup import service

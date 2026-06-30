@@ -86,14 +86,19 @@ async def test_backup_loop_runs_initial_backup_after_startup_delay():
 
     sleep_calls = []
     backup_once_calls = []
+    second_backup_done = asyncio.Event()
+    release_second_backup = asyncio.Event()
+    real_sleep = asyncio.sleep
 
     async def mock_sleep(seconds):
         sleep_calls.append(seconds)
+        await real_sleep(0)
 
     async def mock_backup_once():
         backup_once_calls.append(True)
-
-    real_sleep = asyncio.sleep
+        if len(backup_once_calls) == 2:
+            second_backup_done.set()
+            await release_second_backup.wait()
 
     with patch("backend.backup.loop.asyncio.sleep", side_effect=mock_sleep), \
          patch("backend.backup.loop.backup_once", side_effect=mock_backup_once), \
@@ -102,13 +107,10 @@ async def test_backup_loop_runs_initial_backup_after_startup_delay():
          patch("backend.backup.loop.STARTUP_DELAY_SECONDS", 300, create=True):
 
         task = asyncio.create_task(backup_loop_mod.backup_loop())
-        
-        for _ in range(10):
-            await real_sleep(0.001)
-            if len(sleep_calls) >= 2:
-                break
+        await asyncio.wait_for(second_backup_done.wait(), timeout=1.0)
 
         task.cancel()
+        release_second_backup.set()
         try:
             await task
         except asyncio.CancelledError:

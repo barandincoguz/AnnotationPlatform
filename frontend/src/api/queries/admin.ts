@@ -354,7 +354,7 @@ export function useBackupRunNow() {
       return res.json() as Promise<{
         ok: boolean
         snapshot_path: string
-        committed_sha: string
+        committed_sha: string | null
         pushed: boolean
         rotated_count: number
         trace_id: string

@@ -10,7 +10,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from backend import config
 from backend.backup.models import BackupRestoreResponse, BackupRunNowResponse
 from backend.backup.restore import restore_from_snapshot
-from backend.backup.service import is_wal_busy, run_backup_cycle
+from backend.backup.service import (
+    BackupRemoteNotConfiguredError,
+    is_wal_busy,
+    run_backup_cycle,
+)
 from backend.shared import audit
 from backend.users.deps import get_db, require_admin
 
@@ -37,6 +41,15 @@ def admin_backup_run_now(
     trace_id = audit.gen_trace_id()
     try:
         result = run_backup_cycle(db, trace_id=trace_id)
+    except BackupRemoteNotConfiguredError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "backup_remote_not_configured",
+                "message": str(e),
+                "trace_id": trace_id,
+            },
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,

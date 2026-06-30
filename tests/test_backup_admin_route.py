@@ -69,6 +69,27 @@ def test_run_now_returns_500_on_cycle_failure(client, bootstrap_admin):
     assert len(body["detail"]["trace_id"]) == 16
 
 
+def test_run_now_returns_503_when_remote_not_configured(client, bootstrap_admin):
+    """Production config errors are surfaced distinctly from push failures."""
+    from backend.backup.service import BackupRemoteNotConfiguredError
+
+    bootstrap_admin()
+    with patch(
+        "backend.backup.routes.run_backup_cycle",
+        side_effect=BackupRemoteNotConfiguredError(
+            "GitHub backup remote is not configured; set BACKUP_REPO_URL and GITHUB_PAT"
+        ),
+    ):
+        r = client.post("/api/admin/backup/run-now")
+
+    assert r.status_code == 503
+    body = r.json()
+    assert body["detail"]["error"] == "backup_remote_not_configured"
+    assert "GitHub backup remote is not configured" in body["detail"]["message"]
+    assert isinstance(body["detail"]["trace_id"], str)
+    assert len(body["detail"]["trace_id"]) == 16
+
+
 def test_run_now_threads_trace_id_across_audit_and_system_events(client, bootstrap_admin):
     """The same trace_id must appear in (a) the audit row, (b) every system_events
     row emitted during the cycle, and (c) the response body — so an operator
