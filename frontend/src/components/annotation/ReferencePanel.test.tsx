@@ -55,10 +55,10 @@ describe('ReferencePanel', () => {
     expect(onAdd).toHaveBeenCalled()
   })
 
-  it('"Kaydet" calls onSave', () => {
+  it('"Kontrole Gönder" calls onSave', () => {
     const onSave = vi.fn()
     render(<ReferencePanel {...baseProps} refs={[makeReferenceItem()]} onSave={onSave} />)
-    fireEvent.click(screen.getByRole('button', { name: /kaydet/i }))
+    fireEvent.click(screen.getByRole('button', { name: /kontrole gönder/i }))
     expect(onSave).toHaveBeenCalled()
   })
 
@@ -69,13 +69,13 @@ describe('ReferencePanel', () => {
     expect(onSkip).toHaveBeenCalled()
   })
 
-  it('Kaydet disabled while saving or when canEdit=false', () => {
+  it('Kontrole Gönder disabled while saving or when canEdit=false', () => {
     const { rerender } = render(
       <ReferencePanel {...baseProps} refs={[makeReferenceItem()]} isSaving={true} />,
     )
-    expect(screen.getByRole('button', { name: /kaydet|kaydediliyor/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /kontrole gönder|gönderiliyor/i })).toBeDisabled()
     rerender(<ReferencePanel {...baseProps} refs={[makeReferenceItem()]} canEdit={false} />)
-    expect(screen.getByRole('button', { name: /kaydet/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /kontrole gönder/i })).toBeDisabled()
   })
 
   it('shows ApiError.message inline when error is present', () => {
@@ -103,10 +103,10 @@ describe('ReferencePanel', () => {
 })
 
 describe('ReferencePanel — validation gate (16c bug fix)', () => {
-  it('Kaydet disabled when an invalid ref is present', () => {
+  it('Kontrole Gönder disabled when an invalid ref is present', () => {
     const refs = [{ kanun_no: null, kanun_ad: null, madde: null, fikra: null, bent: null, source_text: 'metin' }]
     render(<ReferencePanel {...baseProps} refs={refs} isValid={false} />)
-    expect(screen.getByRole('button', { name: /kaydet/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /kontrole gönder/i })).toBeDisabled()
     expect(screen.getByText((_, el) =>
       el?.tagName === 'P' &&
       (el.textContent ?? '').includes('Kanun No') &&
@@ -114,20 +114,20 @@ describe('ReferencePanel — validation gate (16c bug fix)', () => {
     )).toBeInTheDocument()
   })
 
-  it('Kaydet enabled when all refs valid', () => {
+  it('Kontrole Gönder enabled when all refs valid', () => {
     const refs = [{ kanun_no: '5520', kanun_ad: null, madde: null, fikra: null, bent: null, source_text: 'metin' }]
     render(<ReferencePanel {...baseProps} refs={refs} isValid={true} />)
-    expect(screen.getByRole('button', { name: /kaydet/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /kontrole gönder/i })).not.toBeDisabled()
   })
 
-  it('Kaydet enabled when refs is empty (zero-ref legal)', () => {
+  it('Kontrole Gönder enabled when refs is empty (zero-ref legal)', () => {
     render(<ReferencePanel {...baseProps} refs={[]} isValid={true} />)
-    expect(screen.getByRole('button', { name: /kaydet/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /kontrole gönder/i })).not.toBeDisabled()
   })
 })
 
-describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
-  it('shows Tamamla button (disabled) on a draft-only doc with no refs yet', () => {
+describe('ReferencePanel — Tamamlandı / Geri Al toggle (paket-3g)', () => {
+  it('shows Tamamlandı button (disabled) on a draft-only doc with no refs yet', () => {
     // Phase 2 atomic complete supports first-time complete from a
     // draft-only state. The button now renders even when no annotation
     // row exists; completeDisabled gates it off when refs aren't valid.
@@ -139,12 +139,12 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
         isValid={false}
       />,
     )
-    const btn = screen.getByRole('button', { name: /^tamamla$/i })
+    const btn = screen.getByRole('button', { name: /^tamamlandı$/i })
     expect(btn).toBeInTheDocument()
     expect(btn).toBeDisabled()
   })
 
-  it('enables Tamamla button on a draft-only doc with valid refs (atomic complete)', () => {
+  it('enables Tamamlandı button on a draft-only doc with valid refs (atomic complete)', () => {
     render(
       <ReferencePanel
         {...baseProps}
@@ -153,11 +153,11 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
         isValid={true}
       />,
     )
-    const btn = screen.getByRole('button', { name: /^tamamla$/i })
+    const btn = screen.getByRole('button', { name: /^tamamlandı$/i })
     expect(btn).toBeEnabled()
   })
 
-  it('shows "Tamamla" when annotation exists and is not completed', () => {
+  it('shows "Tamamlandı" when annotation exists and is not completed', () => {
     render(
       <ReferencePanel
         {...baseProps}
@@ -166,7 +166,7 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
         isCompleted={false}
       />,
     )
-    expect(screen.getByRole('button', { name: /^tamamla$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^tamamlandı$/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /geri al/i })).toBeNull()
   })
 
@@ -193,11 +193,11 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
         onComplete={onComplete}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /tamamla/i }))
+    fireEvent.click(screen.getByRole('button', { name: /tamamlandı/i }))
     expect(onComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('Tamamla disabled when refs are invalid (forward direction only)', () => {
+  it('Tamamlandı disabled when refs are invalid (forward direction only)', () => {
     render(
       <ReferencePanel
         {...baseProps}
@@ -207,7 +207,7 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
         isValid={false}
       />,
     )
-    expect(screen.getByRole('button', { name: /tamamla/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /tamamlandı/i })).toBeDisabled()
   })
 
   it('Geri Al enabled even when refs invalid (reverse direction allowed)', () => {
@@ -225,7 +225,7 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
     expect(screen.getByRole('button', { name: /geri al/i })).not.toBeDisabled()
   })
 
-  it('Tamamla disabled while another mutation is in flight', () => {
+  it('Tamamlandı disabled while another mutation is in flight', () => {
     const { rerender } = render(
       <ReferencePanel
         {...baseProps}
@@ -235,7 +235,7 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
       />,
     )
     expect(
-      screen.getByRole('button', { name: /tamamlanıyor|tamamla/i }),
+      screen.getByRole('button', { name: /tamamlanıyor|tamamlandı/i }),
     ).toBeDisabled()
     rerender(
       <ReferencePanel
@@ -245,6 +245,6 @@ describe('ReferencePanel — Tamamla / Geri Al toggle (paket-3g)', () => {
         canEdit={false}
       />,
     )
-    expect(screen.getByRole('button', { name: /tamamla/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /tamamlandı/i })).toBeDisabled()
   })
 })

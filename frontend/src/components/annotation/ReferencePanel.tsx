@@ -103,7 +103,7 @@ export function ReferencePanel({
       : 'Tamamlanıyor…'
     : isCompleted
       ? 'Geri Al'
-      : 'Tamamla'
+      : 'Tamamlandı'
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -186,8 +186,13 @@ export function ReferencePanel({
           <Button type="button" variant="outline" onClick={onSkip} disabled={!canEdit || isSaving}>
             Atla
           </Button>
-          <Button type="button" onClick={onSave} disabled={!canEdit || isSaving || !isValid}>
-            {isSaving ? 'Kaydediliyor…' : 'Kaydet'}
+          <Button
+            type="button"
+            onClick={onSave}
+            disabled={!canEdit || isSaving || !isValid}
+            title="Emin değilsen kontrole gönder; başka biri kontrol etsin."
+          >
+            {isSaving ? 'Gönderiliyor…' : 'Kontrole Gönder'}
           </Button>
           {/* The Phase 2 backend now supports first-time atomic
               complete (no prior annotation row required), so the
@@ -201,6 +206,11 @@ export function ReferencePanel({
             variant={isCompleted ? 'outline' : 'success'}
             onClick={onComplete}
             disabled={completeDisabled}
+            title={
+              isCompleted
+                ? 'Tamamlandı işaretini geri al.'
+                : 'Eminsen tamamlandı işaretle; ek kontrole gerek yok.'
+            }
           >
             {isCompleted ? <Undo2 /> : <Check />}
             {completeLabel}

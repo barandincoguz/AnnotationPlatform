@@ -18,13 +18,11 @@ function statusText(item: FeedItem): string {
     case 'verified':
       return 'tamamlandı'
     case 'review':
-      // Shared-annotation in-progress. Kept the legacy "devam ediyor"
-      // phrase for accessibility-test continuity; aria consumers
-      // (screen readers) won't have learned "incelemede" yet.
-      return 'devam ediyor'
+      // Shared annotation exists but still needs another person's check.
+      return 'kontrol gerekiyor'
     case 'draft':
       // Caller's own draft, not yet committed to the shared annotation.
-      // Surfaces in Devam Eden tab alongside 'review' entries.
+      // Surfaces in Kontrol Gerekiyor tab alongside 'review' entries.
       return 'taslak'
     case 'new':
       return 'yeni'
@@ -48,7 +46,7 @@ interface DocListItemProps {
 // Icon vocabulary:
 //   new      → empty circle      (untouched)
 //   draft    → circle with a dot (started locally, not yet shared)
-//   review   → dashed circle    (shared annotation, in progress)
+//   review   → dashed circle    (shared annotation, needs control)
 //   verified → check circle     (completed)
 function StatusIcon({ item }: { item: FeedItem }) {
   const className = 'h-5 w-5 shrink-0'

@@ -44,7 +44,7 @@ export function useDraft(docId: string) {
 
   // Invalidate the feed only when the draft transitions between
   // "empty / absent" and "has ≥1 ref" — that's the boundary that
-  // moves a doc between Yeni and Devam Eden (Plan B semantics).
+  // moves a doc between Yeni and Kontrol Gerekiyor (Plan B semantics).
   // Per-keystroke autosaves that keep refs.length non-zero do NOT
   // touch the feed cache; otherwise an active DocList would refetch
   // ~ every 2 s while the user types.
@@ -114,7 +114,7 @@ export function useDraft(docId: string) {
       setSaveStatus('saving')
       // Capture pre-state BEFORE the optimistic cache wipe below —
       // otherwise the transition check always reads "was empty" and
-      // skips the invalidation that pulls the doc out of Devam Eden.
+      // skips the invalidation that pulls the doc out of Kontrol Gerekiyor.
       const prev = qc.getQueryData<DraftSnapshot>(draftKeys.byDoc(docId))
       const hadRefs = (prev?.references.length ?? 0) > 0
       try {
@@ -151,7 +151,7 @@ export function useDraft(docId: string) {
           // a draft behind that shadowed the shared annotation in
           // some tab queries. DELETE is the cleaner intent: no row
           // = no draft = doc moves back to Yeni cleanly. The manual
-          // "Kaydet" button takes a different path (POST /annotations).
+          // "Kontrole Gönder" button takes a different path (POST /annotations).
           void deleteRaw(myRev)
         } else {
           void putRaw(refs, myRev)

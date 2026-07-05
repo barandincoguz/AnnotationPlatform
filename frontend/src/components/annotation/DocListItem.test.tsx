@@ -45,7 +45,7 @@ describe('DocListItem', () => {
     expect(screen.getByLabelText(/tamamland.*/i)).toBeInTheDocument()
   })
 
-  it("renders 'devam ediyor' status when workflow_state='review'", () => {
+  it("renders 'kontrol gerekiyor' status when workflow_state='review'", () => {
     render(
       <DocListItem
         item={makeFeedItem({
@@ -57,12 +57,12 @@ describe('DocListItem', () => {
         onClick={vi.fn()}
       />,
     )
-    expect(screen.getByLabelText(/devam ediyor/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/kontrol gerekiyor/i)).toBeInTheDocument()
   })
 
   it("renders 'taslak' status when workflow_state='draft' (Phase 1 new state)", () => {
     // 'draft' = caller has refs in a draft row but no shared annotation.
-    // Surfaces in Devam Eden tab alongside 'review' entries; the row
+    // Surfaces in Kontrol Gerekiyor tab alongside 'review' entries; the row
     // label distinguishes them.
     render(
       <DocListItem

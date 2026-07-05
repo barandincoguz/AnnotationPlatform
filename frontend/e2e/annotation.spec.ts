@@ -13,7 +13,7 @@ test.describe('Annotation flow', () => {
       await loginAs(bob, 'bob')
 
       await alice.goto(`/docs/${E2E_DOC_IDS.concurrency}`)
-      await expect(alice.getByRole('button', { name: 'Kaydet' })).toBeVisible()
+      await expect(alice.getByRole('button', { name: 'Kontrole Gönder' })).toBeVisible()
 
       await bob.goto(`/docs/${E2E_DOC_IDS.concurrency}`)
       await expect(bob.getByRole('dialog', { name: /alice düzenliyor/i })).toBeVisible()
@@ -27,7 +27,7 @@ test.describe('Annotation flow', () => {
           response.url().endsWith(`/api/locks/${E2E_DOC_IDS.concurrency}/release`)
           && response.request().method() === 'POST',
         ),
-        alice.getByRole('button', { name: 'Kaydet' }).click(),
+        alice.getByRole('button', { name: 'Kontrole Gönder' }).click(),
       ])
       expect(aliceSaveResponse.ok()).toBeTruthy()
       expect(aliceReleaseResponse.ok()).toBeTruthy()
@@ -35,7 +35,7 @@ test.describe('Annotation flow', () => {
       await bob.getByRole('button', { name: 'Listeye dön' }).click()
       await expect(bob).toHaveURL(/\/$/)
       await bob.goto(`/docs/${E2E_DOC_IDS.concurrency}`)
-      await expect(bob.getByRole('button', { name: 'Kaydet' })).toBeVisible()
+      await expect(bob.getByRole('button', { name: 'Kontrole Gönder' })).toBeVisible()
 
       await bob.getByRole('button', { name: 'Yeni Referans' }).click()
       await bob.getByRole('textbox', { name: 'Kanun No' }).fill('193')
@@ -52,7 +52,7 @@ test.describe('Annotation flow', () => {
           response.url().endsWith(`/api/locks/${E2E_DOC_IDS.concurrency}/release`)
           && response.request().method() === 'POST',
         ),
-        bob.getByRole('button', { name: 'Kaydet' }).click(),
+        bob.getByRole('button', { name: 'Kontrole Gönder' }).click(),
       ])
       expect(bobSaveResponse.ok()).toBeTruthy()
       expect(bobReleaseResponse.ok()).toBeTruthy()
@@ -126,7 +126,7 @@ test.describe('Annotation flow', () => {
       'data-state',
       'active',
     )
-    const reviewTab = page.getByRole('tab', { name: /devam eden/i })
+    const reviewTab = page.getByRole('tab', { name: /kontrol gerekiyor/i })
     await reviewTab.click()
     await expect(reviewTab).toHaveAttribute('data-state', 'active')
   })

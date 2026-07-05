@@ -27,7 +27,7 @@ const TABS: TabDef[] = [
   },
   {
     value: 'review',
-    label: 'Devam Eden',
+    label: 'Kontrol Gerekiyor',
     Icon: Hourglass,
     activeRing: 'data-[state=active]:ring-1 data-[state=active]:ring-accent/40 data-[state=active]:text-accent',
     iconClass: 'text-accent',

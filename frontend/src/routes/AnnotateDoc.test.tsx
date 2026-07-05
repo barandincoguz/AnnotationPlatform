@@ -199,7 +199,7 @@ describe('AnnotateDoc integration', () => {
 
   it('Complete sends refs in a single POST /complete and skips legacy save endpoint', async () => {
     // Hydrate an annotation row with one ref so refs.list is populated
-    // when the Tamamla button is clicked.
+    // when the Tamamlandı button is clicked.
     server.use(
       http.get('http://localhost/api/documents/doc-1', () =>
         HttpResponse.json(
@@ -250,12 +250,12 @@ describe('AnnotateDoc integration', () => {
     renderDoc('/docs/doc-1')
     await waitFor(
       () => {
-        const btn = screen.getByRole('button', { name: /^tamamla$/i })
+        const btn = screen.getByRole('button', { name: /^tamamlandı$/i })
         expect(btn).not.toBeDisabled()
       },
       { timeout: 3000 },
     )
-    await user.click(screen.getByRole('button', { name: /^tamamla$/i }))
+    await user.click(screen.getByRole('button', { name: /^tamamlandı$/i }))
 
     await waitFor(() => expect(completeSpy).toHaveBeenCalledTimes(1))
     // Legacy save endpoint MUST NOT have been hit — that was the

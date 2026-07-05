@@ -20,7 +20,7 @@ export function Annotate() {
         </p>
       </div>
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground/60">
-        Yeni · Devam Eden · Tamamlanan
+        Yeni · Kontrol Gerekiyor · Tamamlanan
       </p>
     </div>
   )

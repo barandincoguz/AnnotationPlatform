@@ -9,7 +9,7 @@ describe('TabStrip', () => {
   it('renders 3 tab buttons in Turkish', () => {
     render(<TabStrip tab="new" onChange={vi.fn()} />)
     expect(screen.getByRole('tab', { name: /yeni/i })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /devam/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /kontrol gerekiyor/i })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /tamamlanan/i })).toBeInTheDocument()
   })
 
@@ -17,7 +17,7 @@ describe('TabStrip', () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
     render(<TabStrip tab="new" onChange={onChange} />)
-    await user.click(screen.getByRole('tab', { name: /devam/i }))
+    await user.click(screen.getByRole('tab', { name: /kontrol gerekiyor/i }))
     expect(onChange).toHaveBeenCalledWith('review')
   })
 })
