@@ -279,7 +279,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
             </p>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate('/', { replace: true })}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/', { replace: true })}
+            >
               Listeye dön
             </Button>
             <Button type="button" onClick={lock.retry}>
@@ -305,7 +309,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
             </p>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate('/', { replace: true })}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/', { replace: true })}
+            >
               Listeye dön
             </Button>
             <Button type="button" onClick={lock.retry}>
@@ -333,54 +341,46 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     const draftRefs = draft.draftQuery.data?.references
     const hasDraftRefs = Array.isArray(draftRefs) && draftRefs.length > 0
     const referenceLoadFailed =
-      draft.draftQuery.status === 'error'
-      || (
-        draft.draftQuery.status === 'success'
-        && !hasDraftRefs
-        && annotation.status === 'error'
-      )
+      draft.draftQuery.status === 'error' ||
+      (draft.draftQuery.status === 'success' && !hasDraftRefs && annotation.status === 'error')
 
     return (
-      <div className="grid h-full grid-cols-[60%_40%] overflow-hidden">
-        <div className="border-r border-border overflow-hidden">
+      <div className="grid h-full grid-cols-[minmax(0,60%)_minmax(0,40%)] overflow-hidden">
+        <div className="min-w-0 overflow-hidden border-r border-border">
           <DocViewer docId={docId} />
         </div>
-        <div className="flex items-center justify-center p-8">
-          {referenceLoadFailed ? (
-            <div className="max-w-sm space-y-4 text-center">
-              <AlertCircle
-                aria-hidden="true"
-                className="mx-auto h-8 w-8 text-destructive"
-              />
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold">Referanslar yüklenemedi</h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Kayıtlı referanslar doğrulanmadan düzenleme açılamaz.
-                  Bağlantıyı kontrol edip yeniden deneyin.
-                </p>
+        <div className="min-w-0 overflow-hidden">
+          <div className="flex h-full items-center justify-center p-8">
+            {referenceLoadFailed ? (
+              <div className="max-w-sm space-y-4 text-center">
+                <AlertCircle aria-hidden="true" className="mx-auto h-8 w-8 text-destructive" />
+                <div className="space-y-2">
+                  <h2 className="text-lg font-semibold">Referanslar yüklenemedi</h2>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Kayıtlı referanslar doğrulanmadan düzenleme açılamaz. Bağlantıyı kontrol edip
+                    yeniden deneyin.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void Promise.all([draft.draftQuery.refetch(), annotation.refetch()])
+                  }}
+                >
+                  <RefreshCw aria-hidden="true" />
+                  Yeniden dene
+                </Button>
               </div>
-              <Button
-                type="button"
-                onClick={() => {
-                  void Promise.all([
-                    draft.draftQuery.refetch(),
-                    annotation.refetch(),
-                  ])
-                }}
+            ) : (
+              <div
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                role="status"
               >
-                <RefreshCw aria-hidden="true" />
-                Yeniden dene
-              </Button>
-            </div>
-          ) : (
-            <div
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
-              role="status"
-            >
-              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-              Referanslar yükleniyor...
-            </div>
-          )}
+                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                Referanslar yükleniyor...
+              </div>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -389,11 +389,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const errorForPanel = saveMutation.error instanceof ApiError ? saveMutation.error : null
 
   return (
-    <div className="grid h-full grid-cols-[60%_40%] overflow-hidden">
-      <div className="border-r border-border overflow-hidden">
+    <div className="grid h-full grid-cols-[minmax(0,60%)_minmax(0,40%)] overflow-hidden">
+      <div className="min-w-0 overflow-hidden border-r border-border">
         <DocViewer docId={docId} />
       </div>
-      <div className="overflow-hidden">
+      <div className="min-w-0 overflow-hidden">
         <ReferencePanel
           refs={refs.list}
           docText={docQuery.data?.pdf_text ?? ''}

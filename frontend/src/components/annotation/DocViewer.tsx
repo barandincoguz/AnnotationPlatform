@@ -89,9 +89,7 @@ function RefList({
             <span className="font-mono text-[10px] font-bold tabular-nums text-accent">
               {String(ref.seq + 1).padStart(2, '0')}.
             </span>
-            <span className="flex-1 text-foreground/90 leading-snug">
-              {renderItem(ref)}
-            </span>
+            <span className="flex-1 text-foreground/90 leading-snug">{renderItem(ref)}</span>
           </li>
         ))}
       </ol>
@@ -180,11 +178,7 @@ function Header({ d }: { d: DocumentDetail }) {
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         <MetaField icon={CalendarDays} label="Tarih" value={formatYmd(d.tarih)} />
-        <MetaField
-          icon={ClipboardCheck}
-          label="Başvuru"
-          value={formatYmd(d.basvuru_tarihi)}
-        />
+        <MetaField icon={ClipboardCheck} label="Başvuru" value={formatYmd(d.basvuru_tarihi)} />
         <MetaField icon={Hash} label="Vergi Türü" value={d.vergi_turu ?? null} />
         <MetaField icon={Tag} label="Dönem" value={d.vergi_donemi ?? null} />
         <MetaField icon={Users} label="Mükellefiyet" value={d.mukellefiyet_turu ?? null} />
@@ -196,9 +190,7 @@ function Header({ d }: { d: DocumentDetail }) {
           <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground shrink-0">
             Konu:
           </span>
-          <p className="font-medium leading-normal text-foreground/90">
-            {d.konu}
-          </p>
+          <p className="font-medium leading-normal text-foreground/90">{d.konu}</p>
         </div>
       )}
     </header>
@@ -225,10 +217,7 @@ export function DocViewer({ docId }: DocViewerProps) {
   // closure with an empty fallback; the early returns below render
   // before `cleaned` is ever read so the empty string is harmless.
   const rawPdfText = q.data?.pdf_text
-  const cleaned = useMemo(
-    () => (rawPdfText ? normalizeOzelgeText(rawPdfText) : ''),
-    [rawPdfText],
-  )
+  const cleaned = useMemo(() => (rawPdfText ? normalizeOzelgeText(rawPdfText) : ''), [rawPdfText])
   if (q.isPending) {
     return (
       <div role="status" aria-live="polite" className="p-4 text-[15px] text-muted-foreground">
@@ -243,10 +232,10 @@ export function DocViewer({ docId }: DocViewerProps) {
   const hasRefs = d.kanun_refs.length > 0 || d.bkk_refs.length > 0
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden">
       <Header d={d} />
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto">
         {hasRefs && (
           <div className="border-b border-border/40 bg-secondary/15">
             <button
@@ -262,7 +251,11 @@ export function DocViewer({ docId }: DocViewerProps) {
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
                 <span className="text-[11px] font-medium">{showRawRefs ? 'Gizle' : 'Göster'}</span>
-                {showRawRefs ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {showRawRefs ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
               </div>
             </button>
 
@@ -280,7 +273,10 @@ export function DocViewer({ docId }: DocViewerProps) {
                   data-testid="refs-source-warning"
                   className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/[0.04] px-2.5 py-1.5 text-[12px] font-medium leading-normal text-destructive"
                 >
-                  <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 shrink-0 translate-y-[2px]" />
+                  <AlertTriangle
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 translate-y-[2px]"
+                  />
                   <span>
                     <span className="font-semibold">Kaynak veriden geliyor (Eksik/Güvensiz).</span>{' '}
                     Doğrulamanız gerekir; amacımız bu listeyi insan eliyle düzeltmektir.
@@ -303,7 +299,7 @@ export function DocViewer({ docId }: DocViewerProps) {
           </div>
         )}
 
-        <article className="whitespace-pre-wrap px-5 py-5 text-[15px] leading-[1.7] text-foreground/95 font-serif">
+        <article className="min-w-0 max-w-full whitespace-pre-wrap break-words px-5 py-5 font-serif text-[15px] leading-[1.7] text-foreground/95 [overflow-wrap:anywhere]">
           {cleaned}
         </article>
       </div>

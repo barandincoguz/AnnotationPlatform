@@ -109,8 +109,8 @@ export function ReferencePanel({
     <div className="flex h-full flex-col overflow-hidden">
       {/* Editorial panel header — gives the right column a real frame
           instead of starting cold on the first reference card. */}
-      <header className="flex items-center justify-between gap-2 border-b border-border/60 bg-card/60 px-5 py-3">
-        <div className="flex items-center gap-2.5">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-card/60 px-5 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           <BookMarked aria-hidden="true" className="h-4 w-4 text-accent" />
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Referanslar
@@ -135,7 +135,8 @@ export function ReferencePanel({
               Henüz referans yok
             </p>
             <p className="text-[15px] leading-relaxed text-muted-foreground/90">
-              &ldquo;+ Yeni Referans&rdquo; ile başlayın; eklediğiniz her atıf bir kart olarak görünür.
+              &ldquo;+ Yeni Referans&rdquo; ile başlayın; eklediğiniz her atıf bir kart olarak
+              görünür.
             </p>
           </div>
         ) : (
@@ -182,15 +183,24 @@ export function ReferencePanel({
             <strong>Kanun No</strong> veya <strong>Kanun Adı</strong> doldurulmalı.
           </p>
         )}
-        <div className="flex items-center justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onSkip} disabled={!canEdit || isSaving}>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onSkip}
+            disabled={!canEdit || isSaving}
+            className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
+          >
             Atla
           </Button>
           <Button
             type="button"
+            size="sm"
             onClick={onSave}
             disabled={!canEdit || isSaving || !isValid}
             title="Emin değilsen kontrole gönder; başka biri kontrol etsin."
+            className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
           >
             {isSaving ? 'Gönderiliyor…' : 'Kontrole Gönder'}
           </Button>
@@ -204,6 +214,7 @@ export function ReferencePanel({
           <Button
             type="button"
             variant={isCompleted ? 'outline' : 'success'}
+            size="sm"
             onClick={onComplete}
             disabled={completeDisabled}
             title={
@@ -211,6 +222,7 @@ export function ReferencePanel({
                 ? 'Tamamlandı işaretini geri al.'
                 : 'Eminsen tamamlandı işaretle; ek kontrole gerek yok.'
             }
+            className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
           >
             {isCompleted ? <Undo2 /> : <Check />}
             {completeLabel}
