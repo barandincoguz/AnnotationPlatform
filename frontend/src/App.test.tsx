@@ -19,6 +19,15 @@ describe('App hydration', () => {
     await waitFor(() => expect(screen.getByTestId('stub-annotate')).toBeInTheDocument())
   })
 
+  it('renders the statistics route for passed users', async () => {
+    server.use(mockAuthedUser({ username: 'bob' }))
+    renderWithProviders(<App />, { initialEntries: ['/statistics'], wildcardEntry: true })
+
+    await waitFor(() => expect(useAuthStore.getState().status).toBe('authed'))
+    expect(await screen.findByRole('heading', { name: 'Kullanıcı İstatistikleri' }))
+      .toBeInTheDocument()
+  })
+
   it('starts in loading, transitions to anon on 401, redirects /login', async () => {
     server.use(mockAnonUser())
     renderWithProviders(<App />, { initialEntries: ['/'], wildcardEntry: true })

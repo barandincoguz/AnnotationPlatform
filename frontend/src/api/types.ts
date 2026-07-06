@@ -611,6 +611,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/statistics/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List User Statistics */
+        get: operations["list_user_statistics_api_statistics_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/training/start": {
         parameters: {
             query?: never;
@@ -1688,6 +1705,80 @@ export interface components {
             /** Gold Docs */
             gold_docs: components["schemas"]["GoldDocOut"][];
         };
+        /** StatisticsMetrics */
+        StatisticsMetrics: {
+            /**
+             * Distinct Documents
+             * @default 0
+             */
+            distinct_documents: number;
+            /**
+             * Save Events
+             * @default 0
+             */
+            save_events: number;
+            /**
+             * Complete Events
+             * @default 0
+             */
+            complete_events: number;
+            /**
+             * Uncomplete Events
+             * @default 0
+             */
+            uncomplete_events: number;
+            /**
+             * Skip Events
+             * @default 0
+             */
+            skip_events: number;
+            /**
+             * Version Events
+             * @default 0
+             */
+            version_events: number;
+            /**
+             * Create Versions
+             * @default 0
+             */
+            create_versions: number;
+            /**
+             * Edit Versions
+             * @default 0
+             */
+            edit_versions: number;
+            /**
+             * Complete Mark Versions
+             * @default 0
+             */
+            complete_mark_versions: number;
+            /**
+             * Zero Diff Versions
+             * @default 0
+             */
+            zero_diff_versions: number;
+            /**
+             * Final Completed Documents
+             * @default 0
+             */
+            final_completed_documents: number;
+            /**
+             * Xp Delta
+             * @default 0
+             */
+            xp_delta: number;
+        };
+        /** StatisticsUser */
+        StatisticsUser: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Role */
+            role: string;
+            /** Avatar Color */
+            avatar_color?: string | null;
+        };
         /** StreakSection */
         StreakSection: {
             /** Current */
@@ -1744,6 +1835,33 @@ export interface components {
             role: string;
             /** Avatar Color */
             avatar_color: string;
+        };
+        /** UserStatisticsResponse */
+        UserStatisticsResponse: {
+            /** Generated At */
+            generated_at: string;
+            /** Summary */
+            summary: {
+                [key: string]: components["schemas"]["StatisticsMetrics"];
+            };
+            /** Users */
+            users: components["schemas"]["UserStatisticsRow"][];
+        };
+        /** UserStatisticsRow */
+        UserStatisticsRow: {
+            user: components["schemas"]["StatisticsUser"];
+            /** Xp Total */
+            xp_total: number;
+            /** Badges Count */
+            badges_count: number;
+            /** Streak Current */
+            streak_current: number;
+            /** Last Active Date */
+            last_active_date?: string | null;
+            /** Metrics */
+            metrics: {
+                [key: string]: components["schemas"]["StatisticsMetrics"];
+            };
         };
         /** UsersListResponse */
         UsersListResponse: {
@@ -2854,6 +2972,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_user_statistics_api_statistics_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserStatisticsResponse"];
                 };
             };
             /** @description Validation Error */

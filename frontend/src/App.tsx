@@ -22,6 +22,9 @@ const AnnotateDoc = lazy(() =>
   import('@/routes/AnnotateDoc').then((m) => ({ default: m.AnnotateDoc })),
 )
 const Profile = lazy(() => import('@/routes/Profile').then((m) => ({ default: m.Profile })))
+const Statistics = lazy(() =>
+  import('@/routes/Statistics').then((m) => ({ default: m.Statistics })),
+)
 const Help = lazy(() => import('@/routes/Help').then((m) => ({ default: m.Help })))
 const Training = lazy(() => import('@/routes/Training').then((m) => ({ default: m.Training })))
 const AppShell = lazy(() =>
@@ -141,6 +144,7 @@ export default function App() {
                   <Route path="/docs/:docId" element={<AnnotateDoc />} />
                 </Route>
                 <Route path="/me" element={<Profile />} />
+                <Route path="/statistics" element={<Statistics />} />
               </Route>
             </Route>
           </Route>

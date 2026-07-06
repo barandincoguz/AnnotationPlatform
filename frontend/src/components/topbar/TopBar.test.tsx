@@ -1,6 +1,6 @@
 /* eslint-disable react/display-name -- test wrappers, no display name needed */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -47,6 +47,17 @@ describe('TopBar', () => {
     )
     render(<TopBar />, { wrapper: wrap() })
     await waitFor(() => expect(screen.getByLabelText('Toplam XP')).toHaveTextContent('1.240'))
+  })
+
+  it('renders the statistics link immediately before the XP badge', () => {
+    render(<TopBar />, { wrapper: wrap() })
+    const center = screen.getByTestId('topbar-center')
+    const statsLink = within(center).getByRole('link', { name: 'İstatistikler' })
+    const xpBadge = within(center).getByLabelText('Toplam XP')
+
+    expect(statsLink).toHaveAttribute('href', '/statistics')
+    expect(Boolean(statsLink.compareDocumentPosition(xpBadge) & Node.DOCUMENT_POSITION_FOLLOWING))
+      .toBe(true)
   })
 
   it('on profile error, stats show fallback but TopBar does not crash', async () => {

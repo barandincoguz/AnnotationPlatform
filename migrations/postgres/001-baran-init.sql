@@ -123,6 +123,8 @@ CREATE TABLE IF NOT EXISTS baran_activity_events (
     created_at text NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS baran_idx_act_created_user_type ON baran_activity_events(created_at, user_id, event_type);
+
 CREATE INDEX IF NOT EXISTS baran_idx_act_type_time ON baran_activity_events(event_type, created_at);
 
 CREATE INDEX IF NOT EXISTS baran_idx_act_doc_time ON baran_activity_events(document_id, created_at);
@@ -160,6 +162,8 @@ CREATE TABLE IF NOT EXISTS baran_annotation_versions (
     action text NOT NULL,
     created_at text NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS baran_idx_ver_created_user ON baran_annotation_versions(created_at, user_id);
 
 CREATE INDEX IF NOT EXISTS baran_idx_ver_doc_user ON baran_annotation_versions(document_id, user_id);
 
@@ -234,6 +238,8 @@ CREATE TABLE IF NOT EXISTS baran_gamification_ledger (
     related_doc_id text,
     created_at text NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS baran_idx_ledger_created_user ON baran_gamification_ledger(created_at, user_id);
 
 CREATE INDEX IF NOT EXISTS baran_idx_ledger_user_time ON baran_gamification_ledger(user_id, created_at);
 

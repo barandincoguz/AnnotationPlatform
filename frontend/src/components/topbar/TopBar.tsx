@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { BarChart3 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfile } from '@/api/queries/profile'
 import { useOnlineUsers } from '@/api/queries/users'
@@ -33,11 +35,24 @@ export function TopBar() {
   return (
     <header
       role="banner"
-      className="sticky top-0 z-30 h-16 border-b border-border/70 bg-background/85 backdrop-blur-md px-6 grid grid-cols-[1fr_auto_1fr] items-center gap-5"
+      className="sticky top-0 z-30 h-16 border-b border-border/70 bg-background/85 backdrop-blur-md px-3 sm:px-4 lg:px-6 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-4 lg:gap-5"
     >
       <BrandMark subtitle="Bursiyer kütüphanesi" />
 
-      <div className="flex items-center gap-5">
+      <div
+        data-testid="topbar-center"
+        className="min-w-0 flex items-center justify-center gap-2 sm:gap-3 lg:gap-5 overflow-x-auto [scrollbar-width:none]"
+      >
+        <Link
+          to="/statistics"
+          aria-label="İstatistikler"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-info/50 hover:text-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info sm:w-auto sm:px-3"
+        >
+          <BarChart3 aria-hidden className="h-4 w-4 shrink-0" />
+          <span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground lg:inline">
+            İstatistikler
+          </span>
+        </Link>
         <XPBadge total={xpTotal} />
         <span aria-hidden className="h-5 w-px bg-border" />
         <StreakCounter current={streakCurrent} longest={streakLongest} />

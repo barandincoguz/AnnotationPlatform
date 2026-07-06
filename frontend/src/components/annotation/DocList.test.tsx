@@ -76,7 +76,7 @@ describe('DocList', () => {
   })
 
   it('renders a loading indicator when fetching the next page', () => {
-    const useFeedSpy = vi.spyOn(useFeedMod, 'useFeed').mockReturnValue({
+    const feedResult = {
       data: {
         pages: [
           {
@@ -89,7 +89,8 @@ describe('DocList', () => {
       isFetchingNextPage: true,
       hasNextPage: true,
       fetchNextPage: vi.fn(),
-    } as any)
+    } as unknown as ReturnType<typeof useFeedMod.useFeed>
+    const useFeedSpy = vi.spyOn(useFeedMod, 'useFeed').mockReturnValue(feedResult)
 
     renderWithProviders(<DocList tab="verified" selectedId={null} onSelectDoc={vi.fn()} />)
     expect(screen.getByText('Daha fazla yükleniyor...')).toBeInTheDocument()

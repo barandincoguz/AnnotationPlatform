@@ -44,6 +44,7 @@ from backend.gamification.routes import router as gamification_router
 from backend.notifications.routes import router as notifications_router
 from backend.shuffle.routes import router as shuffle_router
 from backend.sse.routes import router as sse_router
+from backend.statistics.routes import router as statistics_router
 from backend.training.routes import router as training_router, admin_router as training_admin_router
 from backend.backup.routes import router as backup_router
 from backend.retention.routes import router as retention_router
@@ -432,6 +433,7 @@ app.include_router(notifications_router)
 app.include_router(gamification_router)
 app.include_router(shuffle_router)
 app.include_router(sse_router)
+app.include_router(statistics_router)
 app.include_router(training_router)
 app.include_router(training_admin_router)
 app.include_router(admin_router)

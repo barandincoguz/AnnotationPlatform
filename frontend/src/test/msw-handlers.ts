@@ -4,6 +4,7 @@ import type {
   ProfileResponse, Notification, NotificationsList, BadgeCatalogItem,
   OnlineUser,
 } from '@/lib/profileSchemas'
+import type { StatisticsMetrics, StatisticsResponse } from '@/lib/statisticsSchemas'
 
 type User = components['schemas']['UserOut']
 type FeedItem = components['schemas']['FeedItem']
@@ -161,6 +162,63 @@ export function makeOnlineUser(overrides: Partial<OnlineUser> = {}): OnlineUser 
   return { id: 1, username: 'tester', avatar_color: '#3b82f6', ...overrides }
 }
 
+export function makeStatisticsMetrics(
+  overrides: Partial<StatisticsMetrics> = {},
+): StatisticsMetrics {
+  return {
+    distinct_documents: 0,
+    save_events: 0,
+    complete_events: 0,
+    uncomplete_events: 0,
+    skip_events: 0,
+    version_events: 0,
+    create_versions: 0,
+    edit_versions: 0,
+    complete_mark_versions: 0,
+    zero_diff_versions: 0,
+    final_completed_documents: 0,
+    xp_delta: 0,
+    ...overrides,
+  }
+}
+
+export function makeStatisticsPeriodMetrics(
+  overrides: Partial<Record<keyof StatisticsResponse['summary'], Partial<StatisticsMetrics>>> = {},
+): StatisticsResponse['summary'] {
+  return {
+    today: makeStatisticsMetrics(overrides.today),
+    last_7_days: makeStatisticsMetrics(overrides.last_7_days),
+    last_30_days: makeStatisticsMetrics(overrides.last_30_days),
+    all_time: makeStatisticsMetrics(overrides.all_time),
+  }
+}
+
+export function makeStatisticsResponse(
+  overrides: Partial<StatisticsResponse> = {},
+): StatisticsResponse {
+  const summary = makeStatisticsPeriodMetrics({
+    today: { distinct_documents: 1, save_events: 1, xp_delta: 1 },
+    last_7_days: { distinct_documents: 4, save_events: 3, complete_events: 1, xp_delta: 12 },
+    last_30_days: { distinct_documents: 8, save_events: 7, complete_events: 2, xp_delta: 30 },
+    all_time: { distinct_documents: 12, save_events: 10, complete_events: 4, xp_delta: 75 },
+  })
+  return {
+    generated_at: '2026-07-06T12:00:00+00:00',
+    summary,
+    users: [
+      {
+        user: { id: 1, username: 'tester', role: 'user', avatar_color: '#3b82f6' },
+        xp_total: 1240,
+        badges_count: 1,
+        streak_current: 3,
+        last_active_date: '2026-07-06',
+        metrics: summary,
+      },
+    ],
+    ...overrides,
+  }
+}
+
 const GAMIFICATION_DEFAULTS = [
   http.get(`${API}/api/me/profile`, () => HttpResponse.json(makeProfile())),
 
@@ -199,6 +257,10 @@ const GAMIFICATION_DEFAULTS = [
 
   http.get(`${API}/api/users/online`, () =>
     HttpResponse.json([makeOnlineUser({ id: 1, username: 'tester', avatar_color: '#3b82f6' })]),
+  ),
+
+  http.get(`${API}/api/statistics/users`, () =>
+    HttpResponse.json(makeStatisticsResponse()),
   ),
 ]
 
