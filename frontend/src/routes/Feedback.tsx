@@ -8,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { useSubmitFeedbackMutation } from '@/api/queries/feedback'
 import type { FeedbackType } from '@/lib/feedbackSchemas'
 
-const OPTIONS: Array<{
+const OPTIONS: {
   value: FeedbackType
   label: string
   Icon: typeof Lightbulb
   tone: string
-}> = [
+}[] = [
   { value: 'suggestion', label: 'Öneri', Icon: Lightbulb, tone: 'text-success bg-success/10' },
   { value: 'complaint', label: 'Şikayet', Icon: AlertTriangle, tone: 'text-warning bg-warning/10' },
 ]

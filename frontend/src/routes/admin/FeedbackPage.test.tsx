@@ -52,7 +52,7 @@ describe('FeedbackPage', () => {
   })
 
   it('filters admin list by type_filter query param', async () => {
-    const seenFilters: Array<string | null> = []
+    const seenFilters: (string | null)[] = []
     server.use(
       http.get('http://localhost/api/admin/feedback', ({ request }) => {
         const url = new URL(request.url)
