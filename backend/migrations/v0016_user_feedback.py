@@ -1,6 +1,9 @@
 """Migration: add user_feedback table (complaints/suggestions)."""
 import sqlite3
 
+from backend.migrations.helpers.schema_introspect import introspect_table
+from backend.migrations.helpers.trigger_generator import build_triggers_for_table
+
 
 SCHEMA_SQL = """
 CREATE TABLE user_feedback (
@@ -20,3 +23,6 @@ def up(conn: sqlite3.Connection) -> None:
         stmt = raw.strip()
         if stmt:
             conn.execute(stmt)
+    schema = introspect_table(conn, "user_feedback")
+    for stmt in build_triggers_for_table(schema):
+        conn.execute(stmt)

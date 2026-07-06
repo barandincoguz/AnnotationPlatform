@@ -63,6 +63,7 @@ VERSION = "0.1.0"
 # state: restoring either would revive stale access or stale ownership.
 MIRROR_RESTORE_TABLES = (
     "users",
+    "user_feedback",
     "invite_codes",
     "site_settings",
     "gamification_state",

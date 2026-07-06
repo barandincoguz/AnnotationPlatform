@@ -1,6 +1,6 @@
 -- ============================================================
 -- baran_* mirror DDL — Phase 4 generated artifact.
--- Source: SQLite project schema (22 in-scope tables).
+-- Source: SQLite project schema (23 in-scope tables).
 -- Regenerate with: python -m scripts.regen_neon_ddl
 -- Idempotent: every CREATE uses IF NOT EXISTS.
 -- ============================================================
@@ -331,5 +331,18 @@ CREATE TABLE IF NOT EXISTS baran_training_quiz_overrides (
 );
 
 CREATE INDEX IF NOT EXISTS baran_idx_quiz_overrides_active ON baran_training_quiz_overrides(question_id) WHERE is_deleted=0;
+
+CREATE TABLE IF NOT EXISTS baran_user_feedback (
+    id bigserial PRIMARY KEY,
+    user_id bigint NOT NULL REFERENCES baran_users(id) ON DELETE CASCADE,
+    type text NOT NULL,
+    message text NOT NULL,
+    created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (type IN ('complaint', 'suggestion'))
+);
+
+CREATE INDEX IF NOT EXISTS baran_idx_fb_type ON baran_user_feedback(type);
+
+CREATE INDEX IF NOT EXISTS baran_idx_fb_user_time ON baran_user_feedback(user_id, created_at);
 
 COMMIT;

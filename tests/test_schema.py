@@ -4,12 +4,13 @@ from backend.migrations.runner import apply_migrations
 
 
 EXPECTED_TABLES = {
-    # Core (11)
+    # Core (12)
     "users", "invite_codes", "site_settings", "documents_meta",
     "annotations", "annotation_versions", "drafts", "document_locks",
     "annotation_references",                # denormalized index of current refs
     "document_kanun_refs",                  # source metadata (unused for annotation)
     "document_bkk_refs",                    # source metadata
+    "user_feedback",
     # Event logs (5)
     "user_sessions", "activity_events", "behavioral_events",
     "admin_audit_log", "system_events",
@@ -30,7 +31,7 @@ def _all_tables(conn) -> set[str]:
     return {r["name"] for r in rows}
 
 
-def test_v0001_creates_all_22_tables(db_path):
+def test_v0001_creates_all_23_tables(db_path):
     conn = connect(db_path)
     try:
         apply_migrations(conn, discover_migrations())
@@ -89,6 +90,7 @@ def test_all_migrations_idempotent(db_path):
             "v0001", "v0002", "v0003", "v0004", "v0005",
             "v0006", "v0007", "v0008", "v0009", "v0010",
             "v0011", "v0012", "v0013", "v0014", "v0015",
+            "v0016",
         ]
         assert second == []
     finally:

@@ -1,7 +1,7 @@
 """SQLite trigger generator for the Phase 4 outbox capture (MIRROR-01).
 
-Produces one `CREATE TRIGGER IF NOT EXISTS` per (in-scope table, op) pair —
-22 tables × 3 ops = **66 triggers**. Each trigger body INSERTs a single
+Produces one `CREATE TRIGGER IF NOT EXISTS` per (in-scope table, op) pair.
+Each trigger body INSERTs a single
 `_outbox` row carrying the JSON-encoded payload, the pk_value string per
 D-03, and the operation type.
 
@@ -119,7 +119,7 @@ def _collect_schemas(conn: sqlite3.Connection) -> list[TableSchema]:
 def build_all_triggers(conn: sqlite3.Connection) -> list[str]:
     """Return the full ordered list of trigger CREATE statements.
 
-    Result length is exactly **66** (22 tables × 3 ops) under the
+    Result length is exactly **63** (21 mirrored tables × 3 ops) under the
     canonical project schema.
     """
     out: list[str] = []

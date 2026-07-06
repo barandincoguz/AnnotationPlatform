@@ -93,9 +93,10 @@ def test_list_project_tables_count_and_exclusions():
     assert "schema_migrations" not in tables, "schema_migrations must be excluded"
     assert "sqlite_sequence" not in tables, "sqlite_sequence must be excluded"
     assert "user_sessions" not in tables, "bearer sessions must be excluded"
-    assert len(tables) == 22, f"expected 22 in-scope tables, got {len(tables)}: {tables}"
+    assert len(tables) == 23, f"expected 23 in-scope tables, got {len(tables)}: {tables}"
     # A few sentinel checks
     assert "users" in tables
+    assert "user_feedback" in tables
     assert "annotations" in tables
     assert "drafts" in tables
     conn.close()
@@ -212,7 +213,7 @@ def test_pg_ddl_every_create_table_is_idempotent():
     full = build_all_pg_ddl(conn)
     create_count = full.count("CREATE TABLE ")
     idempotent_count = full.count("CREATE TABLE IF NOT EXISTS ")
-    assert create_count == idempotent_count == 22, (create_count, idempotent_count)
+    assert create_count == idempotent_count == 23, (create_count, idempotent_count)
     conn.close()
 
 
@@ -243,11 +244,11 @@ def test_pg_ddl_every_underscore_json_column_maps_to_jsonb():
     conn.close()
 
 
-def test_pg_ddl_full_script_contains_22_create_table_statements():
+def test_pg_ddl_full_script_contains_23_create_table_statements():
     conn = _migrated_conn()
     full = build_all_pg_ddl(conn)
     count = full.count("CREATE TABLE IF NOT EXISTS baran_")
-    assert count == 22, count
+    assert count == 23, count
     conn.close()
 
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, MessageSquareText } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfile } from '@/api/queries/profile'
 import { useOnlineUsers } from '@/api/queries/users'
@@ -58,6 +58,16 @@ export function TopBar() {
         <StreakCounter current={streakCurrent} longest={streakLongest} />
         <span aria-hidden className="h-5 w-px bg-border" />
         <DailyProgress today={todaySave} target={dailyTarget} />
+        <Link
+          to="/feedback"
+          aria-label="Geri Bildirim"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-accent/50 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:w-auto sm:px-3"
+        >
+          <MessageSquareText aria-hidden className="h-4 w-4 shrink-0" />
+          <span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground xl:inline">
+            Geri Bildirim
+          </span>
+        </Link>
       </div>
 
       <div className="ml-auto flex items-center gap-4">

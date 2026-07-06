@@ -36,7 +36,7 @@ def list_feedback(
             FROM user_feedback uf
             JOIN users u ON u.id = uf.user_id
             WHERE uf.type = ?
-            ORDER BY uf.created_at DESC
+            ORDER BY uf.created_at DESC, uf.id DESC
             """,
             (type_filter,),
         ).fetchall()
@@ -46,7 +46,7 @@ def list_feedback(
             SELECT uf.id, uf.user_id, u.username, uf.type, uf.message, uf.created_at
             FROM user_feedback uf
             JOIN users u ON u.id = uf.user_id
-            ORDER BY uf.created_at DESC
+            ORDER BY uf.created_at DESC, uf.id DESC
             """,
         ).fetchall()
     return [dict(r) for r in rows]

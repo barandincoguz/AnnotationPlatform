@@ -13,6 +13,7 @@ const Wrap = ({ initialPath }: { initialPath: string }) => (
       <Route path="/admin/*" element={<AdminLayout />}>
         <Route path="audit" element={<div>AUDIT_STUB</div>} />
         <Route path="users" element={<div>USERS_STUB</div>} />
+        <Route path="feedback" element={<div>FEEDBACK_STUB</div>} />
       </Route>
     </Routes>
   </MemoryRouter>
@@ -36,6 +37,7 @@ describe('AdminLayout', () => {
     render(<Wrap initialPath="/admin/audit" />)
     expect(screen.getByRole('link', { name: /^audit/i })).toHaveAttribute('href', '/admin/audit')
     expect(screen.getByRole('link', { name: /^users/i })).toHaveAttribute('href', '/admin/users')
+    expect(screen.getByRole('link', { name: /^feedback/i })).toHaveAttribute('href', '/admin/feedback')
     expect(screen.getByRole('link', { name: /^locks/i })).toHaveAttribute('href', '/admin/locks')
     expect(screen.getByRole('link', { name: /^events/i })).toHaveAttribute('href', '/admin/events')
     expect(screen.getByRole('link', { name: /^settings/i })).toHaveAttribute('href', '/admin/settings')

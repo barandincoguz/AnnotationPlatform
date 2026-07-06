@@ -1054,6 +1054,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Feedback
+         * @description Submit a complaint or suggestion. Authenticated users only.
+         */
+        post: operations["submit_feedback_api_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Feedback
+         * @description List all feedback, optionally filtered by type. Admin only.
+         */
+        get: operations["list_feedback_api_admin_feedback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1382,6 +1422,34 @@ export interface components {
             items: components["schemas"]["FeedItem"][];
             /** Total */
             total?: number | null;
+        };
+        /** FeedbackCreateRequest */
+        FeedbackCreateRequest: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "complaint" | "suggestion";
+            /** Message */
+            message: string;
+        };
+        /** FeedbackRow */
+        FeedbackRow: {
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: number;
+            /** Username */
+            username: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "complaint" | "suggestion";
+            /** Message */
+            message: string;
+            /** Created At */
+            created_at: string;
         };
         /** GoldDocOut */
         GoldDocOut: {
@@ -3745,6 +3813,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_feedback_api_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_feedback_api_admin_feedback_get: {
+        parameters: {
+            query?: {
+                type_filter?: ("complaint" | "suggestion") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackRow"][];
                 };
             };
             /** @description Validation Error */

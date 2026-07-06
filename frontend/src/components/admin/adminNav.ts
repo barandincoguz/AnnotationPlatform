@@ -20,7 +20,13 @@ export const adminNavGroups: AdminNavGroup[] = [
       { to: '/admin/retention', label: 'Retention' },
     ],
   },
-  { label: 'People', items: [{ to: '/admin/users', label: 'Users' }] },
+  {
+    label: 'People',
+    items: [
+      { to: '/admin/users', label: 'Users' },
+      { to: '/admin/feedback', label: 'Feedback' },
+    ],
+  },
   { label: 'Platform', items: [{ to: '/admin/settings', label: 'Settings' }] },
   {
     label: 'Training Content',

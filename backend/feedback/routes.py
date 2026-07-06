@@ -4,7 +4,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.feedback import service
-from backend.feedback.models import FeedbackCreateRequest, FeedbackRow
+from backend.feedback.models import FeedbackCreateRequest, FeedbackRow, FeedbackType
 from backend.users.deps import get_db, get_current_user, require_admin
 
 
@@ -38,12 +38,9 @@ def submit_feedback(
 
 @router.get("/admin/feedback", response_model=list[FeedbackRow])
 def list_feedback(
-    type_filter: str | None = None,
+    type_filter: FeedbackType | None = None,
     db: sqlite3.Connection = Depends(get_db),
     _admin: sqlite3.Row = Depends(require_admin),
 ):
     """List all feedback, optionally filtered by type. Admin only."""
-    type_val: service.FeedbackType | None = None
-    if type_filter in ("complaint", "suggestion"):
-        type_val = type_filter  # type: ignore[assignment]
-    return service.list_feedback(db, type_filter=type_val)
+    return service.list_feedback(db, type_filter=type_filter)

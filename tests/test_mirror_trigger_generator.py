@@ -89,18 +89,18 @@ def test_activity_event_payload_redacts_local_session_reference():
     conn.close()
 
 
-def test_build_all_triggers_returns_66_statements():
+def test_build_all_triggers_returns_63_statements():
     conn = _migrated_conn()
     all_t = build_all_triggers(conn)
-    assert len(all_t) == 60, f"expected 60 triggers, got {len(all_t)}"
+    assert len(all_t) == 63, f"expected 63 triggers, got {len(all_t)}"
     assert all("user_sessions" not in stmt for stmt in all_t)
     assert all("document_locks" not in stmt for stmt in all_t)
     assert all("system_events" not in stmt for stmt in all_t)
     conn.close()
 
 
-def test_install_all_triggers_produces_66_in_sqlite_master():
-    """Run the generated trigger SQL against a freshly migrated DB and confirm 60 rows."""
+def test_install_all_triggers_produces_63_in_sqlite_master():
+    """Run the generated trigger SQL against a freshly migrated DB and confirm 63 rows."""
     conn = _migrated_conn()
     triggers = build_all_triggers(conn)
     # Wrap in explicit BEGIN IMMEDIATE / COMMIT to mirror the runner.
@@ -115,7 +115,7 @@ def test_install_all_triggers_produces_66_in_sqlite_master():
     row = conn.execute(
         "SELECT count(*) AS c FROM sqlite_master WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 60, f"expected 60 triggers, got {row['c']}"
+    assert row["c"] == 63, f"expected 63 triggers, got {row['c']}"
     conn.close()
 
 
@@ -128,11 +128,12 @@ def test_trigger_sql_has_no_line_comments():
     conn.close()
 
 
-def test_pk_columns_manifest_has_22_keys_with_expected_pks():
+def test_pk_columns_manifest_has_21_keys_with_expected_pks():
     conn = _migrated_conn()
     manifest = build_pk_columns_manifest(conn)
-    assert len(manifest) == 20, f"expected 20 manifest entries, got {len(manifest)}"
+    assert len(manifest) == 21, f"expected 21 manifest entries, got {len(manifest)}"
     assert manifest["users"] == ["id"]
+    assert manifest["user_feedback"] == ["id"]
     assert manifest["drafts"] == ["document_id", "user_id"]
     assert manifest["annotations"] == ["document_id"]
     assert manifest["site_settings"] == ["key"]

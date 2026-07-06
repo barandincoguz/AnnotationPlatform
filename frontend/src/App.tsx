@@ -25,6 +25,7 @@ const Profile = lazy(() => import('@/routes/Profile').then((m) => ({ default: m.
 const Statistics = lazy(() =>
   import('@/routes/Statistics').then((m) => ({ default: m.Statistics })),
 )
+const Feedback = lazy(() => import('@/routes/Feedback').then((m) => ({ default: m.Feedback })))
 const Help = lazy(() => import('@/routes/Help').then((m) => ({ default: m.Help })))
 const Training = lazy(() => import('@/routes/Training').then((m) => ({ default: m.Training })))
 const AppShell = lazy(() =>
@@ -62,6 +63,9 @@ const BackupPage = lazy(() =>
 )
 const RetentionPage = lazy(() =>
   import('@/routes/admin/RetentionPage').then((m) => ({ default: m.RetentionPage })),
+)
+const AdminFeedbackPage = lazy(() =>
+  import('@/routes/admin/FeedbackPage').then((m) => ({ default: m.FeedbackPage })),
 )
 
 export default function App() {
@@ -145,6 +149,7 @@ export default function App() {
                 </Route>
                 <Route path="/me" element={<Profile />} />
                 <Route path="/statistics" element={<Statistics />} />
+                <Route path="/feedback" element={<Feedback />} />
               </Route>
             </Route>
           </Route>
@@ -168,6 +173,7 @@ export default function App() {
             <Route path="mirror" element={<MirrorHealthPage />} />
             <Route path="backup" element={<BackupPage />} />
             <Route path="retention" element={<RetentionPage />} />
+            <Route path="feedback" element={<AdminFeedbackPage />} />
           </Route>
         </Route>
 

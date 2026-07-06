@@ -58,13 +58,13 @@ def _seed_user(conn: sqlite3.Connection, **overrides) -> int:
 # === Task 5: end-to-end trigger capture ===
 
 
-def test_60_triggers_installed_after_migrations():
+def test_63_triggers_installed_after_migrations():
     conn = _migrated_conn()
     row = conn.execute(
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 60
+    assert row["c"] == 63
     conn.close()
 
 
@@ -152,7 +152,7 @@ def test_migration_v0006_is_idempotent():
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 60
+    assert row["c"] == 63
     conn.close()
 
 

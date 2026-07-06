@@ -10,6 +10,7 @@ type User = components['schemas']['UserOut']
 type FeedItem = components['schemas']['FeedItem']
 type DocumentDetail = components['schemas']['DocumentDetail']
 type ReferenceItem = components['schemas']['ReferenceItem']
+type FeedbackRow = components['schemas']['FeedbackRow']
 
 export function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -87,6 +88,18 @@ export function makeReferenceItem(overrides: Partial<ReferenceItem> = {}): Refer
     source_text: 'Sahte belge düzenlemek...',
     ...overrides,
   } satisfies ReferenceItem
+}
+
+export function makeFeedbackRow(overrides: Partial<FeedbackRow> = {}): FeedbackRow {
+  return {
+    id: 1,
+    user_id: 1,
+    username: 'tester',
+    type: 'suggestion',
+    message: 'Liste ekranına hızlı filtre eklenebilir.',
+    created_at: '2026-07-07T12:00:00+00:00',
+    ...overrides,
+  } satisfies FeedbackRow
 }
 
 // MSW v2 in a jsdom environment matches against fully-qualified URLs.
@@ -442,6 +455,10 @@ export const adminQuizHandler = http.get(`${API}/api/admin/training/quiz`, () =>
   return HttpResponse.json({ resolved: [], overrides: [] })
 })
 
+export const adminFeedbackHandler = http.get(`${API}/api/admin/feedback`, () => {
+  return HttpResponse.json([makeFeedbackRow()])
+})
+
 export const adminHandlers = [
   adminAuditLogHandler,
   adminSystemEventsHandler,
@@ -449,6 +466,7 @@ export const adminHandlers = [
   adminUsersHandler,
   adminGoldDocsHandler,
   adminQuizHandler,
+  adminFeedbackHandler,
 ]
 
 export const handlers = [
