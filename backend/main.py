@@ -49,6 +49,7 @@ from backend.training.routes import router as training_router, admin_router as t
 from backend.backup.routes import router as backup_router
 from backend.retention.routes import router as retention_router
 from backend.exports.routes import router as exports_router
+from backend.feedback.routes import router as feedback_router
 from backend.locks import sweep as locks_sweep
 from backend.backup import loop as backup_loop
 from backend.retention import loop as retention_loop
@@ -440,6 +441,7 @@ app.include_router(admin_router)
 app.include_router(backup_router)
 app.include_router(retention_router)
 app.include_router(exports_router)
+app.include_router(feedback_router)
 
 
 @app.get("/api/health")
