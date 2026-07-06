@@ -1,6 +1,6 @@
 # Anotasyon Platformu — Frontend
 
-React 18 + Vite + TypeScript + Tailwind + shadcn/ui foundation for Paket 16a.
+React 18 + Vite 5 + TypeScript strict + Tailwind + shadcn/ui.
 
 ## İlk kurulum
 
@@ -14,32 +14,35 @@ cp .env.example .env.local  # if override needed
 ## Dev workflow — 2 terminal
 
 ```bash
-# Terminal 1: backend
-(repo root)$ DATA_DIR=$(pwd)/deneme-dev/data .venv/bin/uvicorn backend.main:app --reload --port 8000
+# Terminal 1: backend (repo root)
+DATA_DIR=$(pwd)/data .venv/bin/uvicorn backend.main:app --reload --port 8000
 
 # Terminal 2: frontend
-(frontend/)$ npm run dev    # Vite 5173 → /api proxy → uvicorn 8000
+npm run dev    # Vite 5173 → /api proxy → uvicorn 8000
 ```
+
+`DATA_DIR` defaults to `data/` under the repo root when unset. Override only
+when you need an isolated dev database.
 
 ## Type regeneration
 
 ```bash
 # Backend açıkken:
-(frontend/)$ npm run gen:types
+npm run gen:types
 
 # Backend kapalıyken (frontend/ içinden tek script):
-(frontend/)$ npm run gen:openapi          # cd .. && python -m backend.cli openapi-dump
-(frontend/)$ npm run gen:types:from-file
+npm run gen:openapi          # cd .. && python -m backend.cli openapi-dump
+npm run gen:types:from-file
 
 # Drift kontrolü (lokal CI öncesi sanity):
-(frontend/)$ npm run gen:types:check
+npm run gen:types:check
 ```
 
 ## shadcn/ui component ekleme
 
 ```bash
-(frontend/)$ npx shadcn@latest add button
-(frontend/)$ npx shadcn@latest add dialog
+npx shadcn@latest add button
+npx shadcn@latest add dialog
 ```
 
 Generated files: `src/components/ui/<name>.tsx`. Commit alongside usage.
@@ -47,21 +50,25 @@ Generated files: `src/components/ui/<name>.tsx`. Commit alongside usage.
 ## Production build
 
 ```bash
-(frontend/)$ npm run build       # → ../backend/static/
-(repo root)$ .venv/bin/uvicorn backend.main:app --port 8000
+npm run build       # → ../backend/static/
+# repo root:
+.venv/bin/uvicorn backend.main:app --port 8000
 # SPA + API tek port: http://localhost:8000
 ```
 
 ## Quality gates
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint, error level fails
+npm run typecheck      # tsc --noEmit
+npm run lint           # eslint, error level fails
 npm run format:check
-npm test            # vitest watch
-npm run test:run    # vitest single-run
+npm test               # vitest watch
+npm run test:run       # vitest single-run (596 tests)
 npm run test:coverage  # ≥80% statements/branches/lines/functions
+npm run e2e            # Playwright (14 tests in e2e/)
 ```
+
+Live counts drift; run `npm run test:run` for truth.
 
 ## Dependency policy
 
@@ -75,12 +82,14 @@ deliberately with smoke test, then update the pin.
 `vite.config.ts` (resolve.alias), `tsconfig.eslint.json` (lint type-aware).
 Vitest inherits from Vite automatically.
 
-## 16b — Annotate Workflow
+## Annotate workflow
 
 ### URL structure
 
 - `/` — Empty editor (DocList visible left, "Listeden bir doküman seçin" right)
 - `/docs/:docId` — 3-col editor (DocList | DocViewer | ReferencePanel)
+- `/feedback` — User complaint/suggestion form
+- `/admin/feedback` — Admin feedback list (type filter)
 
 ### Tab state
 
@@ -115,10 +124,20 @@ under `annotate.currentTab`. URL stays clean (no `?tab=` query param).
 6. Pick next doc in current tab → `navigate('/docs/:next', { replace: true })`
 7. If no next doc → toast + `navigate('/', { replace: true })`
 
-### SSE events handled in 16b
+### SSE events
 
-- `lock_acquired` → invalidate feed; if current doc and different user → kick out
-- `lock_released` → invalidate feed
+Feed invalidation (`src/hooks/sse/feedHandlers.ts`):
 
-(Other events — `annotation_saved`, `annotation_completed`, `badge_unlocked`,
-`speed_warning`, `char_limit_warning` — are deferred to 16d.)
+- `lock_acquired` / `lock_released`
+- `annotation_saved` / `annotation_completed`
+
+Notifications (`src/hooks/sse/notificationHandlers.ts`):
+
+- `badge_unlocked` — celebration toast + profile/notifications refresh
+- `speed_warning` / `char_limit_warning` — behavioral detector toasts
+
+### Dev-only sort menu
+
+`SortMenu` is hidden unless `localStorage.a11n.dev_sort=1`. Default feed sort
+is `document_id DESC` on all tabs (Phase 6 cross-team contract). See root
+`README.md` and `docs/deployment.md` §3a.

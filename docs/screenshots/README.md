@@ -1,15 +1,21 @@
 # Screenshots
 
-Drop PNG/JPG screenshots in this directory using the exact filenames referenced
-from the project root `README.md`:
+README image assets for the project root `README.md`. **No PNG files are
+checked in yet** — GitHub will show broken images until you add them here.
+
+## Required files
 
 | File | Capture from | Recommended size |
 |------|--------------|------------------|
-| `hero.png` | The annotation workspace mid-edit (left: DocList tabs, center: DocViewer with highlighted source text, right: ReferenceCard with kanun_no + madde filled) | 1600×900, cropped |
-| `feed.png` | The 3-tab feed (Yeni / Devam Eden / Tamamlanan) with a mix of workflow_states visible — at least one `draft` and one `verified` row | 1200×800 |
-| `annotate.png` | The 60/40 split: DocViewer on the left, ReferencePanel with 2-3 reference cards on the right | 1400×900 |
-| `training.png` | The training quiz step or the 3-doc training flow with progress indicator | 1200×800 |
+| `hero.png` | Annotation workspace mid-edit (DocList + DocViewer + ReferencePanel with kanun_no + madde filled) | 1600×900, cropped |
+| `feed.png` | 3-tab feed (Yeni / Devam Eden / Tamamlanan) with mixed workflow_states — at least one `draft` and one `verified` row | 1200×800 |
+| `annotate.png` | 60/40 split: DocViewer left, ReferencePanel with 2–3 reference cards right | 1400×900 |
+| `training.png` | Training quiz step or 3-doc training flow with progress indicator | 1200×800 |
 | `admin.png` | Admin panel users table — promote/demote action visible | 1200×800 |
+| `feedback.png` | User feedback form at `/feedback` (optional — not yet in root README table) | 1200×800 |
+
+After adding files, update the root `README.md` Screenshots section to restore
+inline `<img>` tags if desired.
 
 ## Tips
 

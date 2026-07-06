@@ -1,5 +1,9 @@
 # Phase 5 Pre-flight Hardening — Sign-off
 
+> **Historical record only.** Sealed 2026-05-23. Test counts and gate evidence
+> below reflect the codebase at Phase 5 closeout, not current `main`. For live
+> numbers see root `README.md` or `audit/README.md`.
+
 **Sealed:** 2026-05-23
 
 ## Scope completed
@@ -123,6 +127,9 @@ landed and is itself sealed in `audit/PHASE-6-SIGNOFF.md`. This section
 records the post-Phase-6 deltas that supersede a few numbers above.
 
 ## Refreshed test counts (post Phase 6)
+
+> **Stale as of 2026-07-07.** Current main: **1179** backend / **596** frontend /
+> **14** e2e. See `audit/README.md`.
 
 | Suite | Phase 5 number | Phase 6 number | Delta |
 |-------|----------------|----------------|-------|

@@ -23,13 +23,7 @@ tax practitioners.**
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TanStack Query](https://img.shields.io/badge/TanStack-Query%205-FF4154?logo=react-query&logoColor=white)](https://tanstack.com/query)
-[![Tests](https://img.shields.io/badge/tests-1155%20backend%20%2F%20581%20frontend-success)](#-tests)
-
-<p>
-  <img src="docs/screenshots/hero.png" alt="Annotation workspace screenshot" width="850"/>
-  <br/>
-  <sub><i>Drop screenshots into <code>docs/screenshots/</code> — placeholders are referenced throughout this README.</i></sub>
-</p>
+[![Tests](https://img.shields.io/badge/tests-1179%20backend%20%2F%20596%20frontend-success)](#-tests)
 
 </div>
 
@@ -57,6 +51,8 @@ This platform does that:
   scholarship annotators motivated without warping incentives.
 - **Admin panel** for user provisioning, training quiz administration, audit
   log, system events, retention controls, GitHub-backed off-host backups.
+- **User feedback** (`/feedback`) for complaints and suggestions, with an admin
+  review list at `/admin/feedback`.
 
 ---
 
@@ -72,6 +68,7 @@ This platform does that:
 | **Auth** | Cookie session, bcrypt(rounds=12) password hashing, Origin/Referer CSRF middleware in prod |
 | **Rate limiting** | In-memory sliding-window per-IP, namespaced (login / register / save) |
 | **Backups** | SQLite snapshot → GitHub repo via fine-grained PAT; user_sessions excluded |
+| **Feedback** | User-submitted complaints/suggestions (`user_feedback` table); admin list with type filter |
 | **Observability** | `activity_events`, `system_events`, `admin_audit_log` tables; SSE broker for live updates |
 
 ---
@@ -187,30 +184,17 @@ one round-trip with no intermediate-failure surface.
 
 ## Screenshots
 
-> Drop your screenshots into `docs/screenshots/` and they will render here.
+README image assets are not checked in yet. Capture them locally following
+[`docs/screenshots/README.md`](docs/screenshots/README.md) and commit the
+PNG files to enable inline rendering on GitHub.
 
-<table>
-<tr>
-<td align="center">
-  <img src="docs/screenshots/feed.png" alt="Document feed with 3-tab classification" width="100%"/>
-  <br/><sub><b>Feed</b> — workflow_state-driven status icons</sub>
-</td>
-<td align="center">
-  <img src="docs/screenshots/annotate.png" alt="Annotation workspace" width="100%"/>
-  <br/><sub><b>Annotate</b> — split viewer + reference cards</sub>
-</td>
-</tr>
-<tr>
-<td align="center">
-  <img src="docs/screenshots/training.png" alt="Training quiz" width="100%"/>
-  <br/><sub><b>Training</b> — mandatory quiz + 3-doc gate</sub>
-</td>
-<td align="center">
-  <img src="docs/screenshots/admin.png" alt="Admin panel" width="100%"/>
-  <br/><sub><b>Admin</b> — users / audit / settings</sub>
-</td>
-</tr>
-</table>
+| File | View to capture |
+|------|-----------------|
+| `hero.png` | Annotation workspace mid-edit (DocList + DocViewer + ReferencePanel) |
+| `feed.png` | 3-tab feed with mixed `workflow_state` rows |
+| `annotate.png` | 60/40 split viewer + 2–3 reference cards |
+| `training.png` | Training quiz or 3-doc training progress |
+| `admin.png` | Admin users table with promote/demote visible |
 
 ---
 
@@ -293,7 +277,7 @@ cd frontend && npm run test:run -- --reporter=basic              # frontend unit
 cd frontend && npm run e2e                                       # Playwright e2e
 ```
 
-Current counts: **1155 backend** (3 Docker-smoke skips when daemon is down) + **581 frontend** + **13 e2e**.
+Current counts: **1179 backend** (3 Docker-smoke skips when daemon is down) + **596 frontend** + **14 e2e**.
 
 Numbers drift; run the commands above for live truth.
 
@@ -308,7 +292,7 @@ Numbers drift; run the commands above for live truth.
 ## Project structure
 
 ```
-deneme/
+AnnotationProgram/            # repo root (clone path may differ)
 ├── backend/
 │   ├── annotations/          # save / complete / draft / version chain
 │   ├── locks/                # 300 s leased document locks + heartbeat
@@ -318,6 +302,7 @@ deneme/
 │   ├── gamification/         # XP, streaks, badges
 │   ├── behavioral/           # post-save detectors (speed / char warnings)
 │   ├── admin/                # users / audit / settings / system events
+│   ├── feedback/             # user complaints/suggestions + admin list
 │   ├── notifications/        # in-app notification persistence
 │   ├── backup/               # SQLite snapshot → GitHub
 │   ├── retention/            # row-level data lifecycle
@@ -332,17 +317,21 @@ deneme/
 │   ├── src/
 │   │   ├── api/              # openapi-typescript types + queries + client
 │   │   ├── components/       # annotation/ shell/ training/ admin/ ui/
-│   │   ├── routes/           # AnnotateDoc / Training / Admin / etc.
+│   │   ├── routes/           # AnnotateDoc / Training / Admin / Feedback / etc.
 │   │   ├── hooks/            # useLock / useDraft / useReferencesState / sse
 │   │   ├── stores/           # Zustand (auth, annotate, sort)
 │   │   └── lib/              # formatters / validators / utils
-│   └── tests/e2e/            # Playwright smoke
-├── tests/                    # backend pytest (~131 files, 1155 tests)
+│   └── e2e/                  # Playwright smoke + a11y
+├── tests/                    # backend pytest (~131 files, 1179 tests)
+├── analysis/
+│   └── annotation_quality/   # quality/performance report scripts + runs
 ├── data/                     # gitignored; SQLite DB + uploaded JSON
 ├── docs/
 │   ├── deployment.md         # production runbook
-│   ├── screenshots/          # README image assets (drop yours here)
+│   ├── annotation-quality-harness/  # operator protocol for quality reports
+│   ├── screenshots/          # README image assets (capture guide inside)
 │   └── superpowers/          # design specs + ADRs
+├── output/pdf/               # generated bursiyer report PDFs
 ├── requirements.txt          # backend runtime
 ├── requirements-dev.txt      # + pytest + ruff + pyright
 ├── pyproject.toml
@@ -366,9 +355,13 @@ deneme/
 
 ## Releases & tags
 
-Latest tag: **`phase-6`**. Most recent shipped milestone: **Phase 6 — Cross-team coordination ordering** (commits `ca4328e .. 810b8ea`). Earlier production bootstrap
-with `ENVIRONMENT` enforcement, first-admin seed in lifespan, and the full
-deployment runbook. See `git tag` for the full chronology.
+Latest tag: **`phase-6`** (2026-05-24) — **Phase 6 — Cross-team coordination
+ordering** (commits `ca4328e .. 810b8ea`).
+
+Post-`phase-6` work on `main` includes the **feedback system**
+(`backend/feedback/`, migration `v0016_user_feedback`, routes `/feedback` and
+`/admin/feedback`) — shipped but not yet tagged. See `git tag` and
+`docs/superpowers/specs/2026-07-07-feedback-system-design.md` for details.
 
 ---
 

@@ -1,5 +1,9 @@
 # Phase 6 — Cross-team Coordination Ordering — Sign-off
 
+> **Historical record only.** Sealed 2026-05-24. Test counts below reflect
+> Phase 6 closeout, not current `main`. For live numbers see root `README.md`
+> or `audit/README.md`.
+
 **Sealed:** 2026-05-24
 **Plan:** [`docs/superpowers/plans/2026-05-23-phase-6-coordination-closeout.md`](../docs/superpowers/plans/2026-05-23-phase-6-coordination-closeout.md)
 **Predecessor:** Phase 5 tagged at `237614d` (`audit/SIGNOFF.md`).
@@ -105,6 +109,9 @@ Unchanged from Phase 5 (Phase 6 did not modify the D12 admin surfaces). All 6 re
 **27 of 32 gates met, 4 partial (all carry-over from Phase 5, with documented progress on gate 25), 0 failed.** The Phase 6 production blocker (P6-1) is closed; the cross-team coordination contract is enforced and documented; the Wave 4 perf number is refreshed against the actual Phase 6 endpoint and is *faster* than the legacy default. The two originally-deferred items (P6-6 schema drift guard and P6-10 multi-user load) were re-scoped into Phase 6 on follow-up and are both now closed (`8f9fb5c`, `c1c850f`).
 
 ## Refreshed test totals (post follow-up)
+
+> **Stale as of 2026-07-07.** Current main: **1179** backend / **596** frontend /
+> **14** e2e. See `audit/README.md`.
 
 | Suite | Final Phase 6 number | Notes |
 |-------|----------------------|-------|
