@@ -784,7 +784,36 @@ Concordance with a single annotator is not correctness; a shared systematic erro
 
 Reference entries are copied verbatim from spec §8 in IEEE format, renumbered consecutively in order of first citation. Use the verified strings for the model, MLX, LoRA (ICLR 2022) and QLoRA (NeurIPS 2023). Do not cite the Qwen3.5-Omni technical report. Do not invent entries for doccano or Label Studio.
 
-- [ ] **Step 5: Verify every reference is cited and every citation resolves**
+- [ ] **Step 5: Harden the `413` forbidden-term gate before adding the references**
+
+`check.py`'s `FORBIDDEN` dict matches bare substrings, and reference 7 (Lingren et al., *JAMIA* 21(3):**406–413**, 2014) legitimately contains `413`. Adding the reference list as-is fails the gate on correct content, and the naive escape — deleting the entry — would remove the guard against the excluded target policy entirely.
+
+Give `FORBIDDEN` regex support and target the policy mention rather than the digits. In `check.py`, add alongside `FORBIDDEN`:
+
+```python
+# Entries matched as regexes rather than plain substrings, for terms whose bare
+# digits collide with legitimate content (e.g. a reference page range 406-413).
+FORBIDDEN_PATTERNS = {
+    r"\b213\s*/\s*413\b": "VUK 213/413 policy is excluded by user decision (spec 3)",
+    r"\b(?:VUK|Article|article|madde)\s*413\b": "VUK 413 provision is excluded (spec 3)",
+}
+```
+
+Remove the plain `"413"` entry from `FORBIDDEN`, and extend `check_forbidden`:
+
+```python
+def check_forbidden(text: str) -> list[str]:
+    low = text.lower()
+    out = [f"FORBIDDEN {term!r}: {why}" for term, why in FORBIDDEN.items()
+           if term.lower() in low]
+    out += [f"FORBIDDEN /{pat}/: {why}" for pat, why in FORBIDDEN_PATTERNS.items()
+            if re.search(pat, text)]
+    return out
+```
+
+Then prove both directions still hold: temporarily add a line containing `the 213/413 target policy` and confirm FAIL, and confirm that the reference entry containing `406–413` alone produces PASS. Paste both outputs into your report. The number gate independently flags a bare `413`, so also add `"413"` and `"406"` to `ALLOWED_NUMBERS` **only** if the reference page range requires it — record in the report which allowlist additions you made and why.
+
+- [ ] **Step 6: Verify every reference is cited and every citation resolves**
 
 ```bash
 python3 -c "
@@ -800,11 +829,11 @@ print('max cited:', max(cited) if cited else None)
 
 Expected: citation numbers form a contiguous run from 1 to the number of reference entries, with no gaps and nothing cited above the list length.
 
-- [ ] **Step 6: Build, check, commit**
+- [ ] **Step 7: Build, check, commit**
 
 ```bash
 python3 paper/build.py && python3 paper/check.py
-git add paper/content.md
+git add paper/content.md paper/check.py
 git commit -m "docs: draft sections I, II, VI, VII and reference list"
 ```
 
