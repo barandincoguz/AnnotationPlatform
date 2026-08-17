@@ -875,15 +875,40 @@ for i, pg in enumerate(d):
 
 Expected: Times variants only; sizes clustered around 8, 9, 10 and 24 pt. Any other font family means a style was bypassed.
 
-- [ ] **Step 4: Confirm the checker passes at six pages or fewer**
+- [ ] **Step 4: Confirm Figure 1 and its caption are not separated across columns**
+
+Task 3 observed that with placeholder content the caption paragraph flowed to the top of column 2 while the image stayed at the bottom of column 1. They are structurally adjacent in document order, so this was LibreOffice breaking the column around short filler text and was expected to resolve once real content landed. Verify it did.
+
+```bash
+python3 - <<'PY'
+import fitz
+d = fitz.open('paper/out/paper.pdf')
+for i, pg in enumerate(d):
+    blocks = [b for b in pg.get_text('blocks') if 'Fig. 1' in b[4]]
+    for b in blocks:
+        print(f'caption on page {i+1}: x0={b[0]:.1f} y0={b[1]:.1f}')
+    for img in pg.get_image_info():
+        print(f'image on page {i+1}: x0={img["bbox"][0]:.1f} y0={img["bbox"][1]:.1f}')
+PY
+```
+
+Expected: the caption's `x0` matches the image's `x0` (same column) and its `y0` is greater than the image's (immediately below). If they are in different columns, set `keep_with_next` on the image paragraph in `build.py`'s `insert_figure`:
+
+```python
+    p.paragraph_format.keep_with_next = True
+```
+
+A caption separated from its figure is a real format defect, not a cosmetic one — do not accept it.
+
+- [ ] **Step 5: Confirm the checker passes at six pages or fewer**
 
 Run: `python3 paper/check.py`
 Expected: `PASS — 6 pages, all gates clear` (or fewer).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add paper/content.md
+git add paper/content.md paper/build.py
 git commit -m "docs: fit paper to six-page limit"
 ```
 
