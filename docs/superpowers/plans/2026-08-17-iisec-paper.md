@@ -49,31 +49,35 @@ Riskiest task technically, so it goes first. Nothing about the paper's content i
 **Interfaces:**
 - Produces: `build()` writing `paper/out/paper.docx` and `paper/out/paper.pdf`; `SECTIONS` dict mapping section marker → list of (style_name, text) pairs; `docx_to_pdf(docx_path, outdir) -> Path`.
 
-- [ ] **Step 1: Discover the template's actual style names — do not assume them**
+- [ ] **Step 1: Confirm the template's structure — already surveyed, verify it still holds**
 
-The template's style *IDs* are Turkish (`Balk1`, `GvdeMetni`), but `python-docx` addresses styles by *name*. Print the real names before writing any injection code.
+The survey below was run against `iisec_template.docx` on 2026-08-17. Re-run it and confirm the numbers match before writing code; if they differ, the template changed and the anchor indices in Step 3 must be re-derived.
 
 ```bash
 cd /Users/barandincoguz/Desktop/AnnotationProgram
-python3 -c "
+python3 - <<'PY'
 import docx
 d = docx.Document('iisec_template.docx')
-print('--- STYLES (name -> style_id) ---')
-for s in d.styles:
-    try: print(f'{s.name!r} -> {s.style_id!r} ({s.type})')
-    except Exception as e: print('ERR', e)
-print()
-print('--- SECTIONS ---')
-for i, sec in enumerate(d.sections):
-    print(i, 'cols=', sec._sectPr.xpath('./w:cols/@w:num'), 'pgsz=', sec.page_width, sec.page_height)
-print()
-print('--- FIRST 40 PARAGRAPHS (style | text[:70]) ---')
-for i, p in enumerate(d.paragraphs[:40]):
-    print(i, repr(p.style.name), '|', p.text[:70])
-"
+NS = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+for i, ch in enumerate(d.element.body):
+    sect = ch.find(f'{NS}pPr/{NS}sectPr')
+    if sect is None and not ch.tag.endswith('}sectPr'):
+        continue
+    c = sect.find(f'{NS}cols') if sect is not None else None
+    print(i, ch.tag.replace(NS, ''), 'cols=', c.get(f'{NS}num', '1') if c is not None else '-')
+print('total body children:', len(d.element.body))
+PY
 ```
 
-Expected: a style named something like `paper title`, `Abstract`, `Keywords`, `heading 1`, `Body Text`, `figure caption`, `table head`, `references`. Record the exact strings — every later step uses them verbatim.
+Expected, verbatim: body child `3` is a paragraph with `cols=1`, `8` and `9` are paragraphs with `cols=3`, `85` is a paragraph with `cols=2`, `87` is the body-level `sectPr`, and there are 88 body children.
+
+**This is the critical structural fact of the whole task.** The template's column layout is encoded in `w:pPr/w:sectPr` elements *inside ordinary paragraphs*, not in separate section objects. Deleting those paragraphs collapses the single-column title block, the three-column author block and the two-column body into one section, and the title then typesets inside a narrow body column. They must be preserved and used as insertion anchors.
+
+Verified style names — use these exact strings, they are not guesses:
+
+`'paper title'`, `'paper subtitle'`, `'Author'`, `'Affiliation'`, `'Abstract'`, `'Keywords'`, `'Heading 1'` through `'Heading 5'` (capital H), `'Body Text'`, `'bullet list'`, `'figure caption'`, `'table head'`, `'table col head'`, `'table copy'`, `'table footnote'`, `'references'`, `'equation'`, `'sponsors'`, `'Normal Table'`.
+
+**There is no `'Table Grid'` style in this template.** Do not reference it.
 
 - [ ] **Step 2: Write `paper/content.md` with placeholder prose**
 
@@ -82,6 +86,12 @@ One marker per section. Markers are the contract between `content.md` and `build
 ```markdown
 <!-- TITLE -->
 Placeholder Title For Pipeline Test
+
+<!-- AUTHORS -->
+Author Name
+dept. name, institution
+City, Country
+email
 
 <!-- ABSTRACT -->
 Placeholder abstract sentence one. Placeholder abstract sentence two.
@@ -115,22 +125,32 @@ TEMPLATE = ROOT / "iisec_template.docx"
 CONTENT = Path(__file__).parent / "content.md"
 OUT = Path(__file__).parent / "out"
 SOFFICE = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
-# Style names verified in Step 1 — replace with the exact discovered strings.
+# Style names verified against the template in Step 1. Exact strings.
 STYLE_TITLE = "paper title"
+STYLE_AUTHOR = "Author"
 STYLE_ABSTRACT = "Abstract"
 STYLE_KEYWORDS = "Keywords"
-STYLE_H1 = "heading 1"
-STYLE_H2 = "heading 2"
+STYLE_H1 = "Heading 1"
+STYLE_H2 = "Heading 2"
+STYLE_H5 = "Heading 5"
 STYLE_BODY = "Body Text"
-STYLE_H5 = "heading 5"
 STYLE_REFS = "references"
+STYLE_FIGCAP = "figure caption"
+STYLE_TABHEAD = "table head"
+STYLE_TABCOLHEAD = "table col head"
+STYLE_TABCOPY = "table copy"
 
 
 def parse_content(path: Path) -> list[tuple[str, str, str]]:
     """Return [(kind, label, text)] where kind is TITLE/ABSTRACT/KEYWORDS/H1/H2/REFERENCES/BODY."""
     blocks: list[tuple[str, str, str]] = []
-    marker = re.compile(r"^<!--\s*(TITLE|ABSTRACT|KEYWORDS|REFERENCES|H1|H2):?\s*(.*?)\s*-->$")
+    # All markers are declared here once, including FIGURE and TABLE which Tasks 3 and 4 use.
+    # Declaring them up front means neither task has to edit this pattern.
+    marker = re.compile(
+        r"^<!--\s*(TITLE|AUTHORS|ABSTRACT|KEYWORDS|REFERENCES|FIGURE|TABLE|H1|H2):?\s*(.*?)\s*-->$"
+    )
     kind, label, buf = None, "", []
 
     def flush():
@@ -150,44 +170,66 @@ def parse_content(path: Path) -> list[tuple[str, str, str]]:
     return blocks
 
 
-def strip_template_content(doc: docx.Document) -> None:
-    """Remove every paragraph, table, text box and framed paragraph from the template body,
-    keeping the sectPr elements that define the page and column geometry."""
+def strip_template_content(doc: docx.Document) -> list:
+    """Delete the template's boilerplate while PRESERVING the paragraphs whose pPr carries a
+    sectPr. Those paragraphs encode the column layout (1-col title, 3-col author, 2-col body);
+    deleting them collapses the document into a single section and the title typesets inside a
+    narrow body column. Their runs are emptied so no template text survives.
+
+    Returns the surviving structural anchors in document order:
+      [0] paragraph ending the 1-column title section
+      [1] paragraph ending the first 3-column author section
+      [2] paragraph ending the duplicate 3-column section
+      [3] paragraph ending the 2-column body section
+      [4] the body-level sectPr element
+    """
     body = doc.element.body
+    anchors = []
     for child in list(body):
         if child.tag.endswith("}sectPr"):
+            anchors.append(child)
+            continue
+        if child.find(f"{NS}pPr/{NS}sectPr") is not None:
+            for run in child.findall(f"{NS}r"):
+                child.remove(run)
+            anchors.append(child)
             continue
         body.remove(child)
-    # Text boxes and framed paragraphs live inside w:txbxContent / w:framePr and are removed
-    # together with their containing paragraphs above. Verify with check.py.
+    if len(anchors) != 5:
+        raise RuntimeError(f"expected 5 structural anchors, found {len(anchors)} — template changed")
+    return anchors
 
 
-def add_paragraph(doc: docx.Document, style: str, text: str):
+def para_before(doc: docx.Document, anchor, style: str, text: str = ""):
+    """Create a paragraph and move it immediately before `anchor`, so it lands in the section
+    that `anchor` terminates. python-docx can only append, so we append then relocate."""
     p = doc.add_paragraph(style=style)
-    p.add_run(text)
+    if text:
+        p.add_run(text)
+    anchor.addprevious(p._element)
     return p
 
 
-def render(blocks, doc: docx.Document) -> None:
+def render(blocks, doc: docx.Document, anchors: list) -> None:
+    title_anchor, author_anchor, body_anchor = anchors[0], anchors[1], anchors[3]
     for kind, label, text in blocks:
         if kind == "TITLE":
-            add_paragraph(doc, STYLE_TITLE, text)
+            para_before(doc, title_anchor, STYLE_TITLE, text)
+        elif kind == "AUTHORS":
+            for line in [l for l in text.splitlines() if l.strip()]:
+                para_before(doc, author_anchor, STYLE_AUTHOR, line.strip())
         elif kind == "ABSTRACT":
-            add_paragraph(doc, STYLE_ABSTRACT, f"Abstract—{text}")
+            para_before(doc, body_anchor, STYLE_ABSTRACT, f"Abstract—{text}")
         elif kind == "KEYWORDS":
-            add_paragraph(doc, STYLE_KEYWORDS, f"Keywords—{text}")
-        elif kind == "H1":
-            add_paragraph(doc, STYLE_H1, label)
+            para_before(doc, body_anchor, STYLE_KEYWORDS, f"Keywords—{text}")
+        elif kind in ("H1", "H2"):
+            para_before(doc, body_anchor, STYLE_H1 if kind == "H1" else STYLE_H2, label)
             for para in [p for p in text.split("\n\n") if p.strip()]:
-                add_paragraph(doc, STYLE_BODY, para.strip())
-        elif kind == "H2":
-            add_paragraph(doc, STYLE_H2, label)
-            for para in [p for p in text.split("\n\n") if p.strip()]:
-                add_paragraph(doc, STYLE_BODY, para.strip())
+                para_before(doc, body_anchor, STYLE_BODY, para.strip())
         elif kind == "REFERENCES":
-            add_paragraph(doc, STYLE_H5, "References")
+            para_before(doc, body_anchor, STYLE_H5, "References")
             for entry in [l for l in text.splitlines() if l.strip()]:
-                add_paragraph(doc, STYLE_REFS, entry.strip())
+                para_before(doc, body_anchor, STYLE_REFS, entry.strip())
 
 
 def docx_to_pdf(docx_path: Path, outdir: Path) -> Path:
@@ -208,8 +250,8 @@ def build() -> tuple[Path, Path]:
     work = OUT / "paper.docx"
     shutil.copy(TEMPLATE, work)
     doc = docx.Document(work)
-    strip_template_content(doc)
-    render(parse_content(CONTENT), doc)
+    anchors = strip_template_content(doc)
+    render(parse_content(CONTENT), doc, anchors)
     doc.save(work)
     pdf = docx_to_pdf(work, OUT)
     return work, pdf
@@ -234,18 +276,23 @@ Expected: prints both paths, no traceback.
 Then verify the output is A4 and the body is genuinely two-column:
 
 ```bash
-python3 -c "
+python3 - <<'PY'
 import fitz
 d = fitz.open('paper/out/paper.pdf')
 print('pages:', d.page_count)
 p = d[0]
-print('size pt:', p.rect.width, p.rect.height, '(A4 = 595.3 x 841.9)')
-xs = sorted({round(b[0]) for b in p.get_text('blocks')})
-print('distinct left edges:', xs[:12])
-"
+print('size pt:', round(p.rect.width, 1), round(p.rect.height, 1), '(A4 = 595.3 x 841.9)')
+for b in p.get_text('blocks'):
+    print(f'  x0={b[0]:6.1f} x1={b[2]:6.1f} w={b[2]-b[0]:6.1f} | {b[4][:48]!r}')
+PY
 ```
 
-Expected: A4 dimensions, and at least two clearly separated left-edge clusters in the body area, confirming the two-column section survived. If everything is single-column, `strip_template_content` removed a `sectPr` it should have kept — fix and re-run.
+Expected, and all three must hold:
+1. Page size is A4 (595.3 × 841.9 pt).
+2. The **title** block spans nearly the full text width — a width over about 400 pt. If the title's width is around 250 pt it has been trapped inside a body column, meaning a structural anchor was lost.
+3. The **body** blocks fall into two distinct left-edge clusters roughly 260 pt apart, confirming the two-column section survived.
+
+`strip_template_content` raises if it does not find exactly 5 anchors, so a structural loss fails loudly rather than producing a silently mislaid title.
 
 - [ ] **Step 6: Commit**
 
@@ -264,8 +311,8 @@ A checker that fails loudly. This is what keeps the paper honest across many edi
 - Create: `paper/check.py`
 
 **Interfaces:**
-- Consumes: `build.docx_to_pdf`, `paper/out/paper.docx`, `paper/out/paper.pdf`
-- Produces: `main() -> int` exit code 0 pass / 1 fail; `extract_text(docx_path) -> str`; `ALLOWED_NUMBERS: set[str]`; `FORBIDDEN: dict[str, str]`
+- Consumes: the build artifacts `paper/out/paper.docx` and `paper/out/paper.pdf` only. `check.py` does **not** import `build.py` — it reads the artifacts from disk so it can be run standalone.
+- Produces: `main() -> int` exit code 0 pass / 1 fail; `extract_text(docx_path) -> str`; `ALLOWED_NUMBERS: set[str]`; `FORBIDDEN: dict[str, str]`. Tasks 5 and 6 reuse `extract_text` for their terminology checks.
 
 - [ ] **Step 1: Write `paper/check.py`**
 
@@ -352,6 +399,7 @@ def check_numbers(text: str) -> list[str]:
     stripped = re.sub(r"\b[IVX]+\.", " ", stripped)               # drop roman headings
     stripped = re.sub(r"\b[0-9a-f]{6,}\b", " ", stripped)         # drop revision hashes (938d891)
     stripped = re.sub(r"\b\d+\.\d+\.\d+\b", " ", stripped)        # drop versions (0.31.0)
+    stripped = re.sub(r"\d+\.?\d*\s*[eE]\s*[-−]?\d+", " ", stripped)  # drop 2.5e-5, 1.0e-5
     stripped = re.sub(r"[A-Za-z_]+\d[\w.]*|\w*_\w+", " ", stripped)  # drop identifiers (Qwen3_5..., text_config)
     bad = []
     for tok in re.findall(r"\d[\d,]*\.?\d*", stripped):
@@ -534,19 +582,21 @@ Insert after the `add_paragraph` helper:
 from docx.shared import Pt
 
 
-def insert_figure(doc, png_path, caption: str, width_pt: float = 252):
-    doc.add_picture(str(png_path), width=Pt(width_pt))
-    add_paragraph(doc, "figure caption", caption)
+def insert_figure(doc, anchor, png_path, caption: str, width_pt: float = 252):
+    p = doc.add_paragraph()
+    p.add_run().add_picture(str(png_path), width=Pt(width_pt))
+    anchor.addprevious(p._element)
+    para_before(doc, anchor, STYLE_FIGCAP, caption)
 ```
 
 And extend `render()` with a marker branch:
 
 ```python
         elif kind == "FIGURE":
-            insert_figure(doc, OUT / "fig1.png", text)
+            insert_figure(doc, body_anchor, OUT / "fig1.png", text)
 ```
 
-Add `FIGURE` to the marker regex alternation in `parse_content`.
+The `FIGURE` marker is already in `parse_content`'s pattern from Task 1 — do not edit the regex.
 
 - [ ] **Step 4: Reference the figure from `content.md`**
 
@@ -580,32 +630,34 @@ git commit -m "feat: add Figure 1 architecture diagram"
 
 - [ ] **Step 1: Add `insert_table` to `build.py`**
 
+The template has **no `'Table Grid'` style** — referencing it raises `KeyError`. Use `'Normal Table'` and style the cell paragraphs with the template's own `'table col head'` and `'table copy'` styles.
+
 ```python
-def insert_table(doc, caption: str, header: list[str], rows: list[list[str]]):
-    add_paragraph(doc, "table head", caption)
+def insert_table(doc, anchor, caption: str, header: list[str], rows: list[list[str]]):
+    para_before(doc, anchor, STYLE_TABHEAD, caption)
     t = doc.add_table(rows=1, cols=len(header))
-    t.style = "Table Grid"
+    t.style = "Normal Table"
     for cell, name in zip(t.rows[0].cells, header):
-        cell.text = name
+        cell.paragraphs[0].style = doc.styles[STYLE_TABCOLHEAD]
+        cell.paragraphs[0].add_run(name)
     for row in rows:
-        cells = t.add_row().cells
-        for cell, value in zip(cells, row):
-            cell.text = value
+        for cell, value in zip(t.add_row().cells, row):
+            cell.paragraphs[0].style = doc.styles[STYLE_TABCOPY]
+            cell.paragraphs[0].add_run(value)
+    anchor.addprevious(t._element)
     return t
 ```
 
-- [ ] **Step 2: Add a `TABLE` marker to `parse_content` and `render`**
+- [ ] **Step 2: Add the `TABLE` branch to `render`**
 
-Table content in `content.md` uses pipe rows; the first row is the header.
+The `TABLE` marker is already in `parse_content`'s pattern from Task 1 — do not edit the regex. Table content in `content.md` uses pipe rows; the first line is the caption and the next row is the header.
 
 ```python
         elif kind == "TABLE":
             lines = [l.strip() for l in text.splitlines() if l.strip()]
             grid = [[c.strip() for c in l.strip("|").split("|")] for l in lines[1:]]
-            insert_table(doc, lines[0], grid[0], grid[1:])
+            insert_table(doc, body_anchor, lines[0], grid[0], grid[1:])
 ```
-
-Add `TABLE` to the marker regex alternation.
 
 - [ ] **Step 3: Add the three tables to `content.md`**
 
