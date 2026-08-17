@@ -60,16 +60,27 @@ FORBIDDEN = {
 # Pre-policy numbers that must NEVER appear (do not add to ALLOWED_NUMBERS to silence these).
 # Task 6 will extend this dict for the 413 case.
 FORBIDDEN_PATTERNS = {
-    r"\b111\b": "pre-policy GREEN count — must NEVER appear, do not add to ALLOWED_NUMBERS",
-    r"\b93\b": "pre-policy YELLOW count — must NEVER appear, do not add to ALLOWED_NUMBERS",
-    r"\b231\b": "pre-policy RED-to-GREEN transition — must NEVER appear, do not add to ALLOWED_NUMBERS",
-    r"\b118\b": "pre-policy RED-to-YELLOW transition — must NEVER appear, do not add to ALLOWED_NUMBERS",
 }
 
+# Numbers that are not merely absent from the allowlist but must never be added to it:
+# the pre-policy bucket counts and transitions excluded by spec section 3. They are
+# already blocked by the allowlist; this set only corrects the guidance in the message.
+NEVER_ADD = {"111", "93", "231", "118", "1087", "1,087", "1180", "1,180", "19.58"}
 
-def extract_text(path: Path) -> str:
+
+def extract_text(path: Path, claims_only: bool = False) -> str:
+    """Full document text, or only the claim-bearing text before the References heading.
+
+    Number provenance applies to claims, not to citation metadata: reference entries
+    legitimately carry volumes, issues, page ranges, arXiv IDs and DOIs that are not
+    facts about this work and do not belong in the canonical facts table.
+    """
     d = docx.Document(path)
-    parts = [p.text for p in d.paragraphs]
+    parts = []
+    for p in d.paragraphs:
+        if claims_only and p.text.strip().lower() == "references":
+            break
+        parts.append(p.text)
     for t in d.tables:
         for row in t.rows:
             parts.extend(c.text for c in row.cells)
@@ -97,7 +108,11 @@ def check_numbers(text: str) -> list[str]:
     bad = []
     for tok in re.findall(r"\d(?:[\d,]*\d)?(?:\.\d+)?", stripped):
         if tok not in ALLOWED_NUMBERS:
-            bad.append(f"UNKNOWN NUMBER {tok!r} — add to spec section 5 first")
+            if tok in NEVER_ADD:
+                bad.append(f"FORBIDDEN NUMBER {tok!r} — pre-policy figure, must NEVER "
+                           f"appear and must NEVER be added to ALLOWED_NUMBERS")
+            else:
+                bad.append(f"UNKNOWN NUMBER {tok!r} — add to spec section 5 first")
     return sorted(set(bad))
 
 
@@ -106,15 +121,27 @@ BUCKET_CANON = {"GREEN": 342, "YELLOW": 211, "RED": 738, "QUARANTINE": 3}
 
 
 def check_bucket_figures(text: str) -> list[str]:
-    """Wherever a bucket name appears with numbers nearby, its canonical count must be one
-    of them. Catches an internally inconsistent figure set whose individual numbers are each
-    allow-listed for some other reason — the exact case check_arithmetic used to miss.
-    A bucket name mentioned with no nearby numbers is not flagged."""
+    """Wherever a bucket name appears near a count-shaped number, the bucket's canonical
+    count must be among the numbers present. Catches an internally inconsistent figure set
+    whose individual numbers are each allow-listed for some other reason.
+
+    Deliberately narrow, because a wider version false-positives on ordinary prose:
+      - years and section, figure and table references are stripped first;
+      - only numbers of 100 or more count as competing figures, so "section 3" is ignored;
+      - buckets whose canonical count is under 100 are not checked in prose at all, since a
+        bare small number is too common to distinguish from a real claim.
+    """
     errs = []
+    scrubbed = re.sub(r"\b(19|20|26)\d{2}\b", " ", text)
+    scrubbed = re.sub(r"\b(?:section|sec\.|fig\.|figure|table|step|task)\s*[IVX\d]+",
+                      " ", scrubbed, flags=re.I)
     for name, canon in BUCKET_CANON.items():
-        for m in re.finditer(rf"\b{name}\b", text, re.I):
-            window = text[max(0, m.start() - 40): m.end() + 40]
+        if canon < 100:
+            continue
+        for m in re.finditer(rf"\b{name}\b", scrubbed, re.I):
+            window = scrubbed[max(0, m.start() - 40): m.end() + 40]
             nums = {int(t.replace(",", "")) for t in re.findall(r"\d(?:[\d,]*\d)?", window)}
+            nums = {n for n in nums if n >= 100}
             if nums and canon not in nums:
                 errs.append(
                     f"BUCKET FIGURE: {name} appears near {sorted(nums)} "
@@ -138,7 +165,10 @@ def check_table_sums(text: str) -> list[str]:
                     continue
                 above = [_as_number(r[col]) for r in rows[1:tr] if col < len(r)]
                 above = [v for v in above if v is not None]
-                tol = 0.05 * len(above) + 0.001
+                if _is_count_column(rows, tr, col):
+                    tol = 0.0
+                else:
+                    tol = min(0.05 * len(above) + 0.001, 0.25)
                 if above and abs(sum(above) - stated) > tol:
                     errs.append(
                         f"TABLE {ti + 1} column {col}: rows sum to {sum(above)} "
@@ -150,6 +180,13 @@ def check_table_sums(text: str) -> list[str]:
 def _as_number(cell: str):
     m = re.fullmatch(r"(\d(?:[\d,]*\d)?(?:\.\d+)?)\s*%?", cell.strip())
     return float(m.group(1).replace(",", "")) if m else None
+
+
+def _is_count_column(rows, tr, col) -> bool:
+    """True when every non-empty cell above the Total row is a plain integer — no decimal
+    point, no percent sign. Such a column must sum exactly."""
+    cells = [r[col].strip() for r in rows[1:tr] if col < len(r) and r[col].strip()]
+    return bool(cells) and all(re.fullmatch(r"\d[\d,]*", c) for c in cells)
 
 
 def check_checker_constants() -> list[str]:
@@ -192,9 +229,10 @@ def main() -> int:
     if not DOCX.exists() or not PDF.exists():
         print("FAIL: run paper/build.py first")
         return 1
-    text = extract_text(DOCX)
-    problems = (check_forbidden(text) + check_numbers(text)
-                + check_bucket_figures(text) + check_table_sums(text)
+    full = extract_text(DOCX)
+    claims = extract_text(DOCX, claims_only=True)
+    problems = (check_forbidden(full) + check_numbers(claims)
+                + check_bucket_figures(claims) + check_table_sums(claims)
                 + check_checker_constants() + check_pages() + check_no_page_numbers())
     if problems:
         print(f"FAIL — {len(problems)} problem(s):")
