@@ -47,7 +47,7 @@ Riskiest task technically, so it goes first. Nothing about the paper's content i
 - Create: `paper/.gitignore`
 
 **Interfaces:**
-- Produces: `build()` writing `paper/out/paper.docx` and `paper/out/paper.pdf`; `SECTIONS` dict mapping section marker → list of (style_name, text) pairs; `docx_to_pdf(docx_path, outdir) -> Path`.
+- Produces: `build() -> tuple[Path, Path]` writing `paper/out/paper.docx` and `paper/out/paper.pdf`; `parse_content(path) -> list[tuple[kind, label, text]]`; `strip_template_content(doc) -> list` returning the five structural anchors; **`para_before(doc, anchor, style, text="")`** — the single paragraph-insertion helper that all later tasks build on; `render(blocks, doc, anchors)`; `docx_to_pdf(docx_path, outdir) -> Path`.
 
 - [ ] **Step 1: Confirm the template's structure — already surveyed, verify it still holds**
 
@@ -289,7 +289,7 @@ PY
 
 Expected, and all three must hold:
 1. Page size is A4 (595.3 × 841.9 pt).
-2. The **title** block spans nearly the full text width — a width over about 400 pt. If the title's width is around 250 pt it has been trapped inside a body column, meaning a structural anchor was lost.
+2. The **title** is not trapped inside a body column. Note that `get_text('blocks')` reports the *text extent*, not the frame width, so a short title legitimately measures less than the column it sits in. The correct criterion is therefore: the title's text extent exceeds the two-column text width (about 243 pt), which is impossible unless it sits in the single-column section. For a stronger check, read the available width directly from the section XML rather than inferring it from glyph extent.
 3. The **body** blocks fall into two distinct left-edge clusters roughly 260 pt apart, confirming the two-column section survived.
 
 `strip_template_content` raises if it does not find exactly 5 anchors, so a structural loss fails loudly rather than producing a silently mislaid title.
@@ -497,8 +497,8 @@ git commit -m "test: add paper verification gates (pages, numbers, forbidden top
 - Modify: `paper/build.py` (insert the figure and its caption)
 
 **Interfaces:**
-- Consumes: nothing from earlier tasks
-- Produces: `paper/out/fig1.png` at 300 dpi; `build.insert_figure(doc, png_path, caption)`
+- Consumes: `build.para_before(doc, anchor, style, text)` and the `STYLE_FIGCAP` constant, both delivered by Task 1. There is no `add_paragraph` function — Task 1's insertion helper is `para_before`.
+- Produces: `paper/out/fig1.png` at 300 dpi; `build.insert_figure(doc, anchor, png_path, caption, width_pt)`
 
 - [ ] **Step 1: Write `paper/fig1.py`**
 
@@ -578,6 +578,15 @@ Expected: a PNG whose pixel dimensions are roughly 252/72×300 ≈ 1050 px wide,
 
 Insert after the `add_paragraph` helper:
 
+Also make `render()` fail loudly on an unrecognized marker kind instead of silently dropping it — a mistyped marker currently vanishes from the paper with no error. Add as the final branch:
+
+```python
+        else:
+            raise ValueError(f"unknown content marker: {kind!r}")
+```
+
+And correct `parse_content`'s docstring, which lists a `BODY` kind that no marker produces.
+
 ```python
 from docx.shared import Pt
 
@@ -625,7 +634,7 @@ git commit -m "feat: add Figure 1 architecture diagram"
 - Modify: `paper/build.py`
 
 **Interfaces:**
-- Consumes: `build.add_paragraph`
+- Consumes: `build.para_before(doc, anchor, style, text)` and the `STYLE_TABHEAD`, `STYLE_TABCOLHEAD`, `STYLE_TABCOPY` constants, all delivered by Task 1. There is no `add_paragraph` function.
 - Produces: `build.insert_table(doc, caption, header, rows)`
 
 - [ ] **Step 1: Add `insert_table` to `build.py`**
