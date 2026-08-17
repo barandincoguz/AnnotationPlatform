@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 import docx
+from docx.shared import Pt
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "iisec_template.docx"
@@ -30,7 +31,7 @@ STYLE_TABCOPY = "table copy"
 
 
 def parse_content(path: Path) -> list[tuple[str, str, str]]:
-    """Return [(kind, label, text)] where kind is TITLE/ABSTRACT/KEYWORDS/H1/H2/REFERENCES/BODY."""
+    """Return [(kind, label, text)] where kind is TITLE/ABSTRACT/KEYWORDS/H1/H2/REFERENCES."""
     blocks: list[tuple[str, str, str]] = []
     # All markers are declared here once, including FIGURE and TABLE which Tasks 3 and 4 use.
     # Declaring them up front means neither task has to edit this pattern.
@@ -96,6 +97,15 @@ def para_before(doc: docx.Document, anchor, style: str, text: str = ""):
     return p
 
 
+def insert_figure(doc: docx.Document, anchor, png_path: Path, caption: str, width_pt: float = 252):
+    """Insert a figure (as an image paragraph) followed by its caption, both immediately
+    before `anchor`. The caption uses STYLE_FIGCAP so it auto-numbers as "Fig. 1."."""
+    p = doc.add_paragraph()
+    p.add_run().add_picture(str(png_path), width=Pt(width_pt))
+    anchor.addprevious(p._element)
+    para_before(doc, anchor, STYLE_FIGCAP, caption)
+
+
 def render(blocks, doc: docx.Document, anchors: list) -> None:
     title_anchor, author_anchor, body_anchor = anchors[0], anchors[1], anchors[3]
     for kind, label, text in blocks:
@@ -116,6 +126,10 @@ def render(blocks, doc: docx.Document, anchors: list) -> None:
             para_before(doc, body_anchor, STYLE_H5, "References")
             for entry in [l for l in text.splitlines() if l.strip()]:
                 para_before(doc, body_anchor, STYLE_REFS, entry.strip())
+        elif kind == "FIGURE":
+            insert_figure(doc, body_anchor, OUT / "fig1.png", text)
+        else:
+            raise ValueError(f"unknown content marker: {kind!r}")
 
 
 def docx_to_pdf(docx_path: Path, outdir: Path) -> Path:

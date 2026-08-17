@@ -16,6 +16,9 @@ annotation quality, large language models, legal NLP
 <!-- H1: Introduction -->
 Placeholder introduction body paragraph.
 
+<!-- FIGURE -->
+Cross-check mechanism: the annotator's completed extraction and the model's independent extraction are aligned and routed into four outcome buckets.
+
 <!-- H1: Conclusion -->
 Placeholder conclusion body paragraph.
 
