@@ -57,6 +57,15 @@ FORBIDDEN = {
     "K. Elissa": "template example reference not removed",
 }
 
+# Pre-policy numbers that must NEVER appear (do not add to ALLOWED_NUMBERS to silence these).
+# Task 6 will extend this dict for the 413 case.
+FORBIDDEN_PATTERNS = {
+    r"\b111\b": "pre-policy GREEN count — must NEVER appear, do not add to ALLOWED_NUMBERS",
+    r"\b93\b": "pre-policy YELLOW count — must NEVER appear, do not add to ALLOWED_NUMBERS",
+    r"\b231\b": "pre-policy RED-to-GREEN transition — must NEVER appear, do not add to ALLOWED_NUMBERS",
+    r"\b118\b": "pre-policy RED-to-YELLOW transition — must NEVER appear, do not add to ALLOWED_NUMBERS",
+}
+
 
 def extract_text(path: Path) -> str:
     d = docx.Document(path)
@@ -69,38 +78,93 @@ def extract_text(path: Path) -> str:
 
 def check_forbidden(text: str) -> list[str]:
     low = text.lower()
-    return [f"FORBIDDEN {term!r}: {why}" for term, why in FORBIDDEN.items()
-            if term.lower() in low]
+    out = [f"FORBIDDEN {term!r}: {why}" for term, why in FORBIDDEN.items()
+           if term.lower() in low]
+    out += [f"FORBIDDEN /{pat}/: {why}" for pat, why in FORBIDDEN_PATTERNS.items()
+            if re.search(pat, text)]
+    return out
 
 
 def check_numbers(text: str) -> list[str]:
     """Every number outside a citation bracket must be in the allowlist."""
-    stripped = re.sub(r"\[\d+(?:\]\s*,\s*\[?\d+)*\]", " ", text)  # drop [1], [1], [2]
-    stripped = re.sub(r"\b(19|20|26)\d{2}\b", " ", stripped)      # drop years
-    stripped = re.sub(r"\b[IVX]+\.", " ", stripped)               # drop roman headings
-    stripped = re.sub(r"\b[0-9a-f]{6,}\b", " ", stripped)         # drop revision hashes (938d891)
-    stripped = re.sub(r"\b\d+\.\d+\.\d+\b", " ", stripped)        # drop versions (0.31.0)
-    stripped = re.sub(r"\d+\.?\d*\s*[eE]\s*[-−]?\d+", " ", stripped)  # drop 2.5e-5, 1.0e-5
-    stripped = re.sub(r"[A-Za-z_]+\d[\w.]*|\w*_\w+", " ", stripped)  # drop identifiers (Qwen3_5..., text_config)
+    stripped = re.sub(r"\[\d{1,2}\](?:\s*,\s*\[\d{1,2}\])*", " ", text)      # citations [1], [2]
+    stripped = re.sub(r"\b(19|20|26)\d{2}\b", " ", stripped)                  # years
+    stripped = re.sub(r"\b[IVX]+\.", " ", stripped)                           # roman headings
+    stripped = re.sub(r"\b(?=[0-9a-f]*[a-f])[0-9a-f]{6,}\b", " ", stripped)   # hex hashes ONLY
+    stripped = re.sub(r"\b\d+\.\d+\.\d+\b", " ", stripped)                    # versions 0.31.0
+    stripped = re.sub(r"\d+\.?\d*\s*[eE]\s*[-−]?\d+", " ", stripped)     # 2.5e-5
+    stripped = re.sub(r"\b[A-Za-z_]\w*(?:[._]\w+)+", " ", stripped)           # text_config, Qwen3.5
     bad = []
-    for tok in re.findall(r"\d[\d,]*\.?\d*", stripped):
-        if tok.rstrip(".") not in ALLOWED_NUMBERS:
+    for tok in re.findall(r"\d(?:[\d,]*\d)?(?:\.\d+)?", stripped):
+        if tok not in ALLOWED_NUMBERS:
             bad.append(f"UNKNOWN NUMBER {tok!r} — add to spec section 5 first")
     return sorted(set(bad))
 
 
-def check_arithmetic() -> list[str]:
+# Canonical routing figures, spec section 5.5.
+BUCKET_CANON = {"GREEN": 342, "YELLOW": 211, "RED": 738, "QUARANTINE": 3}
+
+
+def check_bucket_figures(text: str) -> list[str]:
+    """Wherever a bucket name appears with numbers nearby, its canonical count must be one
+    of them. Catches an internally inconsistent figure set whose individual numbers are each
+    allow-listed for some other reason — the exact case check_arithmetic used to miss.
+    A bucket name mentioned with no nearby numbers is not flagged."""
     errs = []
-    if 342 + 211 + 738 + 3 != 1294:
-        errs.append("bucket counts do not sum to 1294")
-    if 211 + 738 != 949:
+    for name, canon in BUCKET_CANON.items():
+        for m in re.finditer(rf"\b{name}\b", text, re.I):
+            window = text[max(0, m.start() - 40): m.end() + 40]
+            nums = {int(t.replace(",", "")) for t in re.findall(r"\d(?:[\d,]*\d)?", window)}
+            if nums and canon not in nums:
+                errs.append(
+                    f"BUCKET FIGURE: {name} appears near {sorted(nums)} "
+                    f"but not its canonical count {canon}"
+                )
+    return sorted(set(errs))
+
+
+def check_table_sums(text: str) -> list[str]:
+    """Any table row whose first cell is 'Total' must equal the sum of the numeric rows
+    above it, per column. Operates on the rendered document, not on constants."""
+    errs = []
+    doc = docx.Document(DOCX)
+    for ti, table in enumerate(doc.tables):
+        rows = [[c.text.strip() for c in r.cells] for r in table.rows]
+        totals = [i for i, r in enumerate(rows) if r and r[0].lower().startswith("total")]
+        for tr in totals:
+            for col in range(1, len(rows[tr])):
+                stated = _as_number(rows[tr][col])
+                if stated is None:
+                    continue
+                above = [_as_number(r[col]) for r in rows[1:tr] if col < len(r)]
+                above = [v for v in above if v is not None]
+                tol = 0.05 * len(above) + 0.001
+                if above and abs(sum(above) - stated) > tol:
+                    errs.append(
+                        f"TABLE {ti + 1} column {col}: rows sum to {sum(above)} "
+                        f"but the Total row states {stated}"
+                    )
+    return errs
+
+
+def _as_number(cell: str):
+    m = re.fullmatch(r"(\d(?:[\d,]*\d)?(?:\.\d+)?)\s*%?", cell.strip())
+    return float(m.group(1).replace(",", "")) if m else None
+
+
+def check_checker_constants() -> list[str]:
+    """Self-check of this file's own canonical constants. NOT a gate on the document —
+    check_bucket_figures and check_table_sums are. Kept so a bad edit to the constants
+    above screams instead of silently loosening the gates."""
+    errs = []
+    if sum(BUCKET_CANON.values()) != 1294:
+        errs.append("BUCKET_CANON values do not sum to 1294")
+    if BUCKET_CANON["YELLOW"] + BUCKET_CANON["RED"] != 949:
         errs.append("review load is not YELLOW + RED")
-    if round(342 / 1294 * 100, 1) != 26.4:
-        errs.append("26.4% does not follow from 342/1294")
-    if 394 + 50 + 50 != 494:
-        errs.append("split does not sum to 494")
-    if 494 + 6 != 500:
-        errs.append("canonical set does not sum to 500")
+    if round(BUCKET_CANON["GREEN"] / 1294 * 100, 1) != 26.4:
+        errs.append("26.4% does not follow from GREEN/1294")
+    if 394 + 50 + 50 != 494 or 494 + 6 != 500:
+        errs.append("canonical split constants are inconsistent")
     return errs
 
 
@@ -129,8 +193,9 @@ def main() -> int:
         print("FAIL: run paper/build.py first")
         return 1
     text = extract_text(DOCX)
-    problems = (check_forbidden(text) + check_numbers(text) + check_arithmetic()
-                + check_pages() + check_no_page_numbers())
+    problems = (check_forbidden(text) + check_numbers(text)
+                + check_bucket_figures(text) + check_table_sums(text)
+                + check_checker_constants() + check_pages() + check_no_page_numbers())
     if problems:
         print(f"FAIL — {len(problems)} problem(s):")
         for p in problems:
