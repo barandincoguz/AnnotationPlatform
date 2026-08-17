@@ -213,8 +213,16 @@ def render(blocks, doc: docx.Document, anchors: list) -> None:
             insert_figure(doc, body_anchor, OUT / "fig1.png", text)
         elif kind == "TABLE":
             lines = [l.strip() for l in text.splitlines() if l.strip()]
-            grid = [[c.strip() for c in l.strip("|").split("|")] for l in lines[1:]]
-            insert_table(doc, body_anchor, lines[0], grid[0], grid[1:])
+            caption, row_lines = lines[0], lines[1:]
+            stray = [l for l in row_lines if not l.startswith("|")]
+            if stray:
+                raise ValueError(
+                    f"TABLE block {caption!r} has non-row content: {stray!r}. "
+                    "Prose after a table is silently parsed as table rows — put it under "
+                    "the next H1/H2 marker instead."
+                )
+            grid = [[c.strip() for c in l.strip("|").split("|")] for l in row_lines]
+            insert_table(doc, body_anchor, caption, grid[0], grid[1:])
         else:
             raise ValueError(f"unknown content marker: {kind!r}")
 

@@ -30,6 +30,10 @@ ALLOWED_NUMBERS = {
     # runtime
     "7.63", "6.21", "13.26", "17.29", "24.62", "36.83", "9872", "9,872", "10964", "10,964",
     "2", "45", "11", "12", "3.05",
+    # development configuration and checkpoint selection (spec 5.2)
+    "75", "150", "550", "3399", "3,399",
+    # canonical schema example (spec 5.1)
+    "3065", "298",
     # years, citation numbers and ordinals are handled separately
 }
 
@@ -109,6 +113,7 @@ def check_numbers(text: str) -> list[str]:
     stripped = re.sub(r"\b\d+\.\d+\.\d+\b", " ", stripped)                    # versions 0.31.0
     stripped = re.sub(r"\d+\.?\d*\s*[eE]\s*[-−]?\d+", " ", stripped)     # 2.5e-5
     stripped = re.sub(r"\b[A-Za-z_]\w*(?:[._]\w+)+", " ", stripped)           # text_config, Qwen3.5
+    stripped = re.sub(r"\bp(?:50|90|95|99)\b", " ", stripped)      # percentile labels
     bad = []
     for tok in re.findall(r"\d(?:[\d,]*\d)?(?:\.\d+)?", stripped):
         if tok not in ALLOWED_NUMBERS:
