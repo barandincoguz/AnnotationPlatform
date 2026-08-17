@@ -82,6 +82,10 @@ def extract_text(path: Path, claims_only: bool = False) -> str:
             break
         parts.append(p.text)
     for t in d.tables:
+        # Boundary marker: without it, one table's trailing cells and the next table's
+        # leading cells sit back-to-back with no gap, so check_bucket_figures' 40-character
+        # window bleeds an unrelated table's numbers into a bucket name in the next table.
+        parts.append("=" * 80)
         for row in t.rows:
             parts.extend(c.text for c in row.cells)
     return "\n".join(parts)
