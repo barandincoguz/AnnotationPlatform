@@ -119,35 +119,69 @@ def check_numbers(text: str) -> list[str]:
 # Canonical routing figures, spec section 5.5.
 BUCKET_CANON = {"GREEN": 342, "YELLOW": 211, "RED": 738, "QUARANTINE": 3}
 
+# Every integer that may legitimately appear as a routing count, spec section 5.5.
+# A number near a bucket name that is not one of these is a figure error.
+ROUTING_FIGURES = set(BUCKET_CANON.values()) | {1294, 949}
+
 
 def check_bucket_figures(text: str) -> list[str]:
-    """Wherever a bucket name appears near a count-shaped number, the bucket's canonical
-    count must be among the numbers present. Catches an internally inconsistent figure set
-    whose individual numbers are each allow-listed for some other reason.
+    """Flag any integer appearing within forty characters of a bucket name that is not a
+    legitimate routing figure. Catches an internally inconsistent figure set whose numbers
+    are each allow-listed for some other reason.
 
-    Deliberately narrow, because a wider version false-positives on ordinary prose:
-      - years and section, figure and table references are stripped first;
-      - only numbers of 100 or more count as competing figures, so "section 3" is ignored;
-      - buckets whose canonical count is under 100 are not checked in prose at all, since a
-        bare small number is too common to distinguish from a real claim.
+    Non-counts are removed before candidates are extracted rather than filtered by size,
+    because a size threshold silently misses a wrong count that happens to be small:
+      - years;
+      - section, figure, table, step and task references, including Roman numerals;
+      - any number carrying a decimal point, which is a rate or a share, not a count;
+      - any integer written as a percentage.
     """
     errs = []
     scrubbed = re.sub(r"\b(19|20|26)\d{2}\b", " ", text)
     scrubbed = re.sub(r"\b(?:section|sec\.|fig\.|figure|table|step|task)\s*[IVX\d]+",
                       " ", scrubbed, flags=re.I)
+    scrubbed = re.sub(r"\d[\d,]*\.\d+", " ", scrubbed)
+    scrubbed = re.sub(r"\b\d[\d,]*\s*%", " ", scrubbed)
     for name, canon in BUCKET_CANON.items():
-        if canon < 100:
-            continue
         for m in re.finditer(rf"\b{name}\b", scrubbed, re.I):
             window = scrubbed[max(0, m.start() - 40): m.end() + 40]
-            nums = {int(t.replace(",", "")) for t in re.findall(r"\d(?:[\d,]*\d)?", window)}
-            nums = {n for n in nums if n >= 100}
-            if nums and canon not in nums:
-                errs.append(
-                    f"BUCKET FIGURE: {name} appears near {sorted(nums)} "
-                    f"but not its canonical count {canon}"
-                )
+            for tok in re.findall(r"\b\d[\d,]*\b", window):
+                value = int(tok.replace(",", ""))
+                if value not in ROUTING_FIGURES:
+                    errs.append(
+                        f"BUCKET FIGURE: {name} appears near {value}, which is not a "
+                        f"legitimate routing figure (canonical count is {canon})"
+                    )
     return sorted(set(errs))
+
+
+def check_bucket_table_rows() -> list[str]:
+    """In any table row whose first cell names a bucket, the first integer cell must be that
+    bucket's canonical count. Safe to enforce strictly here because the label and its count
+    are adjacent by construction — the same rule applied to prose false-positives on
+    sentences that mention a bucket near an unrelated figure."""
+    errs = []
+    doc = docx.Document(DOCX)
+    for ti, table in enumerate(doc.tables):
+        for ri, row in enumerate(table.rows):
+            cells = [c.text.strip() for c in row.cells]
+            if not cells:
+                continue
+            for name, canon in BUCKET_CANON.items():
+                if not re.search(rf"\b{name}\b", cells[0], re.I):
+                    continue
+                found = None
+                for cell in cells[1:]:
+                    m = re.fullmatch(r"(\d[\d,]*)", cell)
+                    if m:
+                        found = int(m.group(1).replace(",", ""))
+                        break
+                if found is not None and found != canon:
+                    errs.append(
+                        f"TABLE {ti + 1} row {ri + 1}: bucket {name} states {found}, "
+                        f"canonical count is {canon}"
+                    )
+    return errs
 
 
 def check_table_sums(text: str) -> list[str]:
@@ -183,10 +217,13 @@ def _as_number(cell: str):
 
 
 def _is_count_column(rows, tr, col) -> bool:
-    """True when every non-empty cell above the Total row is a plain integer — no decimal
-    point, no percent sign. Such a column must sum exactly."""
+    """True when every cell above the Total row that parses as a number is a plain integer —
+    no decimal point, no percent sign. Cells that are not numbers at all (blank, a dash) are
+    ignored rather than disqualifying the column, which would silently relax it to the
+    tolerance branch. Such a column must sum exactly."""
     cells = [r[col].strip() for r in rows[1:tr] if col < len(r) and r[col].strip()]
-    return bool(cells) and all(re.fullmatch(r"\d[\d,]*", c) for c in cells)
+    numeric = [c for c in cells if _as_number(c) is not None]
+    return bool(numeric) and all(re.fullmatch(r"\d[\d,]*", c) for c in numeric)
 
 
 def check_checker_constants() -> list[str]:
@@ -232,8 +269,9 @@ def main() -> int:
     full = extract_text(DOCX)
     claims = extract_text(DOCX, claims_only=True)
     problems = (check_forbidden(full) + check_numbers(claims)
-                + check_bucket_figures(claims) + check_table_sums(claims)
-                + check_checker_constants() + check_pages() + check_no_page_numbers())
+                + check_bucket_figures(claims) + check_bucket_table_rows()
+                + check_table_sums(claims) + check_checker_constants()
+                + check_pages() + check_no_page_numbers())
     if problems:
         print(f"FAIL — {len(problems)} problem(s):")
         for p in problems:
