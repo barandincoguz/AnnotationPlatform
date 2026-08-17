@@ -119,59 +119,56 @@ def check_numbers(text: str) -> list[str]:
 # Canonical routing figures, spec section 5.5.
 BUCKET_CANON = {"GREEN": 342, "YELLOW": 211, "RED": 738, "QUARANTINE": 3}
 
-# Every integer that may legitimately appear as a routing count, spec section 5.5.
-# A number near a bucket name that is not one of these is a figure error.
+# Every value that may legitimately appear within forty characters of a bucket name:
+# the routing counts (spec 5.5), the four shares and the batch totals, plus the rates and
+# scores that could plausibly be discussed alongside a bucket. Anything else near a bucket
+# name is a figure error. Compared as floats so 57 and 57.0 are the same value.
 ROUTING_FIGURES = set(BUCKET_CANON.values()) | {1294, 949}
-
-
-def _snap(text: str, start: int, end: int) -> tuple[int, int]:
-    """Widen a slice outward so it never cuts through the middle of a number. Without this a
-    +/-40 character window yields fragments like 42 out of 342 and flags them as foreign
-    figures on correct content."""
-    while start > 0 and (text[start - 1].isdigit() or text[start - 1] == ","):
-        start -= 1
-    while end < len(text) and (text[end].isdigit() or text[end] == ","):
-        end += 1
-    return start, end
+NEAR_BUCKET_OK = ({float(v) for v in ROUTING_FIGURES}
+                  | {26.4, 16.3, 57.0, 0.2, 73.3}          # shares
+                  | {4.84, 0.789, 0.805, 0.861, 0.728})    # rates and scores
 
 
 def check_bucket_figures(text: str) -> list[str]:
-    """Flag any integer appearing within forty characters of a bucket name that is not a
-    legitimate routing figure. Catches an internally inconsistent figure set whose numbers
-    are each allow-listed for some other reason.
+    """Flag any number overlapping a forty-character window around a bucket name whose value
+    is not in NEAR_BUCKET_OK.
 
-    Non-counts are removed before candidates are extracted rather than filtered by size,
-    because a size threshold silently misses a wrong count that happens to be small:
-      - years;
-      - section, figure, table, step and task references, including Roman numerals;
-      - any number carrying a decimal point, which is a rate or a share, not a count;
-      - any integer written as a percentage.
+    Number spans are located once and selected by overlap rather than by slicing the text,
+    so a number straddling the window boundary is evaluated whole while a number starting at
+    or after the boundary is excluded. Slicing plus outward snapping got both cases wrong.
+
+    Years and section, figure, table, step and task references are removed first. Decimals
+    are deliberately NOT removed: scrubbing them to avoid flagging rates also hid
+    decimal-formatted wrong counts such as 700.0 against a canonical 738.
     """
     errs = []
     scrubbed = re.sub(r"\b(19|20|26)\d{2}\b", " ", text)
     scrubbed = re.sub(r"\b(?:section|sec\.|fig\.|figure|table|step|task)\s*[IVX\d]+",
                       " ", scrubbed, flags=re.I)
-    scrubbed = re.sub(r"\d[\d,]*\.\d+", " ", scrubbed)
-    scrubbed = re.sub(r"\b\d[\d,]*\s*%", " ", scrubbed)
+    scrubbed = re.sub(r"(\d[\d,]*(?:\.\d+)?)\s*%", lambda m: " " * len(m.group(0)), scrubbed)
+    spans = [(m.start(), m.end(), float(m.group(0).replace(",", "")))
+             for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", scrubbed)]
     for name, canon in BUCKET_CANON.items():
         for m in re.finditer(rf"\b{name}\b", scrubbed, re.I):
-            lo, hi = _snap(scrubbed, max(0, m.start() - 40), min(len(scrubbed), m.end() + 40))
-            window = scrubbed[lo:hi]
-            for tok in re.findall(r"\b\d[\d,]*\b", window):
-                value = int(tok.replace(",", ""))
-                if value not in ROUTING_FIGURES:
+            lo = max(0, m.start() - 40)
+            hi = min(len(scrubbed), m.end() + 40)
+            for s0, s1, value in spans:
+                if s1 > lo and s0 < hi and value not in NEAR_BUCKET_OK:
                     errs.append(
-                        f"BUCKET FIGURE: {name} appears near {value}, which is not a "
-                        f"legitimate routing figure (canonical count is {canon})"
+                        f"BUCKET FIGURE: {name} appears near {value:g}, which is not a "
+                        f"legitimate figure (canonical count is {canon})"
                     )
     return sorted(set(errs))
 
 
 def check_bucket_table_rows() -> list[str]:
-    """In any table row whose first cell names a bucket, the first integer cell must be that
-    bucket's canonical count. Safe to enforce strictly here because the label and its count
-    are adjacent by construction — the same rule applied to prose false-positives on
-    sentences that mention a bucket near an unrelated figure."""
+    """In any table row whose first cell names a bucket, every integer cell must be a
+    legitimate routing figure and the bucket's canonical count must be among them.
+
+    Inspects all cells rather than stopping at the first integer, because a decoy numeric
+    cell before the count column otherwise masks a wrong count. Trailing footnote markers
+    and whitespace are stripped before matching, because a cell reading '50*' otherwise
+    fails to parse and the row goes unchecked."""
     errs = []
     doc = docx.Document(DOCX)
     for ti, table in enumerate(doc.tables):
@@ -182,16 +179,22 @@ def check_bucket_table_rows() -> list[str]:
             for name, canon in BUCKET_CANON.items():
                 if not re.search(rf"\b{name}\b", cells[0], re.I):
                     continue
-                found = None
+                ints = []
                 for cell in cells[1:]:
-                    m = re.fullmatch(r"(\d[\d,]*)", cell)
-                    if m:
-                        found = int(m.group(1).replace(",", ""))
-                        break
-                if found is not None and found != canon:
+                    clean = re.sub(r"[*†‡\s]+$", "", cell)
+                    if re.fullmatch(r"\d[\d,]*", clean):
+                        ints.append(int(clean.replace(",", "")))
+                foreign = [v for v in ints if v not in ROUTING_FIGURES]
+                if foreign:
                     errs.append(
-                        f"TABLE {ti + 1} row {ri + 1}: bucket {name} states {found}, "
-                        f"canonical count is {canon}"
+                        f"TABLE {ti + 1} row {ri + 1}: bucket {name} row contains "
+                        f"{foreign}, not legitimate routing figures "
+                        f"(canonical count is {canon})"
+                    )
+                elif ints and canon not in ints:
+                    errs.append(
+                        f"TABLE {ti + 1} row {ri + 1}: bucket {name} row states {ints} "
+                        f"but not its canonical count {canon}"
                     )
     return errs
 
