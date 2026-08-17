@@ -124,6 +124,17 @@ BUCKET_CANON = {"GREEN": 342, "YELLOW": 211, "RED": 738, "QUARANTINE": 3}
 ROUTING_FIGURES = set(BUCKET_CANON.values()) | {1294, 949}
 
 
+def _snap(text: str, start: int, end: int) -> tuple[int, int]:
+    """Widen a slice outward so it never cuts through the middle of a number. Without this a
+    +/-40 character window yields fragments like 42 out of 342 and flags them as foreign
+    figures on correct content."""
+    while start > 0 and (text[start - 1].isdigit() or text[start - 1] == ","):
+        start -= 1
+    while end < len(text) and (text[end].isdigit() or text[end] == ","):
+        end += 1
+    return start, end
+
+
 def check_bucket_figures(text: str) -> list[str]:
     """Flag any integer appearing within forty characters of a bucket name that is not a
     legitimate routing figure. Catches an internally inconsistent figure set whose numbers
@@ -144,7 +155,8 @@ def check_bucket_figures(text: str) -> list[str]:
     scrubbed = re.sub(r"\b\d[\d,]*\s*%", " ", scrubbed)
     for name, canon in BUCKET_CANON.items():
         for m in re.finditer(rf"\b{name}\b", scrubbed, re.I):
-            window = scrubbed[max(0, m.start() - 40): m.end() + 40]
+            lo, hi = _snap(scrubbed, max(0, m.start() - 40), min(len(scrubbed), m.end() + 40))
+            window = scrubbed[lo:hi]
             for tok in re.findall(r"\b\d[\d,]*\b", window):
                 value = int(tok.replace(",", ""))
                 if value not in ROUTING_FIGURES:
