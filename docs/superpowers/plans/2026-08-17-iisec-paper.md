@@ -857,6 +857,8 @@ If the page gate fails, record by how much.
 
 Per spec §7, exhibits are cut before prose: first collapse Table I into prose, then Table II. Table III and Figure 1 are mandatory. Within prose, cut in this order: Section II Related Work down to 0.35 p, Section III platform detail, Section IV-B parse-hardening detail. Never cut Section V-C or Section VI.
 
+**Table II legibility, carried forward from Task 4's review.** Its six columns at the template's fixed 8 pt currently wrap header words mid-syllable — "Precision" renders as "Precisio"/"n" and "Reference standard" over four lines — because the column widths were set evenly and the two wide text columns starve the four metric columns. No data value wraps, so this is a professionalism defect rather than a correctness one, but it is not acceptable in a submission. Fix it in this order: abbreviate the headers to `Evaluation set`, `Reference`, `F1`, `Prec.`, `Rec.`, `Exact doc.`; then set proportional rather than equal column widths, giving the first two columns roughly 70 pt and 55 pt and dividing the remainder among the four metric columns. **Do not change the font size** — typography is inherited from the template and overriding it violates a global constraint. If proportional widths still wrap, collapse Table II into prose per the cut order above rather than shrinking type.
+
 - [ ] **Step 3: Verify the format rules from spec §9 against the rendered PDF**
 
 ```bash
