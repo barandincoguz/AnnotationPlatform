@@ -576,7 +576,7 @@ Expected: a PNG whose pixel dimensions are roughly 252/72×300 ≈ 1050 px wide,
 
 - [ ] **Step 3: Add `insert_figure` to `build.py`**
 
-Insert after the `add_paragraph` helper:
+Insert after the `para_before` helper:
 
 Also make `render()` fail loudly on an unrecognized marker kind instead of silently dropping it — a mistyped marker currently vanishes from the paper with no error. Add as the final branch:
 
@@ -923,6 +923,6 @@ git commit -m "docs: final IISEC 2027 paper build"
 
 **Placeholders.** Task 1 deliberately writes placeholder prose; that is the point of a pipeline test and it is replaced in Tasks 5 and 6. Two steps depend on values discovered at execution time rather than assumed here: the template style names in Task 1 Step 1, and the reference count in Task 6 Step 5. Both are discovery steps with a stated expected result, not unfilled gaps.
 
-**Type consistency.** `add_paragraph(doc, style, text)`, `insert_figure(doc, png_path, caption, width_pt)`, `insert_table(doc, caption, header, rows)`, `docx_to_pdf(docx_path, outdir)`, `parse_content(path) -> list[tuple[str, str, str]]`, `extract_text(path) -> str` are used consistently across Tasks 1–4. The marker alternation in `parse_content` must be extended in Task 3 (`FIGURE`) and Task 4 (`TABLE`); both steps say so explicitly.
+**Type consistency.** The insertion helper Task 1 delivers is `para_before(doc, anchor, style, text="")` — not `add_paragraph`, which exists only as python-docx's own append-at-end API used inside `para_before` and `insert_figure`. Tasks 3 and 4 consume `para_before` and add `insert_figure(doc, anchor, png_path, caption, width_pt)` and `insert_table(doc, anchor, caption, header, rows)`. `docx_to_pdf(docx_path, outdir)`, `parse_content(path) -> list[tuple[str, str, str]]` and `extract_text(path) -> str` are used consistently across Tasks 1–6. The marker alternation in `parse_content` already declares `FIGURE` and `TABLE` in Task 1, so neither Task 3 nor Task 4 edits that pattern — they add `render()` branches only.
 
 **Known gap.** The style names in `build.py` are written as plausible defaults and are corrected from the Task 1 Step 1 output before Step 5 can pass. This is intentional — assuming them would be the failure mode.
