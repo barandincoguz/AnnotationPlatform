@@ -115,6 +115,7 @@ here first.
 | Schema (6 fields) | `kanun_no`, `kanun_ad`, `madde`, `fikra`, `bent`, `source_text` |
 | Structure | hierarchical (law → article → paragraph → subparagraph), open-vocabulary, multi-label, 0..200 refs/doc |
 | `source_text` | verbatim span copied from the document (no stored character offsets) |
+| Canonical schema example, for §III | `kanun_no` **3065**, `kanun_ad` "Katma Değer Vergisi Kanunu", `madde` **1**, `fikra` **1**, `bent` empty. **Do not fabricate a Turkish `source_text` string.** Describe the field instead — it holds the verbatim sentence in which the ruling invokes the provision — because inventing a quotation and presenting it as taken from a real tax ruling would be a fabricated example passed off as data. Other law numbers attested in the corpus, if a second example is needed: **213** (Vergi Usul Kanunu), **193** (Gelir Vergisi Kanunu). Article identifiers take forms such as **298**, "mükerrer 298", "geçici 25", "Ek 6". |
 | Raw document pool | 17,923 rulings (`ozelge_veri_17923.zip`) |
 | Human-annotated documents | 1,437 (as of 2026-07-24); 1,413 marked complete |
 | Human-extracted references | 6,840 |
@@ -145,6 +146,8 @@ here first.
 | Inference context | 12,288 tokens (>99% of documents fit without windowing; longest observed 8,253 tokens) |
 | Deployed (G0) training set | all 494 canonical documents → 4,278 window rows |
 | Deployed updates | 1,003 optimizer updates ≈ 0.94 window epochs |
+| Development configuration | 394 training documents → 3,399 window rows, cosine-**150** schedule, best checkpoint at update **75** (this is the configuration that produced F1 0.789 on the sealed test) |
+| Operational checkpoint selection | update **550** versus update **1,003**, decided on External-100 |
 | Training hardware | Apple Mac Studio, Apple Silicon, unified memory, Metal, `mlx-lm ≥ 0.31.0` |
 
 ### 5.3 Data splits (must sum exactly)
