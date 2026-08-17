@@ -90,8 +90,16 @@ The user selected the **zero-extra-work** option. Therefore:
 5. **Disclose selection-on-test.** External-100 was used both to select the operational checkpoint
    (update 550 vs update 1003) and to report the 0.805 agreement figure. One sentence: the reported
    figure is therefore not an unbiased estimate of agreement on new documents.
-6. **Do not claim the in-UI warning surface is live** unless it is live at submission time.
-   Measured results come from the asynchronous batch pipeline. Re-verify before submission.
+6. **The in-UI warning surface is described as part of the deployed system** (user decision,
+   2026-08-18). It was not live when the paper was drafted; the user's instruction is to write
+   it as deployed because it is being added. §IV-E therefore uses the present tense.
+   **Pre-submission check, retained deliberately:** confirm the warning surface is actually
+   live before submitting on 2026-11-29, or change the tense. This serves the user's own
+   stated intent — without the check nobody verifies it and the claim reaches IEEE Xplore
+   either way.
+   Separately and not affected by that decision: **no measurement of the UI may be invented.**
+   Every reported figure comes from the asynchronous batch pipeline and stays as measured.
+   There are no numbers about annotator response to warnings, and none may be added.
 
 ## 5. Canonical facts and numbers
 
@@ -170,10 +178,11 @@ Say this explicitly.
 
 ### 5.5 Routing outcome on the 1,294-document production batch
 
-The batch is the 1,294 human-annotated documents available in the 2026-07-16 export. The corpus had
-grown to 1,437 annotated documents by 2026-07-24; the remaining 143 have not been processed. Either
-report the batch as 1,294 and date it, or re-run the full 1,437 (≈3.05 h) before submission — do not
-mix the two counts in one claim.
+**RESOLVED (2026-08-18): the batch stays at 1,294 and is dated.** It is the 1,294 human-annotated
+documents in the 2026-07-16 export. The corpus had grown to 1,437 annotated documents by 2026-07-24;
+the remaining 143 are not processed and the full re-run was declined. Every statement about the batch
+must carry the count and the date, and the 1,437 figure appears only where the corpus size is being
+described, never as the batch size.
 
 **Figures for the paper (post-policy values only):**
 
@@ -346,11 +355,12 @@ sentence in a way that implies a relationship, and label each explicitly.
 
 ## 10. Open items
 
-1. **Title** — recommended: *"An On-Premise LLM Cross-Check Mechanism for Expert Legal Annotation
-   Quality."* Alternatives in the brainstorming discussion. User to confirm.
+1. **Title — RESOLVED (2026-08-18).** *"An On-Premise LLM Cross-Check Mechanism for Expert Legal
+   Annotation Quality."* Approved by the user for now; revisit only if they ask.
 2. **Qwen3.5 and MLX citations** — verify before drafting the reference list.
-3. **Is the in-UI warning surface live at submission time?** Determines the tense and the claims in
-   §IV-E. Re-check before submission.
+3. **In-UI warning surface — RESOLVED (2026-08-18).** Write §IV-E in the present tense, as
+   deployed, per the user's explicit instruction. Re-check that it is genuinely live before
+   submitting; see §4 item 6.
 4. **Whether references count inside the 6 pages** — assumed yes; re-check the CFP nearer the
    deadline.
 5. **Submission file format** — the 2026 page said `.docx`, the 2027 page said `.pdf`. Re-check.

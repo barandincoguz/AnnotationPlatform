@@ -928,7 +928,7 @@ git commit -m "docs: address adversarial review findings"
 
 - [ ] **Step 1: Resolve the four open items from spec §10 that affect the text**
 
-Title (spec recommends "An On-Premise LLM Cross-Check Mechanism for Expert Legal Annotation Quality"); whether the in-UI warning surface is live, which sets the tense in §IV-E; and whether the batch is reported as 1,294 dated or re-run at 1,437. The loader question is already resolved in spec §8.
+All four are now resolved and need no further decisions: the title is "An On-Premise LLM Cross-Check Mechanism for Expert Legal Annotation Quality"; §IV-E is written in the present tense with the warning surface described as deployed, subject to the pre-submission liveness check in spec §4 item 6; the batch is reported as 1,294 dated 2026-07-16; and the loader question is settled in spec §8. Confirm each is reflected in the built PDF rather than assuming it.
 
 - [ ] **Step 2: Final clean build**
 
