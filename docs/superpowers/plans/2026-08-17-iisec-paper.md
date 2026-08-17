@@ -316,6 +316,10 @@ A checker that fails loudly. This is what keeps the paper honest across many edi
 
 - [ ] **Step 1: Write `paper/check.py`**
 
+> **Superseded in part by fix round 1.** The code below was implemented as written and then corrected, because the review proved two of its gates silently passed content they are named to catch: the hex-hash strip `\b[0-9a-f]{6,}\b` also removes every run of six or more *decimal* digits (`0-9` is a subset of `[0-9a-f]`), and `check_arithmetic()` compares hardcoded literals to each other rather than to anything in the document. Four smaller defects followed: the citation strip removed any bracketed number, the identifier strip removed digits glued to a letter, the token pattern captured trailing commas (breaking on the spec's own `12,288,` phrasing), and four of the seven forbidden pre-policy numbers had no explicit entry.
+>
+> **The authoritative corrected code is `.superpowers/sdd/2026-08-17-iisec-paper/task-2-fix-1.md`**, which replaces `check_numbers`, replaces `check_arithmetic` with `check_bucket_figures` and `check_table_sums` (both read the rendered document) plus an honestly renamed `check_checker_constants`, adds `FORBIDDEN_PATTERNS`, and rewires `main`. Read the code below for context, but implement the fix file.
+
 ```python
 """Verification gates for the IISEC paper. Exit 0 = pass, 1 = fail."""
 import re
@@ -694,10 +698,10 @@ Extraction results. The two rows are different models evaluated against differen
 <!-- TABLE -->
 Routing outcome on the 1294-document batch
 | Bucket | Documents | Share | Action |
-| Concordant | 342 | 26.4% | cleared, no expert review |
-| Minor divergence | 211 | 16.3% | expert review |
-| Divergence | 738 | 57.0% | expert review |
-| Malformed | 3 | 0.2% | held for handling |
+| GREEN — concordant | 342 | 26.4% | cleared, no expert review |
+| YELLOW — minor divergence | 211 | 16.3% | expert review |
+| RED — divergence | 738 | 57.0% | expert review |
+| QUARANTINE — malformed | 3 | 0.2% | held for handling |
 | Total | 1294 | 100% | |
 ```
 
