@@ -256,6 +256,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/law-abbreviations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Law Abbreviations
+         * @description Law abbreviation → full name (+ number) reference for annotators.
+         *
+         *     Auth required, has_seen_manual NOT required. Sourced from the canonical
+         *     normalization tables so it stays consistent with backend behavior.
+         */
+        get: operations["get_law_abbreviations_api_law_abbreviations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/documents": {
         parameters: {
             query?: never;
@@ -2377,6 +2400,37 @@ export interface operations {
         };
     };
     get_help_api_help_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_law_abbreviations_api_law_abbreviations_get: {
         parameters: {
             query?: never;
             header?: never;

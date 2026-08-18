@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Loader2, Check, AlertCircle, Undo2, BookMarked } from 'lucide-react'
+import { Plus, Loader2, Check, AlertCircle, Undo2, BookMarked, Library } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { LawAbbreviationList } from '@/components/help/LawAbbreviationList'
 import { ReferenceCard } from './ReferenceCard'
 import type { components } from '@/api/types'
 import type { ApiError } from '@/api/client'
@@ -119,11 +121,29 @@ export function ReferencePanel({
             {refs.length}
           </span>
         </div>
-        {hasAnnotation && isCompleted && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-success">
-            <Check className="h-3.5 w-3.5" /> Tamamlandı
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                title="Kanun kısaltmalarının tam adı"
+              >
+                <Library className="h-3.5 w-3.5" /> Kısaltmalar
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-3">
+              <LawAbbreviationList variant="compact" />
+            </PopoverContent>
+          </Popover>
+          {hasAnnotation && isCompleted && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-success">
+              <Check className="h-3.5 w-3.5" /> Tamamlandı
+            </span>
+          )}
+        </div>
       </header>
       <div className="flex-1 space-y-3 overflow-auto p-5">
         {refs.length === 0 ? (

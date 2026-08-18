@@ -124,6 +124,53 @@ def test_help_works_for_user_without_seen_manual(client):
     assert r.status_code == 200
 
 
+def _auth(client):
+    from backend.shared.db import connect
+    from backend import config
+    conn = connect(config.DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?,1,datetime('now'))",
+            ("CODE",),
+        )
+    finally:
+        conn.close()
+    client.post("/api/auth/register", json={
+        "username": "alice", "password": "password123", "invite_code": "CODE",
+    })
+    client.post("/api/auth/login", json={"username": "alice", "password": "password123"})
+
+
+def test_law_abbreviations_unauthenticated_returns_401(client):
+    r = client.get("/api/law-abbreviations")
+    assert r.status_code == 401
+
+
+def test_law_abbreviations_returns_canonical_rows(client):
+    _auth(client)
+    r = client.get("/api/law-abbreviations")
+    assert r.status_code == 200
+    laws = r.json()["laws"]
+    assert len(laws) >= 20
+    by_name = {row["name"]: row for row in laws}
+    # canonical spot-checks (must match backend normalizer)
+    assert by_name["Vergi Usul Kanunu"]["number"] == "213"
+    assert "VUK" in by_name["Vergi Usul Kanunu"]["abbrevs"]
+    assert by_name["Katma Değer Vergisi Kanunu"]["number"] == "3065"
+    assert set(["KDV", "KDVK"]).issubset(set(by_name["Katma Değer Vergisi Kanunu"]["abbrevs"]))
+    assert by_name["Kurumlar Vergisi Kanunu"]["number"] == "5520"
+    # sorted ascending by numeric law number
+    nums = [int(row["number"]) for row in laws if row["number"] and row["number"].isdigit()]
+    assert nums == sorted(nums)
+
+
+def test_law_abbreviations_no_duplicate_law_names(client):
+    _auth(client)
+    laws = client.get("/api/law-abbreviations").json()["laws"]
+    names = [row["name"] for row in laws]
+    assert len(names) == len(set(names))
+
+
 def test_help_content_matches_current_annotation_ui():
     from backend.docs_help.service import list_help_sections
 

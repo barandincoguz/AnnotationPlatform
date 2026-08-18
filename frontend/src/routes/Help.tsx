@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { HelpAccordion } from '@/components/help/HelpAccordion'
+import { LawAbbreviationList } from '@/components/help/LawAbbreviationList'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/shell/BrandMark'
 import { useHelpQuery } from '@/api/queries/help'
@@ -108,6 +109,22 @@ export function Help() {
         <div className="mt-8">
           <HelpAccordion sections={sections} />
         </div>
+
+        <section className="mt-10" aria-labelledby="kisaltmalar-heading">
+          <h2
+            id="kisaltmalar-heading"
+            className="font-display text-2xl font-medium tracking-tight"
+          >
+            Kısaltmalar
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+            Özelgelerde geçen kanun kısaltmalarının tam adı ve numarası. Kanun adını her
+            zaman <strong>tam</strong> yaz (kısaltma değil).
+          </p>
+          <div className="mt-4 rounded-lg border border-border/70 bg-card/40 p-4">
+            <LawAbbreviationList variant="full" />
+          </div>
+        </section>
         {firstTime && (
           <div className="mt-10 flex justify-center">
             <Button

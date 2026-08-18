@@ -6,6 +6,8 @@ file count (~9), small bodies, fine for our scale.
 from pathlib import Path
 from typing import Optional
 
+from backend.annotations.diff import LAW_ABBREVIATIONS, LAW_NUMBER_BY_NAME
+
 CONTENT_DIR = Path(__file__).parent / "content"
 
 
@@ -46,3 +48,32 @@ def list_help_sections() -> list[dict]:
         })
     out.sort(key=lambda s: s["order"])
     return out
+
+
+def list_law_abbreviations() -> list[dict]:
+    """Return law reference rows for the annotator abbreviation helper.
+
+    Derived from the canonical normalization tables in
+    ``backend.annotations.diff`` so the UI never drifts from what the
+    system actually normalizes. Grouped by canonical law name (a law can
+    have several abbreviations, e.g. KDV/KDVK) and sorted by law number.
+    """
+    by_name: dict[str, list[str]] = {}
+    for abbr, name in LAW_ABBREVIATIONS.items():
+        by_name.setdefault(name, []).append(abbr)
+
+    rows: list[dict] = []
+    for name, abbrevs in by_name.items():
+        number = LAW_NUMBER_BY_NAME.get(name)
+        rows.append({
+            "name": name,
+            "number": number,
+            "abbrevs": sorted(abbrevs),
+        })
+
+    def _sort_key(row: dict):
+        no = row["number"]
+        return (int(no) if isinstance(no, str) and no.isdigit() else 10**9, row["name"])
+
+    rows.sort(key=_sort_key)
+    return rows

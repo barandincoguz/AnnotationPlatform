@@ -291,6 +291,19 @@ const HELP_DEFAULT_HANDLER = http.get(`${API}/api/help`, () =>
   HttpResponse.json(makeHelpResponse()),
 )
 
+export const LAW_ABBREVIATIONS_DEFAULT = {
+  laws: [
+    { name: 'Gelir Vergisi Kanunu', number: '193', abbrevs: ['GVK'] },
+    { name: 'Vergi Usul Kanunu', number: '213', abbrevs: ['VUK'] },
+    { name: 'Katma Değer Vergisi Kanunu', number: '3065', abbrevs: ['KDV', 'KDVK'] },
+    { name: 'Kurumlar Vergisi Kanunu', number: '5520', abbrevs: ['KVK'] },
+  ],
+}
+
+const LAW_ABBREVIATIONS_HANDLER = http.get(`${API}/api/law-abbreviations`, () =>
+  HttpResponse.json(LAW_ABBREVIATIONS_DEFAULT),
+)
+
 const ANNOTATE_DEFAULTS = [
   http.get(`${API}/api/feed`, () => HttpResponse.json({ items: [makeFeedItem()], total: 1 })),
   http.get(`${API}/api/documents/:docId`, ({ params }) =>
@@ -488,6 +501,7 @@ export const handlers = [
     }),
   ),
   HELP_DEFAULT_HANDLER,
+  LAW_ABBREVIATIONS_HANDLER,
   ...TRAINING_DEFAULT_HANDLERS,
   ...ANNOTATE_DEFAULTS,
   ...GAMIFICATION_DEFAULTS,
