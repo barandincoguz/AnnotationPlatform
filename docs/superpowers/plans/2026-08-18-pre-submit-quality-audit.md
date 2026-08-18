@@ -709,6 +709,18 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
+> **Task 2 uygulama sonrası düzeltmeler (review turlarından, bağlayıcı):**
+> - `model_only` / `human_only` **doküman düzeyinde küme farkıdır**, grup dökümü değil.
+>   İki taraf da anmışsa kimlik hiçbir listeye girmez — kanun adının farklı yazılması
+>   (`6102 "Türk Ticaret Kanunu"` vs `"TTK"`) dahil. Satırlar (`discrepancies`) değişmez.
+> - `field_diffs`, `source_text`'i router'ın `_evidence_compatible` kuralıyla yargılar;
+>   motorun uyumlu saydığı alıntı farkı satırda gösterilmez.
+> - `reference_identities` artık router'ın hattını birebir izler: **policy → compact →
+>   full_identity**. Task 4 bunu ham listelerle çağırabilir, filtreleme fonksiyonun içindedir.
+> - Adapter, vendored `router._evidence_compatible`'ı içe aktarır (hash korumalı dosya).
+
+---
+
 ## Task 3: Migration v0017 — iki tablo, outbox muafiyeti, mirror restore listesi
 
 **Files:**
