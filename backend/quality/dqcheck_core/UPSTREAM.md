@@ -36,3 +36,10 @@ python -m pytest tests/test_dqcheck_parity.py tests/test_dqcheck_adapter.py -v
 `DQCHECK_UPSTREAM_PATH` ortam değişkeni tanımlıysa parity testi kopyayı canlı
 upstream ile de karşılaştırır; tanımsızsa (CI, Docker) yalnızca manifest
 bütünlüğü doğrulanır.
+
+`adapter.py`, underscore-private `router._evidence_compatible`'ı import eder
+(bkz. adapter.py'deki yorum). Yeniden vendor işleminden sonra bu import'un hâlâ
+çözüldüğünü — yani `router.py`'nin bu adla bir fonksiyon dışa verdiğini —
+doğrulayın; yukarıdaki pytest komutu adı kaldırılmışsa zaten `ImportError` ile
+kırılır, ama isim yeniden adlandırılıp aynı davranışta farklı bir private
+fonksiyona taşınırsa import yine de sessizce yanlış şeye bağlanabilir.

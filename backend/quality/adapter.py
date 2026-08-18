@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from backend.quality.dqcheck_core.normalization import (
+    compact_references,
     core_identity,
     full_identity,
-    normalize_reference,
 )
 from backend.quality.dqcheck_core.reference_policy import (
     DEFAULT_REFERENCE_POLICY_ID,
@@ -117,16 +117,20 @@ def _exclusive_canonical_tuples(
 
 
 def reference_identities(references: list[dict[str, Any]]) -> set[tuple[str, ...]]:
-    """Normalized full-identity set; tolerates AP's Optional[str] fields.
+    """Normalized, compacted full-identity set; tolerates AP's Optional[str] fields.
 
-    Applies `apply_reference_policy` (with `AUDIT_POLICY_ID`) before
-    normalizing, so this stays policy-consistent with `audit_references` by
+    Mirrors `route_document`'s pipeline exactly: `apply_reference_policy` (with
+    `AUDIT_POLICY_ID`) then `compact_references`. This keeps the function
+    policy- *and* compaction-consistent with `audit_references` by
     construction: a caller comparing raw reference lists never sees an
-    identity (e.g. VUK 213/413 boilerplate) that `audit_references` itself
-    filters out.
+    identity that `audit_references` itself filters out or drops, whether
+    that's a policy exclusion (e.g. VUK 213/413 boilerplate) or a law-level
+    reference (empty `madde`) that compaction removes because a
+    specific-article reference for the same law is also present.
     """
     policy_references, _ = apply_reference_policy(references, policy_id=AUDIT_POLICY_ID)
-    return {full_identity(normalize_reference(reference)) for reference in policy_references}
+    compacted = compact_references(policy_references)
+    return {full_identity(reference) for reference in compacted}
 
 
 def ab_diff(
@@ -153,9 +157,9 @@ def ab_diff(
 
     Renders only the first reference of a multi-reference core group into the
     row's ``human_reference`` / ``model_reference`` display fields (matching
-    upstream). ``human_only`` / ``model_only`` (computed by the caller from
-    ``row["a"]`` / ``row["b"]``) stay complete, so this truncation is
-    display-only.
+    upstream). ``human_only`` / ``model_only`` are computed by the caller
+    directly from the full, ungrouped ``human`` / ``model`` lists (not from
+    ``row["a"]`` / ``row["b"]``), so this truncation is display-only.
     """
     order: list[tuple[str, ...]] = []
     groups: dict[tuple[str, ...], dict[str, list[dict[str, str]]]] = {}
@@ -225,6 +229,22 @@ def audit_references(
     `route_document` already applies the reference policy and compaction, and
     returns the normalized views it used — we align those, never the raw input,
     so the UI and the bucket can never disagree about what was compared.
+
+    `model_only` / `human_only` are computed once, across the whole document,
+    from the router's two normalized `human` / `model` lists — never scoped to
+    a single `ab_diff` group. `core_identity` (what `ab_diff` groups by)
+    includes the normalized law *name*, but `canonical_tuple` (what these
+    exclusive lists record) deliberately does not: two references that agree
+    on `kanun_no`/`madde`/`fikra`/`bent` but spell the law name differently
+    (e.g. "TTK" vs "Türk Ticaret Kanunu", both 6102) land in two different
+    `ab_diff` groups, each one-sided. Computing exclusivity per group would
+    then record the identical canonical tuple as exclusive to *both* sides,
+    even though the two sides actually agree on the article. A document-wide
+    set difference catches this; a per-group one cannot. This only changes
+    what lands in `model_only` / `human_only` — the `discrepancies` rows
+    (and the bucket) are unaffected, so the 6102 pair above still surfaces as
+    a RED discrepancy for the annotator to see, it just isn't double-recorded
+    as mutually exclusive.
     """
     decision = route_document(
         human_references=human_references,
@@ -238,8 +258,6 @@ def audit_references(
     normalized_document = normalize_text(document_text)
 
     discrepancies: list[dict[str, Any]] = []
-    model_only: list[dict[str, str]] = []
-    human_only: list[dict[str, str]] = []
     for row in ab_diff(human, model):
         if row["status"] == "same":
             continue
@@ -264,10 +282,9 @@ def audit_references(
                 ),
             }
         )
-        if kind in {"model_only", "detail_mismatch"}:
-            model_only.extend(_exclusive_canonical_tuples(row["b"], row["a"]))
-        if kind in {"human_only", "detail_mismatch"}:
-            human_only.extend(_exclusive_canonical_tuples(row["a"], row["b"]))
+
+    model_only = _exclusive_canonical_tuples(model, human)
+    human_only = _exclusive_canonical_tuples(human, model)
 
     return AuditOutcome(
         bucket=decision.bucket,
