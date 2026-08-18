@@ -144,6 +144,8 @@ here first.
 | Seed | 42 |
 | Training context | 1,536 tokens; long documents split into 1,536-token windows with 256-token overlap; only windows passing text and reference coverage gates are used |
 | Inference context | 12,288 tokens (>99% of documents fit without windowing; longest observed 8,253 tokens) |
+| Windowing coverage | **more than 99%** of documents fit the inference context without windowing (the paper may state this literally; `99` is canonical) |
+| Reported confidence level | **95%** where an interval is given, e.g. the Wilson interval on 13/50 (`95` is canonical) |
 | Deployed (G0) training set | all 494 canonical documents → 4,278 window rows |
 | Deployed updates | 1,003 optimizer updates ≈ 0.94 window epochs |
 | Development configuration | 394 training documents → 3,399 window rows, cosine-**150** schedule, best checkpoint at update **75** (this is the configuration that produced F1 0.789 on the sealed test) |
