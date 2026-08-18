@@ -22,7 +22,9 @@
 - **Frontend `exactOptionalPropertyTypes` açıktır:** `key: undefined` göndermek yasak; koşullu spread (`...(cond && { key: value })`) kullanılır.
 - **Türkçe UI metinleri planda birebir verilmiştir** — değiştirilmeden kullanılacak (testler bu stringlere bakıyor).
 - **TDD:** her görevde önce başarısız test, sonra minimum implementasyon, sonra yeşil test, sonra commit.
-- **Test komutları:** AP backend `python -m pytest tests/<dosya> -v`, AP frontend `cd frontend && npx vitest run <dosya>`, DQC `python -m pytest tests/<dosya> -v`.
+- **Test komutları:** bu makinede bare `python` YOKTUR (yalnızca `python3`=3.14.6 ve `python3.11`=3.11.15). Her iki repo da kökünde **Python 3.11.15 `.venv`** taşır (CI ve prod imajıyla aynı sürüm) — komutlar daima `cd <repo>` sonrası `.venv/bin/python -m pytest …` biçiminde çalıştırılır. AP frontend: `cd frontend && npx vitest run <dosya>`. DQC lint: `.venv/bin/ruff check`.
+- **Yeşil baseline (bu dal başlarken ölçüldü):** AP `.venv/bin/python -m pytest tests/ -q -m "not docker"` → **1180 passed, 1 skipped, 5 deselected**; DQC `.venv/bin/python -m pytest tests/ -q -m "not compute"` → **162 passed**. "Regresyon yok" bu sayılara göre değerlendirilir.
+- **`requirements.txt` değiştirilmez.** Prod'daki `psycopg[binary]==3.2.4` pini bu platformda PyPI'da bulunmadığı için yerel `.venv` psycopg'yi pinsiz kurar; bu yalnızca yerel bir ortam ayrıntısıdır, pin olduğu gibi kalır.
 - **Commit formatı:** conventional commit + `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>` trailer.
 - **Karar sözlüğü:** `decision ∈ {no_discrepancy, accepted_model, human_override, model_unavailable}`, `bucket ∈ {GREEN, YELLOW, RED, QUARANTINE, null}`, `audit_status ∈ {ready, model_unavailable}`, `reason ∈ {no_prediction, model_error, model_truncated, prediction_text_stale}`.
 
@@ -124,7 +126,7 @@ Expected: `__init__.py constants.py contracts.py errors.py fingerprints.py norma
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python - <<'PY'
+.venv/bin/python - <<'PY'
 import sys
 import backend.quality.dqcheck_core.router as r
 leaked = sorted(m for m in sys.modules if m.split(".")[0] in {"flask", "mlx", "mlx_lm"})
@@ -203,7 +205,7 @@ for f in router normalization reference_policy text contracts constants errors f
   cp "$SRC/$f.py" backend/quality/dqcheck_core/$f.py
 done
 # upstream_manifest.json'u yeniden üret (plan Task 1 Step 4), sonra:
-python -m pytest tests/test_dqcheck_parity.py tests/test_dqcheck_adapter.py -v
+.venv/bin/python -m pytest tests/test_dqcheck_parity.py tests/test_dqcheck_adapter.py -v
 ```
 
 `DQCHECK_UPSTREAM_PATH` ortam değişkeni tanımlıysa parity testi kopyayı canlı
@@ -279,8 +281,8 @@ def test_vendored_files_match_live_upstream():
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_dqcheck_parity.py -v
-DQCHECK_UPSTREAM_PATH=/Users/student2/data-quality-checker python -m pytest tests/test_dqcheck_parity.py -v
+.venv/bin/python -m pytest tests/test_dqcheck_parity.py -v
+DQCHECK_UPSTREAM_PATH=/Users/student2/data-quality-checker .venv/bin/python -m pytest tests/test_dqcheck_parity.py -v
 ```
 
 Expected: ilk komutta 3 passed + 1 skipped; ikinci komutta 4 passed.
@@ -473,7 +475,7 @@ def test_reference_identities_tolerates_none_fields():
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_dqcheck_adapter.py -v
+.venv/bin/python -m pytest tests/test_dqcheck_adapter.py -v
 ```
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'backend.quality.adapter'`
@@ -666,7 +668,7 @@ def audit_references(
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_dqcheck_adapter.py -v
+.venv/bin/python -m pytest tests/test_dqcheck_adapter.py -v
 ```
 
 Expected: 12 passed
@@ -803,7 +805,7 @@ def test_prediction_row_is_deleted_with_its_document(db_path):
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_quality_audit_migration.py -v
+.venv/bin/python -m pytest tests/test_quality_audit_migration.py -v
 ```
 
 Expected: FAIL — `sqlite3.OperationalError: no such table: model_predictions`
@@ -905,8 +907,8 @@ OUTBOX_EXCLUDED_TABLES = frozenset({
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_quality_audit_migration.py -v
-python -m pytest tests/ -q -m "not docker" -x
+.venv/bin/python -m pytest tests/test_quality_audit_migration.py -v
+.venv/bin/python -m pytest tests/ -q -m "not docker" -x
 ```
 
 Expected: yeni dosyada 5 passed; tam suite kırmızıya dönmemiş olmalı (mevcut testler `model_predictions` satırı olmadığı için etkilenmez).
@@ -1137,7 +1139,7 @@ def test_model_quotes_returns_prediction_source_texts(db):
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_quality_service.py -v
+.venv/bin/python -m pytest tests/test_quality_service.py -v
 ```
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'backend.quality.service'`
@@ -1519,7 +1521,7 @@ def pending_documents(db: sqlite3.Connection, *, limit: int) -> list[dict[str, A
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_quality_service.py -v
+.venv/bin/python -m pytest tests/test_quality_service.py -v
 ```
 
 Expected: 14 passed
@@ -1665,7 +1667,7 @@ def test_pre_audit_404s_for_unknown_document(passed_user):
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_pre_audit_endpoint.py -v
+.venv/bin/python -m pytest tests/test_pre_audit_endpoint.py -v
 ```
 
 Expected: FAIL — 404 (route yok) / `ModuleNotFoundError`
@@ -1822,7 +1824,7 @@ app.include_router(quality_router)
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_pre_audit_endpoint.py -v
+.venv/bin/python -m pytest tests/test_pre_audit_endpoint.py -v
 ```
 
 Expected: 6 passed
@@ -2028,7 +2030,7 @@ def test_legacy_flag_only_complete_still_audits_stored_references(
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_complete_audit_ack.py -v
+.venv/bin/python -m pytest tests/test_complete_audit_ack.py -v
 ```
 
 Expected: FAIL — audit satırı yazılmıyor (`_audit_rows() == []`), 409 yerine 200 dönüyor.
@@ -2198,8 +2200,8 @@ from backend.quality import service as quality_service
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_complete_audit_ack.py -v
-python -m pytest tests/test_annotations_routes.py tests/test_annotations_service.py \
+.venv/bin/python -m pytest tests/test_complete_audit_ack.py -v
+.venv/bin/python -m pytest tests/test_annotations_routes.py tests/test_annotations_service.py \
                  tests/test_annotations_lock_ownership.py -q
 ```
 
@@ -2377,7 +2379,7 @@ def test_batch_size_is_capped_at_16(token_client, ingest_doc):
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_predictions_ingest.py -v
+.venv/bin/python -m pytest tests/test_predictions_ingest.py -v
 ```
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'backend.quality.tokens'`
@@ -2516,7 +2518,7 @@ DQCHECK_INGEST_TOKEN=
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_predictions_ingest.py -v
+.venv/bin/python -m pytest tests/test_predictions_ingest.py -v
 ```
 
 Expected: 17 passed (9 parametrize + 8 test)
@@ -2657,7 +2659,7 @@ class _FakeDb:
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_behavioral_audit_isolation.py -v
+.venv/bin/python -m pytest tests/test_behavioral_audit_isolation.py -v
 ```
 
 Expected: FAIL — `detect_char_limit_warning() got an unexpected keyword argument 'exempt_quotes'`
@@ -2767,8 +2769,8 @@ async def run_after_save(
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_behavioral_audit_isolation.py -v
-python -m pytest tests/test_behavioral_char_limit.py tests/test_behavioral_speed.py \
+.venv/bin/python -m pytest tests/test_behavioral_audit_isolation.py -v
+.venv/bin/python -m pytest tests/test_behavioral_char_limit.py tests/test_behavioral_speed.py \
                  tests/test_behavioral_orchestrator.py tests/test_behavioral_integration.py -q
 ```
 
@@ -2970,7 +2972,7 @@ def test_loop_backs_off_after_a_failed_batch():
 
 ```bash
 cd /Users/student2/data-quality-checker
-python -m pytest tests/test_predict_agent.py -v
+.venv/bin/python -m pytest tests/test_predict_agent.py -v
 ```
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'data_quality_checker.predict_agent'`
@@ -3149,7 +3151,7 @@ def run_agent(
 
 ```bash
 cd /Users/student2/data-quality-checker
-python -m pytest tests/test_predict_agent.py -v
+.venv/bin/python -m pytest tests/test_predict_agent.py -v
 ```
 
 Expected: 7 passed
@@ -3212,8 +3214,8 @@ def predict_agent(args: Namespace, config: AppConfig) -> int:
 
 ```bash
 cd /Users/student2/data-quality-checker
-python -m data_quality_checker predict-agent --help
-python - <<'PY'
+.venv/bin/python -m data_quality_checker predict-agent --help
+.venv/bin/python - <<'PY'
 from data_quality_checker.cli import build_parser
 args = build_parser().parse_args([
     "predict-agent", "--space-url", "https://example.hf.space", "--once",
@@ -3236,8 +3238,8 @@ Expected: yardım metni basılır; ikinci komut `https://example.hf.space DQCHEC
 
 ```bash
 cd /Users/student2/data-quality-checker
-python -m pytest tests/ -q -m "not compute"
-ruff check src/data_quality_checker/predict_agent.py
+.venv/bin/python -m pytest tests/ -q -m "not compute"
+.venv/bin/ruff check src/data_quality_checker/predict_agent.py
 git add src/data_quality_checker/predict_agent.py src/data_quality_checker/commands.py \
         src/data_quality_checker/cli.py README.md tests/test_predict_agent.py
 git commit -m "feat(agent): add predict-agent that pushes G0 predictions to the platform
@@ -3269,7 +3271,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m backend.cli openapi-dump --output openapi.json
+.venv/bin/python -m backend.cli openapi-dump --output openapi.json
 cd frontend && npm run gen:types:from-file
 git diff --stat src/api/types.ts
 ```
@@ -5215,8 +5217,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```bash
 cd /Users/student2/AnnotationPlatform
 DB_PATH=/tmp/anotasyon-e2e-data/db/anotasyon-e2e.db \
-  python -m backend.cli seed-e2e --reset
-python - <<'PY'
+  .venv/bin/python -m backend.cli seed-e2e --reset
+.venv/bin/python - <<'PY'
 import sqlite3
 conn = sqlite3.connect("/tmp/anotasyon-e2e-data/db/anotasyon-e2e.db")
 conn.row_factory = sqlite3.Row
@@ -5487,7 +5489,7 @@ def test_refuses_to_overwrite_a_non_empty_directory_without_force(db, tmp_path):
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_export_verified_corpus.py -v
+.venv/bin/python -m pytest tests/test_export_verified_corpus.py -v
 ```
 
 Expected: FAIL — `ModuleNotFoundError: No module named 'export_verified_corpus'`
@@ -5513,7 +5515,7 @@ possible afterwards: bucket, decision and unique_users_count all travel in the
 sidecar.
 
 Usage:
-    python scripts/export_verified_corpus.py \
+    .venv/bin/python scripts/export_verified_corpus.py \
         --out /Users/student2/data-quality-checker/data/ground_truth/gt_v4_platform_2026-08-18
 """
 from __future__ import annotations
@@ -5681,7 +5683,7 @@ if __name__ == "__main__":
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python -m pytest tests/test_export_verified_corpus.py -v
+.venv/bin/python -m pytest tests/test_export_verified_corpus.py -v
 ```
 
 Expected: 5 passed
@@ -5794,7 +5796,7 @@ ORDER BY override_count DESC;
 
 ```bash
 cd /Users/student2/AnnotationPlatform
-python scripts/export_verified_corpus.py \
+.venv/bin/python scripts/export_verified_corpus.py \
   --out /Users/student2/data-quality-checker/data/ground_truth/gt_v4_platform_$(date -u +%Y-%m-%d)
 ```
 
@@ -5823,7 +5825,7 @@ Faz sonlarında koşulacak tam doğrulama:
 # AP backend
 cd /Users/student2/AnnotationPlatform
 DQCHECK_UPSTREAM_PATH=/Users/student2/data-quality-checker \
-  python -m pytest tests/ -q -m "not docker"
+  .venv/bin/python -m pytest tests/ -q -m "not docker"
 
 # AP frontend
 cd frontend
@@ -5831,13 +5833,13 @@ npx tsc --noEmit && npx eslint src && npx vitest run
 
 # AP e2e (seed önce)
 cd /Users/student2/AnnotationPlatform
-DB_PATH=/tmp/anotasyon-e2e-data/db/anotasyon-e2e.db python -m backend.cli seed-e2e --reset
+DB_PATH=/tmp/anotasyon-e2e-data/db/anotasyon-e2e.db .venv/bin/python -m backend.cli seed-e2e --reset
 cd frontend && npx playwright test e2e/quality-audit.spec.ts --reporter=line
 
 # DQC
 cd /Users/student2/data-quality-checker
-python -m pytest tests/ -q -m "not compute"
-ruff check src/data_quality_checker
+.venv/bin/python -m pytest tests/ -q -m "not compute"
+.venv/bin/ruff check src/data_quality_checker
 ```
 
 Sözleşme ↔ görev izlenebilirliği:
