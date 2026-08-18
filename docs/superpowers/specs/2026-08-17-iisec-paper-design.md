@@ -309,7 +309,7 @@ Verified in the literature survey:
 9. Artstein, Poesio, "Inter-Coder Agreement for Computational Linguistics," Computational Linguistics 34(4):555–596, 2008.
 10. Klie, Webber, Gurevych, "Annotation Error Detection: Analyzing the Past and Present for a More Coherent Future," Computational Linguistics 49(1):157–198, 2023.
 11. Çetindağ, Yazıcıoğlu, Koç, "Named-entity recognition in Turkish legal texts," Natural Language Engineering 29(3):615–642, 2023.
-12. Öztürk et al., "HUKUKBERT: Domain-Specific Language Model for Turkish Law," arXiv:2604.04790, 2026. *(preprint — label as such)*
+12. Öztürk et al., "HukukBERT: Domain-Specific Language Model for Turkish Law," arXiv:2604.04790, 2026. *(preprint — label as such. Casing verified: the arXiv title renders "HukukBERT", not all caps. An earlier revision of this spec had it wrong.)*
 13. Gheewala, Turner, de Maistre, "Automatic Extraction of Legal Citations using Natural Language Processing," WEBIST 2019, 202–209.
 14. E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, and W. Chen, "LoRA: Low-rank adaptation of large language models," in *Proc. ICLR*, 2022. — venue **verified as ICLR 2022**, not 2021.
 15. T. Dettmers, A. Pagnoni, A. Holtzman, and L. Zettlemoyer, "QLoRA: Efficient finetuning of quantized LLMs," in *Advances in Neural Information Processing Systems*, vol. 36, 2023. — verified.

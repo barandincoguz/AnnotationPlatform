@@ -294,7 +294,7 @@ Expected, and all three must hold:
 
 `strip_template_content` raises if it does not find exactly 5 anchors, so a structural loss fails loudly rather than producing a silently mislaid title.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add paper/build.py paper/content.md paper/.gitignore
@@ -859,7 +859,15 @@ Per spec §7, exhibits are cut before prose: first collapse Table I into prose, 
 
 **Table II legibility, carried forward from Task 4's review.** Its six columns at the template's fixed 8 pt currently wrap header words mid-syllable — "Precision" renders as "Precisio"/"n" and "Reference standard" over four lines — because the column widths were set evenly and the two wide text columns starve the four metric columns. No data value wraps, so this is a professionalism defect rather than a correctness one, but it is not acceptable in a submission. Fix it in this order: abbreviate the headers to `Evaluation set`, `Reference`, `F1`, `Prec.`, `Rec.`, `Exact doc.`; then set proportional rather than equal column widths, giving the first two columns roughly 70 pt and 55 pt and dividing the remainder among the four metric columns. **Do not change the font size** — typography is inherited from the template and overriding it violates a global constraint. If proportional widths still wrap, collapse Table II into prose per the cut order above rather than shrinking type.
 
-- [ ] **Step 3: Verify the format rules from spec §9 against the rendered PDF**
+- [ ] **Step 3: Two content corrections carried over from Task 6's review**
+
+Neither is a page-fit matter, but this is the task that edits prose and both are one-line changes.
+
+*Abstract adjacency.* The Abstract currently states that the model was adapted on 494 adjudicated documents and then, in the very next sentence, gives the development configuration's core F1 of 0.789. No number is misattributed — 494 is genuinely the deployed model's training count and the F1 is explicitly labelled as the development configuration's — but a reviewer skimming reads the two as one model. Reorder or rejoin so the sealed-test figure is unambiguously tied to the development configuration before the deployed refit is mentioned, or drop the F1 from the Abstract entirely and let the headline stay the 26.4 percent review-load reduction. **Do not fix this by deleting the word "development".**
+
+*Reference 12 casing.* The arXiv title renders "HukukBERT", not "HUKUKBERT". The spec has been corrected; update the reference entry to match.
+
+- [ ] **Step 4: Verify the format rules from spec §9 against the rendered PDF**
 
 ```bash
 python3 -c "
@@ -877,7 +885,7 @@ for i, pg in enumerate(d):
 
 Expected: Times variants only; sizes clustered around 8, 9, 10 and 24 pt. Any other font family means a style was bypassed.
 
-- [ ] **Step 4: Confirm Figure 1 and its caption are not separated across columns**
+- [ ] **Step 5: Confirm Figure 1 and its caption are not separated across columns**
 
 Task 3 observed that with placeholder content the caption paragraph flowed to the top of column 2 while the image stayed at the bottom of column 1. They are structurally adjacent in document order, so this was LibreOffice breaking the column around short filler text and was expected to resolve once real content landed. Verify it did.
 
@@ -902,7 +910,7 @@ Expected: the caption's `x0` matches the image's `x0` (same column) and its `y0`
 
 A caption separated from its figure is a real format defect, not a cosmetic one — do not accept it.
 
-- [ ] **Step 5: Confirm the checker passes at six pages or fewer**
+- [ ] **Step 6: Confirm the checker passes at six pages or fewer**
 
 Run: `python3 paper/check.py`
 Expected: `PASS — 6 pages, all gates clear` (or fewer).
