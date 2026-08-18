@@ -112,3 +112,52 @@ def test_get_document_full_returns_pdf_text(db, tmp_path):
 
 def test_get_document_unknown_returns_none(db):
     assert service.get_document(db, "nonexistent") is None
+
+
+def test_reingest_with_changed_text_deletes_prediction_row(db, tmp_path):
+    """A cached model prediction (backend.quality.service.model_predictions)
+    is only meaningful against the exact text it was computed from. Fix:
+    _upsert_meta deletes the prediction the moment ingest changes pdf_text,
+    so the document falls back into pending_documents' "no prediction" set
+    instead of relying on a stale-text rescan there."""
+    from backend.quality import service as quality_service
+
+    f = tmp_path / "a.json"
+    f.write_text(json.dumps(SAMPLE))
+    service.ingest_file(db, f)
+
+    quality_service.upsert_predictions(db, [{
+        "document_id": "doc_abc", "generation": "G0", "status": "success",
+        "references": [], "truncated": False, "model_fingerprint": "mf-1",
+        "text_sha256": "whatever",
+    }])
+    assert quality_service.load_prediction(db, "doc_abc") is not None
+
+    changed = tmp_path / "b.json"
+    changed.write_text(json.dumps({**SAMPLE, "pdfText": SAMPLE["pdfText"] + " Ek bir cumle."}))
+    service.ingest_file(db, changed)
+
+    assert quality_service.load_prediction(db, "doc_abc") is None
+
+
+def test_reingest_with_identical_text_keeps_prediction_row(db, tmp_path):
+    from backend.quality import service as quality_service
+
+    f = tmp_path / "a.json"
+    f.write_text(json.dumps(SAMPLE))
+    service.ingest_file(db, f)
+
+    quality_service.upsert_predictions(db, [{
+        "document_id": "doc_abc", "generation": "G0", "status": "success",
+        "references": [], "truncated": False, "model_fingerprint": "mf-1",
+        "text_sha256": "whatever",
+    }], now="2026-01-01T00:00:00+00:00")
+    created_at = quality_service.load_prediction(db, "doc_abc")["created_at"]
+
+    # Re-ingest the exact same document (identical pdf_text) -- must not
+    # touch the prediction row at all.
+    service.ingest_file(db, f)
+
+    row = quality_service.load_prediction(db, "doc_abc")
+    assert row is not None
+    assert row["created_at"] == created_at

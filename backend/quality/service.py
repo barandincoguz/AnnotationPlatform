@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -19,8 +19,7 @@ from backend.quality.adapter import (
 )
 from backend.quality.dqcheck_core.fingerprints import fingerprint_json, sha256_text
 
-_ACK_REQUIRED_BUCKETS = frozenset({"RED", "YELLOW", "QUARANTINE"})
-_STALE_SCAN_LIMIT = 200
+_GREEN_BUCKET = "GREEN"
 
 
 class QualityServiceError(Exception):
@@ -107,10 +106,25 @@ def load_prediction(db: sqlite3.Connection, document_id: str) -> Optional[sqlite
     ).fetchone()
 
 
+def _is_usable_prediction(row: sqlite3.Row, document_text: str) -> bool:
+    """Same usability test `_build` applies: successful, not truncated, and
+    computed against the document's *current* text. Shared so `model_quotes`
+    can never hand out quotes from a prediction `_build` itself would reject
+    (model_truncated / prediction_text_stale)."""
+    return (
+        row["status"] == "success"
+        and not row["truncated"]
+        and row["text_sha256"] == sha256_text(document_text)
+    )
+
+
 def model_quotes(db: sqlite3.Connection, document_id: str) -> tuple[str, ...]:
     """Source texts the model proposed — behavioral detectors exempt these."""
     row = load_prediction(db, document_id)
-    if row is None or row["status"] != "success":
+    if row is None:
+        return ()
+    document_text = _document_text(db, document_id)
+    if not _is_usable_prediction(row, document_text):
         return ()
     return tuple(
         str(reference.get("source_text") or "")
@@ -128,12 +142,13 @@ def _build(
         return AuditReport(audit_status="model_unavailable", reason="no_prediction"), []
 
     unavailable_reason: Optional[str] = None
-    if row["status"] != "success":
-        unavailable_reason = "model_error"
-    elif row["truncated"]:
-        unavailable_reason = "model_truncated"
-    elif row["text_sha256"] != sha256_text(document_text):
-        unavailable_reason = "prediction_text_stale"
+    if not _is_usable_prediction(row, document_text):
+        if row["status"] != "success":
+            unavailable_reason = "model_error"
+        elif row["truncated"]:
+            unavailable_reason = "model_truncated"
+        else:
+            unavailable_reason = "prediction_text_stale"
     if unavailable_reason is not None:
         return (
             AuditReport(
@@ -174,10 +189,21 @@ def build_report(
     return report
 
 
+def _requires_ack(bucket: Optional[str]) -> bool:
+    """Allowlist, not a denylist: only GREEN needs no acknowledgement.
+
+    Anything else — YELLOW, RED, QUARANTINE, an absent bucket, or a bucket
+    value the router gains later — requires one. A denylist of "bad" bucket
+    values fails *open* on anything it doesn't recognize (falls through to
+    no-ack-required); this fails *closed* instead.
+    """
+    return bucket != _GREEN_BUCKET
+
+
 def derive_decision(report: AuditReport, *, accepted_from_model: bool) -> str:
     if report.audit_status != "ready":
         return "model_unavailable"
-    if report.bucket in _ACK_REQUIRED_BUCKETS:
+    if _requires_ack(report.bucket):
         return "human_override"
     return "accepted_model" if accepted_from_model else "no_discrepancy"
 
@@ -201,7 +227,7 @@ def evaluate_for_commit(
     )
     if report.audit_status != "ready":
         return report, "model_unavailable"
-    if report.bucket in _ACK_REQUIRED_BUCKETS and not ack_fingerprint:
+    if _requires_ack(report.bucket) and not ack_fingerprint:
         raise AuditAckRequired(
             bucket=str(report.bucket),
             prediction_fingerprint=report.prediction_fingerprint,
@@ -241,7 +267,7 @@ def log_decision(
             report.bucket,
             decision,
             report.reason,
-            json.dumps(list(report.reasons)),
+            json.dumps(list(report.reasons), ensure_ascii=False),
             report.similarity,
             json.dumps(list(report.model_only), ensure_ascii=False),
             json.dumps(list(report.human_only), ensure_ascii=False),
@@ -326,23 +352,21 @@ _PENDING_MISSING_SQL = """
     LIMIT ?
 """
 
-_PENDING_STALE_SQL = f"""
-    SELECT d.document_id, d.pdf_text, p.text_sha256
-    FROM documents_meta d
-    JOIN model_predictions p ON p.document_id = d.document_id
-    ORDER BY p.updated_at ASC, d.document_id ASC
-    LIMIT {_STALE_SCAN_LIMIT}
-"""
-
 
 def pending_documents(db: sqlite3.Connection, *, limit: int) -> list[dict[str, Any]]:
-    """Documents the agent should predict: no prediction first, then stale text.
+    """Documents the agent should predict: those with no `model_predictions` row.
 
-    SQLite cannot hash text, so staleness is filtered in Python over a bounded
-    oldest-first window — without it, a document whose text changed after
-    ingest would never be re-predicted.
+    Staleness (a document whose text changed after its prediction was made)
+    is handled at the source instead of by re-scanning here:
+    `backend.documents.service._upsert_meta` deletes a document's prediction
+    row the moment its `pdf_text` changes, so the document falls back into
+    this "no prediction" set naturally. That keeps this a single cheap
+    indexed query instead of a bounded oldest-first scan that re-hashes full
+    document texts on every poll. `_build`'s `prediction_text_stale` reason
+    remains as a safety net for any prediction that becomes stale by some
+    other path.
     """
-    out: list[dict[str, Any]] = [
+    return [
         {
             "document_id": row["document_id"],
             "pdf_text": row["pdf_text"],
@@ -350,19 +374,3 @@ def pending_documents(db: sqlite3.Connection, *, limit: int) -> list[dict[str, A
         }
         for row in db.execute(_PENDING_MISSING_SQL, (limit,)).fetchall()
     ]
-    if len(out) >= limit:
-        return out
-    for row in db.execute(_PENDING_STALE_SQL).fetchall():
-        digest = sha256_text(row["pdf_text"])
-        if digest == row["text_sha256"]:
-            continue
-        out.append(
-            {
-                "document_id": row["document_id"],
-                "pdf_text": row["pdf_text"],
-                "text_sha256": digest,
-            }
-        )
-        if len(out) >= limit:
-            break
-    return out

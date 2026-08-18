@@ -42,6 +42,22 @@ def _upsert_meta(db: sqlite3.Connection, meta: dict) -> None:
     cols = META_COLUMNS
     placeholders = ", ".join("?" for _ in cols)
     update_clause = ", ".join(f"{c}=excluded.{c}" for c in cols if c != "document_id" and c != "created_at")
+
+    # A cached model prediction (backend.quality.service) is only meaningful
+    # against the exact text it was computed from. If this upsert is about to
+    # change pdf_text, drop that prediction so the document falls back into
+    # pending_documents' "no prediction" set naturally instead of relying on
+    # a stale-text rescan there.
+    existing = db.execute(
+        "SELECT pdf_text FROM documents_meta WHERE document_id=?",
+        (meta["document_id"],),
+    ).fetchone()
+    if existing is not None and existing["pdf_text"] != meta.get("pdf_text"):
+        db.execute(
+            "DELETE FROM model_predictions WHERE document_id=?",
+            (meta["document_id"],),
+        )
+
     sql = f"""
         INSERT INTO documents_meta({", ".join(cols)})
         VALUES ({placeholders})

@@ -166,13 +166,29 @@ def test_upsert_is_idempotent_and_skips_unknown_documents(db):
     assert db.execute("SELECT COUNT(*) AS c FROM model_predictions").fetchone()["c"] == 1
 
 
-def test_pending_returns_missing_then_stale(db, ingest_doc):
+def test_pending_documents_returns_documents_without_predictions(db, ingest_doc):
     ingest_doc("d2", pdfText="ikinci dokuman metni")
-    seed_prediction(db, document_id="d1", text="eski metin")  # stale
     pending = service.pending_documents(db, limit=8)
     ids = [row["document_id"] for row in pending]
-    assert ids == ["d2", "d1"]
+    assert ids == ["d1", "d2"]
     assert pending[0]["text_sha256"] and pending[1]["text_sha256"]
+
+
+def test_pending_documents_excludes_documents_with_any_prediction(db, ingest_doc):
+    """Staleness is no longer rescanned here: it is handled at ingest time
+    (backend.documents.service._upsert_meta deletes the prediction row when
+    text changes), so pending_documents excludes a document the moment it
+    has *any* prediction row, fresh or not."""
+    ingest_doc("d2", pdfText="ikinci dokuman metni")
+    seed_prediction(db, document_id="d1", text="eski metin")  # a "stale" row
+    pending = service.pending_documents(db, limit=8)
+    assert [row["document_id"] for row in pending] == ["d2"]
+
+
+def test_pending_documents_respects_limit(db, ingest_doc):
+    ingest_doc("d2", pdfText="ikinci dokuman metni")
+    pending = service.pending_documents(db, limit=1)
+    assert len(pending) == 1
 
 
 def test_model_quotes_returns_prediction_source_texts(db):
@@ -180,3 +196,146 @@ def test_model_quotes_returns_prediction_source_texts(db):
     assert service.model_quotes(db, "d1") == (
         "zamanasimi hukmu duzenlenmistir", "tevkifat esaslarini belirler",
     )
+
+
+def test_model_quotes_empty_when_no_prediction(db):
+    assert service.model_quotes(db, "d1") == ()
+
+
+def test_model_quotes_empty_when_prediction_truncated(db):
+    seed_prediction(db, references=[VUK_114, GVK_94], truncated=1)
+    assert service.model_quotes(db, "d1") == ()
+
+
+def test_model_quotes_empty_when_prediction_text_stale(db):
+    seed_prediction(db, references=[VUK_114, GVK_94], text="baska bir metin")
+    assert service.model_quotes(db, "d1") == ()
+
+
+def test_evaluate_for_commit_returns_model_unavailable_decision_without_raising(db):
+    """A prediction that isn't usable must let the commit proceed with no
+    audit at all -- evaluate_for_commit must not raise here."""
+    seed_prediction(db, status="error", references=[])
+    report, decision = service.evaluate_for_commit(
+        db, document_id="d1", references=[VUK_114],
+        previous_references=[VUK_114], ack_fingerprint=None,
+    )
+    assert decision == "model_unavailable"
+    assert report.audit_status == "model_unavailable"
+    assert report.reason == "model_error"
+
+
+def test_derive_decision_fails_closed_on_unrecognized_or_missing_bucket():
+    """derive_decision must be an allowlist (only GREEN needs no ack), not a
+    denylist of known "bad" buckets -- a bucket the router hasn't produced
+    yet (or a missing one) must still require acknowledgement."""
+    for bucket in (None, "SOME_FUTURE_BUCKET"):
+        report = service.AuditReport(audit_status="ready", bucket=bucket)
+        assert service.derive_decision(report, accepted_from_model=False) == "human_override"
+        assert service.derive_decision(report, accepted_from_model=True) == "human_override"
+
+
+@pytest.mark.parametrize(
+    "bucket, decision_when_not_accepted, decision_when_accepted",
+    [
+        ("GREEN", "no_discrepancy", "accepted_model"),
+        ("YELLOW", "human_override", "human_override"),
+        ("RED", "human_override", "human_override"),
+        ("QUARANTINE", "human_override", "human_override"),
+    ],
+)
+def test_derive_decision_pins_full_bucket_vocabulary(
+    bucket, decision_when_not_accepted, decision_when_accepted
+):
+    """Pure-function pin over the router's full bucket vocabulary. Only
+    GREEN tolerates accepted_from_model=False without an override; every
+    other bucket always yields human_override regardless -- i.e. every
+    non-GREEN bucket requires an acknowledgement."""
+    report = service.AuditReport(audit_status="ready", bucket=bucket)
+    assert (
+        service.derive_decision(report, accepted_from_model=False)
+        == decision_when_not_accepted
+    )
+    assert (
+        service.derive_decision(report, accepted_from_model=True)
+        == decision_when_accepted
+    )
+
+
+def test_upsert_updates_every_conflict_column_and_preserves_created_at(db):
+    first_item = {
+        "document_id": "d1", "generation": "G0", "status": "success",
+        "references": [VUK_114], "truncated": False, "model_fingerprint": "mf-1",
+        "text_sha256": "abc", "source": "dqcheck_agent", "error": None,
+        "operational": {"latency_seconds": 1.5},
+    }
+    service.upsert_predictions(db, [first_item], now="2026-01-01T00:00:00+00:00")
+    created_at = service.load_prediction(db, "d1")["created_at"]
+
+    second_item = {
+        "document_id": "d1", "generation": "G1", "status": "error",
+        "references": [GVK_94], "truncated": True, "model_fingerprint": "mf-2",
+        "text_sha256": "def", "source": "manual_backfill", "error": "boom",
+        "operational": {"latency_seconds": 9.0},
+    }
+    assert service.upsert_predictions(
+        db, [second_item], now="2026-01-02T00:00:00+00:00"
+    ) == 1
+    assert db.execute(
+        "SELECT COUNT(*) AS c FROM model_predictions"
+    ).fetchone()["c"] == 1
+
+    row = service.load_prediction(db, "d1")
+    assert row["created_at"] == created_at
+    assert row["updated_at"] == "2026-01-02T00:00:00+00:00"
+    assert row["generation"] == "G1"
+    assert row["status"] == "error"
+    assert json.loads(row["references_json"]) == [GVK_94]
+    assert row["truncated"] == 1
+    assert row["model_fingerprint"] == "mf-2"
+    assert row["text_sha256"] == "def"
+    assert row["source"] == "manual_backfill"
+    assert row["error"] == "boom"
+    assert json.loads(row["operational_json"]) == {"latency_seconds": 9.0}
+    assert row["prediction_fingerprint"] == service.prediction_fingerprint(
+        generation="G1", model_fingerprint="mf-2", references=[GVK_94]
+    )
+
+
+def test_ack_stale_carries_new_fingerprint_when_references_change(db):
+    """Pinned against the real fingerprint, not a literal string: if
+    prediction_fingerprint ignored `references`, re-seeding with different
+    references would not change the fingerprint and this would fail to
+    raise."""
+    old_fingerprint = seed_prediction(db, references=[VUK_114, GVK_94])
+    new_fingerprint = seed_prediction(db, references=[VUK_114])
+    assert new_fingerprint != old_fingerprint
+    with pytest.raises(service.AuditAckStale) as excinfo:
+        service.evaluate_for_commit(
+            db, document_id="d1", references=[VUK_114],
+            previous_references=[VUK_114], ack_fingerprint=old_fingerprint,
+        )
+    assert excinfo.value.prediction_fingerprint == new_fingerprint
+
+
+def test_to_response_key_set_is_pinned(db):
+    seed_prediction(db, references=[VUK_114, GVK_94])
+    report = service.build_report(db, document_id="d1", references=[VUK_114])
+    assert set(report.to_response().keys()) == {
+        "audit_status", "reason", "bucket", "reasons", "similarity",
+        "prediction_fingerprint", "model_generation", "discrepancies",
+    }
+
+
+def test_log_decision_persists_human_only_json(db):
+    fingerprint = seed_prediction(db, references=[VUK_114])
+    report, decision = service.evaluate_for_commit(
+        db, document_id="d1", references=[VUK_114, GVK_94],
+        previous_references=[VUK_114], ack_fingerprint=fingerprint,
+    )
+    assert report.human_only == ({"kanun_no": "193", "madde": "94", "fikra": "", "bent": ""},)
+    service.log_decision(db, document_id="d1", user_id=None, report=report, decision=decision)
+    stored = db.execute("SELECT human_only_json FROM annotation_audit_logs").fetchone()
+    assert json.loads(stored["human_only_json"]) == [
+        {"kanun_no": "193", "madde": "94", "fikra": "", "bent": ""}
+    ]
