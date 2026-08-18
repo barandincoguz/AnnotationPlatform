@@ -1,0 +1,16 @@
+{
+  "files": {
+    "constants.py": "b39aa7f81c77a14362185d762059d3950a72b946ef17cd1e6280067bd7e02b28",
+    "contracts.py": "c57563afa5e2c18011d4f3e1b5f152fce0acfeadd484df757319c3221af28d59",
+    "errors.py": "c21ea149c260e6a4010937de916950226dcf1a0e81b0463ff35e88eea1e19dda",
+    "fingerprints.py": "3c1b19fc8c3d56afc073016898c423d2461e550cf24e2f7d7a4846b6629688ce",
+    "normalization.py": "b2257a3ed2eeaf10c3d1b565b0e4472ed9792a6f7f6e4700baca69f39de6b458",
+    "reference_policy.py": "a5a6396d07477df587bd0456d50a753f68ea44ddd17552bd186768dee2958a59",
+    "router.py": "3ee00f20c8c5f343c180c6f8780f9a0e89e92fb83b7dfab583628fc96f8acb7e",
+    "text.py": "170f505b9899064b87054b1bd26d4cfdf19dfdaf637717d2d73f5374e27e90fe"
+  },
+  "upstream_commit": "a18b4a16be630b23247d4c2c25937fa1570f08e2",
+  "upstream_package_path": "src/data_quality_checker",
+  "upstream_repo": "data-quality-checker",
+  "vendored_at": "2026-08-18"
+}
