@@ -166,6 +166,16 @@ def _col_widths(header: list[str], rows: list[list[str]], total_pt: float = TABL
     return [w * scale for w in widths]
 
 
+# Explicit override (points, summing to TABLE_WIDTH_PT) for Table II. The automatic
+# _col_widths sizing gives the "Reference" column only ~41pt once the four metric columns'
+# numeric floors are satisfied, which is not quite enough to keep that single 9-letter header
+# word from wrapping mid-word ("Referenc"/"e") — the legibility defect from Task 7's review.
+# Widening it to 55pt (per spec) still leaves the metric columns comfortably above their
+# numeric floors (Task 7 review).
+TABLE_II_HEADER = ("Evaluation set", "Reference", "F1", "Prec.", "Rec.", "Exact doc.")
+TABLE_II_WIDTHS_PT = [50, 55, 32, 35, 35, 34]
+
+
 def insert_table(doc: docx.Document, anchor, caption: str, header: list[str], rows: list[list[str]]):
     """Insert a table caption (auto-numbered "TABLE I.", etc.) followed by a table, both
     immediately before `anchor`. The template has no 'Table Grid' style, so 'Normal Table'
@@ -174,7 +184,8 @@ def insert_table(doc: docx.Document, anchor, caption: str, header: list[str], ro
     t = doc.add_table(rows=1, cols=len(header))
     t.style = "Normal Table"
     t.autofit = False
-    widths = [Pt(w) for w in _col_widths(header, rows)]
+    widths_pt = TABLE_II_WIDTHS_PT if tuple(header) == TABLE_II_HEADER else _col_widths(header, rows)
+    widths = [Pt(w) for w in widths_pt]
     for col, w in zip(t.columns, widths):
         col.width = w  # fixes column width for rows added below via add_row()
     for cell, name, w in zip(t.rows[0].cells, header, widths):

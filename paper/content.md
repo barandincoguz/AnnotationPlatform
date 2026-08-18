@@ -8,7 +8,7 @@ City, Country
 email
 
 <!-- ABSTRACT -->
-Expert legal annotation is expensive, and the manual quality control that protects it does not scale: checking an annotation costs about what producing it costs, so the share of a growing corpus that a senior reviewer can re-read keeps falling. We report a mechanism deployed in an expert annotation platform for Turkish tax rulings, where annotators extract every statutory citation a ruling relies on into a six-field hierarchical schema. A locally fine-tuned open-weight language model is added not as a pre-annotator but as an independent second extractor: it reads the same ruling and emits the same schema without seeing the annotator's work, and a router aligns the two extractions on the legal key of each citation, requires the model's supporting quotation to be located in the document, and classifies each ruling as concordant or as needing expert review. The model is adapted with low-rank adapters over 4-bit quantized weights on 494 adjudicated documents; fine-tuning and all inference run on one workstation, so no document leaves the institution and no external inference is purchased. The development configuration reaches a core F1 of 0.789 against multi-rater adjudicated ground truth on a sealed test set of 50 documents. On a production batch of 1,294 annotated rulings, 342 documents, or 26.4 percent, were fully concordant and were cleared, reducing the documents requiring expert review to 949.
+Expert legal annotation is expensive, and the manual quality control that protects it does not scale: checking an annotation costs about what producing it costs, so the share of a growing corpus that a senior reviewer can re-read keeps falling. We report a mechanism deployed in an expert annotation platform for Turkish tax rulings, where annotators extract every statutory citation a ruling relies on into a six-field hierarchical schema. A locally fine-tuned open-weight language model is added not as a pre-annotator but as an independent second extractor: it reads the same ruling and emits the same schema without seeing the annotator's work, and a router aligns the two extractions on the legal key of each citation, requires the model's supporting quotation to be located in the document, and classifies each ruling as concordant or as needing expert review. The model is adapted with low-rank adapters over 4-bit quantized weights; fine-tuning and all inference run on one workstation, so no document leaves the institution and no external inference is purchased. On a sealed test set of 50 documents, the development configuration reaches a core F1 of 0.789 against multi-rater adjudicated ground truth. The deployed model, refit on all 494 adjudicated documents, was run over a production batch of 1,294 annotated rulings: 342 documents, or 26.4 percent, were fully concordant and were cleared, reducing the documents requiring expert review to 949.
 
 <!-- KEYWORDS -->
 annotation quality, large language models, legal NLP
@@ -116,7 +116,7 @@ One further disclosure. External-100 was also the set on which the operational c
 
 <!-- TABLE -->
 Extraction results. The two rows are different models evaluated against different reference standards and are not directly comparable.
-| Evaluation set | Reference standard | F1 | Precision | Recall | Exact-document |
+| Evaluation set | Reference | F1 | Prec. | Rec. | Exact doc. |
 | Sealed test, 50 docs (development configuration) | adjudicated ground truth | 0.789 | 0.861 | 0.728 | 13/50 |
 | External, 100 docs (deployed configuration) | single human annotator | 0.805 | 0.8525 | 0.7625 | 47/100 |
 
@@ -133,7 +133,7 @@ The asymmetry is deliberate and it points in the useful direction. Clearing dema
 
 <!-- TABLE -->
 Routing outcome on the 1294-document batch, platform export of 16 July 2026
-| Bucket | Documents | Share | Action |
+| Bucket | Docs. | Share | Action |
 | GREEN — concordant | 342 | 26.4% | cleared, no expert review |
 | YELLOW — minor divergence | 211 | 16.3% | expert review |
 | RED — divergence | 738 | 57.0% | expert review |
@@ -160,7 +160,7 @@ We added a locally fine-tuned open-weight language model to an expert legal-anno
 <!-- REFERENCES -->
 J.-C. Klie, B. Webber, and I. Gurevych, "Annotation error detection: Analyzing the past and present for a more coherent future," Computational Linguistics, vol. 49, no. 1, pp. 157–198, 2023.
 C. Çetindağ, B. Yazıcıoğlu, and A. Koç, "Named-entity recognition in Turkish legal texts," Natural Language Engineering, vol. 29, no. 3, pp. 615–642, 2023.
-M. U. Öztürk, T. Türkoğlu, and B. Buz-Yalug, "HUKUKBERT: Domain-specific language model for Turkish law," arXiv preprint arXiv:2604.04790, 2026.
+M. U. Öztürk, T. Türkoğlu, and B. Buz-Yalug, "HukukBERT: Domain-specific language model for Turkish law," arXiv preprint arXiv:2604.04790, 2026.
 P. Stenetorp, S. Pyysalo, G. Topić, T. Ohta, S. Ananiadou, and J. Tsujii, "brat: A web-based tool for NLP-assisted text annotation," in Proc. Demonstrations Session, 13th Conf. Eur. Chapter Assoc. Comput. Linguistics (EACL), 2012, pp. 102–107.
 J.-C. Klie, M. Bugert, B. Boullosa, R. Eckart de Castilho, and I. Gurevych, "The INCEpTION platform: Machine-assisted and knowledge-oriented interactive annotation," in Proc. 27th Int. Conf. Comput. Linguistics (COLING): System Demonstrations, 2018, pp. 5–9.
 F. Gilardi, M. Alizadeh, and M. Kubli, "ChatGPT outperforms crowd-workers for text-annotation tasks," Proc. Nat. Acad. Sci., vol. 120, art. e2305016120, 2023.
