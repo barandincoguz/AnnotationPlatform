@@ -46,7 +46,6 @@ FORBIDDEN = {
     "gamif": "gamification is out of scope (spec 3)",
     "review_kept": "out of scope (spec 3)",
     "outbox": "CDC mirror is out of scope (spec 3)",
-    "413": "VUK 213/413 policy is excluded by user decision (spec 3)",
     "19.58": "pre-policy comparison is excluded (spec 3)",
     "1,180": "pre-policy review load is excluded (spec 3)",
     "1180": "pre-policy review load is excluded (spec 3)",
@@ -61,9 +60,13 @@ FORBIDDEN = {
     "K. Elissa": "template example reference not removed",
 }
 
-# Pre-policy numbers that must NEVER appear (do not add to ALLOWED_NUMBERS to silence these).
-# Task 6 will extend this dict for the 413 case.
+# Entries matched as regexes rather than plain substrings, for terms whose bare
+# digits collide with legitimate content (e.g. a reference page range 406-413).
+# A plain "413" substring would also match reference 11's page range and the canonical
+# 1,413 completed-document count, so the policy mention is targeted instead of the digits.
 FORBIDDEN_PATTERNS = {
+    r"\b213\s*/\s*413\b": "VUK 213/413 policy is excluded by user decision (spec 3)",
+    r"\b(?:VUK|Article|article|madde)\s*413\b": "VUK 413 provision is excluded (spec 3)",
 }
 
 # Numbers that are not merely absent from the allowlist but must never be added to it:
