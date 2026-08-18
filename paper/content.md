@@ -1,11 +1,10 @@
 <!-- TITLE -->
-Placeholder Title For Pipeline Test
+An On-Premise LLM Cross-Check Mechanism for Expert Legal Annotation Quality
 
 <!-- AUTHORS -->
-Author Name
-dept. name, institution
-City, Country
-email
+[AUTHOR LIST INTENTIONALLY WITHHELD PENDING FINAL DECISION — DO NOT SUBMIT UNTIL COMPLETED]
+[Author names, affiliations and emails to be added before submission]
+[This block is a placeholder and is not template residue]
 
 <!-- ABSTRACT -->
 Expert legal annotation is expensive, and the manual quality control that protects it does not scale: on the working premise that checking an annotation costs about what producing it costs, the share of a growing corpus that a senior reviewer can re-read keeps falling. We report a mechanism deployed in an expert annotation platform for Turkish tax rulings, where annotators extract every statutory citation a ruling relies on into a six-field hierarchical schema. A locally fine-tuned open-weight language model is added not as a pre-annotator but as an independent second extractor: it reads the same ruling and emits the same schema without seeing the annotator's work, and a router aligns the two extractions on the legal key of each citation, requires the model's supporting quotation to be located in the document, and classifies each ruling as concordant or as needing expert review. The model is adapted with low-rank adapters over 4-bit quantized weights; fine-tuning and all inference run on one workstation, so no document leaves the institution and no external inference is purchased. On a sealed test set of 50 documents, the development configuration reaches a core F1 of 0.789 against multi-rater adjudicated ground truth. The deployed model, refit on all 494 adjudicated documents, was run over a production batch of 1,294 annotated rulings, the platform export of 16 July 2026: 342 documents, or 26.4 percent, were fully concordant and were cleared without expert review, leaving 952 documents for an expert to examine — a reduction of 26.4 percent in expert review load.
@@ -54,7 +53,7 @@ The mechanism treats the completed human annotation as one extraction of the six
 <!-- H2: Model and Adaptation -->
 We adopt mlx-community/Qwen3.5-9B-MLX-4bit (revision 938d891) as our local base model — a 4-bit affine quantization at group size 64 of Qwen3.5-9B [14] — executed on Apple Silicon through Metal via MLX [15]. One packaging detail is worth stating, because the published model card carries an image-text-to-text pipeline tag and a reader who opens it would otherwise see a vision-language checkpoint used for a text-only task: upstream Qwen3.5 ships unified multimodal weights, but the artifact is loaded here through mlx-lm (≥ 0.31.0) rather than mlx-vlm, and that loader builds only the 32-layer causal language backbone and discards the visual encoder weights during load-time sanitization. Both LoRA fine-tuning and local inference therefore operate purely across the language modelling pathway, with zero multimodal compute or memory overhead.
 
-The inference context is 12,288 tokens and the longest document observed in the corpus is 8,253 tokens, so all but a small fraction of documents are processed whole, without windowing at inference time.
+The inference context is 12,288 tokens and the longest document observed in the corpus is 8,253 tokens, so more than 99% of documents are processed whole, without windowing at inference time.
 
 Adaptation is supervised fine-tuning with LoRA [16] applied over the quantized base, in the QLoRA manner [17]. Rank-8 adapters at scale 20.0 and dropout 0.0 are injected into the last 16 transformer layers of the text backbone: into the query, value and output projections of the full-attention layers, and into the fused QKV projection of the gated linear-attention layers. Loss is completion-only cross-entropy with the prompt masked, so the model is trained to produce the extraction and not to reproduce the ruling. Prompting uses the model's own chat template with thinking mode disabled, which makes inference deterministic. Table I gives the configuration of the deployed adapter.
 
@@ -154,7 +153,7 @@ The extractor also misses citations. Recall is 0.728 against adjudicated ground 
 
 Two properties of the evaluation limit how far its numbers travel. The deployed adapter is an all-data refit over the whole canonical set, so no held-out canonical estimate of its extraction quality exists; what is known about it comes from agreement with a single annotator on a set that also chose its checkpoint, and from the routing outcome itself. And the study is one domain, one language, one institution and one schema: Turkish tax rulings, annotated by a single team on a single platform. Nothing in the mechanism is specific to Turkish, but whether the concordant share would resemble ours on another statutory corpus is untested.
 
-The figures are also small-sample estimates from a single run. The sealed test is 50 documents and the external set 100, so the precision of every rate reported over them is limited: the exact-document rate of 13 of 50 alone carries a Wilson interval of roughly ±12 points. Every figure here comes from one training seed, with no repeated runs and so no variance estimate. Differences of a few points are accordingly not treated as meaningful anywhere in this paper.
+The figures are also small-sample estimates from a single run. The sealed test is 50 documents and the external set 100, so the precision of every rate reported over them is limited: the exact-document rate of 13 of 50 alone carries a Wilson interval of roughly plus or minus 12 points at 95%. Every figure here comes from one training seed, with no repeated runs and so no variance estimate. Differences of a few points are accordingly not treated as meaningful anywhere in this paper.
 
 The primary limitation is what this paper does not measure at all. The mechanism was deployed in order to keep annotators aligned with the schema, and its warning surface is the part of it most likely to change how they work — yet no effect on annotator behaviour is measured here. There is no before-and-after annotator error rate, no observation of how annotators respond to a warning, and consequently no claim that the mechanism improved any annotation. The claim is confined to review-load triage. Closing the gap needs two studies we have not run: a verification pass in which experts adjudicate a sample of flagged divergences, which would give the warning precision this paper lacks and would separate model error from annotator error inside the flagged set; and a longitudinal comparison of annotator error before and after the warnings became visible. Both are the immediate next steps.
 

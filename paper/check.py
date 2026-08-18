@@ -34,6 +34,8 @@ ALLOWED_NUMBERS = {
     "2", "45", "11", "12", "3.05",
     # development configuration and checkpoint selection (spec 5.2)
     "75", "150", "550", "3399", "3,399",
+    # windowing coverage and reported confidence level (spec 5.2, canonical since 9bbfa82)
+    "99", "95",
     # canonical schema example (spec 5.1)
     "3065", "298",
     # years, citation numbers and ordinals are handled separately
