@@ -36,6 +36,7 @@ def test_case_2_normalization_only_difference_is_green():
         document_text=DOC_TEXT,
     )
     assert outcome.bucket == "GREEN"
+    assert outcome.discrepancies == ()
 
 
 def test_case_3_extension_mismatch_is_yellow_detail():
@@ -48,6 +49,10 @@ def test_case_3_extension_mismatch_is_yellow_detail():
     assert outcome.reasons == ("extension_mismatch",)
     assert [d["kind"] for d in outcome.discrepancies] == ["detail_mismatch"]
     assert outcome.discrepancies[0]["field_diffs"] == ["fikra"]
+    # Side-exclusive: both sides cited kanun_no 213 / madde 114, only fikra
+    # differs, so each list carries exactly the fikra its own side asserted.
+    assert outcome.human_only == ({"kanun_no": "213", "madde": "114", "fikra": "1", "bent": ""},)
+    assert outcome.model_only == ({"kanun_no": "213", "madde": "114", "fikra": "2", "bent": ""},)
 
 
 def test_case_4_evidence_mismatch_is_yellow():
@@ -59,6 +64,11 @@ def test_case_4_evidence_mismatch_is_yellow():
     assert outcome.bucket == "YELLOW"
     assert outcome.reasons == ("evidence_mismatch",)
     assert outcome.discrepancies[0]["field_diffs"] == ["source_text"]
+    # Both sides cited the same identity (kanun_no/madde/fikra/bent) and only
+    # the quote differs, so the exclusive sets must both be empty: recording
+    # the shared identity in either list would be a group dump, not a diff.
+    assert outcome.human_only == ()
+    assert outcome.model_only == ()
 
 
 def test_case_5_human_only_core_is_red_and_not_actionable():
@@ -115,6 +125,33 @@ def test_case_8_model_error_is_quarantine():
     )
     assert outcome.bucket == "QUARANTINE"
     assert "model_processing_error" in outcome.reasons
+    # The router still aligns human vs. (empty) model even though the
+    # document is quarantined, so the audit-log writer has real rows to
+    # persist for a document the model never processed: the single human
+    # reference reports as "human_only", nothing is "model_only", and there
+    # is no model reference to compute a match_mode from.
+    assert [d["kind"] for d in outcome.discrepancies] == ["human_only"]
+    assert outcome.discrepancies[0]["model_reference"] is None
+    assert outcome.discrepancies[0]["match_mode"] is None
+    assert outcome.human_only == ({"kanun_no": "213", "madde": "114", "fikra": "", "bent": ""},)
+    assert outcome.model_only == ()
+
+
+def test_case_10_multi_reference_core_group_is_side_exclusive():
+    # One core group (same kanun_no/madde) with two references per side:
+    # human cites fikra {1, 2}, model cites fikra {2, 3}. Fikra 2 was cited
+    # by both sides and must not appear in either exclusive list; only the
+    # fikra each side asserted alone should surface.
+    outcome = audit_references(
+        human_references=[ref(fikra="1"), ref(fikra="2")],
+        model_references=[ref(fikra="2"), ref(fikra="3")],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "YELLOW"
+    assert outcome.reasons == ("extension_mismatch",)
+    assert [d["kind"] for d in outcome.discrepancies] == ["detail_mismatch"]
+    assert outcome.human_only == ({"kanun_no": "213", "madde": "114", "fikra": "1", "bent": ""},)
+    assert outcome.model_only == ({"kanun_no": "213", "madde": "114", "fikra": "3", "bent": ""},)
 
 
 def test_case_9_vuk_413_boilerplate_is_filtered_by_policy():
@@ -153,6 +190,15 @@ def test_reference_identities_tolerates_none_fields():
          "fikra": None, "bent": None, "source_text": "x"}
     ])
     assert len(identities) == 1
+
+
+def test_reference_identities_applies_reference_policy():
+    # A VUK 213/madde 413 boilerplate reference is filtered by the same
+    # AUDIT_POLICY_ID that audit_references uses, so a caller comparing raw
+    # identity sets never sees it — while a normal reference still appears.
+    identities = reference_identities([ref(), ref(madde="413")])
+    assert len(identities) == 1
+    assert all(identity[3] != "413" for identity in identities)
 
 
 def test_router_compatible_evidence_stays_green_without_discrepancy_rows():

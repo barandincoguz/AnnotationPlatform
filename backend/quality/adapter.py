@@ -18,7 +18,10 @@ from backend.quality.dqcheck_core.normalization import (
     full_identity,
     normalize_reference,
 )
-from backend.quality.dqcheck_core.reference_policy import DEFAULT_REFERENCE_POLICY_ID
+from backend.quality.dqcheck_core.reference_policy import (
+    DEFAULT_REFERENCE_POLICY_ID,
+    apply_reference_policy,
+)
 
 # `_evidence_compatible` is underscore-private in the vendored router, but the
 # router module is immutable and hash-guarded (see UPSTREAM.md), so its name is
@@ -33,6 +36,20 @@ AUDIT_POLICY_ID = DEFAULT_REFERENCE_POLICY_ID
 # Fields compared when two references share a core identity. Mirrors the
 # upstream hitl._DIFF_FIELDS tuple.
 _DIFF_FIELDS = ("fikra", "bent", "source_text")
+
+
+def _field_matches(field: str, a_value: str, b_value: str) -> bool:
+    """True when a single field should be treated as agreeing.
+
+    `source_text` uses the router's own `_evidence_compatible` rule (same as
+    `status`), so `field_diffs` can never contradict the bucket: a quote pair
+    the router treats as compatible evidence must not be reported to the
+    annotator as a disagreement. Every other field is plain equality.
+    """
+    if field == "source_text":
+        return _evidence_compatible(a_value, b_value)
+    return a_value == b_value
+
 
 _KIND_BY_STATUS = {
     "only_a": "human_only",
@@ -52,7 +69,13 @@ class AuditOutcome:
 
 
 def canonical_tuple(reference: dict[str, str]) -> dict[str, str]:
-    """Analysis-friendly identity row (see design spec, rule 5)."""
+    """Analysis-friendly identity row (see design spec, rule 5).
+
+    Indexes the four identity keys directly and performs no normalization of
+    its own: the caller must pass an already-normalized reference (as
+    `route_document` / `ab_diff` produce). Handing this a raw reference (e.g.
+    `madde="114."`) writes an un-normalized row straight into the audit table.
+    """
     return {
         "kanun_no": reference["kanun_no"],
         "madde": reference["madde"],
@@ -61,9 +84,49 @@ def canonical_tuple(reference: dict[str, str]) -> dict[str, str]:
     }
 
 
+def _canonical_key(reference: dict[str, str]) -> tuple[str, str, str, str]:
+    canonical = canonical_tuple(reference)
+    return (
+        canonical["kanun_no"],
+        canonical["madde"],
+        canonical["fikra"],
+        canonical["bent"],
+    )
+
+
+def _exclusive_canonical_tuples(
+    own_references: list[dict[str, str]], other_references: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """Canonical tuples of `own_references` absent from `other_references`.
+
+    A true set difference (so a reference both sides cited never lands in
+    both `model_only` and `human_only`), but rendered back out in first-
+    appearance order of `own_references` rather than set-iteration order, so
+    the resulting rows stay deterministic.
+    """
+    other_keys = {_canonical_key(reference) for reference in other_references}
+    seen: set[tuple[str, str, str, str]] = set()
+    exclusive: list[dict[str, str]] = []
+    for reference in own_references:
+        key = _canonical_key(reference)
+        if key in other_keys or key in seen:
+            continue
+        seen.add(key)
+        exclusive.append(canonical_tuple(reference))
+    return exclusive
+
+
 def reference_identities(references: list[dict[str, Any]]) -> set[tuple[str, ...]]:
-    """Normalized full-identity set; tolerates AP's Optional[str] fields."""
-    return {full_identity(normalize_reference(reference)) for reference in references}
+    """Normalized full-identity set; tolerates AP's Optional[str] fields.
+
+    Applies `apply_reference_policy` (with `AUDIT_POLICY_ID`) before
+    normalizing, so this stays policy-consistent with `audit_references` by
+    construction: a caller comparing raw reference lists never sees an
+    identity (e.g. VUK 213/413 boilerplate) that `audit_references` itself
+    filters out.
+    """
+    policy_references, _ = apply_reference_policy(references, policy_id=AUDIT_POLICY_ID)
+    return {full_identity(normalize_reference(reference)) for reference in policy_references}
 
 
 def ab_diff(
@@ -81,6 +144,18 @@ def ab_diff(
     ``evidence_format_or_length_only`` outcome) is "same" here too, while a
     pair it rejects (YELLOW/``evidence_mismatch``) still surfaces as a
     ``detail_mismatch`` row.
+
+    Expects normalized **and** compacted input, i.e. exactly what
+    ``route_document`` returns (as ``audit_references`` passes it). Raw,
+    un-normalized references can throw inside ``core_identity`` on a ``None``
+    field, and if one side repeats the same full identity more than once,
+    pairing within a group becomes ambiguous.
+
+    Renders only the first reference of a multi-reference core group into the
+    row's ``human_reference`` / ``model_reference`` display fields (matching
+    upstream). ``human_only`` / ``model_only`` (computed by the caller from
+    ``row["a"]`` / ``row["b"]``) stay complete, so this truncation is
+    display-only.
     """
     order: list[tuple[str, ...]] = []
     groups: dict[tuple[str, ...], dict[str, list[dict[str, str]]]] = {}
@@ -116,7 +191,9 @@ def ab_diff(
             field_diffs = [
                 field
                 for field in _DIFF_FIELDS
-                if a_refs[0].get(field, "") != b_refs[0].get(field, "")
+                if not _field_matches(
+                    field, a_refs[0].get(field, ""), b_refs[0].get(field, "")
+                )
             ]
         sample = (a_refs or b_refs)[0]
         rows.append(
@@ -188,9 +265,9 @@ def audit_references(
             }
         )
         if kind in {"model_only", "detail_mismatch"}:
-            model_only.extend(canonical_tuple(reference) for reference in row["b"])
+            model_only.extend(_exclusive_canonical_tuples(row["b"], row["a"]))
         if kind in {"human_only", "detail_mismatch"}:
-            human_only.extend(canonical_tuple(reference) for reference in row["a"])
+            human_only.extend(_exclusive_canonical_tuples(row["a"], row["b"]))
 
     return AuditOutcome(
         bucket=decision.bucket,
