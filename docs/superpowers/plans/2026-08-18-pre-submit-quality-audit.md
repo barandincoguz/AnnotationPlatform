@@ -1574,6 +1574,20 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
+> **Task 4 uygulama sonrası düzeltmeler (review turlarından, bağlayıcı):**
+> - `pending_documents` **tek sorgudur**: yalnızca `model_predictions` satırı olmayan
+>   dokümanlar. Plandaki 200 satırlık "bayat metin" taraması kaldırıldı — pencere
+>   `updated_at ASC` ile donduğu için metni sonradan değişen doküman kalıcı olarak
+>   açlığa düşüyordu, üstelik her poll'da 200 metni hash'liyordu.
+> - Bayatlık artık **kaynağında** çözülür: `backend/documents/service.py` doküman
+>   metnini güncellerken o dokümanın tahmin satırını siler, doküman doğal olarak
+>   "tahmini yok" kümesine döner. `_build`'in `prediction_text_stale` nedeni emniyet
+>   ağı olarak kalır.
+> - `derive_decision` allowlist'tir: `bucket != "GREEN"` → `human_override`. Tanınmayan
+>   veya boş bucket sessizce onaysız geçemez.
+
+---
+
 ## Task 5: Pre-audit endpoint
 
 **Files:**
