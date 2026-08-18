@@ -19,7 +19,13 @@ from backend.quality.dqcheck_core.normalization import (
     normalize_reference,
 )
 from backend.quality.dqcheck_core.reference_policy import DEFAULT_REFERENCE_POLICY_ID
-from backend.quality.dqcheck_core.router import route_document
+
+# `_evidence_compatible` is underscore-private in the vendored router, but the
+# router module is immutable and hash-guarded (see UPSTREAM.md), so its name is
+# stable. Importing it — rather than re-deriving the same rule here — is the
+# only way `ab_diff`'s "same" decision and the router's bucket can never drift
+# apart: the diff must use exactly the compatibility rule the bucket used.
+from backend.quality.dqcheck_core.router import _evidence_compatible, route_document
 from backend.quality.dqcheck_core.text import evidence_match_mode, normalize_text
 
 AUDIT_POLICY_ID = DEFAULT_REFERENCE_POLICY_ID
@@ -65,13 +71,16 @@ def ab_diff(
 ) -> list[dict[str, Any]]:
     """Align human (a) and model (b) references by core law-article identity.
 
-    Deviates from upstream ``hitl.ab_diff`` in one place: "same" is decided on
-    ``full_identity(r) + (source_text,)`` rather than ``full_identity(r)``
-    alone. Upstream's ``full_identity`` excludes ``source_text``, so a router
-    YELLOW/``evidence_mismatch`` bucket (which does compare ``source_text``)
-    could pair with a same-status, zero-discrepancy diff — a router/diff
-    disagreement that would hide the very mismatch the bucket flags. Including
-    ``source_text`` here surfaces it as a ``detail_mismatch`` row instead.
+    Deviates from upstream ``hitl.ab_diff`` in one place: "same" additionally
+    requires the two sides' ``source_text`` to agree, which upstream's
+    ``full_identity``-only comparison does not check. Agreement is decided with
+    the router's own ``_evidence_compatible`` (equality after ``folded_text``,
+    or loose containment either way) rather than strict string equality, so
+    this diff can never contradict the router's bucket: a pair the router
+    treats as compatible evidence (contributing to a GREEN/
+    ``evidence_format_or_length_only`` outcome) is "same" here too, while a
+    pair it rejects (YELLOW/``evidence_mismatch``) still surfaces as a
+    ``detail_mismatch`` row.
     """
     order: list[tuple[str, ...]] = []
     groups: dict[tuple[str, ...], dict[str, list[dict[str, str]]]] = {}
@@ -91,8 +100,13 @@ def ab_diff(
             status = "only_a"
         elif b_refs and not a_refs:
             status = "only_b"
-        elif sorted(full_identity(r) + (r["source_text"],) for r in a_refs) == sorted(
-            full_identity(r) + (r["source_text"],) for r in b_refs
+        elif sorted(full_identity(r) for r in a_refs) == sorted(
+            full_identity(r) for r in b_refs
+        ) and all(
+            _evidence_compatible(ra["source_text"], rb["source_text"])
+            for ra, rb in zip(
+                sorted(a_refs, key=full_identity), sorted(b_refs, key=full_identity)
+            )
         ):
             status = "same"
         else:

@@ -93,13 +93,17 @@ def test_case_6_model_only_core_is_red_and_actionable():
 
 
 def test_case_7_conflicting_law_identity_is_red():
+    # The vendored router looks for a law-number/name contradiction WITHIN one
+    # candidate's own list, never across human vs model, so the conflict has to
+    # live on one side: 213 appears as both VUK and GVK in the human list.
     outcome = audit_references(
-        human_references=[ref(kanun_no="213", kanun_ad="Gelir Vergisi Kanunu")],
+        human_references=[ref(), ref(kanun_ad="Gelir Vergisi Kanunu", madde="94")],
         model_references=[ref()],
         document_text=DOC_TEXT,
     )
     assert outcome.bucket == "RED"
     assert outcome.reasons == ("conflicting_law_identity",)
+    assert [d["kind"] for d in outcome.discrepancies] == ["human_only"]
 
 
 def test_case_8_model_error_is_quarantine():
@@ -149,3 +153,23 @@ def test_reference_identities_tolerates_none_fields():
          "fikra": None, "bent": None, "source_text": "x"}
     ])
     assert len(identities) == 1
+
+
+def test_router_compatible_evidence_stays_green_without_discrepancy_rows():
+    """The diff must never contradict the bucket.
+
+    The router treats a quote pair as compatible when one loosely contains the
+    other (`normalized_five_field_set_equal` + `evidence_format_or_length_only`
+    → GREEN). Deciding "same" on strict source_text equality would emit a
+    detail_mismatch row for that consensus and write both identities into the
+    audit log's model_only/human_only columns.
+    """
+    outcome = audit_references(
+        human_references=[ref(source_text="zamanasimi hukmu")],
+        model_references=[ref(source_text="zamanasimi hukmu duzenlenmistir")],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "GREEN"
+    assert outcome.discrepancies == ()
+    assert outcome.model_only == ()
+    assert outcome.human_only == ()
