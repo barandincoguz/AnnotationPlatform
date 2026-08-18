@@ -90,7 +90,7 @@ def test_all_migrations_idempotent(db_path):
             "v0001", "v0002", "v0003", "v0004", "v0005",
             "v0006", "v0007", "v0008", "v0009", "v0010",
             "v0011", "v0012", "v0013", "v0014", "v0015",
-            "v0016",
+            "v0016", "v0017",
         ]
         assert second == []
     finally:

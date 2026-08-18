@@ -38,6 +38,10 @@ OUTBOX_EXCLUDED_TABLES = frozenset({
     "user_sessions",
     "document_locks",
     "system_events",
+    # Prediction rows carry multi-KB model output JSON. The GitHub snapshot
+    # backup restores them and the Mac-side predict-agent refills gaps, so
+    # pushing them through the Neon outbox would be pure cost (v0017).
+    "model_predictions",
 })
 
 
@@ -119,8 +123,8 @@ def _collect_schemas(conn: sqlite3.Connection) -> list[TableSchema]:
 def build_all_triggers(conn: sqlite3.Connection) -> list[str]:
     """Return the full ordered list of trigger CREATE statements.
 
-    Result length is exactly **63** (21 mirrored tables × 3 ops) under the
-    canonical project schema.
+    Result length is exactly **66** (22 mirrored tables × 3 ops) under the
+    canonical project schema (after v0017 adds annotation_audit_logs).
     """
     out: list[str] = []
     for schema in _collect_schemas(conn):

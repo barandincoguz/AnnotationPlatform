@@ -1,6 +1,6 @@
 -- ============================================================
 -- baran_* mirror DDL — Phase 4 generated artifact.
--- Source: SQLite project schema (23 in-scope tables).
+-- Source: SQLite project schema (25 in-scope tables).
 -- Regenerate with: python -m scripts.regen_neon_ddl
 -- Idempotent: every CREATE uses IF NOT EXISTS.
 -- ============================================================
@@ -112,6 +112,26 @@ CREATE TABLE IF NOT EXISTS baran_document_kanun_refs (
 
 CREATE INDEX IF NOT EXISTS baran_idx_dockanun_doc ON baran_document_kanun_refs(document_id);
 
+CREATE TABLE IF NOT EXISTS baran_model_predictions (
+    document_id text PRIMARY KEY REFERENCES baran_documents_meta(document_id) ON DELETE CASCADE,
+    generation text NOT NULL,
+    status text NOT NULL,
+    references_json jsonb NOT NULL DEFAULT '[]',
+    truncated bigint NOT NULL DEFAULT 0,
+    model_fingerprint text NOT NULL,
+    prediction_fingerprint text NOT NULL,
+    text_sha256 text NOT NULL,
+    source text NOT NULL,
+    error text,
+    operational_json jsonb NOT NULL DEFAULT '{}',
+    created_at text NOT NULL,
+    updated_at text NOT NULL,
+    CHECK (status IN ('success','error')),
+    CHECK (truncated IN (0,1))
+);
+
+CREATE INDEX IF NOT EXISTS baran_idx_pred_generation ON baran_model_predictions(generation);
+
 CREATE TABLE IF NOT EXISTS baran_activity_events (
     id bigserial PRIMARY KEY,
     user_id bigint REFERENCES baran_users(id) ON DELETE SET NULL,
@@ -151,6 +171,32 @@ CREATE INDEX IF NOT EXISTS baran_idx_audit_trace ON baran_admin_audit_log(trace_
 CREATE INDEX IF NOT EXISTS baran_idx_audit_action ON baran_admin_audit_log(action_type);
 
 CREATE INDEX IF NOT EXISTS baran_idx_audit_admin_time ON baran_admin_audit_log(admin_user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS baran_annotation_audit_logs (
+    id bigserial PRIMARY KEY,
+    document_id text NOT NULL REFERENCES baran_documents_meta(document_id) ON DELETE CASCADE,
+    user_id bigint REFERENCES baran_users(id) ON DELETE SET NULL,
+    bucket text,
+    decision text NOT NULL,
+    reason text,
+    reasons_json jsonb NOT NULL DEFAULT '[]',
+    similarity double precision,
+    model_only_json jsonb NOT NULL DEFAULT '[]',
+    human_only_json jsonb NOT NULL DEFAULT '[]',
+    prediction_fingerprint text,
+    policy_id text NOT NULL,
+    model_generation text,
+    created_at text NOT NULL,
+    CHECK (decision IN (
+                               'no_discrepancy','accepted_model',
+                               'human_override','model_unavailable'))
+);
+
+CREATE INDEX IF NOT EXISTS baran_idx_audit_bucket ON baran_annotation_audit_logs(bucket);
+
+CREATE INDEX IF NOT EXISTS baran_idx_audit_decision ON baran_annotation_audit_logs(decision);
+
+CREATE INDEX IF NOT EXISTS baran_idx_audit_doc_time ON baran_annotation_audit_logs(document_id, created_at);
 
 CREATE TABLE IF NOT EXISTS baran_annotation_versions (
     id bigserial PRIMARY KEY,

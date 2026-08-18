@@ -44,12 +44,12 @@ def test_lifespan_starts_with_no_neon_url(client, monkeypatch):
             "SELECT name FROM sqlite_master WHERE type='table' AND name='_outbox'"
         ).fetchone()
         assert row is not None
-        # 63 triggers
+        # 66 triggers (22 mirrored tables × 3 ops, after adding annotation_audit_logs in v0017)
         trig = conn.execute(
             "SELECT count(*) AS c FROM sqlite_master "
             "WHERE type='trigger' AND name LIKE '_outbox_%'"
         ).fetchone()
-        assert trig["c"] == 63
+        assert trig["c"] == 66
         # warn event recorded
         events = conn.execute(
             "SELECT * FROM system_events WHERE event_type='neon_mirror_unreachable'"

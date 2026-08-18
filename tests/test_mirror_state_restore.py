@@ -87,6 +87,7 @@ def test_restore_scope_covers_every_durable_non_document_mirror_table():
         "document_locks",
         "user_sessions",
         "system_events",
+        "model_predictions",
     }
     assert set(MIRROR_RESTORE_TABLES) == expected
     conn.close()

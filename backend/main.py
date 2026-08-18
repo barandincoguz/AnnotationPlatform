@@ -80,6 +80,7 @@ MIRROR_RESTORE_TABLES = (
     "activity_events",
     "behavioral_events",
     "admin_audit_log",
+    "annotation_audit_logs",
 )
 
 ANNOTATION_STATE_TABLES = (
