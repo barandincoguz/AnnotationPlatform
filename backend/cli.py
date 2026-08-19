@@ -510,11 +510,72 @@ def cmd_seed_e2e(args) -> int:
         conn.close()
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
+
+    # Quality-audit fixture: the model agrees with what the e2e test types for
+    # GVK 37 and additionally claims VUK 114, so the first audit lands on RED
+    # with exactly one actionable model_only discrepancy.
+    from backend.quality import service as quality_service
+    from backend.quality.dqcheck_core.fingerprints import sha256_text
+
+    alpha_text = docs[0]["pdfText"]
+    alpha_prediction = [
+        {
+            "kanun_no": "193",
+            "kanun_ad": "Gelir Vergisi Kanunu",
+            "madde": "37",
+            "fikra": "",
+            "bent": "",
+            "source_text": "Kira gelirinin vergilendirilmesi hakkinda ozelge talebi.",
+        },
+        {
+            "kanun_no": "213",
+            "kanun_ad": "Vergi Usul Kanunu",
+            "madde": "114",
+            "fikra": "",
+            "bent": "",
+            "source_text": "Konuyla ilgili aciklamalar asagida yer almaktadir.",
+        },
+    ]
+    conn = connect(db_path)
+    try:
+        quality_service.upsert_predictions(
+            conn,
+            [
+
+                {
+                    "document_id": "e2e-doc-alpha",
+                    "generation": "G0",
+                    "status": "success",
+                    "references": alpha_prediction,
+                    "truncated": False,
+                    "model_fingerprint": "e2e-seed-fingerprint",
+                    "text_sha256": sha256_text(alpha_text),
+                    "source": "e2e_seed",
+                    "operational": {},
+                },
+                {
+                    "document_id": "e2e-doc-bravo",
+                    "generation": "G0",
+                    "status": "success",
+                    "references": alpha_prediction,
+                    "truncated": False,
+                    "model_fingerprint": "e2e-seed-fingerprint",
+                    "text_sha256": sha256_text(docs[1]["pdfText"]),
+                    "source": "e2e_seed",
+                    "operational": {},
+                }
+
+            ],
+        )
+    finally:
+        conn.close()
+
     print(f"E2E DB seeded at {db_path}")
     print("  invite code: E2E-CODE")
     print("  users: alice, bob, admin  (password: e2e-pass-123!)")
     print(f"  documents: {len(docs)}")
     return 0
+
 
 
 COMMANDS = {
