@@ -22,6 +22,8 @@ const baseProps = {
   isValid: true,
   hasAnnotation: false,
   isCompleted: false,
+  onCompare: vi.fn(),
+  isAuditing: false,
 }
 
 describe('ReferencePanel', () => {
@@ -163,8 +165,10 @@ describe('ReferencePanel — Tamamlandı / Geri Al toggle (paket-3g)', () => {
         {...baseProps}
         refs={[makeReferenceItem()]}
         hasAnnotation={true}
+        isAuditing={false}
+        
         isCompleted={false}
-      />,
+        />,
     )
     expect(screen.getByRole('button', { name: /^tamamlandı$/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /geri al/i })).toBeNull()
@@ -176,8 +180,10 @@ describe('ReferencePanel — Tamamlandı / Geri Al toggle (paket-3g)', () => {
         {...baseProps}
         refs={[makeReferenceItem()]}
         hasAnnotation={true}
+        isAuditing={false}
+        
         isCompleted={true}
-      />,
+        />,
     )
     expect(screen.getByRole('button', { name: /geri al/i })).toBeInTheDocument()
     expect(screen.getByText(/tamamlandı/i)).toBeInTheDocument()
@@ -203,6 +209,8 @@ describe('ReferencePanel — Tamamlandı / Geri Al toggle (paket-3g)', () => {
         {...baseProps}
         refs={[makeReferenceItem()]}
         hasAnnotation={true}
+        isAuditing={false}
+        
         isCompleted={false}
         isValid={false}
       />,
@@ -218,6 +226,8 @@ describe('ReferencePanel — Tamamlandı / Geri Al toggle (paket-3g)', () => {
         {...baseProps}
         refs={[makeReferenceItem()]}
         hasAnnotation={true}
+        isAuditing={false}
+        
         isCompleted={true}
         isValid={false}
       />,

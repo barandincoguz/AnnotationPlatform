@@ -39,7 +39,7 @@ export function discrepancyKey(discrepancy: AuditDiscrepancy): string {
 
 function referenceLabel(reference: ReferenceLike): string {
   if (!reference) return '—'
-  const law = reference.kanun_ad || reference.kanun_no || 'Kanun belirtilmemiş'
+  const law = reference.kanun_ad ?? reference.kanun_no ?? 'Kanun belirtilmemiş'
   const article = reference.madde ? ` m.${reference.madde}` : ''
   const fikra = reference.fikra ? `/${reference.fikra}` : ''
   const bent = reference.bent ? `-${reference.bent}` : ''

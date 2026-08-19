@@ -23,7 +23,11 @@ import { areAllReferencesValid, checkAndRemoveDuplicateReferences } from '@/lib/
 import { ApiError } from '@/api/client'
 import { feedKeys } from '@/api/queries/feed'
 import type { components } from '@/api/types'
-
+import { QualityAuditPanel, discrepancyKey } from '@/components/annotation/QualityAuditPanel'
+import { usePreAuditMutation } from '@/hooks/useAnnotation'
+import type { AuditDiscrepancy, PreAuditResult } from '@/api/queries/annotations'
+import type { QuoteTarget } from '@/lib/quoteMatcher'
+import { useEffect, useMemo, useRef } from 'react'
 type ReferenceItem = components['schemas']['ReferenceItem']
 
 export function AnnotateDoc() {
@@ -46,6 +50,21 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   // the lookup to hit the same data DocList is showing.
   const currentSort = useAnnotateStore((s) => s.sort[s.currentTab])
   const [modalOpen, setModalOpen] = useState(true)
+
+  type AuditState =
+    | { phase: 'idle' }
+    | { phase: 'running' }
+    | { phase: 'open'; result: PreAuditResult; staleNotice: string | null }
+
+  const [audit, setAudit] = useState<AuditState>({ phase: 'idle' })
+  const [acceptedKeys, setAcceptedKeys] = useState<ReadonlySet<string>>(new Set())
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null)
+  const [modelUnavailableReason, setModelUnavailableReason] = useState<string | null>(null)
+  const preAuditMutation = usePreAuditMutation()
+  // Mirror of the live reference list. `refs.list` lags by one render after a
+  // reducer dispatch and the draft PUT is debounced, so a "Tamamla" click in
+  // the same tick as an accepted suggestion must read from here.
+  const refsRef = useRef<ReferenceItem[]>([])
 
   const lock = useLock(docId)
   const annotation = useAnnotation(docId)
@@ -89,12 +108,16 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const completeMutation = useCompleteAnnotationMutation()
 
   const canEdit = lock.status === 'held' && refs.hydrated
+  useEffect(() => {
+    refsRef.current = refs.list
+  }, [refs.list])
+
   const isValid = areAllReferencesValid(refs.list)
   const hasAnnotation = !!annotation.data?.annotation
   const isCompleted = annotation.data?.annotation?.is_completed ?? false
 
   const handleSave = async () => {
-    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refs.list)
+    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refsRef.current)
     if (hasDuplicates) {
       toast.warning('Yinelenen anotasyon silindi.')
       refs.updateAll(cleanedRefs)
@@ -150,44 +173,61 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     }
   }
 
-  const handleComplete = async () => {
-    const targetCompleted = !isCompleted
-    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refs.list)
-    if (targetCompleted && hasDuplicates) {
-      toast.warning('Yinelenen anotasyon silindi.')
-      refs.updateAll(cleanedRefs)
-    }
-    draft.blockSavesUntilFurtherNotice()
+  const runPreAudit = async (references: ReferenceItem[]) =>
+    preAuditMutation.mutateAsync({ document_id: docId, references })
 
-    // Phase 3: single atomic POST.
-    //
-    // Pre-Phase-2 the frontend ran a 3-call chain (save → complete →
-    // delete_draft) so that the on-screen refs were persisted before
-    // the flag flipped. Backend Phase 2 collapsed all three into one
-    // BEGIN IMMEDIATE on /complete: when `references` accompanies a
-    // `completed=true` body the server saves the refs, flips the flag,
-    // and deletes the caller's draft in a single transaction. The
-    // pre-Phase-2 race (where blockSaves cancelled a pending PUT and
-    // a stale `annotations.references_json` got frozen as "complete")
-    // is now impossible — the server is the only writer of the final
-    // state.
-    //
-    // Uncomplete (`completed=false`) is unchanged semantically: no refs
-    // in the body, server flips the flag only. CompleteRequest's
-    // model_validator rejects `completed=false` + refs at 422.
+  const finalizeComplete = async (
+    targetCompleted: boolean,
+    cleanedRefs: ReferenceItem[],
+    ack: { prediction_fingerprint: string } | undefined,
+    attempt = 0,
+  ) => {
+    draft.blockSavesUntilFurtherNotice()
     try {
       await completeMutation.mutateAsync({
         document_id: docId,
         completed: targetCompleted,
-        // Conditional spread — `exactOptionalPropertyTypes` rejects
-        // `references: undefined` as an in-band signal. Only include
-        // the key on the atomic path.
         ...(targetCompleted && { references: cleanedRefs }),
+        ...(ack !== undefined && { audit_ack: ack }),
       })
-    } catch {
+    } catch (err) {
       draft.unblockSaves()
+      const code = err instanceof ApiError ? err.code : ''
+      const auditConflict = code === 'audit_stale' || code === 'audit_required'
+      if (!auditConflict || attempt >= 1) {
+        setAudit({ phase: 'idle' })
+        return
+      }
+      // The predict-agent pushed a fresher prediction while the user worked.
+      // Re-audit quietly, then either reopen the panel with a soft notice or
+      // commit once more with the fresh fingerprint. Never a scary error.
+      try {
+        const fresh = await runPreAudit(cleanedRefs)
+        if (fresh.audit_status === 'ready' && fresh.bucket !== 'GREEN') {
+          setAudit({
+            phase: 'open',
+            result: fresh,
+            staleNotice:
+              'Yeni model tahmini alındı, lütfen son kez teyit edip Tamamla\'ya basınız.',
+          })
+          return
+        }
+        await finalizeComplete(
+          targetCompleted,
+          cleanedRefs,
+          fresh.prediction_fingerprint
+            ? { prediction_fingerprint: fresh.prediction_fingerprint }
+            : undefined,
+          attempt + 1,
+        )
+      } catch {
+        setAudit({ phase: 'idle' })
+        toast.error('Model kontrolü yenilenemedi, lütfen tekrar deneyin.')
+      }
       return
     }
+
+    setAudit({ phase: 'idle' })
 
     let lockReleaseFailed = false
     try {
@@ -196,10 +236,6 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       lockReleaseFailed = true
     }
 
-    // Mutation onSuccess already invalidates feedKeys.all + the
-    // doc's annotation + draft caches. We still refetch the active
-    // tab explicitly so pickNextInFeedAcrossPages reads up-to-date
-    // pages before navigating.
     await qc.refetchQueries({ queryKey: feedKeys.tab(currentTab) })
 
     const next = await pickNextInFeedAcrossPages({
@@ -220,12 +256,127 @@ function AnnotateDocInner({ docId }: { docId: string }) {
 
     if (next.type === 'next') {
       navigate(`/docs/${next.id}`, { replace: true })
-    } else if (next.type === 'done') {
-      navigate('/', { replace: true })
     } else {
       navigate('/', { replace: true })
     }
   }
+
+  const handleComplete = async () => {
+    console.log("handleComplete called!")
+    const targetCompleted = !isCompleted
+    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(
+      refsRef.current,
+    )
+    if (targetCompleted && hasDuplicates) {
+      toast.warning('Yinelenen anotasyon silindi.')
+      refs.updateAll(cleanedRefs)
+      refsRef.current = cleanedRefs
+    }
+
+    // Uncomplete reverses a prior commit; there is nothing to audit.
+    if (!targetCompleted) {
+      await finalizeComplete(false, cleanedRefs, undefined)
+      return
+    }
+
+    setAudit({ phase: 'running' })
+    let result: PreAuditResult
+    try {
+      result = await runPreAudit(cleanedRefs)
+      console.log("PreAudit Result:", result)
+    } catch (err) {
+      console.log("PreAudit error:", err)
+      // The audit is advisory infrastructure — it must never block a submit.
+      setAudit({ phase: 'idle' })
+      toast.warning('Model kontrolü çalıştırılamadı; kaydınız etkilenmedi.')
+      await finalizeComplete(true, cleanedRefs, undefined)
+      return
+    }
+
+    if (result.audit_status === 'model_unavailable') {
+      console.log("Model unavailable")
+      setModelUnavailableReason(result.reason ?? 'no_prediction')
+      setAudit({ phase: 'idle' })
+      await finalizeComplete(true, cleanedRefs, undefined)
+      return
+    }
+    setModelUnavailableReason(null)
+    const ack = result.prediction_fingerprint
+      ? { prediction_fingerprint: result.prediction_fingerprint }
+      : undefined
+    if (result.bucket === 'GREEN') {
+      console.log("GREEN bucket")
+      setAudit({ phase: 'idle' })
+      await finalizeComplete(true, cleanedRefs, ack)
+      return
+    }
+    console.log("Setting phase to open", result.bucket)
+    setAudit({ phase: 'open', result, staleNotice: null })
+  }
+
+
+  const handleCompare = async () => {
+    setAudit({ phase: 'running' })
+    try {
+      const result = await runPreAudit(refsRef.current)
+      if (result.audit_status === 'model_unavailable') {
+        setModelUnavailableReason(result.reason ?? 'no_prediction')
+        setAudit({ phase: 'idle' })
+        return
+      }
+      setModelUnavailableReason(null)
+      if (result.bucket === 'GREEN') {
+        setAudit({ phase: 'idle' })
+        toast.success('Model tahmini ile etiketleriniz uyuşuyor.')
+        return
+      }
+      setAudit({ phase: 'open', result, staleNotice: null })
+    } catch {
+      setAudit({ phase: 'idle' })
+      toast.warning('Model kontrolü çalıştırılamadı.')
+    }
+  }
+
+  const handleAcceptSuggestion = (discrepancy: AuditDiscrepancy) => {
+    const model = discrepancy.model_reference
+    if (!model?.source_text) return
+    const next: ReferenceItem[] = [
+      ...refsRef.current,
+      {
+        kanun_no: model.kanun_no ?? null,
+        kanun_ad: model.kanun_ad ?? null,
+        madde: model.madde ?? null,
+        fikra: model.fikra ?? null,
+        bent: model.bent ?? null,
+        source_text: model.source_text,
+      },
+    ]
+    // Synchronous write closes the debounce race: a "Tamamla" click in this
+    // same tick still commits the accepted suggestion.
+    refsRef.current = next
+    refs.updateAll(next)
+    setAcceptedKeys((prev) => new Set(prev).add(discrepancyKey(discrepancy)))
+    toast.success('Model önerisi listenize eklendi.')
+  }
+
+  const handleOverride = async () => {
+    if (audit.phase !== 'open') return
+    const ack = audit.result.prediction_fingerprint
+      ? { prediction_fingerprint: audit.result.prediction_fingerprint }
+      : undefined
+    await finalizeComplete(true, refsRef.current, ack)
+  }
+
+  const highlights = useMemo<QuoteTarget[]>(() => {
+    if (audit.phase !== 'open') return []
+    return (audit.result.discrepancies ?? [])
+      .filter((d) => d.model_reference?.source_text)
+      .map((d) => ({
+        id: discrepancyKey(d),
+        quote: d.model_reference!.source_text!,
+        ...(d.madde && { near: d.madde }),
+      }))
+  }, [audit])
 
   const handleSkip = async () => {
     try {
@@ -391,33 +542,59 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   return (
     <div className="grid h-full grid-cols-[minmax(0,60%)_minmax(0,40%)] overflow-hidden">
       <div className="min-w-0 overflow-hidden border-r border-border">
-        <DocViewer docId={docId} />
+        <DocViewer docId={docId} highlights={highlights} activeHighlightId={activeHighlightId} />
       </div>
       <div className="min-w-0 overflow-hidden">
-        <ReferencePanel
-          refs={refs.list}
-          docText={docQuery.data?.pdf_text ?? ''}
-          onAdd={refs.add}
-          onUpdate={refs.update}
-          onRemove={refs.remove}
-          onSave={() => {
-            void handleSave()
-          }}
-          onSkip={() => {
-            void handleSkip()
-          }}
-          onComplete={() => {
-            void handleComplete()
-          }}
-          canEdit={canEdit}
-          isSaving={saveMutation.isPending}
-          isCompleting={completeMutation.isPending}
-          error={errorForPanel}
-          draftSaveStatus={draft.saveStatus}
-          isValid={isValid}
-          hasAnnotation={hasAnnotation}
-          isCompleted={isCompleted}
-        />
+        {audit.phase === 'open' ? (
+          <QualityAuditPanel
+            result={audit.result}
+            acceptedKeys={acceptedKeys}
+            staleNotice={audit.staleNotice}
+            isCompleting={completeMutation.isPending}
+            onAccept={handleAcceptSuggestion}
+            onHover={setActiveHighlightId}
+            onComplete={() => {
+              void handleComplete()
+            }}
+            onOverride={() => {
+              void handleOverride()
+            }}
+            onBackToEdit={() => {
+              setAudit({ phase: 'idle' })
+              setActiveHighlightId(null)
+            }}
+          />
+        ) : (
+          <ReferencePanel
+            refs={refs.list}
+            docText={docQuery.data?.pdf_text ?? ''}
+            onAdd={refs.add}
+            onUpdate={refs.update}
+            onRemove={refs.remove}
+            onSave={() => {
+              void handleSave()
+            }}
+            onSkip={() => {
+              void handleSkip()
+            }}
+            onComplete={() => {
+              void handleComplete()
+            }}
+            onCompare={() => {
+              void handleCompare()
+            }}
+            canEdit={canEdit}
+            isSaving={saveMutation.isPending}
+            isCompleting={completeMutation.isPending}
+            isAuditing={audit.phase === 'running'}
+            modelUnavailableReason={modelUnavailableReason}
+            error={errorForPanel}
+            draftSaveStatus={draft.saveStatus}
+            isValid={isValid}
+            hasAnnotation={hasAnnotation}
+            isCompleted={isCompleted}
+          />
+        )}
       </div>
     </div>
   )
