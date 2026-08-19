@@ -12,6 +12,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from backend.gamification import service as gamification_service
+from backend.quality.dqcheck_core.text import folded_text
+from backend.shared import audit
 from backend.shared import settings as S
 
 
@@ -72,26 +75,38 @@ def detect_speed_warning(db, *, user_id: int) -> Optional[dict]:
 _CHECKED_FIELDS = ("kanun_ad", "source_text")
 
 
-def detect_char_limit_warning(db, *, references: list[dict]) -> Optional[dict]:
+def detect_char_limit_warning(
+    db, *, references: list[dict], exempt_quotes: tuple[str, ...] = ()
+) -> Optional[dict]:
     """Return a verdict if any reference's `kanun_ad` or `source_text` exceeds
     the warn or alert threshold. Returns the worst severity across all hits.
     None if every field is below warn.
+
+    `exempt_quotes` carries the model's own proposed source texts. A quote the
+    platform itself put in front of the annotator must not then be reported as
+    "too long" — that would punish the user for accepting our suggestion.
+    Comparison is whitespace/case/punctuation-insensitive (`folded_text`).
     """
     if not references:
         return None
 
     warn = S.get_int(db, "char_limit.warn_threshold", default=300)
     alert = S.get_int(db, "char_limit.alert_threshold", default=600)
+    exempt = {folded_text(quote) for quote in exempt_quotes if quote}
 
     hits: list[dict] = []
     for idx, ref in enumerate(references):
         for field in _CHECKED_FIELDS:
             value = ref.get(field) or ""
             length = len(value)
-            if length > alert:
-                hits.append({"ref_index": idx, "field": field, "length": length, "level": "alert"})
-            elif length > warn:
-                hits.append({"ref_index": idx, "field": field, "length": length, "level": "warn"})
+            if length <= warn:
+                continue
+            if field == "source_text" and folded_text(value) in exempt:
+                continue
+            level = "alert" if length > alert else "warn"
+            hits.append(
+                {"ref_index": idx, "field": field, "length": length, "level": level}
+            )
 
     if not hits:
         return None
@@ -119,6 +134,7 @@ async def run_after_save(
     user_id: int,
     username: str,
     references: list[dict],
+    model_quotes: tuple[str, ...] = (),
 ) -> None:
     """Run all behavioral detectors after a successful save and publish
     personal SSE events for any verdicts. Each detector is isolated — a
@@ -141,7 +157,9 @@ async def run_after_save(
 
     # ---- char_limit_warning --------------------------------------------
     try:
-        verdict = detect_char_limit_warning(db, references=references)
+        verdict = detect_char_limit_warning(
+            db, references=references, exempt_quotes=model_quotes
+        )
         if verdict is not None:
             worst_length = max((f["length"] for f in verdict["fields"]), default=0)
             threshold_for_log = (

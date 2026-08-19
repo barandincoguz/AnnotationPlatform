@@ -87,6 +87,7 @@ async def save(
             user_id=user["id"],
             username=user["username"],
             references=result["current_references"],
+            model_quotes=quality_service.model_quotes(db, payload.document_id),
         )
     except Exception:
         log.exception("run_after_save failed for %s", payload.document_id)
@@ -244,6 +245,7 @@ async def complete(
                 user_id=user["id"],
                 username=user["username"],
                 references=refs_payload or [],
+                model_quotes=quality_service.model_quotes(db, document_id),
             )
         except Exception:
             log.exception("behavioral.run_after_save failed for %s", document_id)
