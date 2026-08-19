@@ -61,6 +61,11 @@ interface CompleteBody {
   // refs is rejected at the backend by CompleteRequest's validator
   // (422); callers must not send that combination.
   references?: components['schemas']['ReferenceItem'][]
+  // Present only after the user saw a RED/YELLOW audit. The server recomputes
+  // the bucket itself; this ack merely declares "I saw the comparison" and
+  // carries the fingerprint so a prediction that changed meanwhile yields
+  // 409 audit_stale instead of a silently different commit.
+  audit_ack?: { prediction_fingerprint: string }
 }
 
 export function useCompleteAnnotationMutation() {
@@ -71,14 +76,15 @@ export function useCompleteAnnotationMutation() {
     // spread so the JSON body is `{ completed }` (legacy path) OR
     // `{ completed, references: [...] }` (atomic path), but never
     // `{ completed, references: undefined }`.
-    mutationFn: async ({ document_id, completed, references }: CompleteBody) =>
+    mutationFn: async ({ document_id, completed, references, audit_ack }: CompleteBody) =>
       unwrapVoid(
         await client.POST('/api/annotations/{document_id}/complete', {
           params: { path: { document_id } },
-          body:
-            references !== undefined
-              ? { completed, references }
-              : { completed },
+          body: {
+            completed,
+            ...(references !== undefined && { references }),
+            ...(audit_ack !== undefined && { audit_ack }),
+          },
         }),
       ),
     onSuccess: (_data, { document_id }) => {
@@ -92,5 +98,29 @@ export function useCompleteAnnotationMutation() {
       // caller is currently looking at.
       void qc.invalidateQueries({ queryKey: feedKeys.all })
     },
+  })
+}
+
+export type PreAuditResult = components['schemas']['PreAuditResponse']
+export type AuditDiscrepancy = components['schemas']['AuditDiscrepancy']
+
+interface PreAuditBody {
+  document_id: string
+  references: components['schemas']['ReferenceItem'][]
+}
+
+/**
+ * Read-only comparison against the cached G0 prediction. Writes nothing on the
+ * server — the audit decision is recorded by /complete, inside its transaction.
+ */
+export function usePreAuditMutation() {
+  return useMutation({
+    mutationFn: async ({ document_id, references }: PreAuditBody) =>
+      unwrap(
+        await client.POST('/api/annotations/{document_id}/pre-audit', {
+          params: { path: { document_id } },
+          body: { references },
+        }),
+      ),
   })
 }

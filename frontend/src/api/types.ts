@@ -1117,6 +1117,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/annotations/{document_id}/pre-audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pre Audit
+         * @description Compare the caller's current references against the cached G0 prediction.
+         */
+        post: operations["pre_audit_api_annotations__document_id__pre_audit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/predictions/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pending Predictions
+         * @description Documents needing a prediction: none stored, or stored against older text.
+         */
+        get: operations["pending_predictions_api_internal_predictions_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/predictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest Predictions
+         * @description Idempotent upsert. Items for unknown documents are skipped, not rejected.
+         */
+        post: operations["ingest_predictions_api_internal_predictions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1207,6 +1267,44 @@ export interface components {
             annotation: components["schemas"]["AnnotationDetail"] | null;
             /** Chain */
             chain: components["schemas"]["ChainEntry"][];
+        };
+        /**
+         * AuditAck
+         * @description Human acknowledgement of a mismatching quality audit.
+         *
+         *     Presence of this object IS the acknowledgement ("I saw the comparison and
+         *     I stand by my labels"). The fingerprint lets the server detect that the
+         *     prediction changed after the caller ran the audit (409 audit_stale).
+         */
+        AuditAck: {
+            /** Prediction Fingerprint */
+            prediction_fingerprint: string;
+        };
+        /** AuditDiscrepancy */
+        AuditDiscrepancy: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "model_only" | "human_only" | "detail_mismatch";
+            /** Kanun No */
+            kanun_no: string;
+            /** Kanun Ad */
+            kanun_ad: string;
+            /** Madde */
+            madde: string;
+            /** Model Reference */
+            model_reference?: {
+                [key: string]: string;
+            } | null;
+            /** Human Reference */
+            human_reference?: {
+                [key: string]: string;
+            } | null;
+            /** Field Diffs */
+            field_diffs?: string[];
+            /** Match Mode */
+            match_mode?: string | null;
         };
         /** BackupRestoreResponse */
         BackupRestoreResponse: {
@@ -1310,6 +1408,7 @@ export interface components {
             completed: boolean;
             /** References */
             references?: components["schemas"]["ReferenceItem"][] | null;
+            audit_ack?: components["schemas"]["AuditAck"] | null;
         };
         /** ConceptInput */
         ConceptInput: {
@@ -1564,6 +1663,32 @@ export interface components {
             /** Marked Count */
             marked_count: number;
         };
+        /**
+         * ModelReferenceItem
+         * @description Model output reference.
+         *
+         *     Deliberately NOT ReferenceItem: that model runs AP's `pre_normalize`
+         *     validator and rejects e.g. madde="5/1-a", which would fail a whole 16-item
+         *     agent batch because of one malformed model row. Model references are
+         *     normalized at audit time by the vendored `validate_reference_list`.
+         */
+        ModelReferenceItem: {
+            /** Kanun No */
+            kanun_no?: string | null;
+            /** Kanun Ad */
+            kanun_ad?: string | null;
+            /** Madde */
+            madde?: string | null;
+            /** Fikra */
+            fikra?: string | null;
+            /** Bent */
+            bent?: string | null;
+            /**
+             * Source Text
+             * @default
+             */
+            source_text: string;
+        };
         /** NotificationListResponse */
         NotificationListResponse: {
             /** Items */
@@ -1604,6 +1729,86 @@ export interface components {
             username: string;
             /** Avatar Color */
             avatar_color?: string | null;
+        };
+        /** PendingDocument */
+        PendingDocument: {
+            /** Document Id */
+            document_id: string;
+            /** Pdf Text */
+            pdf_text: string;
+            /** Text Sha256 */
+            text_sha256: string;
+        };
+        /** PendingResponse */
+        PendingResponse: {
+            /** Documents */
+            documents: components["schemas"]["PendingDocument"][];
+        };
+        /** PreAuditRequest */
+        PreAuditRequest: {
+            /** References */
+            references: components["schemas"]["ReferenceItem"][];
+        };
+        /** PreAuditResponse */
+        PreAuditResponse: {
+            /**
+             * Audit Status
+             * @enum {string}
+             */
+            audit_status: "ready" | "model_unavailable";
+            /** Reason */
+            reason?: string | null;
+            /** Bucket */
+            bucket?: string | null;
+            /** Reasons */
+            reasons?: string[];
+            /** Similarity */
+            similarity?: number | null;
+            /** Prediction Fingerprint */
+            prediction_fingerprint?: string | null;
+            /** Model Generation */
+            model_generation?: string | null;
+            /** Discrepancies */
+            discrepancies?: components["schemas"]["AuditDiscrepancy"][];
+        };
+        /** PredictionIngestItem */
+        PredictionIngestItem: {
+            /** Document Id */
+            document_id: string;
+            /** Generation */
+            generation: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "success" | "error";
+            /** References */
+            references?: components["schemas"]["ModelReferenceItem"][];
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /** Model Fingerprint */
+            model_fingerprint: string;
+            /** Text Sha256 */
+            text_sha256: string;
+            /** Error */
+            error?: string | null;
+            /** Operational */
+            operational?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PredictionIngestRequest */
+        PredictionIngestRequest: {
+            /** Items */
+            items: components["schemas"]["PredictionIngestItem"][];
+        };
+        /** PredictionIngestResponse */
+        PredictionIngestResponse: {
+            /** Upserted */
+            upserted: number;
         };
         /** ProfileResponse */
         ProfileResponse: {
@@ -1969,6 +2174,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** XpSection */
         XpSection: {
@@ -3935,6 +4144,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pre_audit_api_annotations__document_id__pre_audit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: {
+                anotasyon_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreAuditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreAuditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pending_predictions_api_internal_predictions_pending_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingest_predictions_api_internal_predictions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PredictionIngestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PredictionIngestResponse"];
                 };
             };
             /** @description Validation Error */
