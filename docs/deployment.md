@@ -57,6 +57,7 @@ admin panel.
 | `GITHUB_PAT` | no | required if above set | `<fine-grained PAT, contents:write>` | Used for GitHub auth at runtime; not stored in `backup/.git/config` |
 | `DATA_DIR` | no | no | `/data` | Container default; override only for non-Docker dev |
 | `DISABLE_SPA_MOUNT` | no | no | `1` | Set in tests only; do not set in prod |
+| `DQCHECK_INGEST_TOKEN` | no | recommended | `<64 hex chars>` | Shared secret for `/api/internal/predictions*`. Empty → those endpoints answer 503 and the quality audit degrades to "model kontrolü yapılamadı" without blocking annotators. On Hugging Face Spaces set it as a **Space secret**, not in the Dockerfile. |
 | `TRUST_FORWARDED_FOR` | no | no | `1` | Enable only behind a trusted reverse proxy |
 | `TRUSTED_PROXY_CIDRS` | no | required with trust | `172.16.0.0/12` | Immediate proxy networks; never use `0.0.0.0/0` or `::/0` |
 | `NEON_MIRROR_URL` | no | **yes for cross-team** | `postgresql://baran_writer:...@ep-xxx.neon.tech/neondb?sslmode=require` | **If unset, the Neon dispatcher boots in degraded mode and the partner team sees stale rows for an unbounded window.** Full setup: `docs/neon-mirror.md`. |
