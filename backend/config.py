@@ -41,6 +41,10 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
 BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "")
 SPACE_ID = os.environ.get("SPACE_ID")
 
+# Shared secret for the Mac-side `dqcheck predict-agent` ingest endpoints.
+# Empty (the default) disables /api/internal/predictions* with HTTP 503.
+DQCHECK_INGEST_TOKEN = os.environ.get("DQCHECK_INGEST_TOKEN", "")
+
 # X-Forwarded-For trust. Off by default — the header is attacker-controlled
 # in any direct-to-uvicorn deployment, and the IP is used for audit
 # (user_sessions.ip_hash). Operators behind a trusted reverse proxy

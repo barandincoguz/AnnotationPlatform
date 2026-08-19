@@ -445,7 +445,9 @@ app.include_router(retention_router)
 app.include_router(exports_router)
 app.include_router(feedback_router)
 from backend.quality.routes import router as quality_router
+from backend.quality.internal_routes import router as quality_internal_router
 app.include_router(quality_router)
+app.include_router(quality_internal_router)
 
 
 @app.get("/api/health")
