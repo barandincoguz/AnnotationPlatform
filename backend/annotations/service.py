@@ -32,6 +32,8 @@ from backend.annotations.diff import (
     normalize_references, references_diff, is_diff_zero,
 )
 from backend.locks import service as locks_service
+from backend.notifications import service as notifications_service
+from backend.quality import service as quality_service
 from backend.shared import audit
 
 
@@ -379,8 +381,17 @@ def set_complete(
     user_id: int,
     completed: bool,
     references: Optional[list[dict]] = None,
+    audit_ack: Optional[str] = None,
 ) -> dict:
-    """Toggle is_completed. Writes a 'complete_mark'/'uncomplete' version.
+    """Flip the is_completed flag and unconditionally drop any active lock.
+    When completed=False, `references` MUST be None (rejected by Pydantic).
+
+    When `completed=True`, the quality audit is recomputed inside this
+    transaction against the references being committed (atomic path) or the
+    stored ones (legacy flag-flip path). A RED/YELLOW bucket without
+    `audit_ack` raises quality_service.AuditAckRequired; an ack naming a
+    superseded prediction raises quality_service.AuditAckStale. Both roll the
+    transaction back, so a rejected complete leaves no trace.
 
     When `references` is supplied with `completed=True`, runs the full
     save pipeline (refs persist + version row + denorm rebuild + draft
@@ -585,12 +596,43 @@ def set_complete(
                 "first_time": is_new,
             }
 
+        # Quality audit — recomputed from committed truth, never from what the
+        # client claims. `changed or did_save` skips idempotent same-state
+        # pokes (the legacy path already returned early for those).
+        audit_report = None
+        audit_decision = None
+        if completed and (changed or did_save):
+            if references is not None:
+                final_references = save_result["cleaned"]
+                previous_references = final_references if is_new else json.loads(cur["references_json"])
+            else:
+                final_references = json.loads(cur["references_json"])
+                previous_references = final_references
+            audit_report, audit_decision = quality_service.evaluate_for_commit(
+                db,
+                document_id=document_id,
+                references=final_references,
+                previous_references=previous_references,
+                ack_fingerprint=audit_ack,
+            )
+
         locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
             db, user_id, audit_action,
             document_id=document_id,
             extra=audit_extra,
         )
+
+        if audit_report is not None:
+            quality_service.log_decision(
+                db,
+                document_id=document_id,
+                user_id=user_id,
+                report=audit_report,
+                decision=str(audit_decision),
+                now=now,
+            )
+
         db.execute("COMMIT")
     except Exception:
         db.execute("ROLLBACK")
@@ -602,4 +644,6 @@ def set_complete(
         "save_action": save_action_ret,
         "save_is_diff_zero": save_diff_zero,
         "save_ref_count": save_ref_count,
+        "audit_bucket": audit_report.bucket if audit_report is not None else None,
+        "audit_decision": audit_decision,
     }

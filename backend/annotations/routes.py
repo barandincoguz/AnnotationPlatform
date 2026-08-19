@@ -18,6 +18,7 @@ from backend.annotations.models import (
 )
 from backend.behavioral import service as behavioral_service
 from backend.gamification import service as gamification_service
+from backend.quality import service as quality_service
 from backend.shared.sse import broker as sse_broker
 from backend.users.deps import get_db, require_passed_training
 
@@ -173,6 +174,36 @@ async def complete(
             db, document_id=document_id, user_id=user["id"],
             completed=payload.completed,
             references=refs_payload,
+            audit_ack=(
+                payload.audit_ack.prediction_fingerprint
+                if payload.audit_ack is not None
+                else None
+            ),
+        )
+    except quality_service.AuditAckRequired as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "audit_required",
+                "message": (
+                    "Model karşılaştırmasında farklılık var. Lütfen kalite "
+                    "denetimini görüntüleyip onaylayın."
+                ),
+                "bucket": exc.bucket,
+                "prediction_fingerprint": exc.prediction_fingerprint,
+            },
+        )
+    except quality_service.AuditAckStale as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "audit_stale",
+                "message": (
+                    "Yeni model tahmini alındı, lütfen son kez teyit edip "
+                    "Tamamla'ya basınız."
+                ),
+                "prediction_fingerprint": exc.prediction_fingerprint,
+            },
         )
     except service.LockOwnedByOther:
         raise HTTPException(

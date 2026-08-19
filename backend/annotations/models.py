@@ -115,6 +115,17 @@ class AnnotationWithChain(BaseModel):
     chain: list[ChainEntry]
 
 
+class AuditAck(BaseModel):
+    """Human acknowledgement of a mismatching quality audit.
+
+    Presence of this object IS the acknowledgement ("I saw the comparison and
+    I stand by my labels"). The fingerprint lets the server detect that the
+    prediction changed after the caller ran the audit (409 audit_stale).
+    """
+
+    prediction_fingerprint: str = Field(min_length=1, max_length=128)
+
+
 class CompleteRequest(BaseModel):
     completed: bool
     # Optional atomic save: when `completed=True` and `references` is
@@ -125,6 +136,11 @@ class CompleteRequest(BaseModel):
     # legacy flag-flip-only behavior. Cap matches SaveAnnotationRequest
     # so payload bounds stay consistent (~800 KB worst-case).
     references: Optional[list[ReferenceItem]] = Field(default=None, max_length=200)
+    # Set by the frontend after it ran /pre-audit. Required (409
+    # audit_required otherwise) only when the server's own recomputation
+    # lands on RED/YELLOW — never a gate on the human's judgement, just a
+    # declaration that the comparison was seen.
+    audit_ack: Optional[AuditAck] = None
 
     @model_validator(mode="after")
     def _refs_only_when_completing(self) -> "CompleteRequest":
