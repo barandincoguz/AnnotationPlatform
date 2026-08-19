@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
+import { buildSegments, type QuoteTarget } from '@/lib/quoteMatcher'
 import { useDoc } from '@/hooks/useDoc'
 import { formatYmd } from '@/lib/formatters'
 import { normalizeOzelgeText } from '@/lib/normalizeOzelgeText'
@@ -24,9 +25,14 @@ type BkkRef = components['schemas']['BkkRef']
 
 interface DocViewerProps {
   docId: string
+  /** Model-proposed quotes to mark in the body. Empty → text renders as before. */
+  highlights?: QuoteTarget[]
+  /** Which highlight the audit panel is pointing at; scrolled into view. */
+  activeHighlightId?: string | null
 }
 
 const TR_FORMATTER = new Intl.NumberFormat('tr-TR')
+const NO_HIGHLIGHTS: QuoteTarget[] = []
 
 function difficultyTint(difficulty: string): string {
   const lower = difficulty.toLowerCase()
@@ -197,7 +203,11 @@ function Header({ d }: { d: DocumentDetail }) {
   )
 }
 
-export function DocViewer({ docId }: DocViewerProps) {
+export function DocViewer({
+  docId,
+  highlights = NO_HIGHLIGHTS,
+  activeHighlightId = null,
+}: DocViewerProps) {
   const q = useDoc(docId)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [showRawRefs, setShowRawRefs] = useState(false)
@@ -218,6 +228,21 @@ export function DocViewer({ docId }: DocViewerProps) {
   // before `cleaned` is ever read so the empty string is harmless.
   const rawPdfText = q.data?.pdf_text
   const cleaned = useMemo(() => (rawPdfText ? normalizeOzelgeText(rawPdfText) : ''), [rawPdfText])
+  
+  // Segment only when there is something to mark: the common (no-audit) path
+  // keeps rendering one text node exactly as before.
+  const segments = useMemo(
+    () => (highlights.length > 0 ? buildSegments(cleaned, highlights) : null),
+    [cleaned, highlights],
+  )
+
+  useEffect(() => {
+    if (!activeHighlightId) return
+    const node = scrollContainerRef.current?.querySelector(
+      `[data-highlight-id="${activeHighlightId}"]`,
+    )
+    node?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [activeHighlightId, segments])
   if (q.isPending) {
     return (
       <div role="status" aria-live="polite" className="p-4 text-[15px] text-muted-foreground">
@@ -300,7 +325,25 @@ export function DocViewer({ docId }: DocViewerProps) {
         )}
 
         <article className="min-w-0 max-w-full whitespace-pre-wrap break-words px-5 py-5 font-serif text-[15px] leading-[1.7] text-foreground/95 [overflow-wrap:anywhere]">
-          {cleaned}
+          {segments === null
+            ? cleaned
+            : segments.map((s, i) =>
+                s.quoteId ? (
+                  <mark
+                    // biome-ignore lint/suspicious/noArrayIndexKey: spans are stable
+                    key={i}
+                    data-highlight-id={s.quoteId}
+                    className={cn(
+                      'rounded-sm bg-amber-200/50 text-foreground transition-colors',
+                      s.quoteId === activeHighlightId && 'bg-amber-300 font-medium',
+                    )}
+                  >
+                    {s.text}
+                  </mark>
+                ) : (
+                  s.text
+                ),
+              )}
         </article>
       </div>
     </div>
