@@ -55,7 +55,7 @@ def test_predictions_survive_backup_dump_and_audit_logs_are_restorable():
     assert "model_predictions" not in EXCLUDED_TABLES
     assert "annotation_audit_logs" not in EXCLUDED_TABLES
     assert "annotation_audit_logs" in MIRROR_RESTORE_TABLES
-    assert "model_predictions" not in MIRROR_RESTORE_TABLES
+    assert "model_predictions" in MIRROR_RESTORE_TABLES
 
 
 def test_decision_check_constraint_rejects_unknown_values(db_path):

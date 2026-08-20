@@ -81,17 +81,20 @@ MIRROR_RESTORE_TABLES = (
     "behavioral_events",
     "admin_audit_log",
     "annotation_audit_logs",
+    "model_predictions",
 )
 
 ANNOTATION_STATE_TABLES = (
     "annotations",
     "annotation_versions",
     "annotation_references",
-    "drafts",
+    "model_predictions",
 )
 
 
 def _translate_mirror_value(value):
+    if isinstance(value, bool):
+        return 1 if value else 0
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)
     if isinstance(value, datetime):
