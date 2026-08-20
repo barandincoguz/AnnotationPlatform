@@ -103,7 +103,7 @@ describe('QualityAuditPanel', () => {
     expect(addButtons).toHaveLength(2)
     expect(screen.getByText('Sizde var, model bulamadı')).toBeInTheDocument()
     await userEvent.click(addButtons[0]!)
-    expect(handlers.onAccept).toHaveBeenCalledWith(MODEL_ONLY)
+    expect(handlers.onAccept).toHaveBeenCalledWith(MODEL_ONLY, 0)
   })
 
   it('marks an already-accepted suggestion and disables its button', () => {

@@ -170,7 +170,7 @@ def test_pending_documents_returns_documents_without_predictions(db, ingest_doc)
     ingest_doc("d2", pdfText="ikinci dokuman metni")
     pending = service.pending_documents(db, limit=8)
     ids = [row["document_id"] for row in pending]
-    assert ids == ["d1", "d2"]
+    assert ids == ["d2", "d1"]
     assert pending[0]["text_sha256"] and pending[1]["text_sha256"]
 
 

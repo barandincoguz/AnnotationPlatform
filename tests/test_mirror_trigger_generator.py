@@ -92,16 +92,15 @@ def test_activity_event_payload_redacts_local_session_reference():
 def test_build_all_triggers_returns_66_statements():
     conn = _migrated_conn()
     all_t = build_all_triggers(conn)
-    assert len(all_t) == 66, f"expected 66 triggers, got {len(all_t)}"
+    assert len(all_t) == 69, f"expected 69 triggers, got {len(all_t)}"
     assert all("user_sessions" not in stmt for stmt in all_t)
     assert all("document_locks" not in stmt for stmt in all_t)
     assert all("system_events" not in stmt for stmt in all_t)
-    assert all("model_predictions" not in stmt for stmt in all_t)
     conn.close()
 
 
 def test_install_all_triggers_produces_66_in_sqlite_master():
-    """Run the generated trigger SQL against a freshly migrated DB and confirm 66 rows."""
+    """Run the generated trigger SQL against a freshly migrated DB and confirm 69 rows."""
     conn = _migrated_conn()
     triggers = build_all_triggers(conn)
     # Wrap in explicit BEGIN IMMEDIATE / COMMIT to mirror the runner.
@@ -116,7 +115,7 @@ def test_install_all_triggers_produces_66_in_sqlite_master():
     row = conn.execute(
         "SELECT count(*) AS c FROM sqlite_master WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 66, f"expected 66 triggers, got {row['c']}"
+    assert row["c"] == 69, f"expected 69 triggers, got {row['c']}"
     conn.close()
 
 
@@ -132,12 +131,13 @@ def test_trigger_sql_has_no_line_comments():
 def test_pk_columns_manifest_has_22_keys_with_expected_pks():
     conn = _migrated_conn()
     manifest = build_pk_columns_manifest(conn)
-    assert len(manifest) == 22, f"expected 22 manifest entries, got {len(manifest)}"
+    assert len(manifest) == 23, f"expected 23 manifest entries, got {len(manifest)}"
     assert manifest["users"] == ["id"]
     assert manifest["user_feedback"] == ["id"]
     assert manifest["drafts"] == ["document_id", "user_id"]
     assert manifest["annotations"] == ["document_id"]
     assert manifest["site_settings"] == ["key"]
+    assert manifest["model_predictions"] == ["document_id"]
     # Composite PK from badges_earned
     assert manifest["badges_earned"] == ["user_id", "badge_id"]
     # annotation_audit_logs added in v0017

@@ -28,6 +28,30 @@ class NoopEventSource {
 // @ts-expect-error mock global
 globalThis.EventSource = NoopEventSource
 
+if (!globalThis.localStorage || typeof globalThis.localStorage.setItem !== 'function') {
+  const store = new Map<string, string>()
+  const storageMock = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, val: string) => store.set(key, String(val)),
+    removeItem: (key: string) => store.delete(key),
+    clear: () => store.clear(),
+    key: (i: number) => Array.from(store.keys())[i] ?? null,
+    get length() {
+      return store.size
+    },
+  }
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: storageMock,
+    writable: true,
+  })
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'localStorage', {
+      value: storageMock,
+      writable: true,
+    })
+  }
+}
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 
 afterEach(() => {

@@ -29,7 +29,7 @@ def test_both_tables_exist_with_expected_columns(db_path):
         conn.close()
 
 
-def test_audit_logs_are_mirrored_but_predictions_are_not(db_path):
+def test_audit_logs_and_predictions_are_mirrored(db_path):
     conn = _fresh(db_path)
     try:
         triggers = {
@@ -40,8 +40,10 @@ def test_audit_logs_are_mirrored_but_predictions_are_not(db_path):
             "_outbox_annotation_audit_logs_ins",
             "_outbox_annotation_audit_logs_upd",
             "_outbox_annotation_audit_logs_del",
+            "_outbox_model_predictions_ins",
+            "_outbox_model_predictions_upd",
+            "_outbox_model_predictions_del",
         } <= triggers
-        assert not any(t.startswith("_outbox_model_predictions") for t in triggers)
     finally:
         conn.close()
 

@@ -64,7 +64,7 @@ def test_63_triggers_installed_after_migrations():
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 66
+    assert row["c"] == 69
     conn.close()
 
 
@@ -152,7 +152,7 @@ def test_migration_v0006_is_idempotent():
         "SELECT count(*) AS c FROM sqlite_master "
         "WHERE type='trigger' AND name LIKE '_outbox_%'"
     ).fetchone()
-    assert row["c"] == 66
+    assert row["c"] == 69
     conn.close()
 
 
