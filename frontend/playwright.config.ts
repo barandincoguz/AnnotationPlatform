@@ -6,8 +6,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const REPO_ROOT = path.resolve(__dirname, '..')
 const E2E_DATA_DIR = '/tmp/anotasyon-e2e-data'
-const E2E_BACKEND_PORT = 8001
-const E2E_FRONTEND_PORT = 5174
+const E2E_BACKEND_PORT = 8002
+const E2E_FRONTEND_PORT = 5175
 const PROXY_TARGET = `http://127.0.0.1:${E2E_BACKEND_PORT}`
 
 /**

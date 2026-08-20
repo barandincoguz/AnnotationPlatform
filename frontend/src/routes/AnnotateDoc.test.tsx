@@ -243,6 +243,17 @@ describe('AnnotateDoc integration', () => {
     })
     server.use(
       http.post('http://localhost/api/annotations', saveSpy),
+      http.post('http://localhost/api/annotations/doc-1/pre-audit', () =>
+        HttpResponse.json({
+          audit_status: 'ready',
+          bucket: 'GREEN',
+          reasons: [],
+          similarity: 1.0,
+          prediction_fingerprint: 'fp-1',
+          model_generation: 'G0',
+          discrepancies: [],
+        })
+      ),
       http.post('http://localhost/api/annotations/doc-1/complete', completeSpy),
     )
 

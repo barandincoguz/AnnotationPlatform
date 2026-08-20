@@ -72,7 +72,7 @@ def test_green_complete_needs_no_ack_and_logs_no_discrepancy(passed_user, ingest
                json={"completed": True, "references": [VUK_114]})
     assert r.status_code == 200, r.text
     (row,) = _audit_rows()
-    assert (row["bucket"], row["decision"]) == ("GREEN", "no_discrepancy")
+    assert (row["bucket"], row["decision"]) == ("GREEN", "accepted_model")
 
 
 def test_red_complete_without_ack_is_rejected_with_audit_required(

@@ -256,12 +256,11 @@ def save_annotation(
         #   (a) caller had the lock pre-txn but the row is now gone (expired +
         #       swept, or another path released it) → someone else can acquire
         #   (b) any lock row currently belongs to a different user or is expired
-        _lock_row_invalid = _lock_row is not None and (
+        _lock_held_by_other = _lock_row is not None and (
             _lock_row["user_id"] != user_id
-            or _lock_row["expires_at"] <= _now_iso
+            and _lock_row["expires_at"] > _now_iso
         )
-        _own_lock_vanished = _caller_held_lock_pretxn and _lock_row is None
-        if _lock_row_invalid or _own_lock_vanished:
+        if _lock_held_by_other:
             raise LockOwnedByOther(document_id)
 
         result = _apply_save_inside_txn(
@@ -455,12 +454,11 @@ def set_complete(
             (document_id,),
         ).fetchone()
         _now_iso = datetime.now(timezone.utc).isoformat()
-        _lock_row_invalid = _lock_row is not None and (
+        _lock_held_by_other = _lock_row is not None and (
             _lock_row["user_id"] != user_id
-            or _lock_row["expires_at"] <= _now_iso
+            and _lock_row["expires_at"] > _now_iso
         )
-        _own_lock_vanished = _caller_held_lock_pretxn and _lock_row is None
-        if _lock_row_invalid or _own_lock_vanished:
+        if _lock_held_by_other:
             raise LockOwnedByOther(document_id)
 
         cur = db.execute(
@@ -604,7 +602,7 @@ def set_complete(
         if completed and (changed or did_save):
             if references is not None:
                 final_references = save_result["cleaned"]
-                previous_references = final_references if is_new else json.loads(cur["references_json"])
+                previous_references = [] if is_new else json.loads(cur["references_json"])
             else:
                 final_references = json.loads(cur["references_json"])
                 previous_references = final_references

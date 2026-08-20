@@ -30,6 +30,15 @@ interface ReferencePanelProps {
   hasAnnotation: boolean
   /** Singleton completion flag from the annotation row. */
   isCompleted: boolean
+  /**
+   * Non-null when the last audit could not run (no prediction, model error,
+   * truncated output, stale text). Shown as a neutral notice — never as a
+   * green "model agrees" claim.
+   */
+  modelUnavailableReason?: string | null
+  /** Manual "compare me against the model" trigger. */
+  onCompare: () => void
+  isAuditing: boolean
 }
 
 function DraftStatusBadge({ status }: { status: DraftSaveStatus }) {
@@ -74,6 +83,9 @@ export function ReferencePanel({
   isValid,
   hasAnnotation,
   isCompleted,
+  modelUnavailableReason = null,
+  onCompare,
+  isAuditing,
 }: ReferencePanelProps) {
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(0)
   const prevLengthRef = useRef(refs.length)
@@ -94,6 +106,7 @@ export function ReferencePanel({
     !canEdit ||
     isSaving ||
     isCompleting ||
+    isAuditing ||
     // Refuse to lock in an invalid state when finalizing; allow the reverse
     // direction (Geri Al) regardless so users can recover from a mistaken
     // completion even if the editor currently shows invalid refs.
@@ -203,13 +216,33 @@ export function ReferencePanel({
             <strong>Kanun No</strong> veya <strong>Kanun Adı</strong> doldurulmalı.
           </p>
         )}
+        {modelUnavailableReason && (
+          <p
+            role="note"
+            data-testid="model-unavailable-notice"
+            className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-[13px] leading-relaxed text-muted-foreground"
+          >
+            Bu doküman için model kontrolü yapılamadı — kendi değerlendirmenizle devam edin.
+          </p>
+        )}
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
+            onClick={onCompare}
+            disabled={!canEdit || isSaving || isAuditing}
+            title="Etiketlerinizi model tahminiyle karşılaştırın; hiçbir şey kaydedilmez."
+            className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
+          >
+            {isAuditing ? 'Karşılaştırılıyor…' : 'Model ile karşılaştır'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={onSkip}
-            disabled={!canEdit || isSaving}
+            disabled={!canEdit || isSaving || isAuditing}
             className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
           >
             Atla
@@ -218,7 +251,7 @@ export function ReferencePanel({
             type="button"
             size="sm"
             onClick={onSave}
-            disabled={!canEdit || isSaving || !isValid}
+            disabled={!canEdit || isSaving || isAuditing || !isValid}
             title="Emin değilsen kontrole gönder; başka biri kontrol etsin."
             className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
           >

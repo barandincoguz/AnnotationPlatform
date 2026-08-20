@@ -164,57 +164,63 @@ def update_streak_and_counters(
         raise ValueError("use record_skip() for skip events")
 
     ensure_state(db, user_id=user_id)
-    row = db.execute(
-        "SELECT * FROM gamification_state WHERE user_id=?", (user_id,)
-    ).fetchone()
-    state = _maybe_reset_today_counters(dict(row))
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT * FROM gamification_state WHERE user_id=?", (user_id,)
+        ).fetchone()
+        state = _maybe_reset_today_counters(dict(row))
 
-    # Streak transition only on save actions.
-    if action in ("save_create", "save_edit"):
-        new_last, new_streak, new_longest = _next_streak(
-            state.get("last_active_date"),
-            state.get("current_streak_days", 0),
-            state.get("longest_streak_days", 0),
+        # Streak transition only on save actions.
+        if action in ("save_create", "save_edit"):
+            new_last, new_streak, new_longest = _next_streak(
+                state.get("last_active_date"),
+                state.get("current_streak_days", 0),
+                state.get("longest_streak_days", 0),
+            )
+            state["last_active_date"] = new_last
+            state["current_streak_days"] = new_streak
+            state["longest_streak_days"] = new_longest
+
+        # Counter bump.
+        if action == "save_create":
+            state["today_save_count"] += 1
+        elif action == "save_edit":
+            state["today_save_count"] += 1
+            state["today_review_count"] += 1
+        elif action == "complete":
+            state["today_complete_count"] += 1
+        # uncomplete / skip handled separately
+
+        db.execute(
+            """
+            UPDATE gamification_state SET
+                last_active_date=?,
+                current_streak_days=?,
+                longest_streak_days=?,
+                today_save_count=?,
+                today_complete_count=?,
+                today_review_count=?,
+                today_skip_count=?,
+                updated_at=?
+             WHERE user_id=?
+            """,
+            (
+                state["last_active_date"],
+                state["current_streak_days"],
+                state["longest_streak_days"],
+                state["today_save_count"],
+                state["today_complete_count"],
+                state["today_review_count"],
+                state["today_skip_count"],
+                _now_utc_iso(),
+                user_id,
+            ),
         )
-        state["last_active_date"] = new_last
-        state["current_streak_days"] = new_streak
-        state["longest_streak_days"] = new_longest
-
-    # Counter bump.
-    if action == "save_create":
-        state["today_save_count"] += 1
-    elif action == "save_edit":
-        state["today_save_count"] += 1
-        state["today_review_count"] += 1
-    elif action == "complete":
-        state["today_complete_count"] += 1
-    # uncomplete / skip handled separately
-
-    db.execute(
-        """
-        UPDATE gamification_state SET
-            last_active_date=?,
-            current_streak_days=?,
-            longest_streak_days=?,
-            today_save_count=?,
-            today_complete_count=?,
-            today_review_count=?,
-            today_skip_count=?,
-            updated_at=?
-         WHERE user_id=?
-        """,
-        (
-            state["last_active_date"],
-            state["current_streak_days"],
-            state["longest_streak_days"],
-            state["today_save_count"],
-            state["today_complete_count"],
-            state["today_review_count"],
-            state["today_skip_count"],
-            _now_utc_iso(),
-            user_id,
-        ),
-    )
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
 
 def record_skip(db: sqlite3.Connection, *, user_id: int) -> None:

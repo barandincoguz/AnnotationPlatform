@@ -345,10 +345,15 @@ def upsert_predictions(
 
 _PENDING_MISSING_SQL = """
     SELECT d.document_id, d.pdf_text
-    FROM documents_meta d
+    FROM (
+        SELECT document_id, pdf_text, created_at
+        FROM documents_meta 
+        ORDER BY document_id DESC 
+        LIMIT 3000
+    ) d
     LEFT JOIN model_predictions p ON p.document_id = d.document_id
     WHERE p.document_id IS NULL
-    ORDER BY d.created_at ASC, d.document_id ASC
+    ORDER BY d.document_id DESC
     LIMIT ?
 """
 

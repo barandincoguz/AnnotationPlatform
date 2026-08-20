@@ -23,11 +23,12 @@ import { areAllReferencesValid, checkAndRemoveDuplicateReferences } from '@/lib/
 import { ApiError } from '@/api/client'
 import { feedKeys } from '@/api/queries/feed'
 import type { components } from '@/api/types'
-import { QualityAuditPanel, discrepancyKey } from '@/components/annotation/QualityAuditPanel'
+import { QualityAuditPanel } from '@/components/annotation/QualityAuditPanel'
+import { discrepancyKey } from '@/components/annotation/audit-utils'
 import { usePreAuditMutation } from '@/hooks/useAnnotation'
 import type { AuditDiscrepancy, PreAuditResult } from '@/api/queries/annotations'
 import type { QuoteTarget } from '@/lib/quoteMatcher'
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 type ReferenceItem = components['schemas']['ReferenceItem']
 
 export function AnnotateDoc() {
@@ -38,7 +39,7 @@ export function AnnotateDoc() {
     return <div className="p-4 text-sm text-muted-foreground">Doküman ID yok.</div>
   }
 
-  return <AnnotateDocInner docId={docId} />
+  return <AnnotateDocInner key={docId} docId={docId} />
 }
 
 function AnnotateDocInner({ docId }: { docId: string }) {
@@ -64,7 +65,6 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   // Mirror of the live reference list. `refs.list` lags by one render after a
   // reducer dispatch and the draft PUT is debounced, so a "Tamamla" click in
   // the same tick as an accepted suggestion must read from here.
-  const refsRef = useRef<ReferenceItem[]>([])
 
   const lock = useLock(docId)
   const annotation = useAnnotation(docId)
@@ -108,16 +108,13 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const completeMutation = useCompleteAnnotationMutation()
 
   const canEdit = lock.status === 'held' && refs.hydrated
-  useEffect(() => {
-    refsRef.current = refs.list
-  }, [refs.list])
 
   const isValid = areAllReferencesValid(refs.list)
   const hasAnnotation = !!annotation.data?.annotation
   const isCompleted = annotation.data?.annotation?.is_completed ?? false
 
   const handleSave = async () => {
-    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refsRef.current)
+    const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(refs.list)
     if (hasDuplicates) {
       toast.warning('Yinelenen anotasyon silindi.')
       refs.updateAll(cleanedRefs)
@@ -128,8 +125,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
         document_id: docId,
         references: cleanedRefs,
       })
-    } catch {
+    } catch (err: any) {
       draft.unblockSaves()
+      if (!(err instanceof ApiError)) {
+        toast.error(err instanceof Error ? err.message : 'Ağ veya sunucu hatası: Kaydedilemedi.')
+      }
       return
     }
 
@@ -196,6 +196,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       const auditConflict = code === 'audit_stale' || code === 'audit_required'
       if (!auditConflict || attempt >= 1) {
         setAudit({ phase: 'idle' })
+        if (!auditConflict) {
+          toast.error(err instanceof Error ? err.message : 'Ağ veya sunucu hatası: Tamamlanamadı.')
+        } else {
+          toast.error('Kalite denetimi çakışması aşılamadı, lütfen tekrar deneyin.')
+        }
         return
       }
       // The predict-agent pushed a fresher prediction while the user worked.
@@ -265,12 +270,12 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     console.log("handleComplete called!")
     const targetCompleted = !isCompleted
     const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(
-      refsRef.current,
+      refs.list,
     )
     if (targetCompleted && hasDuplicates) {
       toast.warning('Yinelenen anotasyon silindi.')
       refs.updateAll(cleanedRefs)
-      refsRef.current = cleanedRefs
+      
     }
 
     // Uncomplete reverses a prior commit; there is nothing to audit.
@@ -318,7 +323,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   const handleCompare = async () => {
     setAudit({ phase: 'running' })
     try {
-      const result = await runPreAudit(refsRef.current)
+      const result = await runPreAudit(refs.list)
       if (result.audit_status === 'model_unavailable') {
         setModelUnavailableReason(result.reason ?? 'no_prediction')
         setAudit({ phase: 'idle' })
@@ -337,11 +342,11 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     }
   }
 
-  const handleAcceptSuggestion = (discrepancy: AuditDiscrepancy) => {
+  const handleAcceptSuggestion = (discrepancy: AuditDiscrepancy, index: number) => {
     const model = discrepancy.model_reference
     if (!model?.source_text) return
     const next: ReferenceItem[] = [
-      ...refsRef.current,
+      ...refs.list,
       {
         kanun_no: model.kanun_no ?? null,
         kanun_ad: model.kanun_ad ?? null,
@@ -353,9 +358,8 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     ]
     // Synchronous write closes the debounce race: a "Tamamla" click in this
     // same tick still commits the accepted suggestion.
-    refsRef.current = next
     refs.updateAll(next)
-    setAcceptedKeys((prev) => new Set(prev).add(discrepancyKey(discrepancy)))
+    setAcceptedKeys((prev) => new Set(prev).add(discrepancyKey(discrepancy, index)))
     toast.success('Model önerisi listenize eklendi.')
   }
 
@@ -364,15 +368,16 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     const ack = audit.result.prediction_fingerprint
       ? { prediction_fingerprint: audit.result.prediction_fingerprint }
       : undefined
-    await finalizeComplete(true, refsRef.current, ack)
+    const { list: cleanedRefs } = checkAndRemoveDuplicateReferences(refs.list)
+    await finalizeComplete(true, cleanedRefs, ack)
   }
 
   const highlights = useMemo<QuoteTarget[]>(() => {
     if (audit.phase !== 'open') return []
     return (audit.result.discrepancies ?? [])
       .filter((d) => d.model_reference?.source_text)
-      .map((d) => ({
-        id: discrepancyKey(d),
+      .map((d, index) => ({
+        id: discrepancyKey(d, index),
         quote: d.model_reference!.source_text!,
         ...(d.madde && { near: d.madde }),
       }))
@@ -551,6 +556,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
             acceptedKeys={acceptedKeys}
             staleNotice={audit.staleNotice}
             isCompleting={completeMutation.isPending}
+            canEdit={lock.status === 'held'}
             onAccept={handleAcceptSuggestion}
             onHover={setActiveHighlightId}
             onComplete={() => {

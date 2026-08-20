@@ -92,7 +92,7 @@ def test_release_when_absent_no_op(db):
     locks.release(db, document_id="doc_1", user_id=1)  # does not raise
 
 
-def test_get_lock_expiry_cleanup_uses_conditional_delete(db):
+def test_get_lock_ignores_expired_locks_without_deleting(db):
     past = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat()
     db.execute(
         "INSERT INTO document_locks("
@@ -111,12 +111,13 @@ def test_get_lock_expiry_cleanup_uses_conditional_delete(db):
             return db.execute(statement, *args, **kwargs)
 
     assert locks.get_lock(_TraceConn(), "doc_1") is None
-    cleanup = next(
-        statement
-        for statement in calls
-        if statement.startswith("delete from document_locks")
-    )
-    assert "document_id=? and expires_at < ?" in cleanup
+    
+    for statement in calls:
+        assert not statement.startswith("delete from"), "get_lock should not mutate"
+        
+    selects = [stmt for stmt in calls if stmt.startswith("select ")]
+    assert len(selects) == 1
+    assert "expires_at >=" in selects[0]
 
 
 def test_force_release_drops_lock(db):

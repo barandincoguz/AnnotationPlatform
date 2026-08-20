@@ -9,9 +9,10 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
-# 30-second cap on every git invocation. Hung pushes (network stalls)
-# raise TimeoutExpired which the orchestrator catches.
-GIT_TIMEOUT = 30
+# 120-second cap on every git invocation. Hung pushes (network stalls)
+# raise TimeoutExpired which the orchestrator catches. Increased to 120
+# to handle large JSON snapshots safely over slow networks.
+GIT_TIMEOUT = 120
 
 # Clone is bounded separately because a fresh clone transfers the entire
 # backup repo history, which can take longer than a single push of one
@@ -196,11 +197,11 @@ def commit_and_push(
         if remote_url and pat
         else "origin"
     )
-    push = _run(["git", "push", push_target, "main"], cwd=backup_dir)
+    push = _run(["git", "push", "--force", push_target, "main"], cwd=backup_dir)
     if push.returncode != 0:
         main_stderr = scrub_pat(push.stderr or "")
         if "src refspec main" in (push.stderr or ""):
-            push = _run(["git", "push", push_target, "master"], cwd=backup_dir)
+            push = _run(["git", "push", "--force", push_target, "master"], cwd=backup_dir)
         if push.returncode != 0:
             stderr = scrub_pat(push.stderr or "")
             # Combine both stderrs so we don't lose the main attempt's diagnostic

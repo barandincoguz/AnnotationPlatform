@@ -70,20 +70,17 @@ def _row_to_info(row: sqlite3.Row, db: sqlite3.Connection) -> dict:
 
 
 def get_lock(db: sqlite3.Connection, document_id: str) -> Optional[dict]:
-    """Read current lock state for a document, removing it if expired.
+    """Read current lock state for a document, ignoring expired locks.
 
-    Expiry cleanup is a conditional DELETE rather than SELECT-then-DELETE.
-    A concurrent heartbeat that has already extended the row therefore cannot
-    be erased by a stale expiry observation.
+    Unlike the previous implementation, this no longer performs a silent
+    DELETE on expired rows.  Expired locks are cleaned up exclusively by
+    sweep_expired(), which broadcasts SSE ``lock_released`` events so
+    peer clients stay in sync.
     """
     now_iso = _now().isoformat()
-    db.execute(
-        "DELETE FROM document_locks "
-        "WHERE document_id=? AND expires_at < ?",
-        (document_id, now_iso),
-    )
     row = db.execute(
-        "SELECT * FROM document_locks WHERE document_id=?", (document_id,)
+        "SELECT * FROM document_locks WHERE document_id=? AND expires_at >= ?",
+        (document_id, now_iso),
     ).fetchone()
     return None if row is None else _row_to_info(row, db)
 

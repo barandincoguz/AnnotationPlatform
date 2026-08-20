@@ -76,56 +76,81 @@ def export_corpus(
     generated_at: str,
     force: bool = False,
 ) -> dict[str, Any]:
+    import os
+    import shutil
+
     out_dir = Path(out_dir)
     validated_dir = out_dir / "validated"
     if validated_dir.exists() and any(validated_dir.iterdir()) and not force:
         raise SystemExit(
             f"{validated_dir} already contains an export; pass --force to replace it"
         )
-    validated_dir.mkdir(parents=True, exist_ok=True)
-    for stale in validated_dir.glob("doc_*.json"):
-        stale.unlink()
 
-    rows = db.execute(_SELECT_DOCUMENTS).fetchall()
+    # Write to a temp directory, then atomically rename to validated_dir.
+    # This prevents downstream consumers from reading a partial export.
+    tmp_dir = out_dir / "_tmp_validated"
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    # Stream rows one-by-one instead of fetchall() to avoid OOM on large corpora.
+    cursor = db.execute(_SELECT_DOCUMENTS)
     id_map: dict[str, int] = {}
-    sidecar_lines: list[str] = []
-    for doc_id, row in enumerate(rows, start=1):
-        document_id = row["document_id"]
-        id_map[document_id] = doc_id
-        _write_json(
-            validated_dir / f"doc_{doc_id}.json",
-            {
-                "doc_id": doc_id,
-                "source_document_id": document_id,
-                "text": row["pdf_text"],
-                "references": json.loads(row["references_json"]),
-            },
-        )
-        audit = db.execute(_SELECT_LATEST_AUDIT, (document_id,)).fetchone()
-        sidecar_lines.append(
-            json.dumps(
+    count = 0
+
+    tmp_sidecar = out_dir / "_tmp_audit_sidecar.jsonl"
+    with open(tmp_sidecar, "w", encoding="utf-8") as sidecar_f:
+        for doc_id, row in enumerate(cursor, start=1):
+            count += 1
+            document_id = row["document_id"]
+            id_map[document_id] = doc_id
+            _write_json(
+                tmp_dir / f"doc_{doc_id}.json",
                 {
                     "doc_id": doc_id,
                     "source_document_id": document_id,
-                    "bucket": audit["bucket"],
-                    "decision": audit["decision"],
-                    "reasons": json.loads(audit["reasons_json"]),
-                    "similarity": audit["similarity"],
-                    "prediction_fingerprint": audit["prediction_fingerprint"],
-                    "policy_id": audit["policy_id"],
-                    "model_generation": audit["model_generation"],
-                    "unique_users_count": row["unique_users_count"],
-                    "audit_at": audit["created_at"],
+                    "text": row["pdf_text"] or "",
+                    "references": json.loads(row["references_json"])
+                    if row["references_json"]
+                    else [],
                 },
-                ensure_ascii=False,
-                sort_keys=True,
             )
-        )
+            audit = db.execute(_SELECT_LATEST_AUDIT, (document_id,)).fetchone()
+            if audit is not None:
+                sidecar_f.write(
+                    json.dumps(
+                        {
+                            "doc_id": doc_id,
+                            "source_document_id": document_id,
+                            "bucket": audit["bucket"],
+                            "decision": audit["decision"],
+                            "reasons": json.loads(audit["reasons_json"])
+                            if audit["reasons_json"]
+                            else [],
+                            "similarity": audit["similarity"],
+                            "prediction_fingerprint": audit["prediction_fingerprint"],
+                            "policy_id": audit["policy_id"],
+                            "model_generation": audit["model_generation"],
+                            "unique_users_count": row["unique_users_count"],
+                            "audit_at": audit["created_at"],
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                )
+
+    # Atomic swap: remove old validated_dir, rename tmp → validated.
+    if validated_dir.exists():
+        shutil.rmtree(validated_dir)
+    os.rename(tmp_dir, validated_dir)
+
+    sidecar_dest = out_dir / "audit_sidecar.jsonl"
+    if sidecar_dest.exists():
+        sidecar_dest.unlink()
+    os.rename(tmp_sidecar, sidecar_dest)
 
     _write_json(out_dir / "id_map.json", id_map)
-    (out_dir / "audit_sidecar.jsonl").write_text(
-        "".join(f"{line}\n" for line in sidecar_lines), encoding="utf-8"
-    )
 
     manifest_rows = directory_manifest(
         sorted(validated_dir.glob("doc_*.json")), root=out_dir
@@ -136,7 +161,7 @@ def export_corpus(
     summary = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,
-        "count": len(rows),
+        "count": count,
         "files": manifest_rows,
         "manifest_fingerprint": fingerprint,
     }

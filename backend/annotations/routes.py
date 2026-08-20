@@ -218,6 +218,8 @@ async def complete(
         raise HTTPException(status_code=404, detail=f"no annotation for {document_id}")
     except service.DocumentNotFound:
         raise HTTPException(status_code=404, detail=f"document {document_id} not found")
+    except (DuplicateReference, InvalidReference) as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
     # Save-side effects: fire whenever refs were committed in this call.
     if result["did_save"]:

@@ -4,6 +4,7 @@ import type { AuditDiscrepancy, PreAuditResult } from '@/api/queries/annotations
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { discrepancyKey } from './audit-utils'
 
 const BUCKET_LABEL: Record<string, string> = {
   RED: 'Kanun veya madde listesi uyuşmuyor',
@@ -26,16 +27,6 @@ const FIELD_LABEL: Record<string, string> = {
 type ReferenceLike = Record<string, string> | null | undefined
 
 /** Stable id for a discrepancy: highlight target + "already accepted" key. */
-export function discrepancyKey(discrepancy: AuditDiscrepancy): string {
-  const reference = discrepancy.model_reference ?? discrepancy.human_reference
-  return [
-    discrepancy.kind,
-    discrepancy.kanun_no,
-    discrepancy.madde,
-    reference?.fikra ?? '',
-    reference?.bent ?? '',
-  ].join(':')
-}
 
 function referenceLabel(reference: ReferenceLike): string {
   if (!reference) return '—'
@@ -51,7 +42,8 @@ interface QualityAuditPanelProps {
   acceptedKeys: ReadonlySet<string>
   staleNotice?: string | null
   isCompleting: boolean
-  onAccept: (discrepancy: AuditDiscrepancy) => void
+  canEdit: boolean
+  onAccept: (discrepancy: AuditDiscrepancy, index: number) => void
   onHover: (highlightId: string | null) => void
   onComplete: () => void
   onOverride: () => void
@@ -63,6 +55,7 @@ export function QualityAuditPanel({
   acceptedKeys,
   staleNotice = null,
   isCompleting,
+  canEdit,
   onAccept,
   onHover,
   onComplete,
@@ -112,8 +105,8 @@ export function QualityAuditPanel({
       </header>
 
       <div className="min-w-0 flex-1 space-y-2 overflow-auto px-5 py-3">
-        {(result.discrepancies ?? []).map((discrepancy) => {
-          const key = discrepancyKey(discrepancy)
+        {(result.discrepancies ?? []).map((discrepancy, index) => {
+          const key = discrepancyKey(discrepancy, index)
           const model = discrepancy.model_reference
           const accepted = acceptedKeys.has(key)
           const canAccept = Boolean(model?.source_text)
@@ -169,8 +162,8 @@ export function QualityAuditPanel({
                   type="button"
                   size="sm"
                   variant={accepted ? 'outline' : 'default'}
-                  disabled={accepted || isCompleting}
-                  onClick={() => onAccept(discrepancy)}
+                  disabled={accepted || isCompleting || !canEdit}
+                  onClick={() => onAccept(discrepancy, index)}
                   className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
                 >
                   {accepted ? <Check /> : <Plus />}
@@ -188,7 +181,7 @@ export function QualityAuditPanel({
           type="button"
           size="sm"
           variant="outline"
-          disabled={isCompleting}
+          disabled={isCompleting || !canEdit}
           onClick={onOverride}
           className="w-full min-w-0 whitespace-normal px-2 text-center leading-tight"
         >
@@ -200,7 +193,7 @@ export function QualityAuditPanel({
             type="button"
             size="sm"
             variant="ghost"
-            disabled={isCompleting}
+            disabled={isCompleting || !canEdit}
             onClick={onBackToEdit}
             className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
           >
@@ -211,7 +204,7 @@ export function QualityAuditPanel({
             type="button"
             size="sm"
             variant="success"
-            disabled={isCompleting}
+            disabled={isCompleting || !canEdit}
             onClick={onComplete}
             className="min-w-0 max-w-full whitespace-normal px-2 text-center leading-tight"
           >

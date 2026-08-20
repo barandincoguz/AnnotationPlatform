@@ -62,7 +62,7 @@ function fold(input: string, { loose }: { loose: boolean }): Projection {
   const map: number[] = []
   let pendingSpace = false
   for (let index = 0; index < input.length; index += 1) {
-    const original = input[index] as string
+    const original = input[index]!
     const substituted = PUNCTUATION[original] ?? original
     // `toLowerCase` (not the tr locale) mirrors Python's str.casefold, which
     // maps "I" to "i" — locale-aware lowering would produce "ı" and stop
@@ -89,7 +89,7 @@ function fold(input: string, { loose }: { loose: boolean }): Projection {
   return { text: chars.join(''), map }
 }
 
-const LEVELS: Array<{ mode: QuoteMatchMode; project: (input: string) => Projection }> = [
+const LEVELS: { mode: QuoteMatchMode; project: (input: string) => Projection }[] = [
   { mode: 'exact', project: identity },
   { mode: 'folded', project: (input) => fold(input, { loose: false }) },
   { mode: 'loose', project: (input) => fold(input, { loose: true }) },
@@ -108,7 +108,7 @@ function occurrences(haystack: string, needle: string): number[] {
 }
 
 function pickNearest(candidates: number[], projected: string, hint: string): number {
-  const first = candidates[0] as number
+  const first = candidates[0]!
   if (candidates.length === 1 || !hint) return first
   const hintPositions = occurrences(projected, hint)
   if (hintPositions.length === 0) return first
@@ -138,15 +138,15 @@ export function findQuote(haystack: string, quote: string, near?: string): Quote
     if (candidates.length === 0) continue
     const hint = near ? level.project(near).text : ''
     const start = pickNearest(candidates, projection.text, hint)
-    const startOriginal = projection.map[start] as number
-    const endOriginal = (projection.map[start + needle.length - 1] as number) + 1
+    const startOriginal = projection.map[start]!
+    const endOriginal = (projection.map[start + needle.length - 1]!) + 1
     return { start: startOriginal, end: endOriginal, mode: level.mode }
   }
   return null
 }
 
 export function buildSegments(text: string, targets: QuoteTarget[]): QuoteSegment[] {
-  const spans: Array<{ start: number; end: number; id: string }> = []
+  const spans: { start: number; end: number; id: string }[] = []
   for (const target of targets) {
     const match = findQuote(text, target.quote, target.near)
     if (match) spans.push({ start: match.start, end: match.end, id: target.id })

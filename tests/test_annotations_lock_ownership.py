@@ -273,17 +273,17 @@ def test_route_complete_returns_409_lock_owned_by_other(second_passed_user, inge
 
 
 def test_save_annotation_inside_txn_lock_recheck(db, monkeypatch):
-    """BE-3: even if the pre-txn lock check passed, the inside-txn re-check
-    must catch a swap that happened in the window.
+    """BE-3 (updated): when the caller's own lock vanishes (expired + swept),
+    but no *other* user holds the lock, the save should now succeed.
 
-    Strategy: monkeypatch locks_service.get_lock to lie (claim user 1 still
-    owns it) while we DELETE the lock row before BEGIN IMMEDIATE.  The pre-txn
-    guard is fooled; the inside-txn re-query sees no row → rollback + raise.
+    Previously, we raised LockOwnedByOther even when the lock simply expired.
+    The updated logic only blocks saves when a *different* user actively holds
+    a non-expired lock.
     """
     # User 1 acquires; user 1 is the legitimate owner.
     lock_service.acquire(db, document_id="doc_1", user_id=1)
 
-    # Simulate the swap window: delete the row so user 1 no longer holds it.
+    # Simulate the sweep: delete the row so user 1 no longer holds it.
     db.execute("DELETE FROM document_locks WHERE document_id = ?", ("doc_1",))
     db.commit()
 
@@ -296,24 +296,18 @@ def test_save_annotation_inside_txn_lock_recheck(db, monkeypatch):
     }
     monkeypatch.setattr(lock_service, "get_lock", lambda _db, doc_id: fake_lock)
 
-    # User 1's save must raise — the inside-txn re-check detects no row.
-    with pytest.raises(Exception) as exc_info:
-        ann_service.save_annotation(
-            db, document_id="doc_1", user_id=1,
-            references=[_ref(source_text="should-not-land")],
-        )
+    # With the new logic, user 1's save should succeed because no other user
+    # holds the lock — the lock row is simply gone.
+    result = ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1,
+        references=[_ref(source_text="should-now-land")],
+    )
+    assert result["is_new"] is True
 
-    exc = exc_info.value
-    assert (
-        "lock" in str(exc).lower()
-        or type(exc).__name__ in ("LockOwnedByOther", "NotLockHolder", "LockHeldByOther")
-    ), f"expected a lock-ownership error, got {type(exc).__name__}: {exc}"
-
-    # The write must have been rolled back — no annotation row.
     row = db.execute(
         "SELECT * FROM annotations WHERE document_id = ?", ("doc_1",)
     ).fetchone()
-    assert row is None, "annotation row must not exist after inside-txn recheck failure"
+    assert row is not None, "annotation row must exist — vanished own lock no longer blocks"
 
 
 def test_save_annotation_inside_txn_lock_recheck_structural(db):
@@ -424,10 +418,11 @@ def test_save_annotation_inside_txn_lock_recheck_structural(db):
 
 
 def test_set_complete_inside_txn_lock_recheck(db, monkeypatch):
-    """BE-3: set_complete must also re-verify ownership inside BEGIN IMMEDIATE.
+    """BE-3 (updated): set_complete should succeed when the caller's own lock
+    vanishes but no other user holds it.
 
-    Same monkey-patch trick: fool pre-txn check, strip the lock row, assert
-    that the inside-txn check raises and rolls back.
+    Previously raised LockOwnedByOther on vanished lock; now we only block
+    when a *different* user actively holds a non-expired lock.
     """
     # Seed an annotation so the legacy flag-flip path is available.
     ann_service.save_annotation(
@@ -435,7 +430,7 @@ def test_set_complete_inside_txn_lock_recheck(db, monkeypatch):
     )
     lock_service.acquire(db, document_id="doc_1", user_id=1)
 
-    # Simulate swap: delete the lock row.
+    # Simulate sweep: delete the lock row.
     db.execute("DELETE FROM document_locks WHERE document_id = ?", ("doc_1",))
     db.commit()
 
@@ -448,23 +443,17 @@ def test_set_complete_inside_txn_lock_recheck(db, monkeypatch):
     }
     monkeypatch.setattr(lock_service, "get_lock", lambda _db, doc_id: fake_lock)
 
-    with pytest.raises(Exception) as exc_info:
-        ann_service.set_complete(
-            db, document_id="doc_1", user_id=1, completed=True
-        )
+    # With the new logic, completion should succeed.
+    ann_service.set_complete(
+        db, document_id="doc_1", user_id=1, completed=True
+    )
 
-    exc = exc_info.value
-    assert (
-        "lock" in str(exc).lower()
-        or type(exc).__name__ in ("LockOwnedByOther", "NotLockHolder", "LockHeldByOther")
-    ), f"expected a lock-ownership error, got {type(exc).__name__}: {exc}"
-
-    # is_completed must remain 0 after rollback.
+    # is_completed must be 1 now.
     row = db.execute(
         "SELECT is_completed FROM annotations WHERE document_id = ?", ("doc_1",)
     ).fetchone()
     assert row is not None
-    assert row["is_completed"] == 0, "is_completed must not flip after inside-txn recheck failure"
+    assert row["is_completed"] == 1, "is_completed must flip — vanished own lock no longer blocks"
 
 
 def test_set_complete_inside_txn_lock_recheck_swapped_owner(db, monkeypatch):

@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { QualityAuditPanel, discrepancyKey } from './QualityAuditPanel'
+import { QualityAuditPanel } from './QualityAuditPanel'
+import { discrepancyKey } from './audit-utils'
 import type { AuditDiscrepancy, PreAuditResult } from '@/api/queries/annotations'
 
 const MODEL_ONLY: AuditDiscrepancy = {
@@ -77,6 +78,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof QualityAuditPane
       result={makeResult()}
       acceptedKeys={new Set()}
       isCompleting={false}
+      canEdit={true}
       {...handlers}
       {...props}
     />,
@@ -105,7 +107,7 @@ describe('QualityAuditPanel', () => {
   })
 
   it('marks an already-accepted suggestion and disables its button', () => {
-    renderPanel({ acceptedKeys: new Set([discrepancyKey(MODEL_ONLY)]) })
+    renderPanel({ acceptedKeys: new Set([discrepancyKey(MODEL_ONLY, 0)]) })
     const accepted = screen.getByRole('button', { name: 'Eklendi' })
     expect(accepted).toBeDisabled()
   })
@@ -123,9 +125,9 @@ describe('QualityAuditPanel', () => {
 
   it('reports hover targets so the document can scroll', async () => {
     const handlers = renderPanel()
-    const row = screen.getByTestId(`audit-row-${discrepancyKey(MODEL_ONLY)}`)
+    const row = screen.getByTestId(`audit-row-${discrepancyKey(MODEL_ONLY, 0)}`)
     await userEvent.hover(row)
-    expect(handlers.onHover).toHaveBeenCalledWith(discrepancyKey(MODEL_ONLY))
+    expect(handlers.onHover).toHaveBeenCalledWith(discrepancyKey(MODEL_ONLY, 0))
     await userEvent.unhover(row)
     expect(handlers.onHover).toHaveBeenLastCalledWith(null)
   })
