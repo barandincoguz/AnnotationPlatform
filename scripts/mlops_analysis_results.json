@@ -1,0 +1,209 @@
+{
+  "dataset_overview": {
+    "total_model_predictions": 4048,
+    "total_human_annotated": 1678,
+    "total_human_completed": 1525,
+    "overlap_evaluated_documents": 1361
+  },
+  "model_reference_distribution": {
+    "count": 4001,
+    "mean": 4.632,
+    "std": 4.111,
+    "median": 3,
+    "min": 1,
+    "max": 42,
+    "p25": 1.0,
+    "p75": 6.0,
+    "p90": 10.0,
+    "p95": 13.0,
+    "p99": 19.0
+  },
+  "human_reference_distribution": {
+    "count": 1525,
+    "mean": 4.773,
+    "std": 4.074,
+    "median": 4,
+    "min": 0,
+    "max": 30,
+    "p25": 2.0,
+    "p75": 6.0,
+    "p90": 10.0,
+    "p95": 13.0,
+    "p99": 18.76
+  },
+  "overlap_correlation_pearson": 0.8581,
+  "alignment_metrics": {
+    "core_level_law_and_article": {
+      "tp": 4730,
+      "fp": 1061,
+      "fn": 879,
+      "precision": 0.8168,
+      "recall": 0.8433,
+      "f1_score": 0.8298,
+      "mean_jaccard": 0.7795,
+      "median_jaccard": 0.8889
+    },
+    "exact_level_full_granularity": {
+      "tp": 4853,
+      "fp": 1739,
+      "fn": 1690,
+      "precision": 0.7362,
+      "recall": 0.7417,
+      "f1_score": 0.7389,
+      "mean_jaccard": 0.6527,
+      "median_jaccard": 0.6667
+    }
+  },
+  "per_law_performance": [
+    {
+      "kanun_no": "3065",
+      "kanun_ad": "Katma Değer Vergisi Kanunu",
+      "human_refs_in_overlap": 1222,
+      "model_refs_in_overlap": 1174,
+      "true_positives": 970,
+      "precision": 0.8262,
+      "recall": 0.7938,
+      "f1_score": 0.8097
+    },
+    {
+      "kanun_no": "193",
+      "kanun_ad": "Gelir Vergisi Kanunu",
+      "human_refs_in_overlap": 1220,
+      "model_refs_in_overlap": 1240,
+      "true_positives": 1061,
+      "precision": 0.8556,
+      "recall": 0.8697,
+      "f1_score": 0.8626
+    },
+    {
+      "kanun_no": "213",
+      "kanun_ad": "Vergi Usul Kanunu",
+      "human_refs_in_overlap": 1203,
+      "model_refs_in_overlap": 1220,
+      "true_positives": 1008,
+      "precision": 0.8262,
+      "recall": 0.8379,
+      "f1_score": 0.832
+    },
+    {
+      "kanun_no": "5520",
+      "kanun_ad": "Kurumlar Vergisi Kanunu",
+      "human_refs_in_overlap": 443,
+      "model_refs_in_overlap": 423,
+      "true_positives": 385,
+      "precision": 0.9102,
+      "recall": 0.8691,
+      "f1_score": 0.8892
+    },
+    {
+      "kanun_no": "488",
+      "kanun_ad": "Damga Vergisi Kanunu",
+      "human_refs_in_overlap": 315,
+      "model_refs_in_overlap": 388,
+      "true_positives": 305,
+      "precision": 0.7861,
+      "recall": 0.9683,
+      "f1_score": 0.8677
+    },
+    {
+      "kanun_no": "4760",
+      "kanun_ad": "Özel Tüketim Vergisi Kanunu",
+      "human_refs_in_overlap": 203,
+      "model_refs_in_overlap": 206,
+      "true_positives": 197,
+      "precision": 0.9563,
+      "recall": 0.9704,
+      "f1_score": 0.9633
+    },
+    {
+      "kanun_no": "492",
+      "kanun_ad": "Harçlar Kanunu",
+      "human_refs_in_overlap": 126,
+      "model_refs_in_overlap": 133,
+      "true_positives": 114,
+      "precision": 0.8571,
+      "recall": 0.9048,
+      "f1_score": 0.8803
+    },
+    {
+      "kanun_no": "1319",
+      "kanun_ad": "Emlak Vergisi Kanunu",
+      "human_refs_in_overlap": 103,
+      "model_refs_in_overlap": 93,
+      "true_positives": 90,
+      "precision": 0.9677,
+      "recall": 0.8738,
+      "f1_score": 0.9184
+    },
+    {
+      "kanun_no": "6802",
+      "kanun_ad": "Gider Vergileri Kanunu",
+      "human_refs_in_overlap": 63,
+      "model_refs_in_overlap": 61,
+      "true_positives": 55,
+      "precision": 0.9016,
+      "recall": 0.873,
+      "f1_score": 0.8871
+    },
+    {
+      "kanun_no": "4721",
+      "kanun_ad": "Türk Medeni Kanunu",
+      "human_refs_in_overlap": 42,
+      "model_refs_in_overlap": 52,
+      "true_positives": 38,
+      "precision": 0.7308,
+      "recall": 0.9048,
+      "f1_score": 0.8085
+    },
+    {
+      "kanun_no": "2464",
+      "kanun_ad": "Belediye Gelirleri Kanunu",
+      "human_refs_in_overlap": 41,
+      "model_refs_in_overlap": 39,
+      "true_positives": 27,
+      "precision": 0.6923,
+      "recall": 0.6585,
+      "f1_score": 0.675
+    },
+    {
+      "kanun_no": "6102",
+      "kanun_ad": "Türk Ticaret Kanunu",
+      "human_refs_in_overlap": 34,
+      "model_refs_in_overlap": 39,
+      "true_positives": 30,
+      "precision": 0.7692,
+      "recall": 0.8824,
+      "f1_score": 0.8219
+    },
+    {
+      "kanun_no": "6098",
+      "kanun_ad": "\"",
+      "human_refs_in_overlap": 30,
+      "model_refs_in_overlap": 30,
+      "true_positives": 16,
+      "precision": 0.5333,
+      "recall": 0.5333,
+      "f1_score": 0.5333
+    },
+    {
+      "kanun_no": "7338",
+      "kanun_ad": "Veraset ve İntikal Vergisi Kanunu",
+      "human_refs_in_overlap": 26,
+      "model_refs_in_overlap": 32,
+      "true_positives": 25,
+      "precision": 0.7812,
+      "recall": 0.9615,
+      "f1_score": 0.862
+    },
+    {
+      "kanun_no": "6306",
+      "kanun_ad": "AFET RİSKİ ALTINDAKİ ALANLARIN DÖNÜŞTÜRÜLMESİ",
+      "human_refs_in_overlap": 23,
+      "model_refs_in_overlap": 25,
+      "true_positives": 22,
+      "precision": 0.88,
+      "recall": 0.9565,
+      "f1_score": 0.9167
+    }
+  ]
+}
