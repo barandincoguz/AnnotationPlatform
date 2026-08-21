@@ -78,7 +78,18 @@ Comparing model outputs against human ground truth across 1,361 completed ruling
 
 ---
 
-## 5. Architectural Reliability & MLOps Ingestion
+## 5. Error Analysis & Edge Cases: Embedded Quotation Anaphora
+While the model generalizes exceptionally well on direct narratives, our discrepancy mining identified a structural NLP limitation regarding **Embedded Quotation Anaphora**.
+
+When an administrative ruling quotes a statute verbatim, and that statute contains an internal reference—for instance, quoting Law 193 Article 39 which states, *"Ticari kazancın tespiti sırasında... bu kanunun 40 ve 41'inci maddeleri hükümlerine uyulur"*—the model must perform a double-dereference:
+1. Map the pronoun *"bu kanun"* (this law) back to the quoted statute (Law 193).
+2. Segment the conjunction *"40 ve 41'inci"* into two distinct structured citation tuples.
+
+In benchmark evaluations, human legal scholars reliably extract these embedded tuples, whereas the PEFT LoRA model often omits them. This indicates that while 9B parameter models can resolve narrative legal anaphora, they struggle with recursive or nested pronoun resolution inside verbatim quotation blocks. Future continuous learning iterations should augment the training corpus with synthetically enriched embedded-quotation samples.
+
+---
+
+## 6. Architectural Reliability & MLOps Ingestion
 The hybrid architecture achieved **98.84% operational reliability** across 4,048 automated predictions. The remaining 1.16% (47 rulings) exceeding token capacity limits are deterministically cached with `status="error"`, avoiding GPU compute waste while providing seamless human fallback.
 
 ---
