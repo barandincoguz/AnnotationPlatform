@@ -1,0 +1,3568 @@
+{
+  "summary": {
+    "total_documents": 1361,
+    "perfect_matches": 403,
+    "perfect_match_ratio": 0.2961,
+    "discrepancies": {
+      "model_only_reference": 1061,
+      "human_only_reference": 879,
+      "detail_mismatch": 769
+    },
+    "top_model_excess_laws": {
+      "213": 212,
+      "3065": 204,
+      "193": 179,
+      "488": 83,
+      "5520": 38,
+      "492": 19,
+      "2812": 17,
+      "4721": 14,
+      "6098": 14,
+      "2464": 12
+    },
+    "top_human_omission_laws": {
+      "3065": 252,
+      "213": 195,
+      "193": 159,
+      "5520": 58,
+      "6098": 14,
+      "2464": 14,
+      "1319": 13,
+      "492": 12,
+      "488": 10,
+      "6802": 8
+    },
+    "top_detail_mismatch_laws": {
+      "193": 219,
+      "4760": 114,
+      "5520": 106,
+      "3065": 106,
+      "213": 60,
+      "488": 33,
+      "1319": 17,
+      "492": 13,
+      "6306": 9,
+      "5746": 7
+    }
+  },
+  "case_study_candidates": {
+    "perfect_matches_sample": [
+      {
+        "document_id": "4ile2tk48n11bu",
+        "word_count": 464,
+        "difficulty": "Kolay",
+        "human_ref_count": 4,
+        "model_ref_count": 4,
+        "matched_core_count": 4,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgi'de kayıtlı özelge talep formunuzda; ihale aldığınız kurumların üç aylık malzeme ihtiyaçlarının ilgili kuruma bir defada teslim edilerek, ilgili kurumun ihtiyaçları oldukça malzemeleri kullanarak ve her ayın sonunda kullandıkları malzemenin fatura edilmesini talep ettiği, şirket olarak sevk ettiğiniz malzemeleri tek e-İrsaliye ile sevk ettikten sonra her ay sonu kullanılan malzeme için fatura ..."
+      },
+      {
+        "document_id": "1tldx1p4yd1e2c",
+        "word_count": 443,
+        "difficulty": "Kolay",
+        "human_ref_count": 1,
+        "model_ref_count": 1,
+        "matched_core_count": 1,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, yarı mamul demir ürünlerin dökümü, gri demir dökümü, küresel grafit demir dökümü, dövülebilir dökme demir ürünleri dökümü, tüpler, borular ve içi boş profiller ile dökme demirden tüp ve borular ile bunların bağlantı parçalarının imalatı faaliyeti ile iştigal ettiğiniz ve Şirketinizce yurt içinden tevkifatlı olarak alınan gaz borularının\n ikili-üçlü-dörtlü se..."
+      },
+      {
+        "document_id": "4ildek7mk513yz",
+        "word_count": 226,
+        "difficulty": "Kolay",
+        "human_ref_count": 7,
+        "model_ref_count": 5,
+        "matched_core_count": 1,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, adi ortaklığınızın ortaklarından birisi adına sanayi sicil belgesi bulunduğu belirtilerek 3065 sayılı Katma Değer Vergisi (KDV) Kanununun geçici 39 uncu maddesinde yer alan istisnadan faydalanıp faydalanamayacağınız hususunda Başkanlığımız görüşü sorulmaktadır.\n\n \n\n3065 sayılı KDV Kanununun geçici 39 uncu maddesinde;\n\n \n\n\"\n17/4/1957 tarihli ve 6948 sayılı Sana..."
+      },
+      {
+        "document_id": "4ilczxy8z41a1m",
+        "word_count": 585,
+        "difficulty": "Orta",
+        "human_ref_count": 7,
+        "model_ref_count": 7,
+        "matched_core_count": 6,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, fabrikanızda mermer, traverten ocakçılığı ve üretimi faaliyetinizde kullanmak amacıyla güneş enerji sistemi kurulduğu, güneş panellerinde üretilen enerjinin bir kısmının fabrikanızda kullanıldığı, kalan ihtiyacın ise Aydem Elektrik Perakende Satış A.Ş.den karşılandığı, fabrikanız çalışmaya ara verdiğinde ve hafta sonu tatillerinde kullanılmayan elektriğin il..."
+      },
+      {
+        "document_id": "4ild1pyx0s1jkk",
+        "word_count": 546,
+        "difficulty": "Orta",
+        "human_ref_count": 3,
+        "model_ref_count": 2,
+        "matched_core_count": 2,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden; 3/1/2022 tarihinden itibaren \"Sütü sağılan büyükbaş hayvan yetiştiriciliği\" faaliyetinden dolayı Birecik Vergi Dairesi Müdürlüğünün 276 090 5519  vergi kimlik numarasında kayıtlı mükellefi olduğunuz, genç girişimcilerde kazanç istisnasından faydalanmak istediğiniz ancak bağlı bulunduğunuz vergi dairesi müdürlüğü tarafından işletmenin daha önc..."
+      },
+      {
+        "document_id": "4ilct5the81eew",
+        "word_count": 396,
+        "difficulty": "Kolay",
+        "human_ref_count": 5,
+        "model_ref_count": 5,
+        "matched_core_count": 5,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, bakırcılık faaliyeti nedeniyle \n\"Esnaf Vergi Muafiyeti Belgesi\"\nne sahip olduğunuz belirtilerek, yanınızda personel çalıştırmanızın vergi muafiyetinizi etkileyip etkilemeyeceği ile ödeyeceğiniz ücret gelirinin nasıl vergilendirileceği hususunda Başkanlığımız görüşü talep edilmektedir.\n\n \n\n193 sayılı Gelir Vergisi Kanununun\n\"Vergiden muaf esnaf\"\n başlıklı 9'unc..."
+      },
+      {
+        "document_id": "4ilct6yatf152v",
+        "word_count": 535,
+        "difficulty": "Orta",
+        "human_ref_count": 5,
+        "model_ref_count": 4,
+        "matched_core_count": 4,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden;\n\n \n\n- Gelir Vergisi mükellefi olduğunuzu belirterek, matbaa, tekstil ve ayakkabı imalat firmalarına ait hurda kağıt olarak tabir edilen (ikinci el koli, bobin kağıt, baskı bozuğu vs.) atık döküntü, deşe, fire gibi hurda malzemelerin alışında,\n\n \n\n- Söz konusu malzemelerin tarafınızca tasniflenerek oto paspas kağıdı, ayakkabı pabuç kağıdı, tek..."
+      },
+      {
+        "document_id": "4hlct21q1217jj",
+        "word_count": 637,
+        "difficulty": "Orta",
+        "human_ref_count": 2,
+        "model_ref_count": 2,
+        "matched_core_count": 2,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden; Yalova Vergi Dairesi Müdürlüğünün 638 064 8920 vergi kimlik numaralı mükellefi olduğunuzu, adi ortaklığınızın ortaklarından Caner TURAN'ın ortaklık öncesi gerçek kişi mükellefiyetinden dolayı genç girişimcilerde kazanç istisnasından faydalandığını belirterek, adi ortaklığınızın diğer ortağı olan Oktay GÜRAKAN'ın şartları sağlaması halinde söz..."
+      },
+      {
+        "document_id": "4hlchsci2l10o6",
+        "word_count": 625,
+        "difficulty": "Orta",
+        "human_ref_count": 4,
+        "model_ref_count": 4,
+        "matched_core_count": 4,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun ve ekinde yer alan dilekçenin incelenmesinden, 29/1/2016 tarihinde Tatlısu Mah. Şehit Burak Sok. Kurtuluş Cad. No:69 C-5 Ümraniye/İstanbul adresinde faaliyette bulunan Özel Küçük Kitap Anaokulu'nun işletilmesi nedeniyle 5 yıl vergi muafiyetinden faydalandığınızı ve 2020 yılında muafiyeti sonlanan Anaokulu'nu pandemi dolayısıyla kapattığınızı, 11/7/2019 tarihi..."
+      },
+      {
+        "document_id": "4ilcj4thoe1s4v",
+        "word_count": 566,
+        "difficulty": "Orta",
+        "human_ref_count": 2,
+        "model_ref_count": 2,
+        "matched_core_count": 1,
+        "model_only_cores": [],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 0,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, fason lazer kesim işçiliği faaliyetinde bulunduğunuz, levha sac tedariğinin müşterileriniz veya Şirketiniz tarafından karşılandığı, fason kesim yapılan ve üretime gönderilen ürünlerin nihai ürün olmadığı belirtilerek söz konusu ürünlerin tesliminde katma değer vergisi (KDV) tevkifatı uygulanıp uygulanmayacağı hususunda Başkanlığımız görüşü talep edilmektedir..."
+      }
+    ],
+    "human_omissions_sample": [
+      {
+        "document_id": "4hldybxuj61aoi",
+        "word_count": 1121,
+        "difficulty": "Orta",
+        "human_ref_count": 6,
+        "model_ref_count": 10,
+        "matched_core_count": 6,
+        "model_only_cores": [
+          {
+            "kanun_no": "5434",
+            "madde": "31",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "31",
+              "kanun_ad": "Türkiye Cumhuriyeti Emekli Sandığı Kanunu",
+              "kanun_no": "5434",
+              "source_text": "5434 sayılı Türkiye Cumhuriyeti Emekli Sandığı Kanununa"
+            }
+          },
+          {
+            "kanun_no": "7349",
+            "madde": "2",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "2",
+              "kanun_ad": "Emlak Vergisi Kanunu",
+              "kanun_no": "7349",
+              "source_text": "7349 sayılı Kanunun 2 nci maddesi"
+            }
+          },
+          {
+            "kanun_no": "5510",
+            "madde": "4",
+            "sample": {
+              "bent": "c",
+              "fikra": "1",
+              "madde": "4",
+              "kanun_ad": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+              "kanun_no": "5510",
+              "source_text": "5510 sayılı Kanunun 4 üncü maddesinin birinci fıkrasının (c) bendi"
+            }
+          },
+          {
+            "kanun_no": "2547",
+            "madde": "36",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "36",
+              "kanun_ad": "Yükseköğretim Kanunu",
+              "kanun_no": "2547",
+              "source_text": "2547 sayılı Yükseköğretim Kanununun 36 ncı maddesinin"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "4691",
+            "madde": "3",
+            "human_details": [
+              [
+                "",
+                "m,n,o,p,r"
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, firmanızın 2001 yılından bu yana 4691 sayılı Teknoloji Geliştirme Bölgeleri Kanunu kapsamında ODTÜ Teknokent yerleşkesinde bilgisayar programlama-sistem yazılımı ve sistem entegrasyonu faaliyetinde bulunduğu, T.C. Cumhurbaşkanlığı Savunma Sanayi Başkanlığının iştiraki olduğu, firmanız çalışanlarının \"Ar-Ge/Araştırmacı Personeli, Ar-Ge Destek Personeli, Kapsam ..."
+      },
+      {
+        "document_id": "4gldolz6hs16ch",
+        "word_count": 834,
+        "difficulty": "Orta",
+        "human_ref_count": 1,
+        "model_ref_count": 7,
+        "matched_core_count": 1,
+        "model_only_cores": [
+          {
+            "kanun_no": "5746",
+            "madde": "7",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "7",
+              "kanun_ad": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun",
+              "kanun_no": "5746",
+              "source_text": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesine İlişkin Uygulama ve Denetim Yönetmeliğinin \"Ar-Ge, yenilik ve tasarım harcamalarının kapsamı\" başlıklı 7 nci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "5746",
+            "madde": "4",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "4",
+              "kanun_ad": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun",
+              "kanun_no": "5746",
+              "source_text": "6 Seri No.lu 5746 sayılı Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun Genel Tebliğinin; \"Ar-Ge ve tasarım indirimine konu edilebilecek harcamalar\"başlıklı 4 üncü maddesinde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "89",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "89",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "31/12/1960 tarihli ve 193 sayılı Gelir Vergisi Kanununun 89 uncu maddesi"
+            }
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "10",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "10",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "5520 sayılı Kurumlar Vergisi Kanununun 10 uncu maddesine"
+            }
+          },
+          {
+            "kanun_no": "5746",
+            "madde": "10",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "10",
+              "kanun_ad": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun",
+              "kanun_no": "5746",
+              "source_text": "5520 sayılı Kurumlar Vergisi Kanununun 10 uncu maddesine"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5746",
+            "madde": "3",
+            "human_details": [
+              [
+                "1",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 6,
+        "text_preview": "İlgide kayıtlı özelge talep formunda;\n\n \n\n- Şirketinizin Anadolu Kurumlar Vergi Dairesi Müdürlüğü'nün 080 025 6936 vergi kimlik numaralı mükellefi olarak, İstanbul Deri Organize Sanayi Bölgesinde, her tip ve kategorideki motorlu ve motorsuz taşıt araçlarının ve bunları oluşturan parçaların mühendislik çalışmaları ile tasarımı, araştırma ve geliştirilmesi (AR-GE), imalatı, tadilatı, ticareti, ithal..."
+      },
+      {
+        "document_id": "4glck8wr4c1ci3",
+        "word_count": 1044,
+        "difficulty": "Orta",
+        "human_ref_count": 11,
+        "model_ref_count": 12,
+        "matched_core_count": 9,
+        "model_only_cores": [
+          {
+            "kanun_no": "213",
+            "madde": "320",
+            "sample": {
+              "bent": "",
+              "fikra": "4",
+              "madde": "320",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "320 nci maddenin dördüncü fıkrası"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "41",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "41",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "bu kanunun 40 ve 41 inci maddeleri"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "40",
+            "human_details": [
+              [
+                "1",
+                "7"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunda; şirketinizin Spor Toto Teşkilatı bayisi olarak sayısal şans oyunları faaliyetini sürdürmekte olduğunu, 2021 yılında Spor Toto Teşkilatı ile yapmış olduğunuz\nBayilik Sözleşmesine\n istinaden sözleşme bedeli olarak şirketinizden 20.000.000 TL talep ettiklerini belirterek, bu tutarın tek seferde gider yazılıp yazılmayacağı hususunda Başkanlığımız görüşü sorulmakta..."
+      },
+      {
+        "document_id": "4hlchnr1x81o5r",
+        "word_count": 765,
+        "difficulty": "Orta",
+        "human_ref_count": 3,
+        "model_ref_count": 5,
+        "matched_core_count": 1,
+        "model_only_cores": [
+          {
+            "kanun_no": "32",
+            "madde": "2",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "2",
+              "kanun_ad": "Türk Parası Kıymetini Koruma Hakkında Karar",
+              "kanun_no": "32",
+              "source_text": "Türk Parası Kıymetini Koruma Hakkında 32 sayılı Karar'ın \"Tanımlar\" başlıklı 2 nci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "5228",
+            "madde": "9",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "9",
+              "kanun_ad": "",
+              "kanun_no": "5228",
+              "source_text": "5228 sayılı Kanun gerekçesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, şirketinizin döviz alım satım faaliyetinde bulunduğu, bu faaliyetinize ek olarak darphanede basılı altınların (çeyrek altın, yarım altın, tam altın, gram altın, cumhuriyet altını) alım satım faaliyetiyle de uğraştığınız, şirketinizin darphanede basılı altın ile ilgili olarak yapmış olduğu alım satım faaliyetlerinden dolayı enflasyon düzeltmesi yapılıp yapılmay..."
+      },
+      {
+        "document_id": "4il9o8j1oi1rkb",
+        "word_count": 516,
+        "difficulty": "Orta",
+        "human_ref_count": 4,
+        "model_ref_count": 8,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "488",
+            "madde": "9",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "9",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "9 uncu maddesinde"
+            }
+          },
+          {
+            "kanun_no": "488",
+            "madde": "3",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "3",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "488 sayılı Damga Vergisi Kanununun 3 üncü maddesinde"
+            }
+          },
+          {
+            "kanun_no": "488",
+            "madde": "121",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "121",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "121 inci maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formu ve eklerinin incelenmesinden, 15/7/2018 tarihinde Resmi Gazete'de yayımlanan 4 sayılı Cumhurbaşkanlığı Kararnamesi ile Tarım ve Orman Bakanlığına bağlı olan Devlet Su İşleri Genel Müdürlüğünün, yerüstü ve yeraltı sularından faydalanmak amacıyla Yatırım Programında yayımlanan sektörler bakımından tarım-sulama, tarım bitkisel üretim, enerji, DKH sosyal içmesuyu ve D..."
+      },
+      {
+        "document_id": "4il8mn2gkh1wfw",
+        "word_count": 919,
+        "difficulty": "Orta",
+        "human_ref_count": 9,
+        "model_ref_count": 13,
+        "matched_core_count": 8,
+        "model_only_cores": [
+          {
+            "kanun_no": "213",
+            "madde": "227",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "227",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "- 227 nci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "413",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "413",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "213 sayılı Vergi Usul Kanununun 413.maddesine"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "41",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "41",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "bu kanunun 40 ve 41 inci  maddeleri"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "40",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "40",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "bu kanunun 40 ve 41 inci  maddeleri"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "213",
+            "madde": "3",
+            "human_details": [
+              [
+                "",
+                "b"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "b",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda; şirketinizin 09/05/2019 tarihi itibarıyla Ticaret Sicil Müdürlüğünde tescil edilerek nevi değiştirdiği ve Anonim Şirkete dönüştüğü belirtilerek, tescil tarihi olan 09/05/2019 tarihinde kesilen ve alınan faturaların nevi değiştirmeden önceki Limited Şirkete mi kaydedileceği yoksa tür değiştirmiş yeni Anonim Şirkete mi kaydedileceği hususlarında Başkanlığımız ..."
+      },
+      {
+        "document_id": "4hl8bnfq901un6",
+        "word_count": 1396,
+        "difficulty": "Orta",
+        "human_ref_count": 12,
+        "model_ref_count": 20,
+        "matched_core_count": 8,
+        "model_only_cores": [
+          {
+            "kanun_no": "2464",
+            "madde": "86 ila 94",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "86 ila 94",
+              "kanun_ad": "Belediye Gelirleri Kanunu",
+              "kanun_no": "2464",
+              "source_text": "Aynı Kanunun 86 ila 94 üncü maddelerinde"
+            }
+          },
+          {
+            "kanun_no": "2464",
+            "madde": "88",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "88",
+              "kanun_ad": "Belediye Gelirleri Kanunu",
+              "kanun_no": "2464",
+              "source_text": "88 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "2464",
+            "madde": "91",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "91",
+              "kanun_ad": "Belediye Gelirleri Kanunu",
+              "kanun_no": "2464",
+              "source_text": "91 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "2464",
+            "madde": "79",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "79",
+              "kanun_ad": "Belediye Gelirleri Kanunu",
+              "kanun_no": "2464",
+              "source_text": "79 uncu maddesinde"
+            }
+          },
+          {
+            "kanun_no": "2464",
+            "madde": "86",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "86",
+              "kanun_ad": "Belediye Gelirleri Kanunu",
+              "kanun_no": "2464",
+              "source_text": "86 ncı maddesinde"
+            }
+          },
+          {
+            "kanun_no": "6360",
+            "madde": "1",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "1",
+              "kanun_ad": "On Dört İlde Büyükşehir Belediyesi ve Yirmi Yedi İlçe Kurulması ile Bazı Kanun ve Kanun Hükmünde Kararnamelerde Değişiklik Yapılmasına Dair Kanun",
+              "kanun_no": "6360",
+              "source_text": "6360 sayılı On Dört İlde Büyükşehir Belediyesi ve Yirmi Yedi İlçe Kurulması ile Bazı Kanun ve Kanun Hükmünde Kararnamelerde Değişiklik Yapılmasına Dair Kanunun 1 inci maddesinin birinci fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "2464",
+            "madde": "87",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "87",
+              "kanun_ad": "Belediye Gelirleri Kanunu",
+              "kanun_no": "2464",
+              "source_text": "87 nci maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "23",
+            "human_details": [
+              [
+                "1",
+                "1,5"
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                "1"
+              ],
+              [
+                "1",
+                "5"
+              ]
+            ]
+          },
+          {
+            "kanun_no": "2464",
+            "madde": "ek 1",
+            "human_details": [
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "6",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 9,
+        "text_preview": "İlgide kayıtlı özelge talep formu ve eklerinin incelenmesinden, Ankara Büyükşehir Belediye Meclisinin 9/6/2022 tarih ve 1156 sayılı Kararı uyarınca\n\"kırsal yerleşik alan\"\n olarak ilan edilen alana yapılacak inşaatın 2464 sayılı Belediye Gelirleri Kanunu uyarınca alınacak harçlardan, harcamalara katılma paylarından ve imar durum harcından muaf olup olmadığı hususunda Başkanlığımız görüşünün talep e..."
+      },
+      {
+        "document_id": "4hl7kdxc3c1rj4",
+        "word_count": 885,
+        "difficulty": "Orta",
+        "human_ref_count": 1,
+        "model_ref_count": 11,
+        "matched_core_count": 1,
+        "model_only_cores": [
+          {
+            "kanun_no": "6361",
+            "madde": "39/a",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "39/A",
+              "kanun_ad": "Finansal Kiralama, Faktoring, Finansman ve Tasarruf Finansman Şirketleri Kanunu",
+              "kanun_no": "6361",
+              "source_text": "39/A maddesinin birinci fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "7292",
+            "madde": "20",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "20",
+              "kanun_ad": "Finansal Kiralama, Faktoring ve Finansman Şirketleri Kanunu ile Bazı Kanunlarda Değişiklik Yapılmasına Dair Kanun",
+              "kanun_no": "7292",
+              "source_text": "7292 sayılı Kanunla"
+            }
+          },
+          {
+            "kanun_no": "2499",
+            "madde": "139",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "139",
+              "kanun_ad": "Sermaye Piyasası Kanunu",
+              "kanun_no": "2499",
+              "source_text": "6362 sayılı Kanunun 139 uncu maddesinde"
+            }
+          },
+          {
+            "kanun_no": "488",
+            "madde": "9",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "9",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "9 uncu maddesinde"
+            }
+          },
+          {
+            "kanun_no": "6361",
+            "madde": "1",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "1",
+              "kanun_ad": "Finansal Kiralama, Faktoring, Finansman ve Tasarruf Finansman Şirketleri Kanunu",
+              "kanun_no": "6361",
+              "source_text": "6361 sayılı Finansal Kiralama, Faktoring, Finansman ve Tasarruf Finansman Şirketleri Kanununun 1 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "492",
+            "madde": "59",
+            "sample": {
+              "bent": "o",
+              "fikra": "1",
+              "madde": "59",
+              "kanun_ad": "Harçlar Kanunu",
+              "kanun_no": "492",
+              "source_text": "492 sayılı Harçlar Kanununun 59 uncu maddesinin birinci fıkrasının (o) bendi"
+            }
+          },
+          {
+            "kanun_no": "488",
+            "madde": "1",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "1",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "488 Sayılı Damga Vergisi Kanununun 1 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "2499",
+            "madde": "38/a",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "38/A",
+              "kanun_ad": "Sermaye Piyasası Kanunu",
+              "kanun_no": "2499",
+              "source_text": "2499 sayılı Kanunun 38/A maddesinde"
+            }
+          },
+          {
+            "kanun_no": "488",
+            "madde": "3",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "3",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "3 üncü maddesinde"
+            }
+          },
+          {
+            "kanun_no": "488",
+            "madde": "4",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "4",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "4 üncü maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 10,
+        "text_preview": "İlgide kayıtlı özelge talep formunuz ve eklerinin incelenmesinden, 8/6/2022 tarihli ve 31860 sayılı Resmi Gazete'de yayımlanan 7/6/2022 tarihli ve 10218 sayılı Bankacılık Düzenleme ve Denetleme Kurulu Kararı gereği, 6361 Sayılı Finansal Kiralama, Faktoring, Finansman ve Tasarruf Finansman Şirketleri Kanunu kapsamında tasarruf finansman faaliyetinde bulunduğunuz, 6362 sayılı Sermaye Piyasası Kanunu..."
+      },
+      {
+        "document_id": "4hl7enjdvx1wqn",
+        "word_count": 1306,
+        "difficulty": "Orta",
+        "human_ref_count": 1,
+        "model_ref_count": 11,
+        "matched_core_count": 1,
+        "model_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "104",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "104",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 ve 104 üncü maddelere göre"
+            }
+          },
+          {
+            "kanun_no": "7194",
+            "madde": "16",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "16",
+              "kanun_ad": "",
+              "kanun_no": "7194",
+              "source_text": "7194 sayılı Kanunun 16 ncı  maddesiyle"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "94",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "94",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Anılan Kanunun 94 üncü maddesinin birinci fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "236",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "236",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "aynı Kanunun 236 ncı maddesinde"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "229",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "229",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "mezkûr Kanunun 229 ve müteakip maddelerinde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 ve 104 üncü maddelere göre"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "227",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "227",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "213 sayılı Vergi Usul Kanununun 227 nci maddesinin birinci fıkrasındaki"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 7,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, Üniversiteniz Döner Sermaye İşletmesi tarafından, aleyhinize sonuçlanan davalara ilişkin olarak mahkeme kararlarına istinaden vekalet ücreti ve yargılama gideri ödemesi yapıldığı belirtilerek bu ödemelerin nasıl belgelendirilmesi gerektiği hususunda Defterdarlığımız görüşü talep edilmektedir.\n\n \n\nGELİR VERGİSİ KANUNU YÖNÜNDEN:\n\n \n\n193 sayılı Gelir Vergisi Ka..."
+      },
+      {
+        "document_id": "4il6nlw5501zma",
+        "word_count": 359,
+        "difficulty": "Kolay",
+        "human_ref_count": 3,
+        "model_ref_count": 6,
+        "matched_core_count": 3,
+        "model_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "47",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "47",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "47 nci ve 48 inci maddelerde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "48",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "48",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "47 nci ve 48 inci maddelerde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, Nevşehir Acıgöl Malmüdürlüğünde tuhafiyecilik faaliyetinden dolayı basit usule tabi vergi mükellefi iken Uludağ Vergi Dairesi Müdürlüğüne nakil gelerek Bursa İli Osmangazi İlçesinde faaliyetinize devam etmeniz nedeniyle,  adınıza gerçek usulde vergi mükellefiyeti tesis edildiği belirtilerek, söz konusu faaliyetiniz nedeniyle basit usulden yararlanıp yararlanam..."
+      },
+      {
+        "document_id": "4gl60pupcv1zoh",
+        "word_count": 731,
+        "difficulty": "Orta",
+        "human_ref_count": 8,
+        "model_ref_count": 10,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "6362",
+            "madde": "38",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "38",
+              "kanun_ad": "Sermaye Piyasası Kanunu",
+              "kanun_no": "6362",
+              "source_text": "aynı Kanunun 38 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "6362",
+            "madde": "3",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "3",
+              "kanun_ad": "Sermaye Piyasası Kanunu",
+              "kanun_no": "6362",
+              "source_text": "6362 sayılı Sermaye Piyasası Kanununun 3 üncü maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "6362",
+            "madde": "37",
+            "human_details": [
+              [
+                "1",
+                "a-c"
+              ],
+              [
+                "1",
+                "e"
+              ],
+              [
+                "1",
+                "d"
+              ],
+              [
+                "1",
+                "f"
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                "a"
+              ],
+              [
+                "1",
+                "e"
+              ],
+              [
+                "1",
+                "c"
+              ],
+              [
+                "1",
+                "f"
+              ],
+              [
+                "1",
+                "b"
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, şirketinizin müşterilerine bedel karşılığında internet, mobil platformları üzerinden işlem ve yatırım karar süreçlerine katkı sunmak amacı ile piyasa verisi, finansal veriler, rasyolar ve diğer verileri içeren data sağlama hizmeti vermeyi planladığı belirtilerek; \n\n- Data satış hizmet bedelinin \"İşlem Sonuç Formu\" ile belgelendirilip belgelendirilemeyeceği, \n\n..."
+      },
+      {
+        "document_id": "4il524t5e81usq",
+        "word_count": 749,
+        "difficulty": "Orta",
+        "human_ref_count": 2,
+        "model_ref_count": 7,
+        "matched_core_count": 2,
+        "model_only_cores": [
+          {
+            "kanun_no": "5520",
+            "madde": "1",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "1",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "Kanunun 1 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "14",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "14",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "14 üncü madde hükümleri"
+            }
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "22",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "22",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "Anlaşmanın \"Çifte Vergilendirmenin Önlenmesi\"ne ilişkin 22 nci maddesi"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5520",
+            "madde": "30",
+            "human_details": [
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "6",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "3",
+            "human_details": [
+              [
+                "2",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, şirketiniz hisselerinin % 50'sinin Almanya'da mukim yabancı tüzel kişiliğe ait olduğu belirtilerek şirketinizce 2019 yılı için yabancı ortağa yapılacak kar dağıtımında hangi oranda gelir vergisi tevkifatı yapılacağı hususunda bilgi istenilmektedir.\n\n \n\nKURUMLAR VERGİSİ KANUNU YÖNÜNDEN\n\n \n\n5520 sayılı Kurumlar Vergisi Kanununun 3 üncü maddesinin ikinci fıkras..."
+      },
+      {
+        "document_id": "4hl4zhj8bp1hz2",
+        "word_count": 638,
+        "difficulty": "Orta",
+        "human_ref_count": 4,
+        "model_ref_count": 8,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "233",
+            "madde": "3",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "3",
+              "kanun_ad": "Kamu İktisadi Teşebbüsleri Hakkında Kanun Hükmünde Kararnamenin",
+              "kanun_no": "233",
+              "source_text": "3 üncü maddesinde"
+            }
+          },
+          {
+            "kanun_no": "233",
+            "madde": "2",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "2",
+              "kanun_ad": "Kamu İktisadi Teşebbüsleri Hakkında Kanun Hükmünde Kararnamenin",
+              "kanun_no": "233",
+              "source_text": "2 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "233",
+            "madde": "1",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "1",
+              "kanun_ad": "Kamu İktisadi Teşebbüsleri Hakkında Kanun Hükmünde Kararnamenin",
+              "kanun_no": "233",
+              "source_text": "233 sayılı Kanun Hükmünde Kararnamenin 1 inci maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formu ve eklerinin incelenmesinden, Çay İşletmeleri Genel Müdürlüğü (ÇAYKUR) ile Adi Ortaklığınız arasında 5/5/2022 tarihinde 2022/413612 ihale kayıt numaralı\n\"İkizdere Çay Fabrikası İnşaat İşi\"\nne ilişkin sözleşme imzalandığı, Çay İşletmeleri Genel Müdürlüğü'nün Türkiye Varlık Fonuna kayıtlı kurumlardan olması nedeniyle damga vergisi muafiyeti bulunduğu belirtilerek, s..."
+      },
+      {
+        "document_id": "4il46x9v5e1r5a",
+        "word_count": 979,
+        "difficulty": "Orta",
+        "human_ref_count": 5,
+        "model_ref_count": 7,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "236",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "236",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "213 sayılı Kanunun 236 ncı maddesinde"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "229",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "229",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "mezkûr Kanunun 229 ve müteakip maddelerinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, Şirketinizin taraf olduğu ve kaybedilen davalarda karşı taraf avukatına ilam vekalet ücreti ve icra vekalet ücreti olmak üzere iki tür vekalet ücreti ödenebildiği, dava sürecinin takibine ilişkin bedelin ilam vekalet ücreti olduğu, icra vekalet ücretinin ise söz konusu ilamın yerine getirilmesi amacıyla başlatılan icra takibi sebebi ile karşı taraf avukatı l..."
+      },
+      {
+        "document_id": "4gl445lfoe17g1",
+        "word_count": 671,
+        "difficulty": "Orta",
+        "human_ref_count": 0,
+        "model_ref_count": 5,
+        "matched_core_count": 0,
+        "model_only_cores": [
+          {
+            "kanun_no": "529",
+            "madde": "geçici 1",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "Geçici 1",
+              "kanun_ad": "Vergi Usul Kanunu Genel Tebliği",
+              "kanun_no": "529",
+              "source_text": "Geçici 1 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "529",
+            "madde": "2",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "2",
+              "kanun_ad": "Vergi Usul Kanunu Genel Tebliği",
+              "kanun_no": "529",
+              "source_text": "529 Sıra Numaralı Vergi Usul Kanunu Genel Tebliği ile"
+            }
+          },
+          {
+            "kanun_no": "529",
+            "madde": "6",
+            "sample": {
+              "bent": "",
+              "fikra": "2",
+              "madde": "6",
+              "kanun_ad": "Vergi Usul Kanunu Genel Tebliği",
+              "kanun_no": "529",
+              "source_text": "6 ncı maddenin ikinci fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "529",
+            "madde": "5",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "5",
+              "kanun_ad": "Vergi Usul Kanunu Genel Tebliği",
+              "kanun_no": "529",
+              "source_text": "5 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "529",
+            "madde": "4",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "4",
+              "kanun_ad": "Vergi Usul Kanunu Genel Tebliği",
+              "kanun_no": "529",
+              "source_text": "4 üncü maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formundan; Darülaceze Vakfının, Şirketinizin yüzde yüz (%100) hissesine sahip ortağı olduğu, 529 sıra No'lu Vergi Usul Kanunu Genel Tebliği ile getirilen gerçek faydalanıcı bilgisi bildirim yükümlülüğü kapsamında firmanızın gerçek faydalanıcının Darülaceze Vakfı olduğu belirtilerek tek faydalanıcının vakıf olması nedeniyle gerçek faydalanıcı bilgisi bildiriminin nasıl y..."
+      }
+    ],
+    "model_omissions_sample": [
+      {
+        "document_id": "4ildol2vdf1h5y",
+        "word_count": 2084,
+        "difficulty": "Zor",
+        "human_ref_count": 26,
+        "model_ref_count": 19,
+        "matched_core_count": 12,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "5520",
+            "madde": "15",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "15",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "Anılan Kanunun 15 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "275",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "275",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "Vergi Usul Kanununun 275 inci maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "3065",
+            "madde": "27",
+            "human_details": [
+              [
+                "4",
+                ""
+              ],
+              [
+                "1",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "4",
+                ""
+              ],
+              [
+                "1",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "2",
+            "human_details": [
+              [
+                "6",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "6",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "213",
+            "madde": "267",
+            "human_details": [
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5363",
+            "madde": "7",
+            "human_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 6,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, 5363 sayılı Tarım Sigortaları Kanununun 4 üncü maddesiyle Kanun kapsamındaki risklerin teminat altına alınması, standart sigorta poliçelerinin belirlenmesi, hasar organizasyonları, aktüerya çalışmaları, tazminat ödemelerinin yapılması, reasürans teminatının sağlanması, tarım sigortalarının geliştirilmesi, yaygınlaştırılması ve izlenmesi ile diğer teknik hizmet..."
+      },
+      {
+        "document_id": "4hlcroj16g1p3m",
+        "word_count": 423,
+        "difficulty": "Kolay",
+        "human_ref_count": 6,
+        "model_ref_count": 4,
+        "matched_core_count": 4,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "41",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "41",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "bu kanunun 40 ve 41'inci maddeleri"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "40",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "40",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "bu kanunun 40 ve 41'inci maddeleri"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden; halk otobüsü/otobüs ile yapılan şehir içi ve banliyö yolcu taşımacılığı faaliyeti ile iştigal ettiğiniz, hasılat esaslı vergilendirme usulüne tabi olduğunuz, SGK teşvikleri ile belediyeler tarafından \"Ücretsiz veya İndirimli Seyahat Kartları Yönetmeliği\"ne göre sağlanan gelir desteğinin vergiye tabi kazancınızın tespitinde dikkate alınıp alın..."
+      },
+      {
+        "document_id": "4glbg86e961emw",
+        "word_count": 1260,
+        "difficulty": "Orta",
+        "human_ref_count": 6,
+        "model_ref_count": 5,
+        "matched_core_count": 4,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "213",
+            "madde": "mükerrer 242",
+            "sample": {
+              "bent": null,
+              "fikra": "1",
+              "madde": "mükerrer 242",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "213 sayılı Vergi Usul Kanununun mükerrer 242 nci maddesinin ikinci fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "mükerrer 257",
+            "sample": {
+              "bent": "3",
+              "fikra": "1",
+              "madde": "mükerrer 257",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "Anılan Kanunun mükerrer 257 nci maddesinin birinci fıkrasının (3) numaralı bendinde"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden,  ...  Vergi Dairesi Müdürlüğüne kayıtlı olarak  ...  vergi kimlik numarasında 631201 (Web Portalı Faaliyetleri) Nace Kodu ile faaliyet gösteren Gelir Vergisi mükellefi olduğunuzu, ticari faaliyetinizin \"www. ... \" haber sitesiyle, \" ... \" adlı yerel gazetenin yayını olduğunu, h\naber sitenizde ve yerel gazetenizde günlük olarak Karabük ili ve ..."
+      },
+      {
+        "document_id": "4ilb0uis3g1347",
+        "word_count": 606,
+        "difficulty": "Orta",
+        "human_ref_count": 9,
+        "model_ref_count": 6,
+        "matched_core_count": 5,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "104",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "104",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Diğer taraftan, bu ödemelerin çalışanlara sağlanan menfaat kapsamında ücret olarak değerlendirilmesi ve aylık ücret bordrolarına dahil edilmek suretiyle Gelir Vergisi Kanununun 61, 94, 103 ve 104 üncü maddeleri"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Diğer taraftan, bu ödemelerin çalışanlara sağlanan menfaat kapsamında ücret olarak değerlendirilmesi ve aylık ücret bordrolarına dahil edilmek suretiyle Gelir Vergisi Kanununun 61, 94, 103"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5746",
+            "madde": "2",
+            "human_details": [
+              [
+                "1",
+                "a"
+              ],
+              [
+                "1",
+                "f"
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5746",
+            "madde": "4",
+            "human_details": [
+              [
+                "1",
+                "c"
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 4,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, 01/07/2019 tarihinden itibaren şirketiniz bünyesinde kurulan Ar-Ge merkezinde Ar-Ge faaliyetlerinde bulunduğunuz belirtilerek, Ar-Ge personelinizin Ar-Ge merkezine gidip gelirken kullandıkları araçlara ilişkin akaryakıt, araç kiraları ve HGS-OGS giderlerinin Ar-Ge indirimine konu edilip edilmeyeceği hususunda Başkanlığımız görüşü sorulmaktadır.\n\n \n\n5746 sayılı..."
+      },
+      {
+        "document_id": "4glab5ipeo1c3y",
+        "word_count": 663,
+        "difficulty": "Orta",
+        "human_ref_count": 7,
+        "model_ref_count": 5,
+        "matched_core_count": 3,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "9",
+            "sample": {
+              "bent": null,
+              "fikra": "1",
+              "madde": "9",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "- 9/1 inci maddesinde ise,"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "1",
+            "sample": {
+              "bent": null,
+              "fikra": "1",
+              "madde": "1",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "3065 sayılı KDV Kanununun;\n\n \n\n- 1/1 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "6",
+            "sample": {
+              "bent": "b",
+              "fikra": null,
+              "madde": "6",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "- 6/b maddesinde,"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5520",
+            "madde": "3",
+            "human_details": [
+              [
+                "2",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 4,
+        "text_preview": "İlgide kayıtlı özelge talep formunun incelenmesi neticesinde; Zincirlikuyu Vergi Dairesi Müdürlüğü'nün 469 000 3763 vergi kimlik numaralı mükellefi olduğunuz, Kültür ve Turizm Bakanlığı tarafından yayınlanan 2018/3 sayılı \"Ülkemize Kruvaziyer Gemi ile Turist getiren (A) Grubu Seyahat Acentalarına Destek Sağlanması Hakkında Kararın Uygulama Usul ve Esaslarına Dair Tebliğ\" hükümlerine göre Şirketini..."
+      },
+      {
+        "document_id": "4hl8tv12su15vv",
+        "word_count": 1219,
+        "difficulty": "Orta",
+        "human_ref_count": 8,
+        "model_ref_count": 6,
+        "matched_core_count": 6,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "213",
+            "madde": "269",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "269",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "269 uncu madde gereğince"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "314",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "314",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "- 314 üncü maddesinde,"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formu ve ek dilekçede, şirketinizin tekstil sektöründe faaliyet gösterdiği, 2 yıldan fazla süreyle aktifte yer alan ve tapu kayıtlarında arsa niteliğinde kayıtlı bulunan fabrika binasının kiralamaya konu edilmediği ve 21/01/2020 tarihinde satıldığı belirtilerek, söz konusu satıştan doğan kazancın %50'lik kısmının Kurumlar Vergisi Kanununun 5-1/e maddesi kapsamında kurum..."
+      },
+      {
+        "document_id": "4gl8mo9sb919vw",
+        "word_count": 1420,
+        "difficulty": "Orta",
+        "human_ref_count": 14,
+        "model_ref_count": 10,
+        "matched_core_count": 10,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "104",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "104",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 ve 104 üncü maddelere"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 ve 104 üncü maddelere"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "98",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "98",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Kanunun 98 inci maddesine"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden; araç parça satışı ve bakım onarım işi yaptığınız, müşteri tarafından alınan parçaların değişiminin yapılması üzerine düzenlenen faturada işçilik ve malzeme bedelinin ayrı ayrı gösterildiği, Defter Beyan Sisteminde işletme defterine kayıt yaparken tamamının \"satış\" olarak mı yoksa malzeme bedelini \"satış\", işçilik bedelini ise \"gayrisafi hasıl..."
+      },
+      {
+        "document_id": "4hl8mmwa7n1x03",
+        "word_count": 1103,
+        "difficulty": "Orta",
+        "human_ref_count": 10,
+        "model_ref_count": 7,
+        "matched_core_count": 6,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "7194",
+            "madde": "13",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "13",
+              "kanun_ad": null,
+              "kanun_no": "7194",
+              "source_text": "7194 sayılı Kanunun 52 nci maddesinin birinci fıkrasının (d) bendinde \"Bu Kanunun 13 üncü ve 14 üncü maddeleri"
+            }
+          },
+          {
+            "kanun_no": "7194",
+            "madde": "14",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "14",
+              "kanun_ad": null,
+              "kanun_no": "7194",
+              "source_text": "7194 sayılı Kanunun 52 nci maddesinin birinci fıkrasının (d) bendinde \"Bu Kanunun 13 üncü ve 14 üncü maddeleri"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "68",
+            "human_details": [
+              [
+                "1",
+                "5"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunda; serbest muhasebeci mali müşavirlik faaliyeti ile iştigal ettiğiniz, envantere kayıtlı, bir adet şahsınıza ait, bir adette mükelleflerinizi ziyaret, evrak teslim alma gibi mesleğinizin icrasına ilişkin işlerde kullanmak üzere kiralamış olduğunuz, toplam iki adet aracın bulunduğu belirtilerek, söz konusu iki araca ait giderlerin indirim konusu yapılıp yapılamaya..."
+      },
+      {
+        "document_id": "4hl7acfpa514fg",
+        "word_count": 680,
+        "difficulty": "Orta",
+        "human_ref_count": 5,
+        "model_ref_count": 3,
+        "matched_core_count": 1,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "119",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "119",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "98 ve 119 uncu maddelerdeki"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "98",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "98",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "98 ve 119 uncu maddelerdeki"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "94",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "94",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "94 üncü madde"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, evinizde örgü, takı, çanta gibi el işi ürünleri yaptığınız belirtilerek, söz konusu ürünlerin satışının yurt dışında yer alan Amazon, Ebay, Etsy gibi internet sitelerinde esnaf vergi muafiyeti belgesi ile gerçekleştirip gerçekleştiremeyeceğiniz hususunda Başkanlığımız görüşü talep edilmektedir.\n\n \n\n\"\n193 Sayılı Gelir Vergisi Kanununun\n\"Vergiden Muaf Esnaf\"\n ba..."
+      },
+      {
+        "document_id": "4hl70enz5h1291",
+        "word_count": 1049,
+        "difficulty": "Orta",
+        "human_ref_count": 11,
+        "model_ref_count": 9,
+        "matched_core_count": 7,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "geçici 91",
+            "sample": {
+              "bent": null,
+              "fikra": "3",
+              "madde": "Geçici 91",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Aynı Kanunun geçici 91 inci maddesinin üçüncü fıkrasında, \""
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Gelir Vergisi Kanununun 103 üncü maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "86",
+            "human_details": [
+              [
+                "",
+                "b"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "193",
+            "madde": "geçici 72",
+            "human_details": [
+              [
+                "1",
+                "a-1"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                "1"
+              ],
+              [
+                "3",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 4,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, Kulübünüz ile futbolcular arasında imzalanan sözleşmelerde belirlenmiş olan ücretlerin futbolculara \"net\" olarak ödeneceğine yönelik ibarelere yer verildiği, bu nedenle Kulübünüz tarafından söz konusu ücret ödemelerinin brüte iblağ edilmek suretiyle Gelir Vergisi Kanununun geçici 72 nci maddesi kapsamında gelir vergisi stopajına tabi tutulduğu ve futbolculara ..."
+      },
+      {
+        "document_id": "4gkzxxko271g79",
+        "word_count": 915,
+        "difficulty": "Orta",
+        "human_ref_count": 6,
+        "model_ref_count": 2,
+        "matched_core_count": 2,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "5520",
+            "madde": "32",
+            "sample": {
+              "bent": "a",
+              "fikra": null,
+              "madde": "32",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "Kurumlar Vergisi Kanununun \"İndirimli kurumlar vergisi\" başlıklı 32/A maddesinde,"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "313",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "313",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "Vergi Usul Kanununun 313 üncü maddesi uyarınca"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda;\n\n- Şirketinizin iki ayrı tevsi yatırımlara yönelik teşvik belgesinin ilgili Bakanlık tarafından kapama işlemlerinin yapıldığı,\n\n- Bu tevsi yatırım teşvik belgelerine konu yatırımlardan elde edilen ve indirimli kurumlar vergisi uygulamasında dikkate alınacak kazanç tutarının, yatırım maliyetlerinin toplam sabit kıymetlere oranlanması suretiyle hesaplandığı,\n\n..."
+      },
+      {
+        "document_id": "4hkw1u28pq1267",
+        "word_count": 757,
+        "difficulty": "Orta",
+        "human_ref_count": 15,
+        "model_ref_count": 9,
+        "matched_core_count": 5,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "5711",
+            "madde": "86",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "86",
+              "kanun_ad": null,
+              "kanun_no": "5711",
+              "source_text": "Kanunun 85 inci ve 86 ncı maddeleri"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "98",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "98",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "98 inci ve 119 uncu maddelerde"
+            }
+          },
+          {
+            "kanun_no": "5411",
+            "madde": "85",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "85",
+              "kanun_ad": null,
+              "kanun_no": "5411",
+              "source_text": "Kanunun 85 inci ve 86 ncı maddeleri"
+            }
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "24",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "24",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "veya Kurumlar Vergisi Kanununun 24 üncü maddesi"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "94",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "94",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "94 üncü madde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "119",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "119",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "98 inci ve 119 uncu maddelerde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5411",
+            "madde": "107",
+            "human_details": [
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "son",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "193",
+            "madde": "75",
+            "human_details": [
+              [
+                "2",
+                "14"
+              ],
+              [
+                "1",
+                ""
+              ],
+              [
+                "2",
+                "7"
+              ],
+              [
+                "2",
+                "6"
+              ],
+              [
+                "2",
+                "12"
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                "6"
+              ],
+              [
+                "1",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "193",
+            "madde": "geçici 67",
+            "human_details": [
+              [
+                "4",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "4",
+                "14"
+              ],
+              [
+                "4",
+                "7"
+              ],
+              [
+                "4",
+                "12"
+              ],
+              [
+                "4",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 9,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden,\n\n \n\n- Bankanızın 3/2/2015 tarihinden itibaren Tasarruf Mevduatı Sigorta Fonu (TMSF) yönetiminde olduğu, Bankacılık Düzenleme ve Denetleme Kurumunun (BDDK) 30/5/2015 tarihli ve 29371 sayılı Resmi Gazete'de yayımlanan 29/5/2015 tarihli ve 6318 sayılı kararı ile Bankanızın ortaklık hakları ile yönetim ve denetiminin TMSF'ye devredildiği,\n\n \n\n- B..."
+      },
+      {
+        "document_id": "4hkvjazshl1fu7",
+        "word_count": 1968,
+        "difficulty": "Orta",
+        "human_ref_count": 11,
+        "model_ref_count": 10,
+        "matched_core_count": 8,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "28",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "28",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "3065 sayılı KDV Kanununun 28 inci maddesinin"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "11",
+            "sample": {
+              "bent": "c",
+              "fikra": "1",
+              "madde": "11",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "KDV Kanununun (11/1-c) maddesi kapsamında"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "213",
+            "madde": "230",
+            "human_details": [
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                "1"
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunuz ve eklerinin incelenmesinden; Renava markası adı altında piyasaya sunulması düşünülen, 2202.99.19.00.00 gümrük tarife istatistik pozisyonu numarasında (G.T.İ.P.) olduğu belirlenen ''\ngazsız kolajen protein içeceği\n''nin içeriğinde yer alan kolajen maddesi ile kap ve ambalaj malzemelerinin firmanızca temin edilerek, fason üretim yapan firmaya teslim edileceği, b..."
+      },
+      {
+        "document_id": "4gkpgtvg861sou",
+        "word_count": 1338,
+        "difficulty": "Orta",
+        "human_ref_count": 8,
+        "model_ref_count": 6,
+        "matched_core_count": 4,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "213",
+            "madde": "242",
+            "sample": {
+              "bent": null,
+              "fikra": "2",
+              "madde": "242",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "213 sayılı Kanunun mükerrer 242 nci maddesinin (2) numaralı fıkrası"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "257",
+            "sample": {
+              "bent": "3",
+              "fikra": "1",
+              "madde": "257",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "213 sayılı Kanunun 257 nci maddesinin birinci fıkrasının (3) numaralı bendinde"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunuz ile ek dilekçenin tetkikinden; herhangi bir mal teslimi ya da hizmet ifası olmadığı halde sehven \"Temel Fatura\" senaryosunda düzenlenen e-Faturayı kabul eden mükellefin, iade şeklinde e-Fatura düzenlemesinin zorunlu olup olmadığı ile sehven düzenlenmiş olan ve kayıtlı elektronik posta sistemi (KEP) yoluyla reddedilen faturalarda yer alan tutarlara ilişkin olara..."
+      },
+      {
+        "document_id": "4ikmylag5511lr",
+        "word_count": 1477,
+        "difficulty": "Orta",
+        "human_ref_count": 15,
+        "model_ref_count": 13,
+        "matched_core_count": 11,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "6098",
+            "madde": "645",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "645",
+              "kanun_ad": "Türk Borçlar Kanunu",
+              "kanun_no": "6098",
+              "source_text": "6098 sayılı Borçlar Kanununun 620-645 inci maddelerinde düzenlenmiş olup"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "153",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "153",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "153 üncü maddede"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 2,
+        "text_preview": "İlgide kayıtlı özelge talep formunuz ve eklerinin incelenmesinden; \"Çokal Barajı Dolu Savak Mansabı Yatak Düzenlemesi İşi\"nin, yüklenici olarak CNG Yapı San. ve Tic. A.Ş.-Cengizler Yol Yapı San. ve Tic. A.Ş. Adi Ortaklığına verildiği, söz konusu işe ilişkin sözleşmenin yüklenici olarak adı geçen adi ortaklığın ortakları (6490476455 vergi kimlik numaralı CNG Yapı San. ve Tic. A.Ş. ile 3270052354 ve..."
+      }
+    ],
+    "high_discrepancy_sample": [
+      {
+        "document_id": "1fmjidaznl1obc",
+        "word_count": 162,
+        "difficulty": "Kolay",
+        "human_ref_count": 2,
+        "model_ref_count": 1,
+        "matched_core_count": 0,
+        "model_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "9",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "9",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Örnek Referans"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "1",
+            "sample": {
+              "bent": null,
+              "fikra": "1",
+              "madde": "1",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "3065 sayılı KDV Kanununun; -1/1 inci maddesinde,"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "17",
+            "sample": {
+              "bent": "b",
+              "fikra": "2",
+              "madde": "17",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "3065 sayılı KDV Kanununun; -1/1 inci maddesinde, Türkiye'de ticari, sınai, zirai faaliyet ve serbest meslek faaliyeti çerçevesinde yapılan teslim ve hizmetlerin KDV'ye tabi olduğu, -17/2-b maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzda, cami tadilatına ilişkin Derneğiniz tarafından yapılacak mal ve hizmet alımlarının katma değer vergisinden (KDV) istisna olup olmadığı hususunda Defterdarlığımız görüşü talep edilmektedir. 3065 sayılı KDV Kanununun; -1/1 inci maddesinde, Türkiye'de ticari, sınai, zirai faaliyet ve serbest meslek faaliyeti çerçevesinde yapılan teslim ve hizmetlerin KDV'ye tabi..."
+      },
+      {
+        "document_id": "4gle2ugub01wbz",
+        "word_count": 1556,
+        "difficulty": "Orta",
+        "human_ref_count": 10,
+        "model_ref_count": 5,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "4721",
+            "madde": "31 ve izleyen",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "31 ve izleyen",
+              "kanun_ad": "Türk Medeni Kanunu",
+              "kanun_no": "4721",
+              "source_text": "Türk Medeni Kanununun 31 ve izleyen maddelerine"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "4721",
+            "madde": "31",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "31",
+              "kanun_ad": "Türk Medeni Kanunu",
+              "kanun_no": "4721",
+              "source_text": "Türk Medeni Kanununun 31 ve izleyen maddelerine"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "3",
+            "sample": {
+              "bent": null,
+              "fikra": "b",
+              "madde": "3",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "213 sayılı Kanunun 3 üncü maddesinin (B) fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "8",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "8",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "Kurumlar Vergisi Kanununun 8 inci maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "213",
+            "madde": "323",
+            "human_details": [
+              [
+                "1",
+                "2"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "193",
+            "madde": "40",
+            "human_details": [
+              [
+                "1",
+                "1"
+              ],
+              [
+                "1",
+                "7"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 6,
+        "text_preview": "İlgide kayıtlı özelge talep formunun incelenmesinden;\n\n- Şirketinizin internet üzerinden arkadaşlık ve sosyal medya faaliyetlerinde bulunduğu,\n\n- İnternet üzerinden müşterilerinize verilen hizmetin karşılığının, kredi kartı, havale/eft gibi tahsilat yöntemlerinin yanı sıra, GSM operatörleri aracılığıyla kullanılan mobil ödeme yöntemiyle de tahsil edildiği,\n\n- Mobil ödeme yöntemini seçen müşteriler..."
+      },
+      {
+        "document_id": "4gldwp6uap1g0h",
+        "word_count": 842,
+        "difficulty": "Orta",
+        "human_ref_count": 9,
+        "model_ref_count": 7,
+        "matched_core_count": 5,
+        "model_only_cores": [
+          {
+            "kanun_no": "488",
+            "madde": "3",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "3",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "488 sayılı Damga Vergisi Kanununun 3 üncü maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "104",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "104",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 ve 104 üncü maddelere göre,"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 ve 104 üncü maddelere göre,"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "61",
+            "human_details": [
+              [
+                "3",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 4,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, Adalet Bakanlığı bünyesinde uzlaştırmacı olarak görev yaptığınız, göreviniz dolayısıyla elde ettiğiniz ücret geliri üzerinden gelir vergisi ile damga vergisi kesintisi yapıldığı, emekli maaşı dışında başkaca bir gelirinizin bulunmadığı belirtilerek uzlaştırmacılık faaliyetiniz dolayısıyla tarafınıza yapılan ödemenin asgari ücrete isabet eden kısmının gelir ver..."
+      },
+      {
+        "document_id": "4gldyi3muz107v",
+        "word_count": 1130,
+        "difficulty": "Orta",
+        "human_ref_count": 13,
+        "model_ref_count": 9,
+        "matched_core_count": 8,
+        "model_only_cores": [
+          {
+            "kanun_no": "488",
+            "madde": "34",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "34",
+              "kanun_ad": "Damga Vergisi Kanunu",
+              "kanun_no": "488",
+              "source_text": "488 sayılı Damga Vergisi Kanununa ekli (2) sayılı tablonun \"IV- Ticari ve medeni işlerle ilgili kâğıtlar\" başlıklı bölümünün (34) numaralı fıkrasında"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "104",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "104",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Gelir Vergisi Kanununun 103 ve 104 üncü maddeleri"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Gelir Vergisi Kanununun 103 ve 104 üncü maddeleri"
+            }
+          },
+          {
+            "kanun_no": "7349",
+            "madde": "3",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "3",
+              "kanun_ad": null,
+              "kanun_no": "7349",
+              "source_text": "7349 sayılı Kanunun 3 üncü maddesi"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "23",
+            "human_details": [
+              [
+                "1",
+                "18"
+              ],
+              [
+                "1",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                "18"
+              ]
+            ]
+          },
+          {
+            "kanun_no": "7349",
+            "madde": "2",
+            "human_details": [
+              [
+                "18",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "7075",
+            "madde": "10",
+            "human_details": [
+              [
+                "1",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 7,
+        "text_preview": "İlgide kayıtlı özelge talep formunda,\nKurumunuz bünyesinde istihdam edilen çalışanlarınızdan, Kanun Hükmünde Kararname ile görevinden ihraç edilip, Olağanüstü Hal İşlemleri İnceleme Komisyonu Kararı veya mahkeme kararına istinaden göreve iade edilen personele geriye dönük\n yapılacak ücret ödemelerinin vergilendirilmesi ile Gelir Vergisi Kanununun 23 üncü maddesinin birinci fıkrasının (18) numaralı..."
+      },
+      {
+        "document_id": "4hldybxuj61aoi",
+        "word_count": 1121,
+        "difficulty": "Orta",
+        "human_ref_count": 6,
+        "model_ref_count": 10,
+        "matched_core_count": 6,
+        "model_only_cores": [
+          {
+            "kanun_no": "5434",
+            "madde": "31",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "31",
+              "kanun_ad": "Türkiye Cumhuriyeti Emekli Sandığı Kanunu",
+              "kanun_no": "5434",
+              "source_text": "5434 sayılı Türkiye Cumhuriyeti Emekli Sandığı Kanununa"
+            }
+          },
+          {
+            "kanun_no": "7349",
+            "madde": "2",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "2",
+              "kanun_ad": "Emlak Vergisi Kanunu",
+              "kanun_no": "7349",
+              "source_text": "7349 sayılı Kanunun 2 nci maddesi"
+            }
+          },
+          {
+            "kanun_no": "5510",
+            "madde": "4",
+            "sample": {
+              "bent": "c",
+              "fikra": "1",
+              "madde": "4",
+              "kanun_ad": "Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu",
+              "kanun_no": "5510",
+              "source_text": "5510 sayılı Kanunun 4 üncü maddesinin birinci fıkrasının (c) bendi"
+            }
+          },
+          {
+            "kanun_no": "2547",
+            "madde": "36",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "36",
+              "kanun_ad": "Yükseköğretim Kanunu",
+              "kanun_no": "2547",
+              "source_text": "2547 sayılı Yükseköğretim Kanununun 36 ncı maddesinin"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "4691",
+            "madde": "3",
+            "human_details": [
+              [
+                "",
+                "m,n,o,p,r"
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, firmanızın 2001 yılından bu yana 4691 sayılı Teknoloji Geliştirme Bölgeleri Kanunu kapsamında ODTÜ Teknokent yerleşkesinde bilgisayar programlama-sistem yazılımı ve sistem entegrasyonu faaliyetinde bulunduğu, T.C. Cumhurbaşkanlığı Savunma Sanayi Başkanlığının iştiraki olduğu, firmanız çalışanlarının \"Ar-Ge/Araştırmacı Personeli, Ar-Ge Destek Personeli, Kapsam ..."
+      },
+      {
+        "document_id": "4hldomh4ff12m3",
+        "word_count": 744,
+        "difficulty": "Orta",
+        "human_ref_count": 9,
+        "model_ref_count": 4,
+        "matched_core_count": 3,
+        "model_only_cores": [
+          {
+            "kanun_no": "6098",
+            "madde": "620 ila 645",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "620 ila 645",
+              "kanun_ad": "Türk Borçlar Kanunu",
+              "kanun_no": "6098",
+              "source_text": "6098 sayılı Türk Borçlar Kanununun 620-645 inci maddelerinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "6098",
+            "madde": "645",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "645",
+              "kanun_ad": "Türk Borçlar Kanunu",
+              "kanun_no": "6098",
+              "source_text": "6098 sayılı Türk Borçlar Kanununun 620-645 inci maddelerinde"
+            }
+          },
+          {
+            "kanun_no": "6098",
+            "madde": "620",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "620",
+              "kanun_ad": "\"",
+              "kanun_no": "6098",
+              "source_text": "6098 sayılı Türk Borçlar Kanununun 620-645 inci maddelerinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "1211",
+            "madde": "4",
+            "human_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                "ı"
+              ],
+              [
+                "4",
+                ""
+              ],
+              [
+                "1",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "3",
+                "g"
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "geçici 14",
+            "human_details": [
+              [
+                "1",
+                "a"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formunda; ortakları kurumlar vergisi mükellefi olan (Kocaman Petrokimya San. ve Tic. A.Ş ve Socar Turkey Petrol Ticaret A.Ş) Adi Ortaklığınızın 31/12/2021 tarihli bilançosunda yer alan döviz tutarlarını 17/02/2022 tarihine kadar Türk lirasına çevirerek 6 ay vadeli kur korumalı Türk Lirası mevduat hesabına aktarmış olduğu belirtilerek, 31/12/2021 tarihli adi ortaklık bil..."
+      },
+      {
+        "document_id": "4hldoigej11n6l",
+        "word_count": 1619,
+        "difficulty": "Orta",
+        "human_ref_count": 16,
+        "model_ref_count": 15,
+        "matched_core_count": 11,
+        "model_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "103",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "103",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 üncü maddede"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "mükerrer 20/b",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "mükerrer 20/B",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "193 sayılı Gelir Vergisi Kanununun mükerrer 20/B maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "mükerrer 20",
+            "sample": {
+              "bent": "b",
+              "fikra": null,
+              "madde": "Mükerrer 20",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "193 sayılı Gelir Vergisi Kanununun mükerrer 20/B maddesinde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "193",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "193",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "103 üncü maddede"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "213",
+            "madde": "232",
+            "human_details": [
+              [
+                "1",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "1",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 5,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden; \"www.malatyahaber.com\" adlı haber sitenizde internet haberciliği faaliyetinde bulunduğunuz, söz konusu sitenizde yer alan bazı bölümlerde İrlanda da yerleşik Google firmasına ait reklamlar yayınlandığınızı, yayınlanan bu reklamlar için Google firması ile yapmış olduğunuz üyelik anlaşması kapsamında reklamların izlenme sayısına göre her ay adı..."
+      },
+      {
+        "document_id": "4gldvfl6y914rp",
+        "word_count": 997,
+        "difficulty": "Orta",
+        "human_ref_count": 7,
+        "model_ref_count": 8,
+        "matched_core_count": 5,
+        "model_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "6/b",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "6/b",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "-6/b maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "6",
+            "sample": {
+              "bent": "b",
+              "fikra": null,
+              "madde": "6",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "-6/b maddesinde,"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5520",
+            "madde": "30",
+            "human_details": [
+              [
+                "1",
+                "b"
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                "b"
+              ],
+              [
+                "1",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunda; yurt dışında (İngiltere) mukim bir sağlık firmasına müşterilerinize ait idrar örneklerini tahlil amacıyla gönderdiğiniz ve idrar tahlil sonuçlarını dijital ortamda aldığınız, \nyurt dışından alınan bu hizmet karşılığında, yurt dışı şirket tarafından fatura düzenlendiği ve düzenlenen faturada belirtilen tutarın, yurt dışı şirketin İngiltere'de bulunan banka hesa..."
+      },
+      {
+        "document_id": "4ildol2vdf1h5y",
+        "word_count": 2084,
+        "difficulty": "Zor",
+        "human_ref_count": 26,
+        "model_ref_count": 19,
+        "matched_core_count": 12,
+        "model_only_cores": [],
+        "human_only_cores": [
+          {
+            "kanun_no": "5520",
+            "madde": "15",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "15",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "Anılan Kanunun 15 inci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "213",
+            "madde": "275",
+            "sample": {
+              "bent": null,
+              "fikra": null,
+              "madde": "275",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "Vergi Usul Kanununun 275 inci maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "3065",
+            "madde": "27",
+            "human_details": [
+              [
+                "4",
+                ""
+              ],
+              [
+                "1",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "4",
+                ""
+              ],
+              [
+                "1",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "2",
+            "human_details": [
+              [
+                "6",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "6",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "213",
+            "madde": "267",
+            "human_details": [
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kanun_no": "5363",
+            "madde": "7",
+            "human_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 6,
+        "text_preview": "İlgide kayıtlı özelge talep formunda, 5363 sayılı Tarım Sigortaları Kanununun 4 üncü maddesiyle Kanun kapsamındaki risklerin teminat altına alınması, standart sigorta poliçelerinin belirlenmesi, hasar organizasyonları, aktüerya çalışmaları, tazminat ödemelerinin yapılması, reasürans teminatının sağlanması, tarım sigortalarının geliştirilmesi, yaygınlaştırılması ve izlenmesi ile diğer teknik hizmet..."
+      },
+      {
+        "document_id": "4gldolz6hs16ch",
+        "word_count": 834,
+        "difficulty": "Orta",
+        "human_ref_count": 1,
+        "model_ref_count": 7,
+        "matched_core_count": 1,
+        "model_only_cores": [
+          {
+            "kanun_no": "5746",
+            "madde": "7",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "7",
+              "kanun_ad": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun",
+              "kanun_no": "5746",
+              "source_text": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesine İlişkin Uygulama ve Denetim Yönetmeliğinin \"Ar-Ge, yenilik ve tasarım harcamalarının kapsamı\" başlıklı 7 nci maddesinde"
+            }
+          },
+          {
+            "kanun_no": "5746",
+            "madde": "4",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "4",
+              "kanun_ad": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun",
+              "kanun_no": "5746",
+              "source_text": "6 Seri No.lu 5746 sayılı Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun Genel Tebliğinin; \"Ar-Ge ve tasarım indirimine konu edilebilecek harcamalar\"başlıklı 4 üncü maddesinde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "89",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "89",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "31/12/1960 tarihli ve 193 sayılı Gelir Vergisi Kanununun 89 uncu maddesi"
+            }
+          },
+          {
+            "kanun_no": "5520",
+            "madde": "10",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "10",
+              "kanun_ad": "Kurumlar Vergisi Kanunu",
+              "kanun_no": "5520",
+              "source_text": "5520 sayılı Kurumlar Vergisi Kanununun 10 uncu maddesine"
+            }
+          },
+          {
+            "kanun_no": "5746",
+            "madde": "10",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "10",
+              "kanun_ad": "Araştırma, Geliştirme ve Tasarım Faaliyetlerinin Desteklenmesi Hakkında Kanun",
+              "kanun_no": "5746",
+              "source_text": "5520 sayılı Kurumlar Vergisi Kanununun 10 uncu maddesine"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5746",
+            "madde": "3",
+            "human_details": [
+              [
+                "1",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "1",
+                ""
+              ],
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 6,
+        "text_preview": "İlgide kayıtlı özelge talep formunda;\n\n \n\n- Şirketinizin Anadolu Kurumlar Vergi Dairesi Müdürlüğü'nün 080 025 6936 vergi kimlik numaralı mükellefi olarak, İstanbul Deri Organize Sanayi Bölgesinde, her tip ve kategorideki motorlu ve motorsuz taşıt araçlarının ve bunları oluşturan parçaların mühendislik çalışmaları ile tasarımı, araştırma ve geliştirilmesi (AR-GE), imalatı, tadilatı, ticareti, ithal..."
+      },
+      {
+        "document_id": "4ilda3rpp01jv3",
+        "word_count": 936,
+        "difficulty": "Orta",
+        "human_ref_count": 7,
+        "model_ref_count": 9,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "6/b",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "6/b",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "-6/b maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "6",
+            "sample": {
+              "bent": "b",
+              "fikra": null,
+              "madde": "6",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "-6/b maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5520",
+            "madde": "3",
+            "human_details": [
+              [
+                "2",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgi (a) ve (b)'de kayıtlı özelge talep formlarınızın incelenmesinden, İrlanda mukimi Adobe Systems Software İreland Ltd. Şirketinin internet sitesi üzerinden 12 ay süreli olarak Adobe programının kullanım hakkının satın alındığı belirtilerek söz konusu programın kullanım hakkının satın alınması işleminin vergilendirilmesi hususunda Başkanlığımız görüşü talep edildiği anlaşılmıştır.\n\n \n\nI-KURUMLAR..."
+      },
+      {
+        "document_id": "4ilct5bthe1knq",
+        "word_count": 394,
+        "difficulty": "Kolay",
+        "human_ref_count": 5,
+        "model_ref_count": 5,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "mükerrer 20/a",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "mükerrer 20/A",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "193 sayılı Kanunun 7338 sayılı Kanunla eklenen mükerrer 20/A maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "mükerrer 20",
+            "sample": {
+              "bent": "a",
+              "fikra": null,
+              "madde": "Mükerrer 20",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "Öte yandan, 193 sayılı Kanunun 7338 sayılı Kanunla eklenen mükerrer 20/A maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "51",
+            "human_details": [
+              [
+                "",
+                "10"
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formlarınızda; şehir içi eşya taşımacılığı faaliyetinden dolayı basit usulde ticari kazanç mükellefi olduğunuz, eşya taşımaya yardımcı olmak üzere eşya taşıma asansörü almanız halinde, basit usulde ticari kazanç mükellefiyetinizin devam edip etmeyeceği hususunda Başkanlığımız görüşü talep edilmektedir.\n\n \n\n193 sayılı Gelir Vergisi Kanununun 37 nci maddesinde, her türlü ..."
+      },
+      {
+        "document_id": "4hlcsuvfyb1cc8",
+        "word_count": 707,
+        "difficulty": "Orta",
+        "human_ref_count": 8,
+        "model_ref_count": 12,
+        "matched_core_count": 5,
+        "model_only_cores": [
+          {
+            "kanun_no": "3065",
+            "madde": "5",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "5",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "Anlaşmanın \"İşyeri\" başlıklı 5 inci maddesinin birinci fıkrasında"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "6/b",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "6/b",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "6/b maddesinde"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "1",
+            "sample": {
+              "bent": "",
+              "fikra": "1",
+              "madde": "1",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "3065 sayılı KDV Kanununun; 1/1 inci maddesinde"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "3605",
+            "madde": "1",
+            "sample": {
+              "bent": null,
+              "fikra": "1",
+              "madde": "1",
+              "kanun_ad": null,
+              "kanun_no": "3605",
+              "source_text": "3065 sayılı KDV Kanununun;\n\n \n\n1/1 inci maddesinde,"
+            }
+          },
+          {
+            "kanun_no": "3065",
+            "madde": "6",
+            "sample": {
+              "bent": "b",
+              "fikra": null,
+              "madde": "6",
+              "kanun_ad": "Katma Değer Vergisi Kanunu",
+              "kanun_no": "3065",
+              "source_text": "6/b maddesinde,"
+            }
+          }
+        ],
+        "detail_mismatches": [
+          {
+            "kanun_no": "5520",
+            "madde": "3",
+            "human_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                "a"
+              ]
+            ],
+            "model_details": [
+              [
+                "2",
+                ""
+              ],
+              [
+                "3",
+                ""
+              ],
+              [
+                "3",
+                "a"
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 6,
+        "text_preview": "İlgide kayıtlı özelge talep formunda ve ek dilekçelerinizde, otomotiv yedek parça imalatı, satışı, ithalatı ve ihracatı faaliyetleri ile iştigal etmekte olduğunuzu, şirketinizin Almanya mukimi Daimler Truck AG şirketine direk otomotiv yedek parça ihracat ve konsinye otomotiv yedek parça ihracatı yaptığını, bu ihracatlarınızla ilgili yine Almanya mukimi ZOLL ve Karl Dischinger firmalarından gümrükl..."
+      },
+      {
+        "document_id": "4hlct4x4on1tpb",
+        "word_count": 683,
+        "difficulty": "Orta",
+        "human_ref_count": 5,
+        "model_ref_count": 6,
+        "matched_core_count": 4,
+        "model_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "mükerrer 20/b",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "mükerrer 20/B",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "193 sayılı Gelir Vergisi Kanununa eklenen \"Sosyal içerik üreticiliği ile mobil cihazlar için uygulama geliştiriciliğinde kazanç istisnası\" başlıklı mükerrer 20/B maddesinde"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "94",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "94",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "94 üncü maddenin birinci fıkrası kapsamında"
+            }
+          }
+        ],
+        "human_only_cores": [
+          {
+            "kanun_no": "193",
+            "madde": "20",
+            "sample": {
+              "bent": null,
+              "fikra": "b",
+              "madde": "20",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "193 sayılı Gelir Vergisi Kanununa eklenen \"Sosyal içerik üreticiliği ile mobil cihazlar için uygulama geliştiriciliğinde kazanç istisnası\" başlıklı mükerrer 20/B maddesinde"
+            }
+          }
+        ],
+        "detail_mismatches": [],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunuzun incelenmesinden; eğitim sektöründe ziyaretçilerine ücretsiz hizmet veren\nwww.sorubak.com\n isimli kişisel web siteniz üzerinden Google Adsense reklamları yayınlamak suretiyle gelir elde ettiğinizi belirterek, web sitesi üzerinden elde ettiğiniz söz konusu gelirin sosyal içerik üreticiliği ile mobil cihazlar için uygulama geliştiriciliğinde kazanç istisnası kap..."
+      },
+      {
+        "document_id": "4glck8wr4c1ci3",
+        "word_count": 1044,
+        "difficulty": "Orta",
+        "human_ref_count": 11,
+        "model_ref_count": 12,
+        "matched_core_count": 9,
+        "model_only_cores": [
+          {
+            "kanun_no": "213",
+            "madde": "320",
+            "sample": {
+              "bent": "",
+              "fikra": "4",
+              "madde": "320",
+              "kanun_ad": "Vergi Usul Kanunu",
+              "kanun_no": "213",
+              "source_text": "320 nci maddenin dördüncü fıkrası"
+            }
+          },
+          {
+            "kanun_no": "193",
+            "madde": "41",
+            "sample": {
+              "bent": "",
+              "fikra": "",
+              "madde": "41",
+              "kanun_ad": "Gelir Vergisi Kanunu",
+              "kanun_no": "193",
+              "source_text": "bu kanunun 40 ve 41 inci maddeleri"
+            }
+          }
+        ],
+        "human_only_cores": [],
+        "detail_mismatches": [
+          {
+            "kanun_no": "193",
+            "madde": "40",
+            "human_details": [
+              [
+                "1",
+                "7"
+              ],
+              [
+                "",
+                ""
+              ]
+            ],
+            "model_details": [
+              [
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "total_discrepancies": 3,
+        "text_preview": "İlgide kayıtlı özelge talep formunda; şirketinizin Spor Toto Teşkilatı bayisi olarak sayısal şans oyunları faaliyetini sürdürmekte olduğunu, 2021 yılında Spor Toto Teşkilatı ile yapmış olduğunuz\nBayilik Sözleşmesine\n istinaden sözleşme bedeli olarak şirketinizden 20.000.000 TL talep ettiklerini belirterek, bu tutarın tek seferde gider yazılıp yazılmayacağı hususunda Başkanlığımız görüşü sorulmakta..."
+      }
+    ]
+  }
+}

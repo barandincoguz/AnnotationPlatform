@@ -51,3 +51,5 @@ data/import-neon/
 # Load-test scratch artifacts (regenerated per run; see scripts/loadtest_multiuser.sh)
 .tmp-uvicorn.log
 .tmp-wrk-output.txt
+data/gold_standard_benchmark_pool.json
+*.log
