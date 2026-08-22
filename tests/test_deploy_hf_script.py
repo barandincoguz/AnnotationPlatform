@@ -6,6 +6,9 @@ SCRIPT = (Path(__file__).resolve().parents[1] / "deploy_hf.sh").read_text()
 
 def test_deploy_uses_historyless_orphan_commit_and_safe_lease():
     assert "checkout --orphan" in SCRIPT
+    assert "checkout --orphan hf-deploy\n" not in SCRIPT
+    assert "deploy_branch=" in SCRIPT
+    assert 'branch -D "$deploy_branch"' in SCRIPT
     assert "--force-with-lease" in SCRIPT
     assert "git push -f " not in SCRIPT
 

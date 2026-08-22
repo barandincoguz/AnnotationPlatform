@@ -3,10 +3,14 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 deploy_dir=""
+deploy_branch=""
 
 cleanup() {
   if [[ -n "$deploy_dir" && -d "$deploy_dir" ]]; then
     git -C "$repo_root" worktree remove --force "$deploy_dir" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$deploy_branch" ]] && git -C "$repo_root" show-ref --verify --quiet "refs/heads/$deploy_branch"; then
+    git -C "$repo_root" branch -D "$deploy_branch" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
@@ -25,9 +29,10 @@ fi
 git -C "$repo_root" fetch hf main
 expected_remote="$(git -C "$repo_root" rev-parse refs/remotes/hf/main)"
 deploy_dir="$(mktemp -d "${TMPDIR:-/tmp}/annotation-hf-deploy.XXXXXX")"
+deploy_branch="hf-deploy-${deploy_dir##*.}"
 git -C "$repo_root" worktree add --detach "$deploy_dir" HEAD
 
-git -C "$deploy_dir" checkout --orphan hf-deploy
+git -C "$deploy_dir" checkout --orphan "$deploy_branch"
 git -C "$deploy_dir" rm -r --cached --quiet .
 
 # Only runtime source and the HF Space manifest are publishable. Internal docs,
