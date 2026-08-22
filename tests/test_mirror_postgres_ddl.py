@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import sqlite3
 
-import pytest
-
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
 from backend.migrations.helpers.schema_introspect import (
@@ -261,6 +259,13 @@ def test_pg_ddl_enforces_real_prediction_provenance():
     assert "CREATE OR REPLACE FUNCTION baran_enforce_model_prediction_provenance" in full
     assert "NEW.source <> 'dqcheck_agent'" in full
     assert "NEW.operational_json->>'backend', '') <> 'mlx-g0'" in full
+    # This DDL is assembled with an f-string.  A single ``{64}`` is consumed
+    # by Python and silently becomes the broken regex ``[0-9a-f]64``.  Assert
+    # against the rendered SQL, not the source spelling, so every real
+    # SHA-256 provenance seal remains admissible in Postgres.
+    assert "NEW.model_fingerprint !~ '^[0-9a-f]{64}$'" in full
+    assert "NEW.text_sha256 !~ '^[0-9a-f]{64}$'" in full
+    assert "[0-9a-f]64$" not in full
     assert "NEW.model_fingerprint NOT IN" in full
     for fingerprint in TRUSTED_G0_MODEL_FINGERPRINTS:
         assert fingerprint in full

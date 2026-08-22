@@ -401,9 +401,9 @@ BEGIN
     IF NEW.generation <> 'G0'
        OR NEW.source <> 'dqcheck_agent'
        OR COALESCE(NEW.operational_json->>'backend', '') <> 'mlx-g0'
-       OR NEW.model_fingerprint !~ '^[0-9a-f]64$'
+       OR NEW.model_fingerprint !~ '^[0-9a-f]{64}$'
        OR NEW.model_fingerprint NOT IN ('3018af0b678572a71588f37132d0318a9eebf210193bedfd5931d9a42b4989f3', 'fec17c05106af5efb4cc919ed90124f9d7e21ec48de62e03ab76c39a257c1934')
-       OR NEW.text_sha256 !~ '^[0-9a-f]64$'
+       OR NEW.text_sha256 !~ '^[0-9a-f]{64}$'
     THEN
         RAISE EXCEPTION 'untrusted model prediction provenance';
     END IF;
