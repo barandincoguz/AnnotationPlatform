@@ -228,21 +228,8 @@ async def lifespan(_app: FastAPI):
         applied = apply_migrations(conn, discover_migrations())
         user_count_before = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
         is_fresh_db = (user_count_before == 0)
-        seed_bootstrap_admin(
-            conn,
-            username=config.BOOTSTRAP_ADMIN_USERNAME,
-            password=config.BOOTSTRAP_ADMIN_PASSWORD,
-        )
-        # Ensure BURSIYER-2026 is seeded as the active invite code if no active invite code exists (skip in test environment)
+
         if config.ENVIRONMENT != "test":
-            from datetime import datetime, timezone
-            active_code = conn.execute("SELECT code FROM invite_codes WHERE is_active=1").fetchone()
-            if active_code is None:
-                conn.execute(
-                    "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
-                    ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
-                )
-            
             # One-off outbox cleanup to purge redundant document sync outbox entries from previous boots
             conn.execute(
                 "DELETE FROM _outbox WHERE table_name IN ('documents_meta', 'document_kanun_refs', 'document_bkk_refs') AND delivered_at IS NULL"
@@ -343,6 +330,23 @@ async def lifespan(_app: FastAPI):
             username=config.BOOTSTRAP_ADMIN_USERNAME,
             password=config.BOOTSTRAP_ADMIN_PASSWORD,
         )
+
+        # Seed a fallback invite only after the durable snapshot is restored.
+        # invite_codes is mirrored: inserting this on an empty ephemeral DB
+        # before restore would enqueue a placeholder row that could flow back
+        # into Neon and overwrite production state.
+        if config.ENVIRONMENT != "test":
+            from datetime import timezone
+
+            active_code = conn.execute(
+                "SELECT code FROM invite_codes WHERE is_active=1"
+            ).fetchone()
+            if active_code is None:
+                conn.execute(
+                    "INSERT INTO invite_codes(code, is_active, created_at) VALUES (?, 1, ?)",
+                    ("BURSIYER-2026", datetime.now(timezone.utc).isoformat()),
+                )
+                conn.commit()
 
         _purge_fixture_predictions_before_serve(conn)
 

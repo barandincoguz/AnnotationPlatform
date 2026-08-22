@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -11,6 +12,9 @@ from backend.main import (
 from backend.migrations import discover_migrations
 from backend.migrations.helpers.schema_introspect import list_project_tables
 from backend.migrations.runner import apply_migrations
+
+
+MAIN_SOURCE = (Path(__file__).resolve().parents[1] / "backend" / "main.py").read_text()
 
 
 class _Cursor:
@@ -90,6 +94,24 @@ def test_restore_scope_covers_every_durable_mirror_table():
     }
     assert set(MIRROR_RESTORE_TABLES) == expected
     conn.close()
+
+
+def test_bootstrap_writes_happen_only_after_durable_restore():
+    """A fresh ephemeral boot must not enqueue placeholder prod records.
+
+    Users and invite codes are mirrored tables. Seeding either before the
+    Neon snapshot restore creates transient rows whose outbox events can later
+    flow back into the durable database. Keep every bootstrap write after the
+    restore path and before fixture purge/application yield.
+    """
+    lifespan_source = MAIN_SOURCE[MAIN_SOURCE.index("@asynccontextmanager") :]
+    restore_at = lifespan_source.index("_restore_mirrored_state(conn, pg_conn)")
+    bootstrap_at = lifespan_source.index("seed_bootstrap_admin(")
+    invite_at = lifespan_source.index('"BURSIYER-2026"')
+    purge_at = lifespan_source.index("_purge_fixture_predictions_before_serve(conn)")
+
+    assert lifespan_source.count("seed_bootstrap_admin(") == 1
+    assert restore_at < bootstrap_at < invite_at < purge_at
 
 
 def test_restore_reads_all_remote_tables_from_one_repeatable_read_snapshot():
