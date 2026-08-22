@@ -1,0 +1,18 @@
+"""Production provenance constants shared by ingest and database guards."""
+
+HISTORICAL_G0_MODEL_FINGERPRINT = (
+    "fec17c05106af5efb4cc919ed90124f9d7e21ec48de62e03ab76c39a257c1934"
+)
+CURRENT_G0_MODEL_FINGERPRINT = (
+    "3018af0b678572a71588f37132d0318a9eebf210193bedfd5931d9a42b4989f3"
+)
+ECHO_FIXTURE_MODEL_FINGERPRINT = (
+    "fed23d7a8dd1a7742bcf0ab83e8ec1f92996febf46ad12fb544f353fd96b96b0"
+)
+
+TRUSTED_G0_MODEL_FINGERPRINTS = frozenset(
+    {
+        HISTORICAL_G0_MODEL_FINGERPRINT,
+        CURRENT_G0_MODEL_FINGERPRINT,
+    }
+)

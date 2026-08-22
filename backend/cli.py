@@ -37,6 +37,30 @@ def cmd_migrate(_args) -> int:
     return 0
 
 
+def cmd_purge_fixture_predictions(args) -> int:
+    """Preview or purge predictions produced by the echo-human fixture backend."""
+    from backend.quality import service as quality_service
+
+    config.ensure_dirs()
+    conn = connect(config.DB_PATH)
+    try:
+        apply_migrations(conn, discover_migrations())
+        matched = quality_service.count_fixture_predictions(conn)
+        deleted = quality_service.purge_fixture_predictions(conn) if args.apply else 0
+        if args.apply:
+            audit.log_system_event(
+                conn,
+                "fixture_predictions_purged",
+                "warn",
+                message=f"Purged {deleted} fixture prediction rows",
+                extra={"deleted": deleted},
+            )
+    finally:
+        conn.close()
+    print(json.dumps({"matched": matched, "deleted": deleted, "applied": args.apply}))
+    return 0
+
+
 def cmd_promote_admin(args) -> int:
     config.ensure_dirs()
     conn = connect(config.DB_PATH)
@@ -400,14 +424,30 @@ def cmd_restore_from_github(args) -> int:
 def cmd_seed_e2e(args) -> int:
     """Reset the DB at $DB_PATH and seed minimal fixtures for Playwright
     e2e runs: one invite code, three pre-trained users, four sample
-    documents. Always run against an ISOLATED test DB (DB_PATH env var)
-    — refuses to touch the default production path without --force.
+    documents. Always run against an ISOLATED test DB (DB_PATH env var).
+    Production mode and non-temporary paths are unconditionally refused.
     """
-    db_path = config.DB_PATH
-    if str(db_path).endswith("annotations.db") and "anotasyon-e2e" not in str(db_path) and not args.force:
+    db_path = config.DB_PATH.resolve()
+    if config.is_production():
         print(
-            f"refusing to seed default DB at {db_path}; set DB_PATH to an "
-            "e2e-only path (e.g. /tmp/anotasyon-e2e.db), or pass --force",
+            "refusing to seed E2E fixtures while production mode is active",
+            file=sys.stderr,
+        )
+        return 2
+    safe_roots = {Path("/tmp").resolve(), Path(tempfile.gettempdir()).resolve()}
+    is_isolated_e2e_path = False
+    for safe_root in safe_roots:
+        try:
+            relative = db_path.relative_to(safe_root)
+        except ValueError:
+            continue
+        if any(part.startswith("anotasyon-e2e-") for part in relative.parts[:-1]):
+            is_isolated_e2e_path = True
+            break
+    if not is_isolated_e2e_path:
+        print(
+            "refusing to seed outside an isolated temporary "
+            "anotasyon-e2e-* directory",
             file=sys.stderr,
         )
         return 2
@@ -536,38 +576,79 @@ def cmd_seed_e2e(args) -> int:
             "source_text": "Konuyla ilgili aciklamalar asagida yer almaktadir.",
         },
     ]
+    fixture_predictions = [
+        {
+            "document_id": "e2e-doc-alpha",
+            "generation": "G0",
+            "status": "success",
+            "references": alpha_prediction,
+            "truncated": False,
+            "model_fingerprint": "e2e-seed-fingerprint",
+            "text_sha256": sha256_text(alpha_text),
+            "source": "fixture",
+            "operational": {"backend": "e2e-fixture"},
+        },
+        {
+            "document_id": "e2e-doc-bravo",
+            "generation": "G0",
+            "status": "success",
+            "references": alpha_prediction,
+            "truncated": False,
+            "model_fingerprint": "e2e-seed-fingerprint",
+            "text_sha256": sha256_text(docs[1]["pdfText"]),
+            "source": "fixture",
+            "operational": {"backend": "e2e-fixture"},
+        },
+    ]
     conn = connect(db_path)
+    from backend.migrations.v0020_prediction_provenance_guard import (
+        TRIGGER_NAMES,
+        install_prediction_provenance_guards,
+    )
+
     try:
-        quality_service.upsert_predictions(
-            conn,
-            [
-
-                {
-                    "document_id": "e2e-doc-alpha",
-                    "generation": "G0",
-                    "status": "success",
-                    "references": alpha_prediction,
-                    "truncated": False,
-                    "model_fingerprint": "e2e-seed-fingerprint",
-                    "text_sha256": sha256_text(alpha_text),
-                    "source": "e2e_seed",
-                    "operational": {},
-                },
-                {
-                    "document_id": "e2e-doc-bravo",
-                    "generation": "G0",
-                    "status": "success",
-                    "references": alpha_prediction,
-                    "truncated": False,
-                    "model_fingerprint": "e2e-seed-fingerprint",
-                    "text_sha256": sha256_text(docs[1]["pdfText"]),
-                    "source": "e2e_seed",
-                    "operational": {},
-                }
-
-            ],
-        )
+        for trigger_name in TRIGGER_NAMES:
+            conn.execute(f"DROP TRIGGER IF EXISTS {trigger_name}")
+        # This bypass is intentionally confined to cmd_seed_e2e after the
+        # production + temporary-path guards above. The normal service API
+        # accepts only real dqcheck_agent/mlx-g0 provenance.
+        conn.execute("BEGIN IMMEDIATE")
+        for item in fixture_predictions:
+            references = item["references"]
+            stamp = datetime.now(timezone.utc).isoformat()
+            conn.execute(
+                """
+                INSERT INTO model_predictions(
+                    document_id, generation, status, references_json, truncated,
+                    model_fingerprint, prediction_fingerprint, text_sha256,
+                    source, error, operational_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+                """,
+                (
+                    item["document_id"],
+                    item["generation"],
+                    item["status"],
+                    json.dumps(references, ensure_ascii=False),
+                    1 if item["truncated"] else 0,
+                    item["model_fingerprint"],
+                    quality_service.prediction_fingerprint(
+                        generation=item["generation"],
+                        model_fingerprint=item["model_fingerprint"],
+                        references=references,
+                    ),
+                    item["text_sha256"],
+                    item["source"],
+                    json.dumps(item["operational"], ensure_ascii=False),
+                    stamp,
+                    stamp,
+                ),
+            )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
     finally:
+        install_prediction_provenance_guards(conn)
         conn.close()
 
     print(f"E2E DB seeded at {db_path}")
@@ -580,6 +661,7 @@ def cmd_seed_e2e(args) -> int:
 
 COMMANDS = {
     "migrate": cmd_migrate,
+    "purge-fixture-predictions": cmd_purge_fixture_predictions,
     "promote-admin": cmd_promote_admin,
     "demote-admin": cmd_demote_admin,
     "create-invite": cmd_create_invite,
@@ -597,6 +679,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="backend.cli")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("migrate", help="Apply pending DB migrations")
+
+    p_purge_fixtures = sub.add_parser(
+        "purge-fixture-predictions",
+        help="Preview or delete echo-human fixture predictions",
+    )
+    p_purge_fixtures.add_argument(
+        "--apply",
+        action="store_true",
+        help="Delete matched rows; default is a read-only preview",
+    )
 
     p_promote = sub.add_parser("promote-admin", help="Promote a user to admin")
     p_promote.add_argument("username")
@@ -661,14 +753,12 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Wipes the DB at $DB_PATH (sidecars too) and re-seeds with a "
             "single invite code, three users (alice/bob/admin, password "
-            "'e2e-pass-123!'), and four sample documents. Refuses to "
-            "run against the default production path unless --force."
+            "'e2e-pass-123!'), and four sample documents. Refuses to run "
+            "in production or outside a temporary anotasyon-e2e-* directory."
         ),
     )
     p_seed.add_argument("--reset", action="store_true",
                         help="Drop the existing DB file before seeding")
-    p_seed.add_argument("--force", action="store_true",
-                        help="Allow seeding the default DB path (NOT recommended)")
 
     args = parser.parse_args(argv)
     handler = COMMANDS.get(args.command)

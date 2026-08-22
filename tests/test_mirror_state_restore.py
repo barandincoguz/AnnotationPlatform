@@ -14,12 +14,16 @@ from backend.migrations.runner import apply_migrations
 
 
 class _Cursor:
-    def __init__(self, rows_by_table, fail_table=None):
+    def __init__(self, rows_by_table, fail_table=None, statements=None):
         self.rows_by_table = rows_by_table
         self.fail_table = fail_table
+        self.statements = statements if statements is not None else []
         self.table = None
 
     def execute(self, sql):
+        self.statements.append(sql)
+        if sql.startswith("SET TRANSACTION"):
+            return
         self.table = sql.removeprefix("SELECT * FROM baran_")
         if self.table == self.fail_table:
             raise RuntimeError("mirror read failed")
@@ -35,9 +39,10 @@ class _PgConnection:
     def __init__(self, rows_by_table=None, fail_table=None):
         self.rows_by_table = rows_by_table or {}
         self.fail_table = fail_table
+        self.statements = []
 
     def cursor(self):
-        return _Cursor(self.rows_by_table, self.fail_table)
+        return _Cursor(self.rows_by_table, self.fail_table, self.statements)
 
 
 class _CountCursor:
@@ -76,21 +81,28 @@ def test_restore_scope_excludes_runtime_credentials_and_locks():
     assert "document_locks" not in MIRROR_RESTORE_TABLES
 
 
-def test_restore_scope_covers_every_durable_non_document_mirror_table():
+def test_restore_scope_covers_every_durable_mirror_table():
     conn = _conn()
-    document_sync_tables = {
-        "documents_meta",
-        "document_kanun_refs",
-        "document_bkk_refs",
-    }
-    expected = set(list_project_tables(conn)) - document_sync_tables - {
+    expected = set(list_project_tables(conn)) - {
         "document_locks",
         "user_sessions",
         "system_events",
-        "model_predictions",
     }
     assert set(MIRROR_RESTORE_TABLES) == expected
     conn.close()
+
+
+def test_restore_reads_all_remote_tables_from_one_repeatable_read_snapshot():
+    conn = _conn()
+    pg_conn = _PgConnection()
+    try:
+        _restore_mirrored_state(conn, pg_conn)
+        assert pg_conn.statements[0] == (
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+        )
+        assert pg_conn.statements[1] == "SELECT * FROM baran_users"
+    finally:
+        conn.close()
 
 
 def test_local_annotation_state_empty_detects_empty_and_non_empty_state():

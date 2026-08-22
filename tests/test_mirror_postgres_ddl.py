@@ -21,6 +21,7 @@ from backend.migrations.helpers.postgres_ddl import (
     build_all_pg_ddl,
     build_pg_ddl_for_table,
 )
+from backend.quality.provenance import TRUSTED_G0_MODEL_FINGERPRINTS
 
 
 def _migrated_conn() -> sqlite3.Connection:
@@ -251,6 +252,19 @@ def test_pg_ddl_full_script_contains_25_create_table_statements():
     full = build_all_pg_ddl(conn)
     count = full.count("CREATE TABLE IF NOT EXISTS baran_")
     assert count == 25, count
+    conn.close()
+
+
+def test_pg_ddl_enforces_real_prediction_provenance():
+    conn = _migrated_conn()
+    full = build_all_pg_ddl(conn)
+    assert "CREATE OR REPLACE FUNCTION baran_enforce_model_prediction_provenance" in full
+    assert "NEW.source <> 'dqcheck_agent'" in full
+    assert "NEW.operational_json->>'backend', '') <> 'mlx-g0'" in full
+    assert "NEW.model_fingerprint NOT IN" in full
+    for fingerprint in TRUSTED_G0_MODEL_FINGERPRINTS:
+        assert fingerprint in full
+    assert "BEFORE INSERT OR UPDATE ON baran_model_predictions" in full
     conn.close()
 
 

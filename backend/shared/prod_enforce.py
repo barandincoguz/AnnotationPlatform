@@ -78,8 +78,6 @@ def _validate_public_origin(origin: str) -> str | None:
     """Return a production-safety error for an invalid browser origin."""
     if any(char.isspace() for char in origin):
         return "must not contain whitespace"
-    if origin == "*":
-        return None
     if "*" in origin:
         return "must not contain wildcards"
 
@@ -194,7 +192,6 @@ def enforce_production_secrets() -> None:
     if (
         config.TRUST_FORWARDED_FOR
         and not config.TRUSTED_PROXY_NETWORKS
-        and not config.SPACE_ID
     ):
         errors.append(
             "TRUST_FORWARDED_FOR=1 requires TRUSTED_PROXY_CIDRS in production; "

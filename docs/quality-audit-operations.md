@@ -35,7 +35,11 @@ dqcheck --config configs/default.json predict-agent \
 ```
 
 Tek turluk deneme: `--once` ekle. MLX olmadan sözleşmeyi denemek için
-`--fake-backend` (modelin yerine insan referanslarını yansıtır; yalnızca test).
+canlı ingest uç noktası kullanılmaz. Fixture/fake backend, `predict-agent`
+komutundan tamamen kaldırılmıştır; sözleşme testleri yalnızca izole test
+veritabanında ve enjekte edilen test transport'u ile çalıştırılır.
+Prod ingest yalnız AP ve DQ kodunda birlikte allowlist'e alınmış sealed G0 model
+fingerprint'lerini kabul eder; model/adapter/config değişimi iki repolu release'tir.
 
 Sürekli çalıştırmak için `launchd` (macOS'ta oturum kapansa da ayakta kalır) veya
 uzun ömürlü bir `tmux` oturumu kullan. Ajan durumsuzdur: öldürüp yeniden

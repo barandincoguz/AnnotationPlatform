@@ -1663,32 +1663,6 @@ export interface components {
             /** Marked Count */
             marked_count: number;
         };
-        /**
-         * ModelReferenceItem
-         * @description Model output reference.
-         *
-         *     Deliberately NOT ReferenceItem: that model runs AP's `pre_normalize`
-         *     validator and rejects e.g. madde="5/1-a", which would fail a whole 16-item
-         *     agent batch because of one malformed model row. Model references are
-         *     normalized at audit time by the vendored `validate_reference_list`.
-         */
-        ModelReferenceItem: {
-            /** Kanun No */
-            kanun_no?: string | null;
-            /** Kanun Ad */
-            kanun_ad?: string | null;
-            /** Madde */
-            madde?: string | null;
-            /** Fikra */
-            fikra?: string | null;
-            /** Bent */
-            bent?: string | null;
-            /**
-             * Source Text
-             * @default
-             */
-            source_text: string;
-        };
         /** NotificationListResponse */
         NotificationListResponse: {
             /** Items */
@@ -1771,44 +1745,19 @@ export interface components {
             /** Discrepancies */
             discrepancies?: components["schemas"]["AuditDiscrepancy"][];
         };
-        /** PredictionIngestItem */
-        PredictionIngestItem: {
-            /** Document Id */
-            document_id: string;
-            /** Generation */
-            generation: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "success" | "error";
-            /** References */
-            references?: components["schemas"]["ModelReferenceItem"][];
-            /**
-             * Truncated
-             * @default false
-             */
-            truncated: boolean;
-            /** Model Fingerprint */
-            model_fingerprint: string;
-            /** Text Sha256 */
-            text_sha256: string;
-            /** Error */
-            error?: string | null;
-            /** Operational */
-            operational?: {
-                [key: string]: unknown;
-            };
-        };
         /** PredictionIngestRequest */
         PredictionIngestRequest: {
             /** Items */
-            items: components["schemas"]["PredictionIngestItem"][];
+            items: {
+                [key: string]: unknown;
+            }[];
         };
         /** PredictionIngestResponse */
         PredictionIngestResponse: {
             /** Upserted */
             upserted: number;
+            /** Rejected */
+            rejected: number;
         };
         /** ProfileResponse */
         ProfileResponse: {
@@ -2174,10 +2123,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
         };
         /** XpSection */
         XpSection: {

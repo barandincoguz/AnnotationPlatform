@@ -60,7 +60,9 @@ class OriginCheckMiddleware:
             await self.app(scope, receive, send)
             return
 
-        if "*" in config.ALLOWED_ORIGINS:
+        # Service-to-service routes authenticate with a bearer token and do
+        # not consume the browser session cookie, so CSRF does not apply.
+        if str(scope.get("path", "")).startswith("/api/internal/"):
             await self.app(scope, receive, send)
             return
 
@@ -85,10 +87,7 @@ class OriginCheckMiddleware:
 
         is_allowed = False
         if source:
-            if source in config.ALLOWED_ORIGINS:
-                is_allowed = True
-            elif source.startswith("https://") and (source.endswith(".hf.space") or source.endswith(".static.hf.space")):
-                is_allowed = True
+            is_allowed = source in config.ALLOWED_ORIGINS
 
         if not is_allowed:
             log.warning(

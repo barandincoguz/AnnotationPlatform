@@ -110,6 +110,7 @@ def test_placeholder_allowed_origins_rejected(prod):
 @pytest.mark.parametrize(
     ("origin", "message"),
     [
+        ("*", "must not contain wildcards"),
         ("http://anotasyon.example", "must use https"),
         ("https://*.example.com", "must not contain wildcards"),
         ("https://anotasyon.example/app", "without path"),

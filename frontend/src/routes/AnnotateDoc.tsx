@@ -125,7 +125,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
         document_id: docId,
         references: cleanedRefs,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       draft.unblockSaves()
       if (!(err instanceof ApiError)) {
         toast.error(err instanceof Error ? err.message : 'Ağ veya sunucu hatası: Kaydedilemedi.')
@@ -267,7 +267,6 @@ function AnnotateDocInner({ docId }: { docId: string }) {
   }
 
   const handleComplete = async () => {
-    console.log("handleComplete called!")
     const targetCompleted = !isCompleted
     const { list: cleanedRefs, hasDuplicates } = checkAndRemoveDuplicateReferences(
       refs.list,
@@ -275,7 +274,6 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     if (targetCompleted && hasDuplicates) {
       toast.warning('Yinelenen anotasyon silindi.')
       refs.updateAll(cleanedRefs)
-      
     }
 
     // Uncomplete reverses a prior commit; there is nothing to audit.
@@ -288,9 +286,7 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     let result: PreAuditResult
     try {
       result = await runPreAudit(cleanedRefs)
-      console.log("PreAudit Result:", result)
-    } catch (err) {
-      console.log("PreAudit error:", err)
+    } catch {
       // The audit is advisory infrastructure — it must never block a submit.
       setAudit({ phase: 'idle' })
       toast.warning('Model kontrolü çalıştırılamadı; kaydınız etkilenmedi.')
@@ -299,7 +295,6 @@ function AnnotateDocInner({ docId }: { docId: string }) {
     }
 
     if (result.audit_status === 'model_unavailable') {
-      console.log("Model unavailable")
       setModelUnavailableReason(result.reason ?? 'no_prediction')
       setAudit({ phase: 'idle' })
       await finalizeComplete(true, cleanedRefs, undefined)
@@ -310,12 +305,10 @@ function AnnotateDocInner({ docId }: { docId: string }) {
       ? { prediction_fingerprint: result.prediction_fingerprint }
       : undefined
     if (result.bucket === 'GREEN') {
-      console.log("GREEN bucket")
       setAudit({ phase: 'idle' })
       await finalizeComplete(true, cleanedRefs, ack)
       return
     }
-    console.log("Setting phase to open", result.bucket)
     setAudit({ phase: 'open', result, staleNotice: null })
   }
 

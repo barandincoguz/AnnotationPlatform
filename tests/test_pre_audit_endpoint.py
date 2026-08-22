@@ -1,6 +1,9 @@
 """POST /api/annotations/{id}/pre-audit contract."""
 import json
 
+from backend.quality.dqcheck_core.fingerprints import sha256_text
+from backend.quality.provenance import HISTORICAL_G0_MODEL_FINGERPRINT
+
 DOC_TEXT = "Vergi Usul Kanunu'nun 114 uncu maddesinde zamanasimi hukmu duzenlenmistir."
 VUK_114 = {
     "kanun_no": "213", "kanun_ad": "Vergi Usul Kanunu", "madde": "114",
@@ -15,7 +18,6 @@ GVK_94 = {
 def _seed_prediction(document_id, references):
     from backend import config
     from backend.quality import service
-    from backend.quality.dqcheck_core.fingerprints import sha256_text
     from backend.shared.db import connect
 
     conn = connect(config.DB_PATH)
@@ -25,10 +27,13 @@ def _seed_prediction(document_id, references):
                 document_id, generation, status, references_json, truncated,
                 model_fingerprint, prediction_fingerprint, text_sha256, source,
                 error, operational_json, created_at, updated_at
-            ) VALUES (?,?,?,?,0,?,?,?,?,NULL,'{}',datetime('now'),datetime('now'))""",
-            (document_id, "G0", "success", json.dumps(references), "mf-1",
+            ) VALUES (?,?,?,?,0,?,?,?,?,NULL,'{"backend":"mlx-g0"}',datetime('now'),datetime('now'))""",
+            (document_id, "G0", "success", json.dumps(references),
+             HISTORICAL_G0_MODEL_FINGERPRINT,
              service.prediction_fingerprint(
-                 generation="G0", model_fingerprint="mf-1", references=references
+                 generation="G0",
+                 model_fingerprint=HISTORICAL_G0_MODEL_FINGERPRINT,
+                 references=references,
              ),
              sha256_text(DOC_TEXT), "dqcheck_agent"),
         )

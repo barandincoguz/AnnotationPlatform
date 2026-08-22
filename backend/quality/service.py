@@ -18,8 +18,15 @@ from backend.quality.adapter import (
     reference_identities,
 )
 from backend.quality.dqcheck_core.fingerprints import fingerprint_json, sha256_text
+from backend.quality.provenance import (
+    ECHO_FIXTURE_MODEL_FINGERPRINT,
+    TRUSTED_G0_MODEL_FINGERPRINTS,
+)
 
 _GREEN_BUCKET = "GREEN"
+_PRODUCTION_PREDICTION_SOURCE = "dqcheck_agent"
+_PRODUCTION_BACKEND_ID = "mlx-g0"
+_ECHO_FIXTURE_MODEL_FINGERPRINT = ECHO_FIXTURE_MODEL_FINGERPRINT
 
 
 class QualityServiceError(Exception):
@@ -143,10 +150,10 @@ def _build(
 
     unavailable_reason: Optional[str] = None
     if not _is_usable_prediction(row, document_text):
-        if row["status"] != "success":
-            unavailable_reason = "model_error"
-        elif row["truncated"]:
+        if row["truncated"]:
             unavailable_reason = "model_truncated"
+        elif row["status"] != "success":
+            unavailable_reason = "model_error"
         else:
             unavailable_reason = "prediction_text_stale"
     if unavailable_reason is not None:
@@ -289,10 +296,22 @@ def upsert_predictions(
     try:
         for item in items:
             document_id = item["document_id"]
-            known = db.execute(
-                "SELECT 1 FROM documents_meta WHERE document_id=?", (document_id,)
+            operational = item.get("operational") or {}
+            is_trusted_agent_prediction = (
+                item.get("generation") == "G0"
+                and item.get("source") == _PRODUCTION_PREDICTION_SOURCE
+                and isinstance(operational, dict)
+                and operational.get("backend") == _PRODUCTION_BACKEND_ID
+                and item.get("model_fingerprint") in TRUSTED_G0_MODEL_FINGERPRINTS
+            )
+            if not is_trusted_agent_prediction:
+                continue
+            document = db.execute(
+                "SELECT pdf_text FROM documents_meta WHERE document_id=?", (document_id,)
             ).fetchone()
-            if known is None:
+            if document is None:
+                continue
+            if item["text_sha256"] != sha256_text(document["pdf_text"]):
                 continue
             references = list(item.get("references") or [])
             db.execute(
@@ -343,14 +362,40 @@ def upsert_predictions(
     return upserted
 
 
+_FIXTURE_PREDICTION_WHERE = """
+    source IN ('fixture', 'e2e_seed')
+    OR model_fingerprint = ?
+    OR operational_json LIKE '%echo-human-fixture-v1%'
+"""
+
+
+def count_fixture_predictions(db: sqlite3.Connection) -> int:
+    row = db.execute(
+        f"SELECT COUNT(*) AS c FROM model_predictions WHERE {_FIXTURE_PREDICTION_WHERE}",
+        (_ECHO_FIXTURE_MODEL_FINGERPRINT,),
+    ).fetchone()
+    return int(row["c"])
+
+
+def purge_fixture_predictions(db: sqlite3.Connection) -> int:
+    """Delete fixture rows transactionally; outbox DELETE triggers mirror the purge."""
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        cursor = db.execute(
+            f"DELETE FROM model_predictions WHERE {_FIXTURE_PREDICTION_WHERE}",
+            (_ECHO_FIXTURE_MODEL_FINGERPRINT,),
+        )
+        deleted = int(cursor.rowcount)
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+    return deleted
+
+
 _PENDING_MISSING_SQL = """
     SELECT d.document_id, d.pdf_text
-    FROM (
-        SELECT document_id, pdf_text, created_at
-        FROM documents_meta 
-        ORDER BY document_id DESC 
-        LIMIT 3000
-    ) d
+    FROM documents_meta d
     LEFT JOIN model_predictions p ON p.document_id = d.document_id
     WHERE p.document_id IS NULL
     ORDER BY d.document_id DESC
@@ -366,10 +411,12 @@ def pending_documents(db: sqlite3.Connection, *, limit: int) -> list[dict[str, A
     `backend.documents.service._upsert_meta` deletes a document's prediction
     row the moment its `pdf_text` changes, so the document falls back into
     this "no prediction" set naturally. That keeps this a single cheap
-    indexed query instead of a bounded oldest-first scan that re-hashes full
-    document texts on every poll. `_build`'s `prediction_text_stale` reason
-    remains as a safety net for any prediction that becomes stale by some
-    other path.
+    indexed query instead of a bounded scan that re-hashes full document texts
+    on every poll. Ordering deliberately matches the production annotation UI's
+    canonical `document_id DESC` feed, so a single-threaded predict-agent fills
+    the cache in the same order users encounter documents. `_build`'s
+    `prediction_text_stale` reason remains as a safety net for any prediction
+    that becomes stale by some other path.
     """
     return [
         {

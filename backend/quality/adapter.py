@@ -11,6 +11,7 @@ human side, "b" the model side.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import zip_longest
 from typing import Any, Optional
 
 from backend.quality.dqcheck_core.normalization import (
@@ -155,11 +156,10 @@ def ab_diff(
     field, and if one side repeats the same full identity more than once,
     pairing within a group becomes ambiguous.
 
-    Renders only the first reference of a multi-reference core group into the
-    row's ``human_reference`` / ``model_reference`` display fields (matching
-    upstream). ``human_only`` / ``model_only`` are computed by the caller
-    directly from the full, ungrouped ``human`` / ``model`` lists (not from
-    ``row["a"]`` / ``row["b"]``), so this truncation is display-only.
+    Multi-reference core groups are reduced to shared full identities plus
+    side-exclusive identities. Shared compatible references emit no row;
+    exclusive references are paired deterministically so the UI never offers
+    a model reference the human already has.
     """
     order: list[tuple[str, ...]] = []
     groups: dict[tuple[str, ...], dict[str, list[dict[str, str]]]] = {}
@@ -172,34 +172,27 @@ def ab_diff(
             groups[key][label].append(reference)
 
     rows: list[dict[str, Any]] = []
-    for key in order:
-        a_refs = groups[key]["a"]
-        b_refs = groups[key]["b"]
-        if a_refs and not b_refs:
-            status = "only_a"
-        elif b_refs and not a_refs:
-            status = "only_b"
-        elif sorted(full_identity(r) for r in a_refs) == sorted(
-            full_identity(r) for r in b_refs
-        ) and all(
-            _evidence_compatible(ra["source_text"], rb["source_text"])
-            for ra, rb in zip(
-                sorted(a_refs, key=full_identity), sorted(b_refs, key=full_identity)
-            )
-        ):
-            status = "same"
-        else:
-            status = "differs"
-        field_diffs: list[str] = []
-        if status == "differs" and len(a_refs) == 1 and len(b_refs) == 1:
+
+    def append_row(
+        a_reference: Optional[dict[str, str]],
+        b_reference: Optional[dict[str, str]],
+        status: str,
+    ) -> None:
+        a_refs = [a_reference] if a_reference is not None else []
+        b_refs = [b_reference] if b_reference is not None else []
+        sample = a_reference or b_reference
+        assert sample is not None
+        field_diffs = []
+        if status == "differs" and a_reference is not None and b_reference is not None:
             field_diffs = [
                 field
                 for field in _DIFF_FIELDS
                 if not _field_matches(
-                    field, a_refs[0].get(field, ""), b_refs[0].get(field, "")
+                    field,
+                    a_reference.get(field, ""),
+                    b_reference.get(field, ""),
                 )
             ]
-        sample = (a_refs or b_refs)[0]
         rows.append(
             {
                 "core": {
@@ -213,6 +206,45 @@ def ab_diff(
                 "field_diffs": field_diffs,
             }
         )
+
+    for key in order:
+        a_refs = groups[key]["a"]
+        b_refs = groups[key]["b"]
+        if a_refs and not b_refs:
+            for reference in sorted(a_refs, key=full_identity):
+                append_row(reference, None, "only_a")
+            continue
+        if b_refs and not a_refs:
+            for reference in sorted(b_refs, key=full_identity):
+                append_row(None, reference, "only_b")
+            continue
+
+        a_by_identity = {full_identity(reference): reference for reference in a_refs}
+        b_by_identity = {full_identity(reference): reference for reference in b_refs}
+        shared = sorted(a_by_identity.keys() & b_by_identity.keys())
+        for identity in shared:
+            a_reference = a_by_identity[identity]
+            b_reference = b_by_identity[identity]
+            if not _evidence_compatible(
+                a_reference["source_text"], b_reference["source_text"]
+            ):
+                append_row(a_reference, b_reference, "differs")
+
+        only_a = [
+            a_by_identity[identity]
+            for identity in sorted(a_by_identity.keys() - b_by_identity.keys())
+        ]
+        only_b = [
+            b_by_identity[identity]
+            for identity in sorted(b_by_identity.keys() - a_by_identity.keys())
+        ]
+        for a_reference, b_reference in zip_longest(only_a, only_b):
+            if a_reference is not None and b_reference is not None:
+                append_row(a_reference, b_reference, "differs")
+            elif a_reference is not None:
+                append_row(a_reference, None, "only_a")
+            elif b_reference is not None:
+                append_row(None, b_reference, "only_b")
     return rows
 
 

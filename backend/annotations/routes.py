@@ -191,7 +191,6 @@ async def complete(
                     "denetimini görüntüleyip onaylayın."
                 ),
                 "bucket": exc.bucket,
-                "prediction_fingerprint": exc.prediction_fingerprint,
             },
         )
     except quality_service.AuditAckStale as exc:

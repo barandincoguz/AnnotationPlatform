@@ -1,9 +1,9 @@
 """v0017 — pre-submit quality audit: prediction cache + audit decision log.
 
-`annotation_audit_logs` gets outbox triggers (the Neon-backed analysis pipeline
-reads it). `model_predictions` deliberately does NOT: its rows carry multi-KB
-model output JSON, the GitHub snapshot backup already covers restore, and the
-Mac-side predict-agent refills anything missing.
+The original v0017 rollout mirrored only `annotation_audit_logs`. Later mirror
+migrations deliberately added `model_predictions` so an ephemeral Space can
+restore its prediction cache from Neon. Current production provenance guards
+are installed by v0020 and the generated Postgres DDL.
 """
 import sqlite3
 

@@ -4,6 +4,10 @@ import json
 import pytest
 
 from backend.quality import service
+from backend.quality.provenance import (
+    CURRENT_G0_MODEL_FINGERPRINT,
+    HISTORICAL_G0_MODEL_FINGERPRINT,
+)
 
 DOC_TEXT = (
     "Vergi Usul Kanunu'nun 114 uncu maddesinde zamanasimi hukmu duzenlenmistir. "
@@ -38,18 +42,41 @@ def seed_prediction(conn, *, document_id="d1", references=(VUK_114,), status="su
 
     refs = list(references)
     fingerprint = service.prediction_fingerprint(
-        generation=generation, model_fingerprint="mf-1", references=refs
+        generation=generation,
+        model_fingerprint=HISTORICAL_G0_MODEL_FINGERPRINT,
+        references=refs,
     )
     conn.execute(
         """INSERT OR REPLACE INTO model_predictions(
             document_id, generation, status, references_json, truncated,
             model_fingerprint, prediction_fingerprint, text_sha256, source,
             error, operational_json, created_at, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,NULL,'{}',datetime('now'),datetime('now'))""",
+        ) VALUES (?,?,?,?,?,?,?,?,?,NULL,'{"backend":"mlx-g0"}',datetime('now'),datetime('now'))""",
         (document_id, generation, status, json.dumps(refs), truncated,
-         "mf-1", fingerprint, sha256_text(text), "dqcheck_agent"),
+         HISTORICAL_G0_MODEL_FINGERPRINT, fingerprint, sha256_text(text), "dqcheck_agent"),
     )
     return fingerprint
+
+
+def mark_as_historical_fixture(conn, *, document_id="d1"):
+    from backend.migrations.v0020_prediction_provenance_guard import (
+        TRIGGER_NAMES,
+        install_prediction_provenance_guards,
+    )
+
+    for name in TRIGGER_NAMES:
+        conn.execute(f"DROP TRIGGER {name}")
+    try:
+        conn.execute(
+            """
+            UPDATE model_predictions
+            SET operational_json='{"backend":"echo-human-fixture-v1"}'
+            WHERE document_id=?
+            """,
+            (document_id,),
+        )
+    finally:
+        install_prediction_provenance_guards(conn)
 
 
 def test_missing_prediction_reports_model_unavailable(db):
@@ -157,8 +184,11 @@ def test_decision_log_row_is_queryable_with_json_each(db):
 def test_upsert_is_idempotent_and_skips_unknown_documents(db):
     item = {
         "document_id": "d1", "generation": "G0", "status": "success",
-        "references": [VUK_114], "truncated": False, "model_fingerprint": "mf-1",
-        "text_sha256": "abc", "error": None, "operational": {"latency_seconds": 1.5},
+        "references": [VUK_114], "truncated": False,
+        "model_fingerprint": HISTORICAL_G0_MODEL_FINGERPRINT,
+        "text_sha256": service.sha256_text(DOC_TEXT), "error": None,
+        "source": "dqcheck_agent",
+        "operational": {"backend": "mlx-g0", "latency_seconds": 1.5},
     }
     unknown = {**item, "document_id": "ghost"}
     assert service.upsert_predictions(db, [item, unknown]) == 1
@@ -166,10 +196,94 @@ def test_upsert_is_idempotent_and_skips_unknown_documents(db):
     assert db.execute("SELECT COUNT(*) AS c FROM model_predictions").fetchone()["c"] == 1
 
 
+def test_purge_fixture_predictions_matches_legacy_and_new_provenance(db):
+    seed_prediction(db, references=[])
+    mark_as_historical_fixture(db)
+    assert service.count_fixture_predictions(db) == 1
+    assert service.purge_fixture_predictions(db) == 1
+    assert service.load_prediction(db, "d1") is None
+
+
+def test_direct_service_call_rejects_non_agent_prediction_provenance(db):
+    valid_hash = service.sha256_text(DOC_TEXT)
+    item = {
+        "document_id": "d1",
+        "generation": "G0",
+        "status": "success",
+        "references": [],
+        "truncated": False,
+        "model_fingerprint": HISTORICAL_G0_MODEL_FINGERPRINT,
+        "text_sha256": valid_hash,
+        "source": "manual_backfill",
+        "error": None,
+        "operational": {"backend": "mlx-g0"},
+    }
+
+    assert service.upsert_predictions(db, [item]) == 0
+    assert service.load_prediction(db, "d1") is None
+
+
+def test_direct_service_call_rejects_unknown_sha256_shaped_model(db):
+    item = {
+        "document_id": "d1",
+        "generation": "G0",
+        "status": "success",
+        "references": [],
+        "truncated": False,
+        "model_fingerprint": "f" * 64,
+        "text_sha256": service.sha256_text(DOC_TEXT),
+        "source": "dqcheck_agent",
+        "error": None,
+        "operational": {"backend": "mlx-g0"},
+    }
+
+    assert service.upsert_predictions(db, [item]) == 0
+    assert service.load_prediction(db, "d1") is None
+
+
+def test_production_boot_purges_fixture_before_serving_and_queues_neon_delete(
+    db, monkeypatch
+):
+    from backend import config
+    from backend.main import _purge_fixture_predictions_before_serve
+
+    trusted_item = {
+        "document_id": "d1",
+        "generation": "G0",
+        "status": "success",
+        "references": [],
+        "truncated": False,
+        "model_fingerprint": HISTORICAL_G0_MODEL_FINGERPRINT,
+        "text_sha256": service.sha256_text(DOC_TEXT),
+        "source": "dqcheck_agent",
+        "error": None,
+        "operational": {"backend": "mlx-g0"},
+    }
+    assert service.upsert_predictions(db, [trusted_item]) == 1
+    mark_as_historical_fixture(db)
+    monkeypatch.setattr(config, "is_production", lambda: True)
+
+    assert _purge_fixture_predictions_before_serve(db) == 1
+    assert service.load_prediction(db, "d1") is None
+    delete_event = db.execute(
+        """
+        SELECT op
+        FROM _outbox
+        WHERE table_name='model_predictions' AND pk_value='d1'
+        ORDER BY id DESC
+        LIMIT 1
+        """
+    ).fetchone()
+    assert delete_event["op"] == "DELETE"
+
+
 def test_pending_documents_returns_documents_without_predictions(db, ingest_doc):
     ingest_doc("d2", pdfText="ikinci dokuman metni")
     pending = service.pending_documents(db, limit=8)
     ids = [row["document_id"] for row in pending]
+    # The prediction queue must match the production UI's canonical
+    # annotation order (backend.shuffle.service.DEFAULT_SORT_FOR):
+    # document_id DESC across every tab.
     assert ids == ["d2", "d1"]
     assert pending[0]["text_sha256"] and pending[1]["text_sha256"]
 
@@ -189,6 +303,35 @@ def test_pending_documents_respects_limit(db, ingest_doc):
     ingest_doc("d2", pdfText="ikinci dokuman metni")
     pending = service.pending_documents(db, limit=1)
     assert len(pending) == 1
+
+
+def test_pending_documents_does_not_starve_rows_outside_legacy_3000_window(db):
+    rows = [
+        (
+            f"z{i:04d}",
+            f"z{i:04d}.json",
+            "body",
+            1,
+            1,
+            1.0,
+            "Kolay",
+            f"{i:04d}",
+        )
+        for i in range(3001)
+    ]
+    db.executemany(
+        """
+        INSERT INTO documents_meta(
+            document_id, file_path, pdf_text, word_count, sentence_count,
+            text_density, estimated_difficulty, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        rows,
+    )
+
+    pending = service.pending_documents(db, limit=1)
+
+    assert pending[0]["document_id"] == "z3000"
 
 
 def test_model_quotes_returns_prediction_source_texts(db):
@@ -265,18 +408,22 @@ def test_derive_decision_pins_full_bucket_vocabulary(
 def test_upsert_updates_every_conflict_column_and_preserves_created_at(db):
     first_item = {
         "document_id": "d1", "generation": "G0", "status": "success",
-        "references": [VUK_114], "truncated": False, "model_fingerprint": "mf-1",
-        "text_sha256": "abc", "source": "dqcheck_agent", "error": None,
-        "operational": {"latency_seconds": 1.5},
+        "references": [VUK_114], "truncated": False,
+        "model_fingerprint": HISTORICAL_G0_MODEL_FINGERPRINT,
+        "text_sha256": service.sha256_text(DOC_TEXT),
+        "source": "dqcheck_agent", "error": None,
+        "operational": {"backend": "mlx-g0", "latency_seconds": 1.5},
     }
     service.upsert_predictions(db, [first_item], now="2026-01-01T00:00:00+00:00")
     created_at = service.load_prediction(db, "d1")["created_at"]
 
     second_item = {
-        "document_id": "d1", "generation": "G1", "status": "error",
-        "references": [GVK_94], "truncated": True, "model_fingerprint": "mf-2",
-        "text_sha256": "def", "source": "manual_backfill", "error": "boom",
-        "operational": {"latency_seconds": 9.0},
+        "document_id": "d1", "generation": "G0", "status": "error",
+        "references": [GVK_94], "truncated": True,
+        "model_fingerprint": CURRENT_G0_MODEL_FINGERPRINT,
+        "text_sha256": service.sha256_text(DOC_TEXT),
+        "source": "dqcheck_agent", "error": "boom",
+        "operational": {"backend": "mlx-g0", "latency_seconds": 9.0},
     }
     assert service.upsert_predictions(
         db, [second_item], now="2026-01-02T00:00:00+00:00"
@@ -288,17 +435,22 @@ def test_upsert_updates_every_conflict_column_and_preserves_created_at(db):
     row = service.load_prediction(db, "d1")
     assert row["created_at"] == created_at
     assert row["updated_at"] == "2026-01-02T00:00:00+00:00"
-    assert row["generation"] == "G1"
+    assert row["generation"] == "G0"
     assert row["status"] == "error"
     assert json.loads(row["references_json"]) == [GVK_94]
     assert row["truncated"] == 1
-    assert row["model_fingerprint"] == "mf-2"
-    assert row["text_sha256"] == "def"
-    assert row["source"] == "manual_backfill"
+    assert row["model_fingerprint"] == CURRENT_G0_MODEL_FINGERPRINT
+    assert row["text_sha256"] == service.sha256_text(DOC_TEXT)
+    assert row["source"] == "dqcheck_agent"
     assert row["error"] == "boom"
-    assert json.loads(row["operational_json"]) == {"latency_seconds": 9.0}
+    assert json.loads(row["operational_json"]) == {
+        "backend": "mlx-g0",
+        "latency_seconds": 9.0,
+    }
     assert row["prediction_fingerprint"] == service.prediction_fingerprint(
-        generation="G1", model_fingerprint="mf-2", references=[GVK_94]
+        generation="G0",
+        model_fingerprint=CURRENT_G0_MODEL_FINGERPRINT,
+        references=[GVK_94],
     )
 
 

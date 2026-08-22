@@ -24,6 +24,7 @@ from backend import config
 from backend.shared.db import connect
 from backend.shared import audit
 from backend.shared.csrf import OriginCheckMiddleware
+from backend.shared.body_limit import RequestBodyLimitMiddleware
 from backend.shared.prod_enforce import DEV_SESSION_SECRETS, enforce_production_secrets
 from backend.shared.security_headers import SecurityHeadersMiddleware
 from backend.shared.static_serving import (
@@ -63,6 +64,9 @@ VERSION = "0.1.0"
 # state: restoring either would revive stale access or stale ownership.
 MIRROR_RESTORE_TABLES = (
     "users",
+    "documents_meta",
+    "document_kanun_refs",
+    "document_bkk_refs",
     "user_feedback",
     "invite_codes",
     "site_settings",
@@ -88,7 +92,7 @@ ANNOTATION_STATE_TABLES = (
     "annotations",
     "annotation_versions",
     "annotation_references",
-    "model_predictions",
+    "drafts",
 )
 
 
@@ -123,8 +127,50 @@ def _mirror_annotation_state_available(pg_conn) -> bool:
     return False
 
 
+def _purge_fixture_predictions_before_serve(conn) -> int:
+    """Remove known fixture predictions before production accepts traffic.
+
+    The DELETE runs after mirror restore and with outbox triggers enabled, so
+    historical fixture rows are both hidden locally before ``yield`` and
+    propagated as deletes to the durable Neon mirror.
+    """
+    if not config.is_production():
+        return 0
+    from backend.quality import service as quality_service
+
+    matched = quality_service.count_fixture_predictions(conn)
+    if matched == 0:
+        return 0
+    deleted = quality_service.purge_fixture_predictions(conn)
+    if deleted != matched:
+        raise RuntimeError(
+            f"fixture prediction purge mismatch: matched={matched}, deleted={deleted}"
+        )
+    audit.log_system_event(
+        conn,
+        "fixture_predictions_purged_on_boot",
+        "error",
+        message=f"Purged {deleted} fixture prediction rows before serving traffic",
+        extra={"deleted": deleted},
+    )
+    return deleted
+
+
 def _restore_mirrored_state(conn, pg_conn) -> dict[str, int]:
     """Atomically replace durable local state from an already-open PG connection."""
+    # PostgreSQL defaults to READ COMMITTED, which takes a new snapshot for
+    # every SELECT. A multi-table restore under that isolation level can mix a
+    # document from one commit with its annotations/references from another.
+    # This must be the first statement on the fresh restore connection so all
+    # baran_* reads share one read-only snapshot.
+    snapshot_cursor = pg_conn.cursor()
+    try:
+        snapshot_cursor.execute(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+        )
+    finally:
+        snapshot_cursor.close()
+
     foreign_keys_enabled = bool(conn.execute("PRAGMA foreign_keys").fetchone()[0])
     if foreign_keys_enabled:
         conn.execute("PRAGMA foreign_keys=OFF")
@@ -206,6 +252,10 @@ async def lifespan(_app: FastAPI):
         # Automatic Neon Postgres schema migration (auto-sync schema) before sync starts
         from backend.mirror import config as mirror_config
         mirror_config.reload_from_env()
+        if config.SPACE_ID and not mirror_config.NEON_MIRROR_URL:
+            raise RuntimeError(
+                "NEON_MIRROR_URL is required on ephemeral Hugging Face Spaces"
+            )
         if config.ENVIRONMENT != "test" and mirror_config.NEON_MIRROR_URL:
             from backend.mirror.schema_sync import sync_postgres_schema
             sync_postgres_schema(conn, mirror_config.NEON_MIRROR_URL)
@@ -229,72 +279,12 @@ async def lifespan(_app: FastAPI):
                 conn.execute(f"DROP TRIGGER IF EXISTS {t}")
                 
             try:
-                # 1. Replicate documents from Neon partner DB
-                if doc_count == 0:
-                    from backend.documents.parser import parse_document, ParseError
-                    from backend.documents.service import _upsert_meta, _replace_kanun_refs, _replace_bkk_refs
-                    
-                    audit.log_system_event(
-                        conn, "neon_sync_start", "info",
-                        message="Local documents database is empty. Starting automatic sync from Neon Postgres...",
-                    )
-                    print("Local documents database is empty. Starting automatic sync from Neon Postgres...")
-                    
-                    try:
-                        with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
-                            with pg_conn.cursor(name="startup_docs_sync") as pg_cur:
-                                pg_cur.itersize = 1000
-                                pg_cur.execute("SELECT evrak_id, display_text, raw_metadata_json FROM documents ORDER BY id")
-                                
-                                synced_count = 0
-                                skipped_count = 0
-                                conn.execute("BEGIN IMMEDIATE")
-                                try:
-                                    for evrak_id, display_text, raw_meta in pg_cur:
-                                        if not evrak_id or not display_text:
-                                            skipped_count += 1
-                                            continue
-                                        
-                                        PARSER_KEYS = {
-                                            "evrakOid", "pdfText", "htmlText", "sayi", "tarih", "basvuruTarihi",
-                                            "vergiTuru", "vergiDonemi", "konu", "mukellefiyetTuru", "kanunBilgileri",
-                                            "bkkTebligSirkuBilgileri",
-                                        }
-                                        meta_doc = {k: v for k, v in (raw_meta or {}).items() if k in PARSER_KEYS}
-                                        meta_doc["evrakOid"] = evrak_id
-                                        meta_doc["pdfText"] = display_text
-                                        
-                                        try:
-                                            parsed = parse_document(meta_doc, file_path="neon_postgres")
-                                            meta = parsed["meta"]
-                                            _upsert_meta(conn, meta)
-                                            _replace_kanun_refs(conn, meta["document_id"], parsed["kanun_refs"])
-                                            _replace_bkk_refs(conn, meta["document_id"], parsed["bkk_refs"])
-                                            synced_count += 1
-                                        except ParseError:
-                                            skipped_count += 1
-                                            continue
-                                    conn.commit()
-                                except Exception:
-                                    conn.rollback()
-                                    raise
-                                    
-                        audit.log_system_event(
-                            conn, "neon_sync_success", "info",
-                            message=f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})",
-                        )
-                        print(f"Successfully synced {synced_count} documents from Neon Postgres! (skipped {skipped_count})")
-                    except Exception as e:
-                        audit.log_system_event(
-                            conn, "neon_sync_failed", "error",
-                            message=f"Failed to auto-sync documents from Neon: {e}",
-                        )
-                        print(f"Failed to auto-sync documents from Neon: {e}")
-
-                # 2. Sync durable user/annotation state if the DB is fresh, or
-                # if documents exist locally but annotation state is empty while
-                # Neon has annotation work. Never overwrite local annotation work.
-                should_restore_state = is_fresh_db
+                # Restore documents and human state from the same baran_* mirror
+                # snapshot. Re-parsing a second partner schema here used to skip
+                # malformed rows and create invisible orphan annotations.
+                should_restore_state = is_fresh_db or (
+                    doc_count == 0 and local_annotation_state_empty
+                )
                 if not should_restore_state and local_annotation_state_empty:
                     try:
                         with psycopg.connect(mirror_config.NEON_MIRROR_URL) as pg_conn:
@@ -305,6 +295,10 @@ async def lifespan(_app: FastAPI):
                             message=f"Failed to check Neon annotation state: {e}",
                         )
                         print(f"Failed to check Neon annotation state: {e}")
+                        if config.SPACE_ID:
+                            raise RuntimeError(
+                                "failed to check durable Neon state on ephemeral Space"
+                            ) from e
 
                 if should_restore_state:
                     from psycopg.rows import dict_row
@@ -332,6 +326,10 @@ async def lifespan(_app: FastAPI):
                             message=f"Failed to auto-restore state from Neon: {e}",
                         )
                         print(f"Failed to auto-restore state from Neon: {e}")
+                        if config.SPACE_ID:
+                            raise RuntimeError(
+                                "failed to restore durable Neon state on ephemeral Space"
+                            ) from e
             finally:
                 # Re-create all outbox triggers (always run to ensure DB is never left unprotected)
                 from backend.migrations.helpers.trigger_generator import build_triggers_for_table, _collect_schemas
@@ -345,6 +343,8 @@ async def lifespan(_app: FastAPI):
             username=config.BOOTSTRAP_ADMIN_USERNAME,
             password=config.BOOTSTRAP_ADMIN_PASSWORD,
         )
+
+        _purge_fixture_predictions_before_serve(conn)
 
         audit.log_system_event(
             conn, "startup", "info",
@@ -428,6 +428,7 @@ app.add_middleware(SelectiveGZipMiddleware, minimum_size=500, compresslevel=6)
 # Origin allowlist below is the *only* CSRF defense beyond SameSite=Lax;
 # a permissive CORS config silently re-opens the surface.
 app.add_middleware(OriginCheckMiddleware)
+app.add_middleware(RequestBodyLimitMiddleware, max_bytes=16 * 1024 * 1024)
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(users_router)

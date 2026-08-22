@@ -1,6 +1,7 @@
 """v0017 schema, outbox trigger scope, and backup/mirror wiring."""
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
+from backend.quality.provenance import HISTORICAL_G0_MODEL_FINGERPRINT
 from backend.shared.db import connect
 
 
@@ -92,10 +93,62 @@ def test_prediction_row_is_deleted_with_its_document(db_path):
             "INSERT INTO model_predictions(document_id, generation, status,"
             " references_json, truncated, model_fingerprint, prediction_fingerprint,"
             " text_sha256, source, operational_json, created_at, updated_at)"
-            " VALUES ('d1','G0','success','[]',0,'mf','pf','ts','dqcheck_agent','{}',"
-            " datetime('now'), datetime('now'))"
+            " VALUES ('d1','G0','success','[]',0,?,"
+            " 'pf','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',"
+            " 'dqcheck_agent','{\"backend\":\"mlx-g0\"}',"
+            " datetime('now'), datetime('now'))",
+            (HISTORICAL_G0_MODEL_FINGERPRINT,),
         )
         conn.execute("DELETE FROM documents_meta WHERE document_id='d1'")
         assert conn.execute("SELECT COUNT(*) AS c FROM model_predictions").fetchone()["c"] == 0
+    finally:
+        conn.close()
+
+
+def test_document_with_human_annotation_cannot_be_deleted(db_path):
+    import sqlite3
+
+    import pytest
+
+    conn = _fresh(db_path)
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(
+            "INSERT INTO users(id, username, password_hash, role, created_at, updated_at)"
+            " VALUES (1,'alice','hash','user','now','now')"
+        )
+        conn.execute(
+            "INSERT INTO documents_meta(document_id, file_path, pdf_text, word_count,"
+            " sentence_count, text_density, estimated_difficulty, created_at)"
+            " VALUES ('d1','/tmp/d1.json','metin',1,1,1.0,'Kolay','now')"
+        )
+        conn.execute(
+            "INSERT INTO annotations(document_id, references_json, is_completed,"
+            " last_editor_user_id, edit_count, unique_users_count, created_at, updated_at)"
+            " VALUES ('d1','[]',1,1,1,1,'now','now')"
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="human annotation state"):
+            conn.execute("DELETE FROM documents_meta WHERE document_id='d1'")
+
+        assert conn.execute(
+            "SELECT COUNT(*) AS c FROM annotations WHERE document_id='d1'"
+        ).fetchone()["c"] == 1
+        assert conn.execute(
+            "SELECT COUNT(*) AS c FROM _outbox WHERE table_name='annotations' "
+            "AND op='DELETE'"
+        ).fetchone()["c"] == 0
+    finally:
+        conn.close()
+
+
+def test_pending_scan_has_created_at_index(db_path):
+    conn = _fresh(db_path)
+    try:
+        indexes = {
+            row["name"]
+            for row in conn.execute("PRAGMA index_list('documents_meta')").fetchall()
+        }
+        assert "idx_docs_created_at" in indexes
     finally:
         conn.close()

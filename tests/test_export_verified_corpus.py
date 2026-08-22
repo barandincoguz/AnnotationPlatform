@@ -76,6 +76,18 @@ def test_only_completed_and_audited_documents_are_exported(db, tmp_path):
     }
 
 
+def test_annotation_edited_after_latest_audit_is_not_exported(db, tmp_path):
+    _complete(db, "d-alpha")
+    db.execute(
+        "UPDATE annotations SET references_json='[]', "
+        "updated_at='2026-08-19T00:00:00+00:00' WHERE document_id='d-alpha'"
+    )
+
+    summary = export_corpus(db, tmp_path / "gt_v4", generated_at=STAMP)
+
+    assert summary["count"] == 0
+
+
 def test_exported_document_carries_text_references_and_provenance(db, tmp_path):
     _complete(db, "d-alpha")
     out = tmp_path / "gt_v4"

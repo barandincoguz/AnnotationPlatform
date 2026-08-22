@@ -141,6 +141,28 @@ def test_save_empty_list_is_legitimate(db):
     assert json.loads(row["references_json"]) == []
 
 
+def test_save_after_completion_reopens_annotation_for_a_fresh_audit(db):
+    original = [_ref(kanun_no="193", source_text="original")]
+    changed = [_ref(kanun_no="5520", source_text="changed")]
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=original
+    )
+    ann_service.set_complete(
+        db, document_id="doc_1", user_id=1, completed=True
+    )
+
+    ann_service.save_annotation(
+        db, document_id="doc_1", user_id=1, references=changed
+    )
+
+    row = db.execute(
+        "SELECT is_completed, completed_by_user_id FROM annotations "
+        "WHERE document_id='doc_1'"
+    ).fetchone()
+    assert row["is_completed"] == 0
+    assert row["completed_by_user_id"] is None
+
+
 def test_save_rejects_duplicate_refs(db):
     from backend.annotations.diff import DuplicateReference
     refs = [

@@ -48,6 +48,8 @@ def test_case_3_extension_mismatch_is_yellow_detail():
     assert outcome.bucket == "YELLOW"
     assert outcome.reasons == ("extension_mismatch",)
     assert [d["kind"] for d in outcome.discrepancies] == ["detail_mismatch"]
+    assert outcome.discrepancies[0]["human_reference"]["fikra"] == "1"
+    assert outcome.discrepancies[0]["model_reference"]["fikra"] == "2"
     assert outcome.discrepancies[0]["field_diffs"] == ["fikra"]
     # Side-exclusive: both sides cited kanun_no 213 / madde 114, only fikra
     # differs, so each list carries exactly the fikra its own side asserted.
@@ -167,6 +169,9 @@ def test_case_10_multi_reference_core_group_is_side_exclusive():
     assert outcome.bucket == "YELLOW"
     assert outcome.reasons == ("extension_mismatch",)
     assert [d["kind"] for d in outcome.discrepancies] == ["detail_mismatch"]
+    assert outcome.discrepancies[0]["human_reference"]["fikra"] == "1"
+    assert outcome.discrepancies[0]["model_reference"]["fikra"] == "3"
+    assert outcome.discrepancies[0]["field_diffs"] == ["fikra"]
     assert outcome.human_only == ({"kanun_no": "213", "madde": "114", "fikra": "1", "bent": ""},)
     assert outcome.model_only == ({"kanun_no": "213", "madde": "114", "fikra": "3", "bent": ""},)
 

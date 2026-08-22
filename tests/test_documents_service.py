@@ -4,6 +4,8 @@ from backend.shared.db import connect
 from backend.migrations import discover_migrations
 from backend.migrations.runner import apply_migrations
 from backend.documents import service
+from backend.quality import service as quality_service
+from backend.quality.provenance import HISTORICAL_G0_MODEL_FINGERPRINT
 
 
 SAMPLE = {
@@ -120,7 +122,6 @@ def test_reingest_with_changed_text_deletes_prediction_row(db, tmp_path):
     _upsert_meta deletes the prediction the moment ingest changes pdf_text,
     so the document falls back into pending_documents' "no prediction" set
     instead of relying on a stale-text rescan there."""
-    from backend.quality import service as quality_service
 
     f = tmp_path / "a.json"
     f.write_text(json.dumps(SAMPLE))
@@ -128,8 +129,11 @@ def test_reingest_with_changed_text_deletes_prediction_row(db, tmp_path):
 
     quality_service.upsert_predictions(db, [{
         "document_id": "doc_abc", "generation": "G0", "status": "success",
-        "references": [], "truncated": False, "model_fingerprint": "mf-1",
-        "text_sha256": "whatever",
+        "references": [], "truncated": False,
+        "model_fingerprint": HISTORICAL_G0_MODEL_FINGERPRINT,
+        "text_sha256": quality_service.sha256_text(SAMPLE["pdfText"]),
+        "source": "dqcheck_agent",
+        "operational": {"backend": "mlx-g0"},
     }])
     assert quality_service.load_prediction(db, "doc_abc") is not None
 
@@ -141,16 +145,17 @@ def test_reingest_with_changed_text_deletes_prediction_row(db, tmp_path):
 
 
 def test_reingest_with_identical_text_keeps_prediction_row(db, tmp_path):
-    from backend.quality import service as quality_service
-
     f = tmp_path / "a.json"
     f.write_text(json.dumps(SAMPLE))
     service.ingest_file(db, f)
 
     quality_service.upsert_predictions(db, [{
         "document_id": "doc_abc", "generation": "G0", "status": "success",
-        "references": [], "truncated": False, "model_fingerprint": "mf-1",
-        "text_sha256": "whatever",
+        "references": [], "truncated": False,
+        "model_fingerprint": HISTORICAL_G0_MODEL_FINGERPRINT,
+        "text_sha256": quality_service.sha256_text(SAMPLE["pdfText"]),
+        "source": "dqcheck_agent",
+        "operational": {"backend": "mlx-g0"},
     }], now="2026-01-01T00:00:00+00:00")
     created_at = quality_service.load_prediction(db, "doc_abc")["created_at"]
 

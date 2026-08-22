@@ -31,6 +31,51 @@ from backend.migrations.helpers.schema_introspect import (
     is_mirrored_table,
     list_project_tables,
 )
+from backend.quality.provenance import TRUSTED_G0_MODEL_FINGERPRINTS
+
+
+_TRUSTED_PREDICTION_FINGERPRINTS_SQL = ", ".join(
+    f"'{fingerprint}'" for fingerprint in sorted(TRUSTED_G0_MODEL_FINGERPRINTS)
+)
+
+PREDICTION_PROVENANCE_FUNCTION_DDL = f"""CREATE OR REPLACE FUNCTION baran_enforce_model_prediction_provenance()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.generation <> 'G0'
+       OR NEW.source <> 'dqcheck_agent'
+       OR COALESCE(NEW.operational_json->>'backend', '') <> 'mlx-g0'
+       OR NEW.model_fingerprint !~ '^[0-9a-f]{64}$'
+       OR NEW.model_fingerprint NOT IN ({_TRUSTED_PREDICTION_FINGERPRINTS_SQL})
+       OR NEW.text_sha256 !~ '^[0-9a-f]{64}$'
+    THEN
+        RAISE EXCEPTION 'untrusted model prediction provenance';
+    END IF;
+    RETURN NEW;
+END;
+$$"""
+
+PREDICTION_PROVENANCE_TRIGGER_DDL = """DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'baran_protect_model_prediction_provenance'
+          AND tgrelid = 'baran_model_predictions'::regclass
+    ) THEN
+        CREATE TRIGGER baran_protect_model_prediction_provenance
+        BEFORE INSERT OR UPDATE ON baran_model_predictions
+        FOR EACH ROW
+        EXECUTE FUNCTION baran_enforce_model_prediction_provenance();
+    END IF;
+END;
+$$"""
+
+PREDICTION_PROVENANCE_DDL = (
+    PREDICTION_PROVENANCE_FUNCTION_DDL,
+    PREDICTION_PROVENANCE_TRIGGER_DDL,
+)
 
 
 # ----- Type mapping --------------------------------------------------------
@@ -229,5 +274,7 @@ def build_all_pg_ddl(conn: sqlite3.Connection) -> str:
         statements = build_pg_ddl_for_table(schemas[t])
         block = ";\n\n".join(statements) + ";\n"
         blocks.append(block)
+    if "model_predictions" in schemas:
+        blocks.append(";\n\n".join(PREDICTION_PROVENANCE_DDL) + ";\n")
     blocks.append("COMMIT;\n")
     return "\n".join(blocks)

@@ -9,10 +9,13 @@ import sqlite3
 import psycopg
 
 from backend.migrations.helpers.schema_introspect import list_project_tables, introspect_table
-from backend.migrations.helpers.postgres_ddl import build_pg_ddl_for_table, _pg_type_for
+from backend.migrations.helpers.postgres_ddl import (
+    PREDICTION_PROVENANCE_DDL,
+    _pg_type_for,
+    build_pg_ddl_for_table,
+)
 
 log = logging.getLogger(__name__)
-
 
 def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
     """Introspect SQLite schema and Neon Postgres database, and automatically
@@ -82,6 +85,12 @@ def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
                                 if idx_name not in pg_indexes:
                                     log.info("Postgres schema sync: index %s is missing. Creating...", idx_name)
                                     pg_cur.execute(stmt)
+
+                # Defense in depth: direct SQL writes to the durable mirror
+                # must obey the same real-agent provenance contract as the
+                # FastAPI ingest service and local SQLite cache.
+                for statement in PREDICTION_PROVENANCE_DDL:
+                    pg_cur.execute(statement)
                                     
             pg_conn.commit()
             log.info("Postgres schema sync: successfully completed!")

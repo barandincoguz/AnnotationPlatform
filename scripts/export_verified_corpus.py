@@ -48,6 +48,7 @@ _SELECT_DOCUMENTS = """
       AND EXISTS (
           SELECT 1 FROM annotation_audit_logs l
           WHERE l.document_id = a.document_id
+            AND julianday(l.created_at) >= julianday(a.updated_at)
       )
     ORDER BY a.document_id ASC
 """

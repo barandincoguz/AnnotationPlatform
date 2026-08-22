@@ -1,9 +1,10 @@
 """Pydantic schemas for the pre-submit quality audit and prediction ingest."""
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.annotations.models import ReferenceItem
+from backend.quality.provenance import TRUSTED_G0_MODEL_FINGERPRINTS
 
 
 class AuditDiscrepancy(BaseModel):
@@ -51,24 +52,49 @@ class ModelReferenceItem(BaseModel):
     source_text: str = Field(default="", max_length=4_000)
 
 
+class PredictionOperational(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    backend: Literal["mlx-g0"]
+    input_tokens: Optional[int] = Field(default=None, ge=0)
+    output_tokens: Optional[int] = Field(default=None, ge=0)
+    latency_seconds: Optional[float] = Field(default=None, ge=0)
+    truncated: Optional[bool] = None
+    generation_attempted: Optional[bool] = None
+    finish_reason: Optional[str] = Field(default=None, max_length=64)
+    ttft_seconds: Optional[float] = Field(default=None, ge=0)
+    prompt_tps: Optional[float] = Field(default=None, ge=0)
+    generation_tps: Optional[float] = Field(default=None, ge=0)
+    peak_memory_bytes: Optional[int] = Field(default=None, ge=0)
+
+
 class PredictionIngestItem(BaseModel):
     document_id: str = Field(min_length=1, max_length=128)
-    generation: str = Field(min_length=1, max_length=32)
+    generation: Literal["G0"]
     status: Literal["success", "error"]
     references: list[ModelReferenceItem] = Field(default_factory=list, max_length=200)
     truncated: bool = False
-    model_fingerprint: str = Field(min_length=1, max_length=128)
-    text_sha256: str = Field(min_length=64, max_length=64)
+    model_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    text_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source: Literal["dqcheck_agent"]
     error: Optional[str] = Field(default=None, max_length=2_000)
-    operational: dict[str, Any] = Field(default_factory=dict)
+    operational: PredictionOperational
+
+    @field_validator("model_fingerprint")
+    @classmethod
+    def model_must_be_trusted_g0(cls, value: str) -> str:
+        if value not in TRUSTED_G0_MODEL_FINGERPRINTS:
+            raise ValueError("model_fingerprint is not an approved G0 seal")
+        return value
 
 
 class PredictionIngestRequest(BaseModel):
-    items: list[PredictionIngestItem] = Field(min_length=1, max_length=16)
+    items: list[dict[str, Any]] = Field(min_length=1, max_length=16)
 
 
 class PredictionIngestResponse(BaseModel):
     upserted: int
+    rejected: int
 
 
 class PendingDocument(BaseModel):

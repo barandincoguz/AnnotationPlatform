@@ -270,6 +270,12 @@ def save_annotation(
             references=references,
             now=now,
         )
+        if not result["is_new"]:
+            db.execute(
+                "UPDATE annotations SET is_completed=0, "
+                "completed_by_user_id=NULL WHERE document_id=? AND is_completed=1",
+                (document_id,),
+            )
         locks_service.release_if_held(db, document_id=document_id, user_id=user_id)
         audit.log_activity(
             db, user_id, "annotation_save",
@@ -602,7 +608,9 @@ def set_complete(
         if completed and (changed or did_save):
             if references is not None:
                 final_references = save_result["cleaned"]
-                previous_references = [] if is_new else json.loads(cur["references_json"])
+                previous_references = (
+                    final_references if is_new else json.loads(cur["references_json"])
+                )
             else:
                 final_references = json.loads(cur["references_json"])
                 previous_references = final_references

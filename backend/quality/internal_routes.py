@@ -6,10 +6,12 @@ mounted under the SPA, and intentionally free of user-session semantics.
 import sqlite3
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import ValidationError
 
 from backend.quality import service
 from backend.quality.models import (
     PendingResponse,
+    PredictionIngestItem,
     PredictionIngestRequest,
     PredictionIngestResponse,
 )
@@ -38,7 +40,12 @@ def ingest_predictions(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Idempotent upsert. Items for unknown documents are skipped, not rejected."""
-    upserted = service.upsert_predictions(
-        db, [item.model_dump() for item in payload.items]
-    )
-    return {"upserted": upserted}
+    accepted = []
+    rejected = 0
+    for raw_item in payload.items:
+        try:
+            accepted.append(PredictionIngestItem.model_validate(raw_item).model_dump())
+        except ValidationError:
+            rejected += 1
+    upserted = service.upsert_predictions(db, accepted) if accepted else 0
+    return {"upserted": upserted, "rejected": rejected}

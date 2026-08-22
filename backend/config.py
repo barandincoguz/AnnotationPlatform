@@ -50,7 +50,7 @@ DQCHECK_INGEST_TOKEN = os.environ.get("DQCHECK_INGEST_TOKEN", "")
 # (user_sessions.ip_hash). Operators behind a trusted reverse proxy
 # (Caddy, nginx, Cloudflare) flip this to "1" so XFF can be honored.
 _trust_fwd = os.environ.get("TRUST_FORWARDED_FOR", "0") == "1"
-TRUST_FORWARDED_FOR = _trust_fwd or SPACE_ID is not None
+TRUST_FORWARDED_FOR = _trust_fwd
 TRUSTED_PROXY_CIDRS_RAW = os.environ.get("TRUSTED_PROXY_CIDRS", "")
 
 
@@ -102,8 +102,6 @@ if _space_id:
             # Browser Origin headers contain only scheme + authority, never
             # a Space path. The parent origin is needed for iframe embeds.
             ALLOWED_ORIGINS.add("https://huggingface.co")
-            # Allow wildcard/bypass on Hugging Face Spaces to ensure requests can be made from anywhere.
-            ALLOWED_ORIGINS.add("*")
     except Exception:
         pass
 

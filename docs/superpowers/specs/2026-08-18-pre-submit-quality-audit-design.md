@@ -46,7 +46,7 @@ MLX çökerse ajan döngüsü durur; Space etkilenmez, hiçbir kullanıcı blokl
 | 2 | Model tahminleri AP'nin SQLite'ında `model_predictions` tablosunda önbelleklenir (Mod A). Submit yolunda inference yok. |
 | 3 | Tahminler Mac'ten Space'e **push** edilir: `dqcheck predict-agent` → `GET /pending` → G0 → `POST /predictions` (bearer token). Tunnel yok, inbound yok. |
 | 4 | Ajan inference'ı **Space'ten gelen `pdf_text`** üzerinde yapar — model, annotator'ın gördüğü metnin aynısını okur. |
-| 5 | `model_predictions` GitHub snapshot backup'ına **dahildir**, Neon mirror'a **dahil değildir**. `annotation_audit_logs` mirror'lanır ve `MIRROR_RESTORE_TABLES`'a girer. |
+| 5 | `model_predictions` ve `annotation_audit_logs` Neon mirror'a dahildir ve Space restart'ında restore edilir. Tahmin yazıları yalnız gerçek `dqcheck_agent` / `mlx-g0` ve review edilmiş G0 model fingerprint allowlist'i ile kabul edilir; fixture veya bilinmeyen model satırları mirror'a giremez. |
 | 6 | Tahmin yok / `status='error'` / `truncated` / metin bayat → `audit_status: "model_unavailable"` + `reason`, `bucket` boş. Panel açılmaz, complete akar, audit'e `model_unavailable` yazılır. Asla uyum sayılmaz. |
 | 7 | `/complete` bucket'ı **commit edilecek referanslarla kendisi yeniden hesaplar**. RED/YELLOW ise `audit_ack` şarttır (yoksa 409 `audit_required`); ack'teki `prediction_fingerprint` güncel değilse 409 `audit_stale`. |
 | 8 | Denetim kararı ayrı `annotation_audit_logs` tablosuna, `set_complete`'in **aynı transaction'ı içinde** yazılır. |
@@ -192,11 +192,13 @@ Yeni CLI alt komutu (`cli.py` + `commands.py` + `predict_agent.py`):
 dqcheck --config configs/default.json predict-agent \
   --space-url https://<space>.hf.space \
   --token-env DQCHECK_INGEST_TOKEN \
-  --batch-size 4 --poll-seconds 30 [--once] [--fake-backend]
+  --batch-size 4 --poll-seconds 30 [--once]
 ```
 
 Ajan durumsuzdur: DQC store'una yazmaz, yalnızca Space'i sorar ve sonuç gönderir.
 `--once` ve enjekte edilebilir transport sayesinde ağ olmadan test edilir.
+Canlı ingest yolunda fixture/fake backend seçeneği yoktur; bu davranış yalnızca
+izole birim/E2E testlerinin sınırları içinde simüle edilir.
 
 ## Export
 
@@ -235,5 +237,5 @@ ayrı ve bilinçli bir iştir.
 - Canlı (submit anında) MLX inference — HF donanımında imkânsız.
 - `reference_policy` v2 madde seti — önce override kanıtı toplanacak.
 - DQC `validate_canonical_sources`'ın v4 nesli kabul etmesi.
-- `model_predictions`'ın Neon mirror'a alınması.
+- Prediction cache için çok-nesilli model registry/fingerprint rollout'u.
 - Denetim kararlarının admin panelinde raporlanması.

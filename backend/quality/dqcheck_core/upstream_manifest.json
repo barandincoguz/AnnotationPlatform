@@ -6,7 +6,7 @@
     "fingerprints.py": "3c1b19fc8c3d56afc073016898c423d2461e550cf24e2f7d7a4846b6629688ce",
     "normalization.py": "b2257a3ed2eeaf10c3d1b565b0e4472ed9792a6f7f6e4700baca69f39de6b458",
     "reference_policy.py": "a5a6396d07477df587bd0456d50a753f68ea44ddd17552bd186768dee2958a59",
-    "router.py": "3ee00f20c8c5f343c180c6f8780f9a0e89e92fb83b7dfab583628fc96f8acb7e",
+    "router.py": "d8b5385cba3779c9a06e099687d314c697fb3aa196cfdb6fd155ee64f24289eb",
     "text.py": "170f505b9899064b87054b1bd26d4cfdf19dfdaf637717d2d73f5374e27e90fe"
   },
   "upstream_commit": "a18b4a16be630b23247d4c2c25937fa1570f08e2",

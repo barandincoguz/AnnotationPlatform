@@ -232,10 +232,11 @@ def test_skip_training_requires_auth(client):
 def test_skip_training_allowed_in_production(passed_user, monkeypatch):
     monkeypatch.setattr(config, "ENVIRONMENT", "production")
     monkeypatch.setattr(config, "SPACE_ID", None)
-    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"*"})
+    monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"https://annotation.example"})
 
     res = passed_user["client"].post(
         "/api/training/skip",
+        headers={"Origin": "https://annotation.example"},
     )
     assert res.status_code == 200
 

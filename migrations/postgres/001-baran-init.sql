@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS baran_documents_meta (
     CHECK (estimated_difficulty IN ('Kolay','Orta','Zor'))
 );
 
+CREATE INDEX IF NOT EXISTS baran_idx_docs_created_at ON baran_documents_meta(created_at, document_id);
+
 CREATE INDEX IF NOT EXISTS baran_idx_docs_sayi ON baran_documents_meta(sayi);
 
 CREATE INDEX IF NOT EXISTS baran_idx_docs_konu ON baran_documents_meta(konu);
@@ -390,5 +392,39 @@ CREATE TABLE IF NOT EXISTS baran_user_feedback (
 CREATE INDEX IF NOT EXISTS baran_idx_fb_type ON baran_user_feedback(type);
 
 CREATE INDEX IF NOT EXISTS baran_idx_fb_user_time ON baran_user_feedback(user_id, created_at);
+
+CREATE OR REPLACE FUNCTION baran_enforce_model_prediction_provenance()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.generation <> 'G0'
+       OR NEW.source <> 'dqcheck_agent'
+       OR COALESCE(NEW.operational_json->>'backend', '') <> 'mlx-g0'
+       OR NEW.model_fingerprint !~ '^[0-9a-f]64$'
+       OR NEW.model_fingerprint NOT IN ('3018af0b678572a71588f37132d0318a9eebf210193bedfd5931d9a42b4989f3', 'fec17c05106af5efb4cc919ed90124f9d7e21ec48de62e03ab76c39a257c1934')
+       OR NEW.text_sha256 !~ '^[0-9a-f]64$'
+    THEN
+        RAISE EXCEPTION 'untrusted model prediction provenance';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'baran_protect_model_prediction_provenance'
+          AND tgrelid = 'baran_model_predictions'::regclass
+    ) THEN
+        CREATE TRIGGER baran_protect_model_prediction_provenance
+        BEFORE INSERT OR UPDATE ON baran_model_predictions
+        FOR EACH ROW
+        EXECUTE FUNCTION baran_enforce_model_prediction_provenance();
+    END IF;
+END;
+$$;
 
 COMMIT;
