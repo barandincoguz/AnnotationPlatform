@@ -197,11 +197,11 @@ def commit_and_push(
         if remote_url and pat
         else "origin"
     )
-    push = _run(["git", "push", "--force", push_target, "main"], cwd=backup_dir)
+    push = _run(["git", "push", push_target, "main"], cwd=backup_dir)
     if push.returncode != 0:
         main_stderr = scrub_pat(push.stderr or "")
         if "src refspec main" in (push.stderr or ""):
-            push = _run(["git", "push", "--force", push_target, "master"], cwd=backup_dir)
+            push = _run(["git", "push", push_target, "master"], cwd=backup_dir)
         if push.returncode != 0:
             stderr = scrub_pat(push.stderr or "")
             # Combine both stderrs so we don't lose the main attempt's diagnostic

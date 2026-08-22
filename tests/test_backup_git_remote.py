@@ -200,7 +200,7 @@ def test_commit_and_push_raises_when_pre_push_command_fails(
 
 
 def test_commit_and_push_runs_subprocess_with_timeout(tmp_path):
-    """Verify commit_and_push invokes git push with the 30s timeout."""
+    """Verify commit_and_push invokes git push with the configured timeout."""
     from backend.backup.git_remote import commit_and_push, ensure_initialized
     backup_dir = tmp_path / "backup"
     backup_dir.mkdir()
@@ -226,7 +226,8 @@ def test_commit_and_push_runs_subprocess_with_timeout(tmp_path):
     assert isinstance(sha, str) and len(sha) >= 7
     push_calls = [c for c in captured_calls if c[0][0][:2] == ["git", "push"]]
     assert len(push_calls) == 1
-    assert push_calls[0][1].get("timeout") == 30
+    assert push_calls[0][1].get("timeout") == 120
+    assert "--force" not in push_calls[0][0][0]
 
 
 def test_commit_and_push_falls_back_to_master(tmp_path):

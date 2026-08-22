@@ -3,8 +3,8 @@ import { type Page, expect } from '@playwright/test'
 /**
  * Credentials baked into the e2e seed (backend/cli.py::cmd_seed_e2e).
  * Plain password literals are fine here — the seed only runs against
- * /tmp/anotasyon-e2e-data and the seed command refuses to touch the
- * default production path without --force.
+ * an isolated /tmp/anotasyon-e2e-* directory; the seed command has no force
+ * bypass and refuses both production mode and every non-temporary path.
  */
 export const E2E_PASSWORD = 'e2e-pass-123!'
 export const E2E_USERS = {

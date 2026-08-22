@@ -5,17 +5,22 @@ import { fileURLToPath } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const REPO_ROOT = path.resolve(__dirname, '..')
-const E2E_DATA_DIR = '/tmp/anotasyon-e2e-data'
-const E2E_BACKEND_PORT = 8002
-const E2E_FRONTEND_PORT = 5175
+const E2E_RUN_ID = (process.env.E2E_RUN_ID ?? 'isolated-default').replace(
+  /[^A-Za-z0-9_.-]/g,
+  '-',
+)
+const E2E_DATA_DIR = process.env.E2E_DATA_DIR ?? `/tmp/anotasyon-e2e-${E2E_RUN_ID}`
+const E2E_BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT ?? '39821')
+const E2E_FRONTEND_PORT = Number(process.env.E2E_FRONTEND_PORT ?? '44821')
 const PROXY_TARGET = `http://127.0.0.1:${E2E_BACKEND_PORT}`
 
 /**
  * Playwright config for the annotation platform.
  *
- * Lifecycle: a single Playwright run owns its own isolated backend
- * + frontend, both on dedicated ports so they never collide with the
- * developer's dev servers (`npm run dev` keeps 5173 + 8000).
+ * Lifecycle: every Playwright process owns a unique temporary database and
+ * PID-derived backend/frontend ports. Existing servers are never reused: an
+ * E2E run must not accidentally read from or write to a developer/production
+ * process that happens to be listening on a conventional port.
  *
  * - Backend: `DATA_DIR=/tmp/anotasyon-e2e-data uvicorn backend.main:app
  *   --port 8001`. The seed script reset+rebuilds that DB before the
@@ -25,9 +30,8 @@ const PROXY_TARGET = `http://127.0.0.1:${E2E_BACKEND_PORT}`
  *   The proxy override is read by frontend/vite.config.ts so the SPA
  *   talks to the isolated backend.
  *
- * `reuseExistingServer: true` lets quick iterations (e.g. `playwright
- * test --ui` while the servers are already up) skip the boot
- * sequence. Set the SEED env var to force a fresh seed regardless.
+ * Explicit E2E_* overrides remain available for controlled CI orchestration,
+ * but every default stays isolated from other runs.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -69,7 +73,7 @@ export default defineConfig({
       // "not ready".
       url: `http://127.0.0.1:${E2E_BACKEND_PORT}/openapi.json`,
       ignoreHTTPSErrors: true,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 60_000,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -80,7 +84,7 @@ export default defineConfig({
         `VITE_PROXY_TARGET=${PROXY_TARGET} ` +
         `npm run dev -- --host 127.0.0.1 --port ${E2E_FRONTEND_PORT} --strictPort`,
       url: `http://127.0.0.1:${E2E_FRONTEND_PORT}`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 60_000,
       stdout: 'pipe',
       stderr: 'pipe',
