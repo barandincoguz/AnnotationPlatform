@@ -15,6 +15,7 @@ from typing import Any, Optional
 from backend.quality.adapter import (
     AUDIT_POLICY_ID,
     audit_references,
+    canonicalize_annotation_references,
     reference_identities,
 )
 from backend.quality.dqcheck_core.fingerprints import fingerprint_json, sha256_text
@@ -125,6 +126,23 @@ def _is_usable_prediction(row: sqlite3.Row, document_text: str) -> bool:
     )
 
 
+def _canonical_model_references(row: sqlite3.Row) -> list[dict[str, Any]]:
+    """Decode and validate one cached prediction against the annotation API.
+
+    The ingest endpoint deliberately accepts model-reference fields without
+    running ``ReferenceItem`` so one malformed reference cannot discard valid
+    sibling prediction items in the same agent request. The read boundary is
+    where that deferred validation becomes mandatory: an invalid prediction
+    must never be shown as a real human/model comparison.
+    """
+    payload = json.loads(row["references_json"])
+    if not isinstance(payload, list) or any(
+        not isinstance(reference, dict) for reference in payload
+    ):
+        raise ValueError("model references must be a list of objects")
+    return canonicalize_annotation_references(payload)
+
+
 def model_quotes(db: sqlite3.Connection, document_id: str) -> tuple[str, ...]:
     """Source texts the model proposed — behavioral detectors exempt these."""
     row = load_prediction(db, document_id)
@@ -133,11 +151,11 @@ def model_quotes(db: sqlite3.Connection, document_id: str) -> tuple[str, ...]:
     document_text = _document_text(db, document_id)
     if not _is_usable_prediction(row, document_text):
         return ()
-    return tuple(
-        str(reference.get("source_text") or "")
-        for reference in json.loads(row["references_json"])
-        if reference.get("source_text")
-    )
+    try:
+        references = _canonical_model_references(row)
+    except (ValueError, TypeError, AttributeError):
+        return ()
+    return tuple(reference["source_text"] for reference in references)
 
 
 def _build(
@@ -167,7 +185,18 @@ def _build(
             [],
         )
 
-    model_references = json.loads(row["references_json"])
+    try:
+        model_references = _canonical_model_references(row)
+    except (ValueError, TypeError, AttributeError):
+        return (
+            AuditReport(
+                audit_status="model_unavailable",
+                reason="model_invalid_output",
+                prediction_fingerprint=row["prediction_fingerprint"],
+                model_generation=row["generation"],
+            ),
+            [],
+        )
     outcome = audit_references(
         human_references=references,
         model_references=model_references,

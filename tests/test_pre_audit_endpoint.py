@@ -101,6 +101,24 @@ def test_pre_audit_compound_model_article_matches_api_canonical_form(
     assert body["discrepancies"] == []
 
 
+def test_pre_audit_invalid_model_output_fails_closed(passed_user, ingest_doc):
+    c = passed_user["client"]
+    ingest_doc("d1", pdfText=DOC_TEXT)
+    _seed_prediction("d1", [{**VUK_114, "source_text": ""}])
+
+    response = c.post(
+        "/api/annotations/d1/pre-audit",
+        json={"references": [VUK_114]},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["audit_status"] == "model_unavailable"
+    assert body["reason"] == "model_invalid_output"
+    assert body["bucket"] is None
+    assert body["discrepancies"] == []
+
+
 def test_pre_audit_returns_actionable_model_only_discrepancy(passed_user, ingest_doc):
     c = passed_user["client"]
     ingest_doc("d1", pdfText=DOC_TEXT)

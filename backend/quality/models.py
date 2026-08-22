@@ -38,10 +38,12 @@ class PreAuditResponse(BaseModel):
 class ModelReferenceItem(BaseModel):
     """Model output reference.
 
-    Deliberately NOT ReferenceItem: that model runs AP's `pre_normalize`
-    validator and rejects e.g. madde="5/1-a", which would fail a whole 16-item
-    agent batch because of one malformed model row. Model references are
-    normalized at audit time by the vendored `validate_reference_list`.
+    Deliberately NOT ReferenceItem: strict annotation validation here would
+    reject an otherwise well-formed prediction item when one generated
+    reference is malformed. Agent request items are isolated from one another,
+    and the raw prediction is retained for diagnosis. The read boundary later
+    applies ReferenceItem exactly; invalid output becomes
+    ``model_invalid_output`` and is never presented as a real comparison.
     """
 
     kanun_no: Optional[str] = Field(default=None, max_length=64)

@@ -14,11 +14,7 @@ from dataclasses import dataclass
 from itertools import zip_longest
 from typing import Any, Optional
 
-from backend.annotations.diff import (
-    InvalidReference,
-    normalize_identifier,
-    parse_madde_token,
-)
+from backend.annotations.models import ReferenceItem
 from backend.quality.dqcheck_core.normalization import (
     compact_references,
     core_identity,
@@ -122,59 +118,28 @@ def _exclusive_canonical_tuples(
     return exclusive
 
 
-def _split_compound_madde_fields(
+def canonicalize_annotation_references(
     references: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Align MLX's compact article notation with the annotation contract.
+    """Apply the annotation API's exact reference contract before routing.
 
-    The prediction contract deliberately accepts model output such as
-    ``madde="13/b"`` or ``"16/1-a"`` so one malformed reference cannot reject
-    an entire agent batch.  Human annotation input, however, is canonicalized
-    at the API boundary into separate ``madde``/``fikra``/``bent`` fields.  If
-    the audit sends the raw model notation straight to the vendored router,
-    two identical legal references become different core identities.
+    Human references have already passed through :class:`ReferenceItem` at
+    the HTTP boundary; cached model references deliberately have not, because
+    ingest must isolate a malformed item instead of rejecting its whole batch.
+    Running both sides through the same model here prevents false mismatches
+    for every API transformation, including compound articles, extension
+    punctuation, law aliases/parentheticals, whitespace, and field casing.
 
-    Split only unambiguous tokens and never overwrite a conflicting explicit
-    extension.  Ambiguous model output remains unchanged and therefore stays
-    visible as a genuine discrepancy instead of being silently repaired.
+    ``dict(reference)`` is intentional: ReferenceItem's before-validator
+    normalizes its input mapping in place, and audit code must never mutate the
+    cached prediction or caller-owned annotation object. Invalid model output
+    raises at this boundary; the service converts that into the fail-closed
+    ``model_invalid_output`` unavailable state.
     """
-    aligned: list[dict[str, Any]] = []
-    for reference in references:
-        row = dict(reference)
-        raw_madde = row.get("madde")
-        if raw_madde in (None, ""):
-            aligned.append(row)
-            continue
-        try:
-            madde, parsed_fikra, parsed_bent = parse_madde_token(str(raw_madde))
-        except InvalidReference:
-            aligned.append(row)
-            continue
-        if not (parsed_fikra or parsed_bent):
-            aligned.append(row)
-            continue
-
-        current_fikra = normalize_identifier(row.get("fikra")) or ""
-        current_bent = normalize_identifier(row.get("bent")) or ""
-        if (
-            parsed_fikra
-            and current_fikra
-            and normalize_identifier(parsed_fikra) != current_fikra
-        ) or (
-            parsed_bent
-            and current_bent
-            and normalize_identifier(parsed_bent) != current_bent
-        ):
-            aligned.append(row)
-            continue
-
-        row["madde"] = madde
-        if parsed_fikra and not current_fikra:
-            row["fikra"] = parsed_fikra
-        if parsed_bent and not current_bent:
-            row["bent"] = parsed_bent
-        aligned.append(row)
-    return aligned
+    return [
+        ReferenceItem.model_validate(dict(reference)).model_dump()
+        for reference in references
+    ]
 
 
 def reference_identities(references: list[dict[str, Any]]) -> set[tuple[str, ...]]:
@@ -189,7 +154,7 @@ def reference_identities(references: list[dict[str, Any]]) -> set[tuple[str, ...
     reference (empty `madde`) that compaction removes because a
     specific-article reference for the same law is also present.
     """
-    aligned_references = _split_compound_madde_fields(references)
+    aligned_references = canonicalize_annotation_references(references)
     policy_references, _ = apply_reference_policy(
         aligned_references, policy_id=AUDIT_POLICY_ID
     )
@@ -342,8 +307,8 @@ def audit_references(
     as mutually exclusive.
     """
     decision = route_document(
-        human_references=_split_compound_madde_fields(human_references),
-        model_references=_split_compound_madde_fields(model_references),
+        human_references=canonicalize_annotation_references(human_references),
+        model_references=canonicalize_annotation_references(model_references),
         model_status=model_status,
         model_truncated=model_truncated,
         reference_policy_id=AUDIT_POLICY_ID,

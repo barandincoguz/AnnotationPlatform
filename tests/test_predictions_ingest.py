@@ -145,7 +145,7 @@ def test_text_hash_requires_lowercase_hex(token_client, ingest_doc):
 
 
 def test_malformed_model_reference_does_not_fail_the_batch(token_client, ingest_doc):
-    """madde="5/1-a" is rejected by AP's ReferenceItem but must be accepted here."""
+    """Compact model notation stays raw at ingest and is canonicalized on read."""
     ingest_doc("d1", pdfText=DOC_TEXT)
     item = _item(references=[{
         "kanun_no": "3065", "kanun_ad": "Katma Değer Vergisi Kanunu",

@@ -65,14 +65,53 @@ def test_compound_model_madde_matches_split_human_fikra_and_bent():
     assert outcome.discrepancies == ()
 
 
-def test_compound_model_madde_with_conflicting_explicit_bent_fails_closed():
+def test_compound_madde_uses_same_precedence_as_annotation_api():
+    """The API treats the compound article token as authoritative.
+
+    ReferenceItem canonicalizes ``madde=13/b,bent=c`` to ``madde=13,bent=b``.
+    The audit boundary must make the identical transformation on cached model
+    output, otherwise accepting a model suggestion immediately creates a false
+    RED comparison against that same suggestion.
+    """
     outcome = audit_references(
         human_references=[ref(madde="13", bent="b")],
         model_references=[ref(madde="13/b", bent="c")],
         document_text=DOC_TEXT,
     )
-    assert outcome.bucket == "RED"
-    assert outcome.discrepancies
+    assert outcome.bucket == "GREEN"
+    assert outcome.discrepancies == ()
+
+
+def test_model_law_name_parenthetical_is_canonicalized_like_annotation_api():
+    outcome = audit_references(
+        human_references=[
+            ref(
+                kanun_no="5824",
+                kanun_ad="Katılım Öncesi Yardım Aracı ile İlgili Kanun",
+                madde="",
+            )
+        ],
+        model_references=[
+            ref(
+                kanun_no="5824",
+                kanun_ad="Katılım Öncesi Yardım Aracı (Avrupa Birliği) ile İlgili Kanun",
+                madde="",
+            )
+        ],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "GREEN"
+    assert outcome.discrepancies == ()
+
+
+def test_model_bent_suffix_is_canonicalized_like_annotation_api():
+    outcome = audit_references(
+        human_references=[ref(madde="215", fikra="1", bent="a")],
+        model_references=[ref(madde="215", fikra="1", bent="a)")],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "GREEN"
+    assert outcome.discrepancies == ()
 
 
 def test_case_3_extension_mismatch_is_yellow_detail():
@@ -212,22 +251,22 @@ def test_case_10_multi_reference_core_group_is_side_exclusive():
     assert outcome.model_only == ({"kanun_no": "213", "madde": "114", "fikra": "3", "bent": ""},)
 
 
-def test_case_11_aliased_law_name_exclusivity_is_document_level_not_per_group():
+def test_case_11_unaliased_law_name_exclusivity_is_document_level_not_per_group():
     # kanun_no 6102 cited once per side, agreeing on kanun_no/madde/fikra/bent
-    # but spelled differently ("Turk Ticaret Kanunu" vs "TTK"). LAW_NAME_ALIASES
-    # only maps eight laws and 6102 is not one of them, so the two spellings
-    # normalize to different kanun_ad strings, which makes core_identity (and
-    # therefore the ab_diff grouping) differ even though canonical_tuple
+    # but with two genuinely different, unknown law names. The annotation API
+    # cannot alias these invented names, so core_identity (and therefore the
+    # ab_diff grouping) differs even though canonical_tuple
     # (kanun_no/madde/fikra/bent only) is identical on both sides. The router
     # genuinely sees this as two different core identities -> RED, and the
-    # annotator must still see both rows -- but the exclusive lists must
-    # recognize the two sides agree on the article and stay empty, rather
-    # than recording the same canonical tuple as exclusive to both sides.
+    # annotator must still see both rows -- but the exclusive lists recognize
+    # that both sides cited the same numbered article and stay empty.
     outcome = audit_references(
         human_references=[
-            ref(kanun_no="6102", kanun_ad="Turk Ticaret Kanunu", madde="376")
+            ref(kanun_no="6102", kanun_ad="Birinci Özel Kanun", madde="376")
         ],
-        model_references=[ref(kanun_no="6102", kanun_ad="TTK", madde="376")],
+        model_references=[
+            ref(kanun_no="6102", kanun_ad="İkinci Özel Kanun", madde="376")
+        ],
         document_text=DOC_TEXT,
     )
     assert outcome.bucket == "RED"

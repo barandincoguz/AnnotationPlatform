@@ -112,6 +112,34 @@ def test_prediction_against_older_text_is_stale(db):
     )
 
 
+@pytest.mark.parametrize(
+    "invalid_reference",
+    [
+        {**VUK_114, "source_text": ""},
+        {**VUK_114, "madde": "Ek-5 Geçici-10"},
+        {**VUK_114, "madde": "19/B-b"},
+    ],
+)
+def test_invalid_model_reference_is_unavailable_not_a_false_comparison(
+    db, invalid_reference
+):
+    fingerprint = seed_prediction(db, references=[invalid_reference])
+
+    report = service.build_report(db, document_id="d1", references=[VUK_114])
+
+    assert report.audit_status == "model_unavailable"
+    assert report.reason == "model_invalid_output"
+    assert report.bucket is None
+    assert report.discrepancies == ()
+    assert report.prediction_fingerprint == fingerprint
+
+
+def test_model_quotes_fail_closed_when_any_model_reference_is_invalid(db):
+    seed_prediction(db, references=[VUK_114, {**GVK_94, "source_text": ""}])
+
+    assert service.model_quotes(db, "d1") == ()
+
+
 def test_matching_sets_are_green_and_need_no_ack(db):
     fingerprint = seed_prediction(db)
     report, decision = service.evaluate_for_commit(
