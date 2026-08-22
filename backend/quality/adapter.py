@@ -14,6 +14,11 @@ from dataclasses import dataclass
 from itertools import zip_longest
 from typing import Any, Optional
 
+from backend.annotations.diff import (
+    InvalidReference,
+    normalize_identifier,
+    parse_madde_token,
+)
 from backend.quality.dqcheck_core.normalization import (
     compact_references,
     core_identity,
@@ -117,6 +122,61 @@ def _exclusive_canonical_tuples(
     return exclusive
 
 
+def _split_compound_madde_fields(
+    references: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Align MLX's compact article notation with the annotation contract.
+
+    The prediction contract deliberately accepts model output such as
+    ``madde="13/b"`` or ``"16/1-a"`` so one malformed reference cannot reject
+    an entire agent batch.  Human annotation input, however, is canonicalized
+    at the API boundary into separate ``madde``/``fikra``/``bent`` fields.  If
+    the audit sends the raw model notation straight to the vendored router,
+    two identical legal references become different core identities.
+
+    Split only unambiguous tokens and never overwrite a conflicting explicit
+    extension.  Ambiguous model output remains unchanged and therefore stays
+    visible as a genuine discrepancy instead of being silently repaired.
+    """
+    aligned: list[dict[str, Any]] = []
+    for reference in references:
+        row = dict(reference)
+        raw_madde = row.get("madde")
+        if raw_madde in (None, ""):
+            aligned.append(row)
+            continue
+        try:
+            madde, parsed_fikra, parsed_bent = parse_madde_token(str(raw_madde))
+        except InvalidReference:
+            aligned.append(row)
+            continue
+        if not (parsed_fikra or parsed_bent):
+            aligned.append(row)
+            continue
+
+        current_fikra = normalize_identifier(row.get("fikra")) or ""
+        current_bent = normalize_identifier(row.get("bent")) or ""
+        if (
+            parsed_fikra
+            and current_fikra
+            and normalize_identifier(parsed_fikra) != current_fikra
+        ) or (
+            parsed_bent
+            and current_bent
+            and normalize_identifier(parsed_bent) != current_bent
+        ):
+            aligned.append(row)
+            continue
+
+        row["madde"] = madde
+        if parsed_fikra and not current_fikra:
+            row["fikra"] = parsed_fikra
+        if parsed_bent and not current_bent:
+            row["bent"] = parsed_bent
+        aligned.append(row)
+    return aligned
+
+
 def reference_identities(references: list[dict[str, Any]]) -> set[tuple[str, ...]]:
     """Normalized, compacted full-identity set; tolerates AP's Optional[str] fields.
 
@@ -129,7 +189,10 @@ def reference_identities(references: list[dict[str, Any]]) -> set[tuple[str, ...
     reference (empty `madde`) that compaction removes because a
     specific-article reference for the same law is also present.
     """
-    policy_references, _ = apply_reference_policy(references, policy_id=AUDIT_POLICY_ID)
+    aligned_references = _split_compound_madde_fields(references)
+    policy_references, _ = apply_reference_policy(
+        aligned_references, policy_id=AUDIT_POLICY_ID
+    )
     compacted = compact_references(policy_references)
     return {full_identity(reference) for reference in compacted}
 
@@ -279,8 +342,8 @@ def audit_references(
     as mutually exclusive.
     """
     decision = route_document(
-        human_references=human_references,
-        model_references=model_references,
+        human_references=_split_compound_madde_fields(human_references),
+        model_references=_split_compound_madde_fields(model_references),
         model_status=model_status,
         model_truncated=model_truncated,
         reference_policy_id=AUDIT_POLICY_ID,

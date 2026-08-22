@@ -39,6 +39,42 @@ def test_case_2_normalization_only_difference_is_green():
     assert outcome.discrepancies == ()
 
 
+def test_compound_model_madde_matches_split_human_bent():
+    """MLX may emit ``13/b`` while the annotation API stores ``13`` + ``b``.
+
+    These are the same legal reference and must not create a false RED audit.
+    """
+    outcome = audit_references(
+        human_references=[ref(madde="13", bent="b")],
+        model_references=[ref(madde="13/b", bent="")],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "GREEN"
+    assert outcome.similarity == 1.0
+    assert outcome.discrepancies == ()
+
+
+def test_compound_model_madde_matches_split_human_fikra_and_bent():
+    outcome = audit_references(
+        human_references=[ref(madde="16", fikra="1", bent="a")],
+        model_references=[ref(madde="16/1-a", fikra="", bent="")],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "GREEN"
+    assert outcome.similarity == 1.0
+    assert outcome.discrepancies == ()
+
+
+def test_compound_model_madde_with_conflicting_explicit_bent_fails_closed():
+    outcome = audit_references(
+        human_references=[ref(madde="13", bent="b")],
+        model_references=[ref(madde="13/b", bent="c")],
+        document_text=DOC_TEXT,
+    )
+    assert outcome.bucket == "RED"
+    assert outcome.discrepancies
+
+
 def test_case_3_extension_mismatch_is_yellow_detail():
     outcome = audit_references(
         human_references=[ref(fikra="1")],

@@ -71,6 +71,36 @@ def test_pre_audit_returns_green_for_matching_sets(passed_user, ingest_doc):
     assert body["model_generation"] == "G0"
 
 
+def test_pre_audit_compound_model_article_matches_api_canonical_form(
+    passed_user, ingest_doc
+):
+    """Regression for the live MLX ``madde=13/b`` canary shape."""
+    c = passed_user["client"]
+    ingest_doc("d1", pdfText=DOC_TEXT)
+    model_reference = {
+        "kanun_no": "3065",
+        "kanun_ad": "Katma Değer Vergisi Kanunu",
+        "madde": "13/b",
+        "fikra": None,
+        "bent": None,
+        "source_text": "zamanasimi hukmu duzenlenmistir",
+    }
+    _seed_prediction("d1", [model_reference])
+
+    # ReferenceItem canonicalizes this request to madde=13 + bent=b before
+    # the service compares it with the raw cached model prediction.
+    response = c.post(
+        "/api/annotations/d1/pre-audit",
+        json={"references": [model_reference]},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["bucket"] == "GREEN"
+    assert body["similarity"] == 1.0
+    assert body["discrepancies"] == []
+
+
 def test_pre_audit_returns_actionable_model_only_discrepancy(passed_user, ingest_doc):
     c = passed_user["client"]
     ingest_doc("d1", pdfText=DOC_TEXT)
