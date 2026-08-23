@@ -156,6 +156,73 @@ def test_local_annotation_state_empty_detects_empty_and_non_empty_state():
         conn.close()
 
 
+def test_local_annotation_state_includes_audit_logs():
+    conn = _conn()
+    try:
+        conn.execute(
+            """
+            INSERT INTO documents_meta(
+                document_id, file_path, pdf_text, word_count, sentence_count,
+                text_density, estimated_difficulty, created_at
+            ) VALUES ('doc_1', 'doc.json', 'body', 1, 1, 1, 'Kolay', 'now')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO annotation_audit_logs(
+                document_id, decision, policy_id, created_at
+            ) VALUES ('doc_1', 'model_unavailable', 'policy', 'now')
+            """
+        )
+
+        assert _local_annotation_state_empty(conn) is False
+    finally:
+        conn.close()
+
+
+def test_restore_replaces_existing_human_state_without_delete_guard_deadlock():
+    conn = _conn()
+    try:
+        conn.execute(
+            """
+            INSERT INTO users(
+                id, username, password_hash, role, created_at, updated_at
+            ) VALUES (1, 'old', 'hash', 'user', 'old', 'old')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO documents_meta(
+                document_id, file_path, pdf_text, word_count, sentence_count,
+                text_density, estimated_difficulty, created_at
+            ) VALUES ('old_doc', 'old.json', 'old', 1, 1, 1, 'Kolay', 'old')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO annotations(
+                document_id, references_json, is_completed, edit_count,
+                unique_users_count, created_at, updated_at
+            ) VALUES ('old_doc', '[]', 1, 1, 1, 'old', 'old')
+            """
+        )
+
+        counts = _restore_mirrored_state(conn, _PgConnection())
+
+        assert counts["documents_meta"] == 0
+        assert conn.execute("SELECT COUNT(*) FROM documents_meta").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM annotations").fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' "
+                "AND name='protect_document_human_state_delete'"
+            ).fetchone()[0]
+            == 1
+        )
+    finally:
+        conn.close()
+
+
 def test_mirror_annotation_state_available_checks_annotations_and_drafts():
     assert _mirror_annotation_state_available(
         _CountPgConnection({"annotations": 0, "drafts": 0})

@@ -79,6 +79,28 @@ def test_restore_route_accepts_compressed_snapshot_upload(
     assert resp.json()["tables"]["users"] == 1
 
 
+def test_restore_route_reaches_streaming_route_above_global_json_limit(
+    client,
+    bootstrap_admin,
+):
+    """Real snapshots are larger than the ordinary 16 MiB JSON ceiling."""
+    bootstrap_admin()
+    route_result = {"tables": {}, "total_rows": 0, "skipped_tables": []}
+    payload = b"x" * (17 * 1024 * 1024)
+
+    with patch(
+        "backend.backup.routes.restore_from_snapshot",
+        return_value=route_result,
+    ) as restore:
+        response = client.post(
+            "/api/admin/backup/restore",
+            files={"snapshot": ("snapshot.json", payload, "application/json")},
+        )
+
+    assert response.status_code == 200, response.text
+    restore.assert_called_once()
+
+
 def test_restore_route_writes_audit_row(client, bootstrap_admin, tmp_path):
     """Successful restore writes an admin_audit_log row with action_type=backup_restore."""
     bootstrap_admin()

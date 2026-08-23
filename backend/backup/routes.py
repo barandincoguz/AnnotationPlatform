@@ -21,6 +21,10 @@ from backend.users.deps import get_db, require_admin
 
 log = logging.getLogger(__name__)
 MAX_RESTORE_BYTES = 1024 * 1024 * 1024
+# Multipart framing is part of the HTTP body but not the uploaded snapshot.
+# Keep a bounded allowance so the route's own streaming 1 GiB file limit is
+# reachable without exempting this endpoint from request-size protection.
+MAX_RESTORE_REQUEST_BYTES = MAX_RESTORE_BYTES + 16 * 1024 * 1024
 RESTORE_CHUNK_BYTES = 1024 * 1024
 
 router = APIRouter(prefix="/api/admin/backup", tags=["admin-backup"])

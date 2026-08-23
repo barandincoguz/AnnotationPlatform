@@ -1,5 +1,11 @@
 """v0017 schema, outbox trigger scope, and backup/mirror wiring."""
+
+import sqlite3
+
+import pytest
+
 from backend.migrations import discover_migrations
+from backend.migrations import v0021_complete_document_delete_guard
 from backend.migrations.runner import apply_migrations
 from backend.quality.provenance import HISTORICAL_G0_MODEL_FINGERPRINT
 from backend.shared.db import connect
@@ -138,6 +144,67 @@ def test_document_with_human_annotation_cannot_be_deleted(db_path):
             "SELECT COUNT(*) AS c FROM _outbox WHERE table_name='annotations' "
             "AND op='DELETE'"
         ).fetchone()["c"] == 0
+    finally:
+        conn.close()
+
+
+def test_document_with_denormalized_human_reference_cannot_be_deleted(db_path):
+    conn = _fresh(db_path)
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(
+            "INSERT INTO documents_meta(document_id, file_path, pdf_text, word_count,"
+            " sentence_count, text_density, estimated_difficulty, created_at)"
+            " VALUES ('d1','/tmp/d1.json','metin',1,1,1.0,'Kolay','now')"
+        )
+        conn.execute(
+            "INSERT INTO annotation_references("
+            "document_id, seq, kanun_no, source_text) "
+            "VALUES ('d1', 0, '213', 'human evidence')"
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="human annotation state"):
+            conn.execute("DELETE FROM documents_meta WHERE document_id='d1'")
+
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM annotation_references WHERE document_id='d1'"
+            ).fetchone()["c"]
+            == 1
+        )
+    finally:
+        conn.close()
+
+
+def test_v0021_replaces_the_legacy_delete_guard_on_existing_databases(db_path):
+    conn = _fresh(db_path)
+    try:
+        conn.execute("DROP TRIGGER protect_document_human_state_delete")
+        conn.execute(
+            """
+            CREATE TRIGGER protect_document_human_state_delete
+            BEFORE DELETE ON documents_meta
+            WHEN EXISTS (
+                SELECT 1 FROM annotations WHERE document_id = OLD.document_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'document has human annotation state');
+            END
+            """
+        )
+        v0021_complete_document_delete_guard.up(conn)
+        conn.execute(
+            "INSERT INTO documents_meta(document_id, file_path, pdf_text, word_count,"
+            " sentence_count, text_density, estimated_difficulty, created_at)"
+            " VALUES ('d1','/tmp/d1.json','metin',1,1,1.0,'Kolay','now')"
+        )
+        conn.execute(
+            "INSERT INTO annotation_references(document_id, seq, kanun_no, source_text)"
+            " VALUES ('d1', 0, '213', 'human evidence')"
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="human annotation state"):
+            conn.execute("DELETE FROM documents_meta WHERE document_id='d1'")
     finally:
         conn.close()
 

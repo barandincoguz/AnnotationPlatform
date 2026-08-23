@@ -96,4 +96,4 @@ def sync_postgres_schema(sqlite_conn: sqlite3.Connection, pg_dsn: str) -> None:
             log.info("Postgres schema sync: successfully completed!")
     except Exception as e:
         log.exception("Postgres schema sync: failed to run auto-migration: %s", e)
-        print(f"Postgres schema sync: failed to run auto-migration: {e}")
+        raise

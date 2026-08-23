@@ -47,7 +47,7 @@ from backend.shuffle.routes import router as shuffle_router
 from backend.sse.routes import router as sse_router
 from backend.statistics.routes import router as statistics_router
 from backend.training.routes import router as training_router, admin_router as training_admin_router
-from backend.backup.routes import router as backup_router
+from backend.backup.routes import MAX_RESTORE_REQUEST_BYTES, router as backup_router
 from backend.retention.routes import router as retention_router
 from backend.exports.routes import router as exports_router
 from backend.feedback.routes import router as feedback_router
@@ -93,6 +93,7 @@ ANNOTATION_STATE_TABLES = (
     "annotation_versions",
     "annotation_references",
     "drafts",
+    "annotation_audit_logs",
 )
 
 
@@ -178,6 +179,18 @@ def _restore_mirrored_state(conn, pg_conn) -> dict[str, int]:
     restored_counts: dict[str, int] = {}
     conn.execute("BEGIN IMMEDIATE")
     try:
+        # The document guard intentionally blocks ordinary cascading deletes
+        # of human work. A full durable restore is the one authorised path
+        # that replaces every mirrored table atomically. Drop and recreate the
+        # guard inside this transaction: rollback restores the old trigger if
+        # any remote read/insert fails, and commit can never leave it absent.
+        from backend.migrations.v0019_document_delete_guard import (
+            DOCUMENT_DELETE_GUARD,
+            install_document_delete_guard,
+        )
+
+        conn.execute(f"DROP TRIGGER IF EXISTS {DOCUMENT_DELETE_GUARD}")
+
         # Runtime credentials and ownership never survive an ephemeral restore.
         conn.execute("DELETE FROM user_sessions")
         conn.execute("DELETE FROM document_locks")
@@ -208,6 +221,7 @@ def _restore_mirrored_state(conn, pg_conn) -> dict[str, int]:
                 ]
                 conn.execute(sql, values)
 
+        install_document_delete_guard(conn)
         conn.commit()
         return restored_counts
     except Exception:
@@ -432,7 +446,13 @@ app.add_middleware(SelectiveGZipMiddleware, minimum_size=500, compresslevel=6)
 # Origin allowlist below is the *only* CSRF defense beyond SameSite=Lax;
 # a permissive CORS config silently re-opens the surface.
 app.add_middleware(OriginCheckMiddleware)
-app.add_middleware(RequestBodyLimitMiddleware, max_bytes=16 * 1024 * 1024)
+app.add_middleware(
+    RequestBodyLimitMiddleware,
+    max_bytes=16 * 1024 * 1024,
+    path_max_bytes={
+        "/api/admin/backup/restore": MAX_RESTORE_REQUEST_BYTES,
+    },
+)
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(users_router)
