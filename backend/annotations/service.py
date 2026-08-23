@@ -174,6 +174,20 @@ def _apply_save_inside_txn(
             """,
             (document_id, json.dumps(cleaned), user_id, now, now),
         )
+    elif diff_zero:
+        # A no-op save is still recorded in the version/activity chain, but it
+        # must not make verified content stale. Preserve references,
+        # last-editor attribution and updated_at; only interaction counters
+        # change. This keeps an existing completion/audit valid.
+        db.execute(
+            """
+            UPDATE annotations SET
+                edit_count=edit_count+1,
+                unique_users_count=unique_users_count + ?
+            WHERE document_id=?
+            """,
+            (1 if user_is_new_contributor else 0, document_id),
+        )
     else:
         db.execute(
             """
@@ -192,7 +206,8 @@ def _apply_save_inside_txn(
             ),
         )
 
-    _rebuild_denormalized(db, document_id, cleaned)
+    if is_new or not diff_zero:
+        _rebuild_denormalized(db, document_id, cleaned)
     _delete_caller_draft(db, document_id, user_id)
 
     return {
@@ -270,7 +285,7 @@ def save_annotation(
             references=references,
             now=now,
         )
-        if not result["is_new"]:
+        if not result["is_new"] and not result["is_diff_zero"]:
             db.execute(
                 "UPDATE annotations SET is_completed=0, "
                 "completed_by_user_id=NULL WHERE document_id=? AND is_completed=1",

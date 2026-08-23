@@ -93,11 +93,6 @@ def get_request_ip(request: Request) -> Optional[str]:
         except ValueError:
             peer_is_trusted = False
 
-    # Hugging Face's edge proxy owns the forwarding header and does not
-    # expose a stable public CIDR contract to Space containers.
-    if config.SPACE_ID:
-        peer_is_trusted = True
-
     if peer_is_trusted:
         fwd = request.headers.get("x-forwarded-for")
         if fwd:

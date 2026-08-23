@@ -9,6 +9,7 @@ Two layers:
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -56,4 +57,26 @@ def test_vendored_files_match_live_upstream():
     for name in _manifest()["files"]:
         assert _sha256(CORE_DIR / name) == _sha256(upstream / name), (
             f"{name} drifted from upstream; re-vendor per UPSTREAM.md"
+        )
+
+
+@pytest.mark.skipif(
+    not os.environ.get("DQCHECK_UPSTREAM_PATH"),
+    reason="DQCHECK_UPSTREAM_PATH not set (CI/Docker have no sibling checkout)",
+)
+def test_manifest_hashes_exist_at_declared_upstream_commit():
+    """The manifest must describe the named commit, not only today's files."""
+    repo = Path(os.environ["DQCHECK_UPSTREAM_PATH"])
+    manifest = _manifest()
+    commit = manifest["upstream_commit"]
+    package = manifest["upstream_package_path"]
+    for name, expected in manifest["files"].items():
+        content = subprocess.run(
+            ["git", "show", f"{commit}:{package}/{name}"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        ).stdout
+        assert hashlib.sha256(content).hexdigest() == expected, (
+            f"{name} hash does not exist at declared upstream commit {commit}"
         )

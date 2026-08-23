@@ -41,6 +41,7 @@ log = logging.getLogger(__name__)
 
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+INTERNAL_SERVICE_PATHS = frozenset({"/api/internal/predictions"})
 
 
 class OriginCheckMiddleware:
@@ -62,7 +63,7 @@ class OriginCheckMiddleware:
 
         # Service-to-service routes authenticate with a bearer token and do
         # not consume the browser session cookie, so CSRF does not apply.
-        if str(scope.get("path", "")).startswith("/api/internal/"):
+        if str(scope.get("path", "")) in INTERNAL_SERVICE_PATHS:
             await self.app(scope, receive, send)
             return
 

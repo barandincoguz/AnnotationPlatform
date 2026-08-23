@@ -46,6 +46,13 @@ def test_forwarded_for_ignored_from_untrusted_peer(monkeypatch):
     assert get_request_ip(request) == "203.0.113.10"
 
 
+def test_space_id_does_not_override_explicit_proxy_trust(monkeypatch):
+    _configure(monkeypatch, trusted=False)
+    monkeypatch.setattr(config, "SPACE_ID", "owner/space")
+    request = _request("203.0.113.10", "198.51.100.7")
+    assert get_request_ip(request) == "203.0.113.10"
+
+
 def test_nearest_untrusted_address_selected(monkeypatch):
     _configure(
         monkeypatch,

@@ -9,8 +9,8 @@
     "router.py": "d8b5385cba3779c9a06e099687d314c697fb3aa196cfdb6fd155ee64f24289eb",
     "text.py": "170f505b9899064b87054b1bd26d4cfdf19dfdaf637717d2d73f5374e27e90fe"
   },
-  "upstream_commit": "a18b4a16be630b23247d4c2c25937fa1570f08e2",
+  "upstream_commit": "70638b543b3b4adfe173c826a4eddb0329834763",
   "upstream_package_path": "src/data_quality_checker",
   "upstream_repo": "data-quality-checker",
-  "vendored_at": "2026-08-18"
+  "vendored_at": "2026-08-22"
 }

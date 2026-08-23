@@ -161,6 +161,12 @@ def test_internal_bearer_route_does_not_require_browser_origin(app):
     assert r.status_code == 200
 
 
+def test_dot_segment_path_cannot_claim_internal_bearer_exemption(app):
+    with TestClient(app) as c:
+        r = c.post("/api/internal/../mutate")
+    assert r.status_code == 403
+
+
 def test_wildcard_origin_does_not_disable_csrf(monkeypatch):
     monkeypatch.setattr(config, "is_production", lambda: True)
     monkeypatch.setattr(config, "ALLOWED_ORIGINS", {"*"})

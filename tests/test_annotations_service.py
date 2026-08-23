@@ -163,6 +163,33 @@ def test_save_after_completion_reopens_annotation_for_a_fresh_audit(db):
     assert row["completed_by_user_id"] is None
 
 
+def test_noop_save_preserves_completed_annotation(db):
+    refs = [_ref(kanun_no="193", source_text="unchanged")]
+    ann_service.save_annotation(db, document_id="doc_1", user_id=1, references=refs)
+    ann_service.set_complete(db, document_id="doc_1", user_id=1, completed=True)
+    verified_at = db.execute(
+        "SELECT updated_at FROM annotations WHERE document_id='doc_1'"
+    ).fetchone()["updated_at"]
+
+    result = ann_service.save_annotation(
+        db, document_id="doc_1", user_id=2, references=refs
+    )
+
+    row = db.execute(
+        "SELECT is_completed, completed_by_user_id FROM annotations "
+        "WHERE document_id='doc_1'"
+    ).fetchone()
+    assert result["is_diff_zero"] is True
+    assert row["is_completed"] == 1
+    assert row["completed_by_user_id"] == 1
+    assert (
+        db.execute(
+            "SELECT updated_at FROM annotations WHERE document_id='doc_1'"
+        ).fetchone()["updated_at"]
+        == verified_at
+    )
+
+
 def test_save_rejects_duplicate_refs(db):
     from backend.annotations.diff import DuplicateReference
     refs = [
