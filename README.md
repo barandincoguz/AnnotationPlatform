@@ -27,6 +27,17 @@ tax practitioners.**
 
 </div>
 
+<p align="center">
+  <img src="docs/images/annotate.png"
+       alt="Annotation workspace: document list, ruling text, and a reference card filled with law 3065 article geçici 39"
+       width="100%">
+</p>
+
+<p align="center">
+  <sub>The annotation workspace — ruling on the left, structured citation on the right.
+  The quote is checked against the document as you type.</sub>
+</p>
+
 ---
 
 ## What is this?
@@ -84,41 +95,43 @@ This platform does that:
 
 ---
 
+## The application
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/images/feed.png" alt="Three-tab document feed" width="100%">
+<p><strong>Document feed.</strong> Three tabs — <em>Yeni</em>, <em>Kontrol Gerekiyor</em>,
+<em>Tamamlanan</em> — over a per-user daily shuffle, so the same operator gets the same
+order all day and a different one tomorrow.</p>
+</td>
+<td width="50%" valign="top">
+<img src="docs/images/admin.png" alt="Admin panel user management" width="100%">
+<p><strong>Admin panel.</strong> Audit, events, live locks, mirror health, backups,
+retention, users, feedback, settings, and the training content that gates new
+annotators.</p>
+</td>
+</tr>
+</table>
+
+---
+
 ## System design
 
 The deployment is deliberately split into **stateless compute** and **stateful
 storage you do not own the uptime of**. The container is disposable; nothing
 important lives inside it.
 
-```mermaid
-flowchart TB
-    subgraph Users["Clients"]
-        Ann["Annotators<br/>browser"]
-        Adm["Admin<br/>browser"]
-    end
+<p align="center">
+  <img src="docs/images/architecture.png"
+       alt="Browser to FastAPI to SQLite to Neon Postgres, with the outbox between the local store and the durable mirror"
+       width="100%">
+</p>
 
-    subgraph Space["Container — stateless, disposable"]
-        direction TB
-        App["FastAPI + uvicorn<br/>1 worker, port 7860"]
-        SPA["React SPA<br/>built into backend/static"]
-        Local[("SQLite on ephemeral disk<br/>WAL · working copy only")]
-        Disp["Mirror dispatcher<br/>asyncio lifespan task"]
-        App --- SPA
-        App --> Local
-        Local --> Disp
-    end
-
-    subgraph Durable["Durable, outside the container"]
-        Neon[("Neon Postgres<br/>system of record")]
-        GH[("Private GitHub repo<br/>periodic snapshots")]
-    end
-
-    Ann -->|HTTPS| App
-    Adm -->|HTTPS| App
-    Disp -->|"outbox drain"| Neon
-    Neon -->|"restore on boot"| Local
-    App -->|"snapshot every 24h"| GH
-```
+<p align="center">
+  <sub>Diagrams are generated from <a href="docs/diagrams/">d2 sources</a> —
+  run <code>docs/diagrams/build.sh</code> to rebuild them.</sub>
+</p>
 
 **The single most important property:** if the container dies, is rescheduled,
 or is recreated on another host, the next boot rebuilds its entire local state
@@ -218,16 +231,11 @@ marketing:
 Single uvicorn worker, WAL-mode SQLite, and document-level leases. This removes
 an entire class of distributed-systems failure the project does not need.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Free
-    Free --> Held: acquire — lease granted
-    Held --> Held: heartbeat renews lease
-    Held --> Free: explicit release or skip
-    Held --> Expired: lease elapses without heartbeat
-    Expired --> Free: swept by the locks sweeper
-    Free --> Held: another user acquires
-```
+<p align="center">
+  <img src="docs/images/lock-lifecycle.png"
+       alt="Lock lease states: Free, Held, Expired, with heartbeat renewal and sweeper reclaim"
+       width="820">
+</p>
 
 Layers, from coarse to fine:
 
@@ -249,17 +257,11 @@ Layers, from coarse to fine:
 Every document lives in exactly one of four states **per user**, computed
 server-side and returned as `FeedItem.workflow_state`.
 
-```mermaid
-stateDiagram-v2
-    [*] --> new
-    new --> draft: user types, autosave
-    new --> review: save with references
-    draft --> review: save
-    draft --> new: skip — draft cleared
-    review --> verified: complete
-    verified --> review: uncomplete
-    review --> review: edit — new version appended
-```
+<p align="center">
+  <img src="docs/images/workflow-states.png"
+       alt="Annotation states: new, draft, review, verified, with the transitions between them"
+       width="100%">
+</p>
 
 | State | Meaning | Tab | Icon |
 |-------|---------|-----|------|
@@ -364,55 +366,6 @@ nobody watching.
 The frontend matcher (`frontend/src/lib/validateReferences.ts`) is now a port of
 the Python gate, with a parity table in its test suite pinned to the reference
 implementation's output. If the two ever drift, the suite fails.
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph Client["React 18 + TS strict"]
-        UI["Annotation UI<br/>DocViewer + ReferencePanel"]
-        QC["TanStack Query<br/>cache + invalidation"]
-        SSE["EventSource<br/>feed · lock · notification"]
-    end
-
-    subgraph Server["FastAPI + uvicorn, 1 worker"]
-        Routes["HTTP routes<br/>/api/*"]
-        Services["Service layer<br/>annotations · locks · drafts · shuffle"]
-        Broker["SSE broker<br/>per-user queues"]
-    end
-
-    subgraph Storage["SQLite — WAL + FK + busy timeout"]
-        Annots[("annotations<br/>+ versions + references")]
-        Drafts[("drafts<br/>per user, per doc")]
-        Locks[("document_locks<br/>lease + heartbeat")]
-        Audit[("activity_events<br/>+ admin_audit_log")]
-        Outbox[("_outbox<br/>69 triggers")]
-    end
-
-    subgraph Mirror["Neon mirror — async, one-way"]
-        Dispatcher["asyncio dispatcher"]
-        Neon[("Neon Postgres<br/>baran_* tables")]
-    end
-
-    UI --> QC --> Routes
-    SSE --> UI
-    Broker --> SSE
-    Routes --> Services
-    Services --> Annots
-    Services --> Drafts
-    Services --> Locks
-    Services --> Audit
-    Services --> Broker
-    Annots --> Outbox
-    Drafts --> Outbox
-    Locks --> Outbox
-    Audit --> Outbox
-    Outbox --> Dispatcher --> Neon
-```
-
-Design notes and ADRs live in [`docs/superpowers/`](docs/superpowers/).
 
 ---
 
@@ -594,6 +547,8 @@ AnnotationPlatform/
 ├── analysis/annotation_quality/   # quality + performance report scripts
 ├── docs/
 │   ├── deployment.md         # production runbook
+│   ├── diagrams/             # d2 sources + build.sh (regenerates docs/images)
+│   ├── images/               # rendered diagrams + screenshots
 │   ├── annotation-quality-harness/
 │   └── superpowers/          # design specs + ADRs
 ├── runbooks/                 # restore drill, demo protocol
