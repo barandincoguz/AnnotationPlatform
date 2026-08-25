@@ -466,17 +466,106 @@ export function areAllTrainingReferencesValid(refs: ReferenceItem[]): boolean {
   return refs.every(isValidTrainingReference)
 }
 
-export function cleanForFuzzyMatch(text: string): string {
-  if (!text) return ''
-  return text
+// --- Verbatim quote grounding ------------------------------------------
+//
+// This block MUST stay behaviourally identical to the downstream DQCheck gate,
+// `data_quality_checker.text.evidence_match_mode`
+// (ner-project/data-quality-checker-weak-learning-program/src/data_quality_checker/text.py).
+// A quote the annotator saves here is later re-checked by that gate; if the two
+// disagree, the annotator is told the quote is fine and the pipeline rejects it
+// much later, with nobody watching.
+//
+// History: the previous rule accepted a quote when >= 80% of its words appeared
+// ANYWHERE in the document. That was intended as typo tolerance, but it also
+// accepted quotes reassembled from non-adjacent fragments -- typically a shared
+// lead-in ("3065 sayili KDV Kanununun;") re-prefixed onto each item of a list of
+// articles. Measured over the 1,294-document neon_wl_v1 batch, 563 of 6,098
+// human quotes (9.2%) were not contiguous in their document, and the old rule
+// stayed silent for 98.4% of them. See
+// ner-project/Journal/evidence/findings/2026-08-24_human_evidence_grounding_gap.md
+//
+// Contract: a quote is grounded only if it occurs as ONE CONTIGUOUS SPAN under
+// one of three escalating normalizations.
+
+const HTML_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: '\u00a0',
+}
+
+function unescapeHtml(input: string): string {
+  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (match, body: string) => {
+    if (body.startsWith('#')) {
+      const hex = body[1] === 'x' || body[1] === 'X'
+      const code = Number.parseInt(hex ? body.slice(2) : body.slice(1), hex ? 16 : 10)
+      return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : match
+    }
+    return HTML_ENTITIES[body.toLowerCase()] ?? match
+  })
+}
+
+/** Mirrors `data_quality_checker.text.normalize_text`. */
+export function normalizeQuoteText(value: string | null | undefined): string {
+  return unescapeHtml(String(value ?? ''))
+    .normalize('NFKC')
+    .replace(/[\u00ad\u200b]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const TYPOGRAPHIC_PUNCTUATION: Record<string, string> = {
+  '\u201c': '"',
+  '\u201d': '"',
+  '\u2018': "'",
+  '\u2019': "'",
+  '\u2013': '-',
+  '\u2014': '-',
+}
+
+/** Mirrors `data_quality_checker.text.folded_text`. */
+function foldedQuoteText(value: string | null | undefined): string {
+  return normalizeQuoteText(value)
     .toLowerCase()
-    .replace(/ı/g, 'i')
-    .replace(/ş/g, 's')
-    .replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u')
-    .replace(/ö/g, 'o')
-    .replace(/ç/g, 'c')
-    .replace(/[^a-z0-9]/g, '')
+    .replace(/[\u201c\u201d\u2018\u2019\u2013\u2014]/g, (c) => TYPOGRAPHIC_PUNCTUATION[c] ?? c)
+}
+
+// Mirrors data_quality_checker.text._LOOSE_RE (Turkish lowercase alphabet).
+const NON_ALPHANUMERIC = /[^0-9a-zçğıöşü]+/g
+
+/** Mirrors `data_quality_checker.text.loose_text`. */
+function looseQuoteText(value: string | null | undefined): string {
+  return foldedQuoteText(value).replace(NON_ALPHANUMERIC, ' ').trim()
+}
+
+export type QuoteGroundingMode =
+  | 'normalized_exact'
+  | 'case_punctuation_normalized'
+  | 'loose_alphanumeric'
+
+/**
+ * Mirrors `data_quality_checker.text.evidence_match_mode`: returns the weakest
+ * normalization at which the quote is a contiguous substring of the document,
+ * or `null` when it is not grounded at all.
+ */
+export function quoteGroundingMode(
+  sourceText: string | null | undefined,
+  docText: string | null | undefined,
+): QuoteGroundingMode | null {
+  const source = normalizeQuoteText(sourceText)
+  if (!source) return null
+  const doc = String(docText ?? '')
+  if (doc.includes(source)) return 'normalized_exact'
+  if (foldedQuoteText(doc).includes(foldedQuoteText(source))) {
+    return 'case_punctuation_normalized'
+  }
+  const looseSource = looseQuoteText(source)
+  if (looseSource && looseQuoteText(doc).includes(looseSource)) {
+    return 'loose_alphanumeric'
+  }
+  return null
 }
 
 export function isSourceTextInDoc(
@@ -485,30 +574,7 @@ export function isSourceTextInDoc(
 ): boolean {
   if (!sourceText?.trim()) return true
   if (!docText) return false
-
-  const cleanSource = cleanForFuzzyMatch(sourceText)
-  const cleanDoc = cleanForFuzzyMatch(docText)
-
-  // Level 1: Substring match on fully cleaned text
-  if (cleanDoc.includes(cleanSource)) return true
-
-  // Level 2: Word-level presence check (loose fallback)
-  const words = sourceText
-    .split(/\s+/)
-    .map((w) => cleanForFuzzyMatch(w))
-    .filter((w) => w.length >= 3)
-
-  if (words.length === 0) return true
-
-  let matchedWords = 0
-  for (const word of words) {
-    if (cleanDoc.includes(word)) {
-      matchedWords++
-    }
-  }
-
-  const ratio = matchedWords / words.length
-  return ratio >= 0.8
+  return quoteGroundingMode(sourceText, docText) !== null
 }
 
 export function isReferenceBlank(r: ReferenceLike): boolean {

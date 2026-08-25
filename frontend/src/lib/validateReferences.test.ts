@@ -7,12 +7,13 @@ import {
   normalizeKanunNo, normalizeMadde,
   isInvalidComplexMadde,
   getReferenceFieldDiagnostic,
-  cleanForFuzzyMatch,
   isSourceTextInDoc,
+  quoteGroundingMode,
   checkAndRemoveDuplicateReferences,
   getLawNameByNumber,
   getLawNumberByName,
 } from './validateReferences'
+import type { QuoteGroundingMode } from './validateReferences'
 
 const ref = (overrides: Record<string, unknown> = {}) => ({
   kanun_no: null,
@@ -284,14 +285,6 @@ describe('getReferenceFieldDiagnostic', () => {
   })
 })
 
-describe('cleanForFuzzyMatch', () => {
-  it('downcases, removes punctuation/spaces, and maps Turkish characters', () => {
-    expect(cleanForFuzzyMatch('Gelir Vergisi Kanunu')).toBe('gelirvergisikanunu')
-    expect(cleanForFuzzyMatch('ıİğĞüÜşŞöÖçÇ')).toBe('iigguussoocc')
-    expect(cleanForFuzzyMatch('Madde: 15/A-2')).toBe('madde15a2')
-  })
-})
-
 describe('isSourceTextInDoc', () => {
   const docText = 'Kurumlar Vergisi Kanununun 5 inci maddesinin birinci fıkrasının (e) bendinde yer alan istisna hükmü.'
 
@@ -306,23 +299,92 @@ describe('isSourceTextInDoc', () => {
     expect(isSourceTextInDoc('istisna', null)).toBe(false)
   })
 
-  it('returns true on exact or normalized substring match', () => {
+  it('returns true on a contiguous span, ignoring case, spacing and punctuation', () => {
     expect(isSourceTextInDoc('5 inci maddesinin birinci fıkrasının', docText)).toBe(true)
-    // Ignore case and Turkish characters
-    expect(isSourceTextInDoc('5 İNCİ MADDESININ BIRINCI FIKRASININ', docText)).toBe(true)
-    // Ignore punctuation and spacing
-    expect(isSourceTextInDoc('5. maddesinin, birinci fıkrasının (e) bendinde', docText)).toBe(true)
+    // Case is folded (ASCII capitals only -- see the dotted-i test below).
+    expect(isSourceTextInDoc('5 INCI MADDESININ', docText)).toBe(true)
+    // Collapsed whitespace and trailing punctuation are tolerated.
+    expect(isSourceTextInDoc('  5 inci   maddesinin, birinci fıkrasının  ', docText)).toBe(true)
+    expect(isSourceTextInDoc('(e) bendinde yer alan istisna', docText)).toBe(true)
   })
 
-  it('returns true if at least 80% of words exist in the document (loose matching fallback)', () => {
-    // 8 out of 9 words match (one typo word "yanlisword")
+  // Parity guard. These expectations are the verbatim output of the downstream
+  // reference implementation on the same inputs:
+  //   from data_quality_checker.text import evidence_match_mode
+  // If this table drifts, the two gates have diverged and annotators will again
+  // be told a quote is fine that the pipeline later rejects.
+  it('matches evidence_match_mode mode-for-mode', () => {
+    const expected: [string, QuoteGroundingMode | null][] = [
+      ['5 inci maddesinin birinci fıkrasının', 'normalized_exact'],
+      ['5 İNCİ MADDESİNİN BİRİNCİ FIKRASININ', null],
+      ['5 INCI MADDESININ', 'case_punctuation_normalized'],
+      ['KURUMLAR VERGİSİ KANUNUNUN', null],
+      ['Kurumlar Vergisi Kanununun', 'normalized_exact'],
+      ['  5 inci   maddesinin, birinci fıkrasının  ', 'loose_alphanumeric'],
+      ['(e) bendinde yer alan istisna', 'normalized_exact'],
+      ['birinci fikrasinin', null],
+      ['5 inci maddesinin birinci fıkrasının yanlisword bendinde yer alan', null],
+    ]
+    const actual = expected.map(([source]) => [source, quoteGroundingMode(source, docText)])
+    expect(actual).toEqual(expected)
+  })
+
+  // Contract change (2026-08-24): the old rule accepted a quote when >=80% of
+  // its words appeared anywhere in the document. The downstream DQCheck gate
+  // has no such tolerance, so accepting these here only moved the rejection
+  // somewhere nobody was watching. Dotless/dotted Turkish i is likewise NOT
+  // folded to ASCII, because the downstream gate does not fold it either.
+  it('rejects a quote with a word that is not in the document', () => {
     const source = '5 inci maddesinin birinci fıkrasının yanlisword bendinde yer alan'
-    expect(isSourceTextInDoc(source, docText)).toBe(true)
+    expect(isSourceTextInDoc(source, docText)).toBe(false)
+  })
+
+  it('does not fold Turkish dotted/dotless i to ASCII', () => {
+    // Document says "fıkrasının"; an ASCII "fikrasinin" is a different string
+    // downstream, so it must not be reported as grounded here.
+    expect(isSourceTextInDoc('birinci fikrasinin', docText)).toBe(false)
   })
 
   it('returns false if less than 80% of words exist in the document', () => {
     const source = 'bu cümle tamamen uydurulmuş bir cümledir hiçbir şekilde eşleşmez'
     expect(isSourceTextInDoc(source, docText)).toBe(false)
+  })
+
+  // Regression: real defect from neon_wl_v1 / d000546. A ruling lists several
+  // articles under ONE shared lead-in; the annotator re-prefixed that lead-in
+  // onto each list item. Every word is present in the document, so a
+  // word-presence rule accepts it, but the downstream DQCheck gate
+  // (evidence_match_mode) requires one contiguous span and rejects it.
+  it('rejects a quote reassembled from a shared lead-in and a distant list item', () => {
+    const ruling =
+      '3065 sayılı KDV Kanununun; -1/1 inci maddesinde, Türkiye’de yapılan ' +
+      'teslim ve hizmetlerin KDV ye tabi olduğu, -11/1-a maddesinde, serbest ' +
+      'bölgelerdeki müşteriler için yapılan fason hizmetlerin KDV den istisna ' +
+      'olduğu, -12/3 üncü maddesinde, fason hizmetlerin serbest bölgelerdeki ' +
+      'müşterilere yapılmış sayılabilmesi gerektiği hükümleri yer almaktadır.'
+    // Contiguous in the ruling -> accepted.
+    expect(isSourceTextInDoc('-11/1-a maddesinde, serbest', ruling)).toBe(true)
+    // Reassembled, never contiguous -> must be rejected.
+    expect(isSourceTextInDoc('3065 sayılı KDV Kanununun; 11/1-a maddesinde', ruling)).toBe(false)
+    expect(isSourceTextInDoc('3065 sayılı KDV Kanununun; 12/3 üncü maddesinde', ruling)).toBe(false)
+  })
+
+  it('rejects two distant spans joined with an ellipsis', () => {
+    const ruling =
+      '193 sayılı Gelir Vergisi Kanununun 65 inci maddesinde tanım yer alır. ' +
+      'Devamla, anılan Kanunun 67 nci maddesinin birinci fıkrasında, serbest ' +
+      'meslek kazancının tespiti düzenlenmiştir.'
+    expect(
+      isSourceTextInDoc(
+        '193 sayılı Gelir Vergisi Kanununun...anılan Kanunun 67 nci maddesinin birinci fıkrasında,',
+        ruling,
+      ),
+    ).toBe(false)
+  })
+
+  it('still accepts a contiguous quote that straddles a line break', () => {
+    const wrapped = 'Kurumlar Vergisi Kanununun 5 inci\nmaddesinin birinci fıkrasının (e) bendinde'
+    expect(isSourceTextInDoc('5 inci maddesinin birinci fıkrasının (e) bendinde', wrapped)).toBe(true)
   })
 })
 
