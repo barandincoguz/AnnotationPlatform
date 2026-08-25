@@ -117,10 +117,18 @@ This platform does that:
 order all day and a different one tomorrow.</p>
 </td>
 <td width="50%" valign="top">
+<img src="docs/images/statistics.png" alt="Team statistics with per-annotator XP, badges and counts" width="100%">
+<p><strong>Team statistics.</strong> Documents, saves, completions and XP across the
+team, then per annotator: XP, badges, streak, last activity, and the version count
+behind each figure.</p>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
 <img src="docs/images/admin.png" alt="Admin panel user management" width="100%">
 <p><strong>Admin panel.</strong> Audit, events, live locks, mirror health, backups,
 retention, users, feedback, settings, and the training content that gates new
-annotators.</p>
+annotators before they touch live documents.</p>
 </td>
 </tr>
 </table>
