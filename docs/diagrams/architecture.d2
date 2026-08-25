@@ -1,0 +1,35 @@
+direction: right
+vars: { d2-config: { layout-engine: elk } }
+
+client: "Browser\nReact 18 · TS strict" {
+  direction: down
+  style: { fill: "#eff6ff"; stroke: "#2563eb"; stroke-width: 2; border-radius: 10; font-size: 17 }
+  ui: "Annotation UI\nTanStack Query cache" { style: { fill: "#dbeafe"; stroke: "#2563eb"; border-radius: 6; font-size: 15 } }
+  es: "EventSource ← SSE\nlive feed · lock · notify" { style: { fill: "#bfdbfe"; stroke: "#2563eb"; border-radius: 6; font-size: 15 } }
+}
+
+server: "FastAPI · uvicorn, 1 worker" {
+  direction: down
+  style: { fill: "#eef2ff"; stroke: "#4f46e5"; stroke-width: 2; border-radius: 10; font-size: 17 }
+  sv: "Routes → service layer\nannotations · locks · drafts" { style: { fill: "#e0e7ff"; stroke: "#4f46e5"; border-radius: 6; font-size: 15 } }
+  br: "SSE broker\nper-user queues" { style: { fill: "#c7d2fe"; stroke: "#4f46e5"; border-radius: 6; font-size: 15 } }
+  sv -> br: "publish" { style: { font-size: 14 } }
+}
+
+local: "SQLite · WAL — local working copy" {
+  direction: down
+  style: { fill: "#fffbeb"; stroke: "#d97706"; stroke-width: 2; border-radius: 10; font-size: 17 }
+  tables: "annotations · drafts\nlocks · audit" { shape: cylinder; style: { fill: "#fef3c7"; stroke: "#d97706"; font-size: 15 } }
+  outbox: "_outbox\n69 triggers" { shape: cylinder; style: { fill: "#fed7aa"; stroke: "#ea580c"; font-size: 15 } }
+  tables -> outbox: "same txn" { style: { stroke: "#ea580c"; stroke-width: 2; font-size: 14 } }
+}
+
+neon: "Neon Postgres\nsystem of record\n(survives the container)" {
+  shape: cylinder
+  style: { fill: "#d1fae5"; stroke: "#059669"; stroke-width: 2; font-size: 15 }
+}
+
+client.ui -> server.sv: "HTTPS" { style: { font-size: 14 } }
+server.sv -> local.tables: "BEGIN\nIMMEDIATE" { style: { font-size: 14 } }
+local.outbox -> neon: "async drain" { style: { stroke: "#059669"; stroke-width: 2; font-size: 14 } }
+neon -> local.tables: "restore on boot" { style: { stroke: "#059669"; stroke-dash: 4; font-size: 14 } }
