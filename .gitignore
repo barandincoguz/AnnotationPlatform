@@ -53,3 +53,12 @@ data/import-neon/
 .tmp-wrk-output.txt
 data/gold_standard_benchmark_pool.json
 *.log
+
+# Internal working material and research assets — kept out of the public repo.
+# These live on locally and in private backups; they are not part of the
+# published product.
+docs/superpowers/
+thoughts/
+plans/
+tasks/
+data/gold_standard_sample_100.json

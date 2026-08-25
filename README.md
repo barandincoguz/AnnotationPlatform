@@ -568,8 +568,7 @@ AnnotationPlatform/
 │   ├── deployment.md         # production runbook
 │   ├── diagrams/             # d2 sources + build.sh (regenerates docs/images)
 │   ├── images/               # rendered diagrams + screenshots
-│   ├── annotation-quality-harness/
-│   └── superpowers/          # design specs + ADRs
+│   └── annotation-quality-harness/
 ├── runbooks/                 # restore drill, demo protocol
 ├── Dockerfile                # 3-stage: SPA build → deps → slim runtime
 └── docker-compose.yml
@@ -603,7 +602,7 @@ Latest tag: **`phase-6`** (2026-05-24) — *Cross-team coordination ordering*
 Post-`phase-6` work on `main` includes the feedback system
 (`backend/feedback/`, migration `v0016_user_feedback`, routes `/feedback` and
 `/admin/feedback`) and the verbatim-grounding contract alignment — shipped but
-not yet tagged. See `git tag` and `docs/superpowers/specs/`.
+not yet tagged. See `git tag` for the full list.
 
 ---
 
