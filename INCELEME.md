@@ -18,7 +18,7 @@ görselleri tek sayfada görmen.
 
 ### Sonra (d2) — ✅ temiz
 
-![sonra](docs/images/lock-lifecycle.svg)
+![sonra](docs/images/lock-lifecycle.png)
 
 Çakışma yok. Renk bilgi taşıyor: **yeşil** boş, **mavi** tutuluyor, **kırmızı** süresi dolmuş.
 
@@ -35,7 +35,7 @@ aşağıdan yukarı, her kutu aynı renk.
 
 ### Sonra (d2) — ✅ temiz
 
-![sonra](docs/images/architecture.svg)
+![sonra](docs/images/architecture.png)
 
 Soldan sağa: tarayıcı → FastAPI → SQLite → Neon. Dik açılı yönlendirme,
 katman başına anlamsal renk.
@@ -48,7 +48,7 @@ katman başına anlamsal renk.
 
 ## 3 · Anotasyon durum makinesi (yeni)
 
-![workflow](docs/images/workflow-states.svg)
+![workflow](docs/images/workflow-states.png)
 
 `new → draft → review → verified`. Kesikli oklar geri dönüşler. Renk durumun
 paylaşılırlığını kodluyor: gri yok, sarı yalnız sana ait taslak, mavi paylaşılan,
@@ -113,5 +113,5 @@ Kullanılmayan bir bağımlılık hakeme "gereksiz" görünür, "şık" değil.
 ## Onaylarsan
 
 - Diyagram kaynakları `docs/diagrams/*.d2` — `docs/diagrams/build.sh` ile yeniden üretilebilir
-- Çıktılar `docs/images/`
+- Çıktılar `docs/images/` — hem SVG hem PNG (GitHub SVG'de yazı tipini düşürebiliyor, README'de PNG kullanacağım)
 - README güncellenir, `_review/` klasörü ve bu dosya silinir, `main`'e merge edilir

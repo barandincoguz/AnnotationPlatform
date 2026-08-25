@@ -9,7 +9,13 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 out="$here/../images"
-render() { d2 --theme 0 --pad 24 "$here/$1.d2" "$out/$2.svg"; }
+# SVG for scalability, PNG because GitHub strips <style>/@font-face from SVG
+# and drops the typeface. The README references the PNGs.
+render() {
+  d2 --theme 0 --pad 24 "$here/$1.d2" "$out/$2.svg"
+  d2 --theme 0 --pad 24 "$here/$1.d2" "$out/$2.png" 2>/dev/null \
+    || echo "  note: PNG needs d2's headless browser; SVG written for $2"
+}
 
 render architecture   architecture
 render lock-lifecycle lock-lifecycle
