@@ -1,0 +1,16 @@
+direction: right
+vars: { d2-config: { layout-engine: elk } }
+classes: { st: { style: { border-radius: 8; stroke-width: 2; font-size: 16 } } }
+
+new: "new\nno annotation" { class: st; style: { fill: "#f1f5f9"; stroke: "#64748b" } }
+draft: "draft\nprivate to caller" { class: st; style: { fill: "#fef3c7"; stroke: "#d97706" } }
+review: "review\nshared, open" { class: st; style: { fill: "#dbeafe"; stroke: "#2563eb" } }
+verified: "verified\ncompleted" { class: st; style: { fill: "#dcfce7"; stroke: "#16a34a" } }
+
+new -> draft: "autosave" { style: { font-size: 14 } }
+new -> review: "save with refs" { style: { font-size: 14 } }
+draft -> review: "save" { style: { font-size: 14 } }
+draft -> new: "skip" { style: { font-size: 14; stroke-dash: 3 } }
+review -> verified: "complete" { style: { font-size: 14; stroke: "#16a34a" } }
+verified -> review: "uncomplete" { style: { font-size: 14; stroke-dash: 3 } }
+review -> review: "edit — new version" { style: { font-size: 14 } }

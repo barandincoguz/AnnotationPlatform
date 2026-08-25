@@ -1,0 +1,14 @@
+direction: right
+vars: { d2-config: { layout-engine: elk } }
+classes: {
+  st: { style: { border-radius: 8; stroke-width: 2; font-size: 16 } }
+}
+free: "Free\nno holder" { class: st; style: { fill: "#dcfce7"; stroke: "#16a34a" } }
+held: "Held\nlease active" { class: st; style: { fill: "#dbeafe"; stroke: "#2563eb" } }
+expired: "Expired\nlease elapsed" { class: st; style: { fill: "#fee2e2"; stroke: "#dc2626" } }
+
+free -> held: "acquire" { style: { font-size: 14 } }
+held -> held: "heartbeat renews" { style: { font-size: 14; stroke: "#2563eb" } }
+held -> free: "release / skip" { style: { font-size: 14 } }
+held -> expired: "no heartbeat" { style: { font-size: 14; stroke: "#dc2626" } }
+expired -> free: "sweeper reclaims" { style: { font-size: 14; stroke: "#16a34a" } }
