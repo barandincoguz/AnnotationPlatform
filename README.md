@@ -1,11 +1,22 @@
 ---
-title: Anotasyon Platform
-emoji: 📝
-colorFrom: blue
-colorTo: indigo
+title: Anotasyon Platformu
+emoji: 📑
+colorFrom: yellow
+colorTo: green
 sdk: docker
 app_port: 7860
-pinned: false
+header: mini
+pinned: true
+short_description: Collaborative annotation of Turkish tax rulings with structured legal citations
+tags:
+  - annotation
+  - legal-nlp
+  - turkish
+  - tax-law
+  - named-entity-recognition
+  - fastapi
+  - react
+  - docker
 ---
 
 <div align="center">
