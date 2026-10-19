@@ -47,7 +47,7 @@ jobs:
       - name: eslint
         run: npx eslint src
       - name: vitest
-        run: npx vitest run --pool=threads --poolOptions.threads.maxThreads=2
+        run: npx vitest run --pool=threads --poolOptions.threads.minThreads=1 --poolOptions.threads.maxThreads=2
 
   e2e:
     runs-on: ubuntu-latest

@@ -6,3 +6,5 @@
 - [DQ-Loop kodu ve çalışma kayıtları](https://github.com/barandincoguz/data-quality-checker/blob/main/WORK_RECORDS.md)
 
 ARGE ham veri/karar notları ve eski Git bundle exportları kamuya açık bu depoda yayımlanmaz; özel arşivde kaynak yolları ve checksumlarla korunur. Canlı uygulama/uzman veritabanları ve dağıtım hedefleri değiştirilmez.
+
+ARGE regresyonları kardeş DQ deposu ve özel mevzuat araştırma kayıtlarıyla çalışan `lab_data` entegrasyon testleridir; bu kaynaklar yoksa gerekçeli atlanır, laboratuvar ortamında çalışmaya devam eder. Uygulamanın bağımsız backend/frontend testleri CI içinde çalışır.

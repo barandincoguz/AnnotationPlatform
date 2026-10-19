@@ -7,13 +7,21 @@ import pytest
 
 from scripts.preprocess_arge_law_article import Processor, exact_document_groups, load_dq
 
+pytestmark = pytest.mark.lab_data
+
 
 @pytest.fixture(scope="module")
 def processor():
-    normalizer, _ = load_dq(Path("/Users/student2/data-quality-checker"))
-    root = Path("/Users/student2/ner-project/artifacts")
-    names = json.loads((root / "2026-09-16_arge-hizli-veri-temizleme/dataset/review/_canonical_law_names.json").read_text())
-    registry = json.loads((root / "2026-09-18_ground-truth-hardening/data/law_provision_registry.json").read_text())
+    workspace = Path(__file__).resolve().parents[2]
+    dq = workspace / "data-quality-checker"
+    root = workspace / "ner-project/artifacts"
+    names_path = root / "2026-09-16_arge-hizli-veri-temizleme/dataset/review/_canonical_law_names.json"
+    registry_path = root / "2026-09-18_ground-truth-hardening/data/law_provision_registry.json"
+    if not all(p.is_file() for p in [dq / "src/data_quality_checker/normalization.py", names_path, registry_path]):
+        pytest.skip("ARGE lab integration requires sibling DQ and private research registry files")
+    normalizer, _ = load_dq(dq)
+    names = json.loads(names_path.read_text())
+    registry = json.loads(registry_path.read_text())
     return Processor(normalizer, names, registry)
 
 

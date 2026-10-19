@@ -19,6 +19,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
+    "lab_data: integration with sibling DQ code and private research registry files",
     "docker: smoke tests that require the docker CLI on PATH (slow, ~40-60s per test)",
 ]
 
