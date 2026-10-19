@@ -38,6 +38,8 @@ tax practitioners.**
 
 </div>
 
+> Güncel çalışma kayıtları ve araştırma arşivi: [WORK_RECORDS.md](WORK_RECORDS.md).
+
 <p align="center">
   <img src="docs/images/annotate.png"
        alt="Annotation workspace: document list, ruling text, and a reference card filled with law 3065 article geçici 39"

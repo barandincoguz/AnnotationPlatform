@@ -14,6 +14,7 @@ data/backup/
 data/documents/*
 !data/documents/.gitkeep
 data/exports/
+data/arge/
 data/.mirror-dispatcher.pid
 .DS_Store
 AGENTS.md
@@ -62,3 +63,7 @@ thoughts/
 plans/
 tasks/
 data/gold_standard_sample_100.json
+
+# Internal work exports and expert decision notes are archived privately.
+agent-workflow-export/
+scripts/arge_pending_decisions_*.json
